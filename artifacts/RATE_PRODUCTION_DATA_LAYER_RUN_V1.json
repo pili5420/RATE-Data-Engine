@@ -13,8 +13,6 @@
       "data_quality": "BLOCKED",
       "e2e": "BLOCKED",
       "blocking_issues": [
-        "DATA_SOURCE_UNAVAILABLE:market_daily",
-        "DATA_SOURCE_UNAVAILABLE:market_intraday",
         "DATA_SOURCE_UNAVAILABLE:institutional",
         "DATA_SOURCE_UNAVAILABLE:large_holder",
         "DATA_SOURCE_UNAVAILABLE:fundamental",
@@ -30,16 +28,13 @@
       "input_snapshot_id": null,
       "freshness_validation": "BLOCKED",
       "data_quality": "BLOCKED",
-      "e2e": "BLOCKED:INTRADAY_SOURCE_UNAVAILABLE",
+      "e2e": "BLOCKED",
       "blocking_issues": [
-        "DATA_SOURCE_UNAVAILABLE:market_daily",
-        "DATA_SOURCE_UNAVAILABLE:market_intraday",
         "DATA_SOURCE_UNAVAILABLE:institutional",
         "DATA_SOURCE_UNAVAILABLE:large_holder",
         "DATA_SOURCE_UNAVAILABLE:fundamental",
         "DATA_SOURCE_UNAVAILABLE:benchmark",
-        "DATA_SOURCE_UNAVAILABLE:trading_metadata",
-        "INTRADAY_SOURCE_UNAVAILABLE"
+        "DATA_SOURCE_UNAVAILABLE:trading_metadata"
       ]
     },
     "1200": {
@@ -50,16 +45,13 @@
       "input_snapshot_id": null,
       "freshness_validation": "BLOCKED",
       "data_quality": "BLOCKED",
-      "e2e": "BLOCKED:INTRADAY_SOURCE_UNAVAILABLE",
+      "e2e": "BLOCKED",
       "blocking_issues": [
-        "DATA_SOURCE_UNAVAILABLE:market_daily",
-        "DATA_SOURCE_UNAVAILABLE:market_intraday",
         "DATA_SOURCE_UNAVAILABLE:institutional",
         "DATA_SOURCE_UNAVAILABLE:large_holder",
         "DATA_SOURCE_UNAVAILABLE:fundamental",
         "DATA_SOURCE_UNAVAILABLE:benchmark",
-        "DATA_SOURCE_UNAVAILABLE:trading_metadata",
-        "INTRADAY_SOURCE_UNAVAILABLE"
+        "DATA_SOURCE_UNAVAILABLE:trading_metadata"
       ]
     },
     "1930": {
@@ -72,8 +64,6 @@
       "data_quality": "BLOCKED",
       "e2e": "BLOCKED",
       "blocking_issues": [
-        "DATA_SOURCE_UNAVAILABLE:market_daily",
-        "DATA_SOURCE_UNAVAILABLE:market_intraday",
         "DATA_SOURCE_UNAVAILABLE:institutional",
         "DATA_SOURCE_UNAVAILABLE:large_holder",
         "DATA_SOURCE_UNAVAILABLE:fundamental",
