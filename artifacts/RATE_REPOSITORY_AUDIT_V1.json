@@ -1,0 +1,38 @@
+{
+  "artifact": "RATE_REPOSITORY_AUDIT_V1",
+  "repository": "pili5420/RATE-Data-Engine",
+  "branch": "control/rate-production-validation-v1",
+  "baseline_commit": "68dbc3dec7d8b213f4412c5f881a51fba0e79faf",
+  "control_package_path": "control_center/production_control/v1/",
+  "existing_architecture": "Control package documentation only; no executable RATE engine architecture present at baseline.",
+  "existing_components": {
+    "ingestion_pipeline": false,
+    "schema": false,
+    "validation_framework": false,
+    "candidate_pipeline": false,
+    "production_json": false,
+    "tests": false,
+    "ci_github_actions": false,
+    "production_directories": false,
+    "calculation_modules": false
+  },
+  "missing_components": [
+    "RATE ingestion adapter and production input snapshot",
+    "DATA_CONTRACT implementation",
+    "M7/MHE/Stage/Rotation/Smart Money/Top50/Top30 engine",
+    "validation suite and golden test runner",
+    "production JSON generator",
+    "CI workflow and production directories"
+  ],
+  "spec_vs_code_gap": "100% implementation gap at baseline; package is present but executable code is absent.",
+  "data_source_gap": "No authorized production data source or input_snapshot_id is present.",
+  "validation_gap": "No executable schema, data-quality, calculation, classification, ranking or deterministic validation exists at baseline.",
+  "production_pipeline_gap": "No ingestion-to-production JSON pipeline or E2E runner exists at baseline.",
+  "blocking_issues": [
+    {"code": "DATA_SOURCE_UNAVAILABLE", "affected_gate": "P7 E2E", "detail": "No production source bundle/input snapshot available."},
+    {"code": "UNDEFINED_FORMULA", "affected_gate": "P5 Stage", "detail": "V1.1 defines evidence basis, adjacency and structural override, but not a complete general Stage classification mapping."},
+    {"code": "MISSING_MANIFEST", "affected_gate": "Baseline package integrity", "detail": "control_center/production_control/v1/MANIFEST.json is absent from the specified baseline."}
+  ],
+  "audit_status": "PASS_WITH_BLOCKERS",
+  "production_validation_status": "NOT_RUN"
+}

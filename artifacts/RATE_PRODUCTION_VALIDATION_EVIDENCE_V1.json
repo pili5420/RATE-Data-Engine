@@ -1,0 +1,158 @@
+{
+  "artifact": "RATE_PRODUCTION_VALIDATION_EVIDENCE_V1",
+  "repository": "pili5420/RATE-Data-Engine",
+  "branch": "control/rate-production-validation-v1",
+  "implementation_commit_sha": "68dbc3dec7d8b213f4412c5f881a51fba0e79faf",
+  "baseline_commit": "68dbc3dec7d8b213f4412c5f881a51fba0e79faf",
+  "spec_version": "RATE-PLS-V1.1",
+  "data_contract_version": "RATE-DC-V1.0",
+  "engine_version": "RATE-ENGINE-1.1.0",
+  "input_snapshot_id": null,
+  "data_sources_used": [],
+  "test_count": 15,
+  "passed_tests": 11,
+  "failed_tests": 3,
+  "blocked_tests": 1,
+  "golden_tests": {
+    "passed": 11,
+    "failed": 3,
+    "blocked": 1,
+    "total": 15,
+    "results": [
+      {
+        "fixture": "M7",
+        "expected": 82.75,
+        "actual": 82.0,
+        "status": "FAIL",
+        "error": "CALCULATION_MISMATCH"
+      },
+      {
+        "fixture": "M7",
+        "expected": 52.75,
+        "actual": 52.5,
+        "status": "FAIL",
+        "error": "CALCULATION_MISMATCH"
+      },
+      {
+        "fixture": "M7",
+        "expected": 24.0,
+        "actual": 24.0,
+        "status": "PASS",
+        "error": null
+      },
+      {
+        "fixture": "M7",
+        "expected": 65.0,
+        "actual": 65.0,
+        "status": "PASS",
+        "error": null
+      },
+      {
+        "fixture": "MHE bullish",
+        "expected": 80.5,
+        "actual": 80.5,
+        "status": "PASS"
+      },
+      {
+        "fixture": "MHE conflict states",
+        "status": "PASS"
+      },
+      {
+        "fixture": "Rotation bullish",
+        "expected": 84.25,
+        "actual": 84.25,
+        "status": "PASS"
+      },
+      {
+        "fixture": "Smart Money inflow",
+        "expected": 80.25,
+        "actual": 80.25,
+        "status": "PASS"
+      },
+      {
+        "fixture": "Composite",
+        "expected": 78.25,
+        "actual": 77.5,
+        "status": "FAIL",
+        "error": "CALCULATION_MISMATCH"
+      },
+      {
+        "fixture": "Stage markup",
+        "status": "BLOCKED",
+        "error": "UNDEFINED_FORMULA"
+      },
+      {
+        "fixture": "Stage defensive override",
+        "status": "PASS"
+      },
+      {
+        "fixture": "Top50/Top30 tie-break",
+        "status": "PASS"
+      },
+      {
+        "fixture": "#50/#51 boundary",
+        "status": "PASS"
+      },
+      {
+        "fixture": "#30/#31 boundary",
+        "status": "PASS"
+      },
+      {
+        "fixture": "Deterministic rerun",
+        "status": "PASS"
+      }
+    ]
+  },
+  "validation": {
+    "schema_validation": "PASS",
+    "type_validation": "PASS",
+    "range_validation": "PASS",
+    "freshness_validation": "BLOCKED:DATA_SOURCE_UNAVAILABLE",
+    "duplicate_validation": "PASS",
+    "calculation_validation": "FAIL:CALCULATION_MISMATCH",
+    "classification_validation": "BLOCKED:UNDEFINED_FORMULA",
+    "cross_field_consistency_validation": "PASS",
+    "ranking_validation": "PASS",
+    "deterministic_validation": "PASS"
+  },
+  "e2e_production_dry_run": "BLOCKED:DATA_SOURCE_UNAVAILABLE",
+  "top50_output_validation": "BLOCKED:DATA_SOURCE_UNAVAILABLE",
+  "short_top30_output_validation": "BLOCKED:DATA_SOURCE_UNAVAILABLE",
+  "long_top30_output_validation": "BLOCKED:DATA_SOURCE_UNAVAILABLE",
+  "blocking_errors": [
+    {
+      "code": "DATA_SOURCE_UNAVAILABLE",
+      "affected_gate": "E2E/Data Quality",
+      "detail": "No authorized production source bundle or input_snapshot_id was provided."
+    },
+    {
+      "code": "UNDEFINED_FORMULA",
+      "affected_gate": "Stage/Classification",
+      "detail": "General Stage classification mapping is not defined in RATE-PLS-V1.1."
+    },
+    {
+      "code": "CALCULATION_MISMATCH",
+      "affected_gate": "Golden/Calculation",
+      "detail": "Frozen fixture expected M7 82.75 and Composite 78.25, but formulas in the same spec calculate 82.00 and 77.50."
+    },
+    {
+      "code": "MISSING_MANIFEST",
+      "affected_gate": "Package integrity",
+      "detail": "MANIFEST.json is absent from the supplied baseline."
+    }
+  ],
+  "known_limitations": [
+    "P7 was not run with synthetic data; production acceptance remains with Control Center."
+  ],
+  "gate_summary": {
+    "Specification Gate": "FAIL",
+    "Engineering Gate": "FAIL",
+    "Data Quality Gate": "BLOCKED",
+    "Logic Gate": "FAIL",
+    "Golden Test Gate": "FAIL",
+    "Ranking Gate": "PASS",
+    "Deterministic Gate": "PASS",
+    "E2E Gate": "BLOCKED"
+  },
+  "production_validation_status": "FAIL_BLOCKED_CONTROL_CENTER_REVIEW_REQUIRED"
+}
