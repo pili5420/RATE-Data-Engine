@@ -12,6 +12,7 @@ REQUIRED_FIELDS = {
     "foreign_flow", "investment_trust_flow", "large_holder_structure", "smart_money_flow",
     "fundamental_score", "liquidity",
 }
+REQUIRED_BUNDLE_DOMAINS = {"market_daily", "market_intraday", "institutional", "large_holder", "fundamental", "benchmark", "trading_metadata"}
 NUMERIC_FIELDS = REQUIRED_FIELDS - {"symbol", "market_date", "as_of_timestamp", "source_timestamp", "trading_status"}
 
 class SourceBundleError(ValueError):
@@ -33,14 +34,31 @@ def create_input_snapshot_id(bundle_dir: str | Path, manifest: Mapping[str, obje
         digest.update(path.read_bytes())
     return "rate-snapshot-" + digest.hexdigest()[:24]
 
+def validate_manifest(manifest: Mapping[str, object]) -> list[str]:
+    errors = []
+    if manifest.get("bundle_version") != "RATE-PRODUCTION-SOURCE-V1":
+        errors.append("SCHEMA_VALIDATION:bundle_version")
+    if manifest.get("source_authorization_status") != "PASS":
+        errors.append("SOURCE_AUTHORIZATION_NOT_PASS")
+    domains = {str(item.get("domain")) for item in manifest.get("domains", [])}
+    errors.extend(f"DATA_SOURCE_INCOMPLETE:{domain}" for domain in sorted(REQUIRED_BUNDLE_DOMAINS - domains))
+    for item in manifest.get("domains", []):
+        for key in ("provider", "source_type", "source_timestamp", "retrieval_timestamp", "record_count", "schema_version", "content_hash", "freshness_status", "validation_status"):
+            if key not in item:
+                errors.append(f"LINEAGE_SCHEMA:{item.get('domain', 'unknown')}:{key}")
+    if not manifest.get("files"):
+        errors.append("DATA_SOURCE_UNAVAILABLE:files")
+    return errors
+
 def load_bundle(bundle_dir: str | Path) -> tuple[dict, list[dict]]:
     root = Path(bundle_dir)
     manifest_path = root / "manifest.json"
     if not manifest_path.is_file():
         raise SourceBundleError("DATA_SOURCE_UNAVAILABLE:manifest.json")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if manifest.get("bundle_version") != "RATE-PRODUCTION-SOURCE-V1":
-        raise SourceBundleError("SCHEMA_VALIDATION:bundle_version")
+    manifest_errors = validate_manifest(manifest)
+    if manifest_errors:
+        raise SourceBundleError(";".join(manifest_errors))
     snapshot_id = create_input_snapshot_id(root, manifest)
     records: list[dict] = []
     for entry in manifest.get("files", []):
