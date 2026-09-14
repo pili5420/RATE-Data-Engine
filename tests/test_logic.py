@@ -18,8 +18,11 @@ class GoldenLogicTests(unittest.TestCase):
         self.assertEqual(calculate_rotation({"RS_CHANGE":90,"VOL_CHANGE":80,"SMART_MONEY":85,"MOMENTUM_CHANGE":80})["rotation_score"],84.25)
         self.assertEqual(calculate_smart_money({"FI":85,"IT":80,"LH":75,"FC":80})["smart_money_score"],80.25)
     def test_stage_fixture_and_structural_override(self):
-        self.assertEqual(stage_fixture({"previous_stage":"PRE_MARKUP","price_above_all":True,"ma20_above_ma60":True,"ma20_slope_positive":True,"m7_score":82,"mhe_score":72})["stage_current"],"MARKUP")
+        self.assertEqual(stage_fixture({"previous_stage":"PRE_MARKUP","price_above_all":True,"ma20_above_ma60":True,"ma20_slope_positive":True,"m7_score":82,"mhe_score":72,"relative_strength_strong":True})["stage_current"],"MARKUP")
+        self.assertEqual(stage_fixture({"price":110,"ma20":100,"ma60":90,"ma120":80,"ma20_slope_positive":True,"m7_score":70,"mhe_score":65,"relative_strength_strong":True})["stage_normalized_score"],80)
         result=stage_fixture({"previous_stage":"MARKUP","structural_failure":True}); self.assertTrue(result["stage_override"]); self.assertEqual(result["stage_current"],"DEFENSIVE")
+        self.assertEqual(stage_fixture({"structural_failure":True,"previous_stage":"DEFENSIVE"})["stage_normalized_score"],20)
+        with self.assertRaises(LogicDataIncomplete): stage_fixture({"price":100})
     def test_ranking_and_tie_break_inputs(self):
         scores=rank_composites({"M7":80,"MHE":70,"Stage":85,"Rotation":75,"SmartMoney":80,"Fundamental":70,"RelativeStrength":80})
         self.assertEqual(scores["rate_composite_score"],77.5); self.assertEqual(scores["short_score"],78.0); self.assertEqual(scores["long_score"],76.5)
