@@ -1,0 +1,81 @@
+{
+  "artifact": "RATE_PRODUCTION_SOURCE_BUNDLE",
+  "bundle_version": "RATE-PRODUCTION-SOURCE-V1",
+  "retrieval_timestamp": "2026-09-14T16:22:23.977609Z",
+  "landing_path": "data\\raw_landing\\20260914T162223Z",
+  "sources": [
+    {
+      "domain": "market_daily",
+      "provider": "TWSE Official OpenAPI",
+      "source_type": "OFFICIAL_PRIMARY",
+      "endpoint": "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL",
+      "source_timestamp": "2026-09-14T16:22:23.300419Z",
+      "retrieval_timestamp": "2026-09-14T16:22:23.300419Z",
+      "content_hash": "0b1aff71084982ae31d719b47fff2c975205c6173ccb6d083232b4f5eeb23cbe",
+      "record_count": 1379,
+      "path": "data\\raw_landing\\20260914T162223Z\\twse_daily.json"
+    },
+    {
+      "domain": "benchmark",
+      "provider": "TWSE Official OpenAPI",
+      "source_type": "OFFICIAL_PRIMARY",
+      "endpoint": "https://openapi.twse.com.tw/v1/exchangeReport/MI_INDEX",
+      "source_timestamp": "2026-09-14T16:22:23.372227Z",
+      "retrieval_timestamp": "2026-09-14T16:22:23.372227Z",
+      "content_hash": "4f6bb7381e3b3e63b15923595d8b639a7d1d6424c1e4173376f6e23d38511b21",
+      "record_count": 273,
+      "path": "data\\raw_landing\\20260914T162223Z\\twse_benchmark.json"
+    },
+    {
+      "domain": "market_daily",
+      "provider": "TPEx Official OpenAPI",
+      "source_type": "OFFICIAL_PRIMARY",
+      "endpoint": "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes",
+      "source_timestamp": "2026-09-14T16:22:23.655469Z",
+      "retrieval_timestamp": "2026-09-14T16:22:23.655469Z",
+      "content_hash": "17b5ca054bd68cf96caf7306fe423822624d2293b0ed17b7a91e0494a59dda55",
+      "record_count": 11289,
+      "path": "data\\raw_landing\\20260914T162223Z\\tpex_daily.json"
+    },
+    {
+      "domain": "market_intraday",
+      "provider": "TPEx Official OpenAPI",
+      "source_type": "OFFICIAL_PRIMARY",
+      "endpoint": "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes",
+      "source_timestamp": "2026-09-14T16:22:23.830003Z",
+      "retrieval_timestamp": "2026-09-14T16:22:23.830003Z",
+      "content_hash": "8032a132907b261888596e153a46755259a79c8d2448a8d23f1428a54f999f5c",
+      "record_count": 1013,
+      "path": "data\\raw_landing\\20260914T162223Z\\tpex_quotes.json"
+    },
+    {
+      "domain": "institutional",
+      "provider": "TPEx Official OpenAPI",
+      "source_type": "OFFICIAL_PRIMARY",
+      "endpoint": "https://www.tpex.org.tw/openapi/v1/tpex_3insti_trading",
+      "source_timestamp": "2026-09-14T16:22:23.885854Z",
+      "retrieval_timestamp": "2026-09-14T16:22:23.885854Z",
+      "content_hash": "8cc520850e30bb37272ce67586e6e16796cfe72bb66c0793511205db4af00cc4",
+      "record_count": 36,
+      "path": "data\\raw_landing\\20260914T162223Z\\tpex_institutional.json"
+    },
+    {
+      "domain": "institutional_qfii",
+      "provider": "TPEx Official OpenAPI",
+      "source_type": "OFFICIAL_PRIMARY",
+      "endpoint": "https://www.tpex.org.tw/openapi/v1/tpex_3insti_qfii_trading",
+      "source_timestamp": "2026-09-14T16:22:23.973621Z",
+      "retrieval_timestamp": "2026-09-14T16:22:23.973621Z",
+      "content_hash": "a63c9e6daf32e404743c209dcaf0276dd5bf5dee86fb43e21631854637ba5ac9",
+      "record_count": 417,
+      "path": "data\\raw_landing\\20260914T162223Z\\tpex_qfii.json"
+    }
+  ],
+  "required_missing": [
+    "large_holder",
+    "fundamental",
+    "trading_metadata"
+  ],
+  "input_snapshot_id": null,
+  "validation_status": "BLOCKED"
+}
