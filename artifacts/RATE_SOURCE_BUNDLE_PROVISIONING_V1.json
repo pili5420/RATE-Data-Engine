@@ -1,0 +1,13 @@
+{
+  "artifact": "RATE_SOURCE_BUNDLE_PROVISIONING_V1",
+  "change_id": "RATE-CER-20260915-004",
+  "bundle_contract": "RATE-PRODUCTION-SOURCE-V1",
+  "required_domains": ["price", "volume", "ma20", "ma60", "ma120", "momentum", "relative_strength", "foreign_flow", "investment_trust_flow", "large_holder_structure", "smart_money_flow", "fundamental_score", "liquidity", "trading_status", "source_timestamp", "freshness_metadata"],
+  "ingestion_implementation": "src/source_bundle.py",
+  "snapshot_algorithm": "SHA-256(canonical manifest + exact source file bytes)",
+  "input_snapshot_id": null,
+  "source_bundle_status": "BLOCKED",
+  "blocking_error": "DATA_SOURCE_UNAVAILABLE",
+  "detail": "No authorized Production Source Bundle, source URL, or credential-backed source was supplied. No synthetic records were generated.",
+  "e2e_status": "BLOCKED"
+}
