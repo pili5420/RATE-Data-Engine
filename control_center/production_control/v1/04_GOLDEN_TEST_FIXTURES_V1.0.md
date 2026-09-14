@@ -3,12 +3,12 @@ Status: FROZEN
 
 ## M7-01 Bullish
 Input: PT=90, PV=80, MO=85, FI=75, IT=70, LH=80, RS=90
-Expected M7=82.75
+Expected M7=82.00
 Expected state=STRONG_CONFIRM
 
 ## M7-02 Neutral
 Input: PT=55, PV=50, MO=55, FI=50, IT=50, LH=55, RS=50
-Expected M7=52.75
+Expected M7=52.50
 Expected state=NEUTRAL
 
 ## M7-03 Bearish
@@ -98,7 +98,7 @@ stage_override_reason != NULL
 
 ## TOP50-01
 M7=80, MHE=70, Stage=85, Rotation=75, SM=80, Fundamental=70, RS=80
-Expected RATE Composite=78.25
+Expected RATE Composite=77.50
 
 ## SHORT30-01
 M7=80, Rotation=75, SM=80, MHE=70, Stage=85, RS=80

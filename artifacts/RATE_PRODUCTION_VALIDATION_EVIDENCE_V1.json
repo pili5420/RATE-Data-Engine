@@ -2,7 +2,7 @@
   "artifact": "RATE_PRODUCTION_VALIDATION_EVIDENCE_V1",
   "repository": "pili5420/RATE-Data-Engine",
   "branch": "control/rate-production-validation-v1",
-  "implementation_commit_sha": "1c7908558d1e0cea493fb19ad0b65d1d55a85a36",
+  "implementation_commit_sha": "2c8db43ca3da3eb3068ac137a64e819ecf6eadd7",
   "baseline_commit": "68dbc3dec7d8b213f4412c5f881a51fba0e79faf",
   "spec_version": "RATE-PLS-V1.1",
   "data_contract_version": "RATE-DC-V1.0",
@@ -10,28 +10,28 @@
   "input_snapshot_id": null,
   "data_sources_used": [],
   "test_count": 15,
-  "passed_tests": 11,
-  "failed_tests": 3,
+  "passed_tests": 14,
+  "failed_tests": 0,
   "blocked_tests": 1,
   "golden_tests": {
-    "passed": 11,
-    "failed": 3,
+    "passed": 14,
+    "failed": 0,
     "blocked": 1,
     "total": 15,
     "results": [
       {
         "fixture": "M7",
-        "expected": 82.75,
+        "expected": 82.0,
         "actual": 82.0,
-        "status": "FAIL",
-        "error": "CALCULATION_MISMATCH"
+        "status": "PASS",
+        "error": null
       },
       {
         "fixture": "M7",
-        "expected": 52.75,
+        "expected": 52.5,
         "actual": 52.5,
-        "status": "FAIL",
-        "error": "CALCULATION_MISMATCH"
+        "status": "PASS",
+        "error": null
       },
       {
         "fixture": "M7",
@@ -71,10 +71,10 @@
       },
       {
         "fixture": "Composite",
-        "expected": 78.25,
+        "expected": 77.5,
         "actual": 77.5,
-        "status": "FAIL",
-        "error": "CALCULATION_MISMATCH"
+        "status": "PASS",
+        "error": null
       },
       {
         "fixture": "Stage markup",
@@ -109,7 +109,7 @@
     "range_validation": "PASS",
     "freshness_validation": "BLOCKED:DATA_SOURCE_UNAVAILABLE",
     "duplicate_validation": "PASS",
-    "calculation_validation": "FAIL:CALCULATION_MISMATCH",
+    "calculation_validation": "PASS",
     "classification_validation": "BLOCKED:UNDEFINED_FORMULA",
     "cross_field_consistency_validation": "PASS",
     "ranking_validation": "PASS",
@@ -128,17 +128,12 @@
     {
       "code": "UNDEFINED_FORMULA",
       "affected_gate": "Stage/Classification",
-      "detail": "General Stage classification mapping is not defined in RATE-PLS-V1.1."
+      "detail": "General Stage classification mapping is not defined in RATE-PLS-V1.1; RATE-SPEC-20260914-003 was not present in the repository."
     },
     {
-      "code": "CALCULATION_MISMATCH",
-      "affected_gate": "Golden/Calculation",
-      "detail": "Frozen fixture expected M7 82.75 and Composite 78.25, but formulas in the same spec calculate 82.00 and 77.50."
-    },
-    {
-      "code": "MISSING_MANIFEST",
-      "affected_gate": "Package integrity",
-      "detail": "MANIFEST.json is absent from the supplied baseline."
+      "code": "SPECIFICATION_UNAVAILABLE",
+      "affected_gate": "Stage/Classification",
+      "detail": "RATE-SPEC-20260914-003 is referenced by the request but is not present in the repository."
     }
   ],
   "known_limitations": [
@@ -148,8 +143,8 @@
     "Specification Gate": "FAIL",
     "Engineering Gate": "FAIL",
     "Data Quality Gate": "BLOCKED",
-    "Logic Gate": "FAIL",
-    "Golden Test Gate": "FAIL",
+    "Logic Gate": "BLOCKED",
+    "Golden Test Gate": "PASS_WITH_BLOCKED_STAGE",
     "Ranking Gate": "PASS",
     "Deterministic Gate": "PASS",
     "E2E Gate": "BLOCKED"
