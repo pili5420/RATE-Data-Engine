@@ -8,9 +8,10 @@
     "02_RATE_DATA_CONTRACT_V1.0.md",
     "03_RATE-CER-20260914-002.md",
     "04_GOLDEN_TEST_FIXTURES_V1.0.md",
-    "05_PRODUCTION_ACCEPTANCE_CRITERIA_V1.0.md"
+    "05_PRODUCTION_ACCEPTANCE_CRITERIA_V1.0.md",
+    "06_RATE-SPEC-20260914-003.md"
   ],
   "additional_specification_requested": "RATE-SPEC-20260914-003",
-  "additional_specification_status": "MISSING_FROM_BASELINE",
-  "manifest_version": "1.0"
+  "additional_specification_status": "AVAILABLE",
+  "manifest_version": "1.1"
 }
