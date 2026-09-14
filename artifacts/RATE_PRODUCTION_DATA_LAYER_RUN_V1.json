@@ -1,0 +1,85 @@
+{
+  "artifact": "RATE_PRODUCTION_DATA_LAYER_RUN_V1",
+  "registry": "config/SOURCE_REGISTRY.json",
+  "connected_data_sources": [],
+  "slots": {
+    "0730": {
+      "slot": "0730",
+      "source_authorization": "BLOCKED",
+      "required_domains": "PASS",
+      "production_source_bundle": "BLOCKED",
+      "input_snapshot_id": null,
+      "freshness_validation": "BLOCKED",
+      "data_quality": "BLOCKED",
+      "e2e": "BLOCKED",
+      "blocking_issues": [
+        "DATA_SOURCE_UNAVAILABLE:market_daily",
+        "DATA_SOURCE_UNAVAILABLE:market_intraday",
+        "DATA_SOURCE_UNAVAILABLE:institutional",
+        "DATA_SOURCE_UNAVAILABLE:large_holder",
+        "DATA_SOURCE_UNAVAILABLE:fundamental",
+        "DATA_SOURCE_UNAVAILABLE:benchmark",
+        "DATA_SOURCE_UNAVAILABLE:trading_metadata"
+      ]
+    },
+    "0930": {
+      "slot": "0930",
+      "source_authorization": "BLOCKED",
+      "required_domains": "PASS",
+      "production_source_bundle": "BLOCKED",
+      "input_snapshot_id": null,
+      "freshness_validation": "BLOCKED",
+      "data_quality": "BLOCKED",
+      "e2e": "BLOCKED:INTRADAY_SOURCE_UNAVAILABLE",
+      "blocking_issues": [
+        "DATA_SOURCE_UNAVAILABLE:market_daily",
+        "DATA_SOURCE_UNAVAILABLE:market_intraday",
+        "DATA_SOURCE_UNAVAILABLE:institutional",
+        "DATA_SOURCE_UNAVAILABLE:large_holder",
+        "DATA_SOURCE_UNAVAILABLE:fundamental",
+        "DATA_SOURCE_UNAVAILABLE:benchmark",
+        "DATA_SOURCE_UNAVAILABLE:trading_metadata",
+        "INTRADAY_SOURCE_UNAVAILABLE"
+      ]
+    },
+    "1200": {
+      "slot": "1200",
+      "source_authorization": "BLOCKED",
+      "required_domains": "PASS",
+      "production_source_bundle": "BLOCKED",
+      "input_snapshot_id": null,
+      "freshness_validation": "BLOCKED",
+      "data_quality": "BLOCKED",
+      "e2e": "BLOCKED:INTRADAY_SOURCE_UNAVAILABLE",
+      "blocking_issues": [
+        "DATA_SOURCE_UNAVAILABLE:market_daily",
+        "DATA_SOURCE_UNAVAILABLE:market_intraday",
+        "DATA_SOURCE_UNAVAILABLE:institutional",
+        "DATA_SOURCE_UNAVAILABLE:large_holder",
+        "DATA_SOURCE_UNAVAILABLE:fundamental",
+        "DATA_SOURCE_UNAVAILABLE:benchmark",
+        "DATA_SOURCE_UNAVAILABLE:trading_metadata",
+        "INTRADAY_SOURCE_UNAVAILABLE"
+      ]
+    },
+    "1930": {
+      "slot": "1930",
+      "source_authorization": "BLOCKED",
+      "required_domains": "PASS",
+      "production_source_bundle": "BLOCKED",
+      "input_snapshot_id": null,
+      "freshness_validation": "BLOCKED",
+      "data_quality": "BLOCKED",
+      "e2e": "BLOCKED",
+      "blocking_issues": [
+        "DATA_SOURCE_UNAVAILABLE:market_daily",
+        "DATA_SOURCE_UNAVAILABLE:market_intraday",
+        "DATA_SOURCE_UNAVAILABLE:institutional",
+        "DATA_SOURCE_UNAVAILABLE:large_holder",
+        "DATA_SOURCE_UNAVAILABLE:fundamental",
+        "DATA_SOURCE_UNAVAILABLE:benchmark",
+        "DATA_SOURCE_UNAVAILABLE:trading_metadata"
+      ]
+    }
+  }
+}
