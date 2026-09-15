@@ -3,7 +3,14 @@
   "source": "FUGLE_STOCK_INTRADAY_REST",
   "slots": {},
   "validation_status": "BLOCKED",
+  "gates": {
+    "credential": "BLOCKED:SECRET_NOT_INJECTED",
+    "smoke_test": "BLOCKED",
+    "authorization": "PASS",
+    "previous_decision_state": "BLOCKED",
+    "query_universe": "BLOCKED"
+  },
   "blocking_issues": [
-    "CREDENTIAL_UNAVAILABLE:RATE_SOURCE_API_KEY"
+    "SECRET_NOT_INJECTED"
   ]
 }

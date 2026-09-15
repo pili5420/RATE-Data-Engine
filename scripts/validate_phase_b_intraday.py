@@ -12,6 +12,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 BASE = "https://api.fugle.tw/marketdata/v1.0/stock"
+SMOKE_SYMBOLS = ("2330", "2317")
 REQUIRED = ("symbol", "exchange", "market", "last_price", "open_price",
             "high_price", "low_price", "previous_close", "intraday_volume",
             "quote_timestamp", "retrieval_timestamp", "source")
@@ -66,16 +67,34 @@ def main() -> int:
     ap.add_argument("--slots", required=True)
     ap.add_argument("--live", action="store_true")
     args = ap.parse_args()
-    result = {"provider":"FUGLE", "source":"FUGLE_STOCK_INTRADAY_REST", "slots":{}, "validation_status":"BLOCKED"}
+    result = {"provider":"FUGLE", "source":"FUGLE_STOCK_INTRADAY_REST", "slots":{}, "validation_status":"BLOCKED",
+              "gates": {"credential":"BLOCKED", "smoke_test":"BLOCKED", "authorization":"BLOCKED:FUGLE_TERMS_EVIDENCE_UNAVAILABLE",
+                        "previous_decision_state":"BLOCKED", "query_universe":"BLOCKED"}}
     key = os.environ.get("RATE_SOURCE_API_KEY")
     out_path = Path("artifacts/RATE_PHASE_B_INTRADAY_VALIDATION_V1.json")
     if not key:
-        result["blocking_issues"] = ["CREDENTIAL_UNAVAILABLE:RATE_SOURCE_API_KEY"]
+        result["gates"]["credential"] = "BLOCKED:SECRET_NOT_INJECTED"
+        result["blocking_issues"] = ["SECRET_NOT_INJECTED"]
         out_path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
         print(json.dumps(result, indent=2)); return 2
+    result["gates"]["credential"] = "PASS"
+    # Smoke symbols are isolated from the production universe and never snapshotted.
+    smoke = {"connectivity":"PASS", "schema":"PASS", "quote_timestamp":"PASS", "normalization":"PASS"}
+    try:
+        for symbol in SMOKE_SYMBOLS:
+            normalize(symbol, fetch(symbol, key), datetime.now(timezone.utc).isoformat())
+    except RuntimeError as exc:
+        smoke = {"connectivity":"FAIL", "schema":"FAIL", "quote_timestamp":"FAIL", "normalization":"FAIL", "reason":str(exc)}
+        result["gates"]["smoke_test"] = "FAIL"
+        result["blocking_issues"] = ["FUGLE_ADAPTER_SMOKE_TEST:" + str(exc)]
+        out_path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        print(json.dumps(result, indent=2)); return 1
+    result["gates"]["smoke_test"] = "PASS"; result["smoke_test"] = smoke
     state = Path(os.environ.get("RATE_PREVIOUS_DECISION_STATE", "artifacts/decision_state_0730.json"))
     try: universe = load_universe(state)
     except Exception as exc:
+        result["gates"]["previous_decision_state"] = "BLOCKED:" + str(exc)
+        result["gates"]["query_universe"] = "BLOCKED"
         result["blocking_issues"] = [str(exc)]
         out_path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
         print(json.dumps(result, indent=2)); return 2

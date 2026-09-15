@@ -1,0 +1,23 @@
+name: RATE Phase B Intraday Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      slots:
+        description: "Comma-separated slots"
+        required: false
+        default: "0930,1200"
+
+jobs:
+  phase-b:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      RATE_SOURCE_API_KEY: ${{ secrets.RATE_SOURCE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Run Phase B validation
+        run: python scripts/validate_phase_b_intraday.py --provider fugle --slots "${{ inputs.slots }}" --live
