@@ -1,0 +1,15 @@
+{
+  "schema_id": "RATE-PRODUCTION-SOURCE-BUNDLE-V1",
+  "specification": "RATE-PDSS-V1.0",
+  "required_domains": ["market_daily", "market_intraday", "institutional", "large_holder", "fundamental", "benchmark", "trading_metadata"],
+  "domain_metadata_required": [
+    "provider", "source", "source_timestamp", "retrieval_timestamp", "record_count",
+    "schema_version", "content_hash", "freshness_status", "validation_status",
+    "attribution_license_evidence"
+  ],
+  "allowed_validation_status": ["PASS", "FAIL", "BLOCKED"],
+  "allowed_freshness_status": ["PASS", "LATEST_OFFICIAL_AVAILABLE", "STALE", "BLOCKED"],
+  "content_hash": "sha256 of exact raw domain payload",
+  "lineage_rule": "score -> component -> raw field -> domain -> provider -> source_timestamp",
+  "snapshot_rule": "generate input_snapshot_id only when every required domain and gate passes"
+}

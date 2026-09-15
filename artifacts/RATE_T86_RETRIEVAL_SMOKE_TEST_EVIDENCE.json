@@ -1,0 +1,16 @@
+{
+  "execution_runtime": "local",
+  "workflow_run_id": null,
+  "commit_sha": null,
+  "provider": "TWSE",
+  "source": "TWSE_T86",
+  "request_date": "2025-09-12",
+  "authorization_status": "CONDITIONAL",
+  "response_received": "NO",
+  "HTTP_status": null,
+  "record_count": 0,
+  "schema_detected": "FAIL",
+  "institutional_fields": "FAIL",
+  "exact_blocking_reason": "NETWORK_OR_TIMEOUT:URLError",
+  "retrieval_timestamp": "2026-09-15T13:54:06.938043+00:00"
+}

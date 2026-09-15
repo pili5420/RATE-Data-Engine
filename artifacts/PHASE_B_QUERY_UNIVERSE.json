@@ -1,0 +1,33 @@
+{
+  "artifact": "PHASE_B_QUERY_UNIVERSE",
+  "source_state": "rate-state-47b05b46bfd6db2b9df275b4",
+  "symbols": [
+    {
+      "symbol": "2330",
+      "source_membership": [
+        "ROY_PORTFOLIO",
+        "TOP30"
+      ]
+    },
+    {
+      "symbol": "2317",
+      "source_membership": [
+        "TOP30"
+      ]
+    },
+    {
+      "symbol": "TAIEX",
+      "source_membership": [
+        "BENCHMARK"
+      ]
+    },
+    {
+      "symbol": "2454",
+      "source_membership": [
+        "WATCHLIST"
+      ]
+    }
+  ],
+  "record_count": 4,
+  "validation_status": "PASS"
+}
