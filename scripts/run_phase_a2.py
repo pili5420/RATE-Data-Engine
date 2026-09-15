@@ -16,7 +16,7 @@ def main() -> int:
     ev={"artifact":"RATE_PHASE_A2_VALIDATION_EVIDENCE","workflow_run_id":os.getenv("GITHUB_RUN_ID"),"commit_sha":os.getenv("GITHUB_SHA"),"execution_runtime":"github_actions" if os.getenv("GITHUB_ACTIONS")=="true" else "local","trading_date":args.trading_date,"authorization_status":"CONDITIONAL","gates":{},"model_freeze_integrity":"PASS"}
     ev["gates"]["t86_production_retrieval"]="NOT_RUN"
     try:
-        t86=TWSEAdapter().fetch_t86(); payload=t86.get("payload", t86)
+        t86=TWSEAdapter().fetch_t86(args.trading_date); payload=t86.get("payload", t86); ev['t86_diagnostics']=t86.get('diagnostics',{})
         rows=payload if isinstance(payload,list) else payload.get("data",[])
         ev["t86_record_count"]=len(rows); ev["gates"]["t86_production_retrieval"]="PASS" if rows else "FAIL"
         ev["gates"]["normalization"]="PASS"; ev["gates"]["t86_schema_validation"]="PASS" if rows else "FAIL"

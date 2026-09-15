@@ -1,0 +1,30 @@
+{
+  "artifact": "RATE_PHASE_A2_VALIDATION_EVIDENCE",
+  "workflow_run_id": null,
+  "commit_sha": null,
+  "execution_runtime": "local",
+  "trading_date": "2025-09-12",
+  "authorization_status": "CONDITIONAL",
+  "gates": {
+    "t86_production_retrieval": "FAIL",
+    "type_validation": "BLOCKED:UPSTREAM_T86_FAILURE",
+    "duplicate_validation": "BLOCKED:UPSTREAM_T86_FAILURE",
+    "symbol_validation": "BLOCKED:UPSTREAM_T86_FAILURE",
+    "trading_date_validation": "BLOCKED:UPSTREAM_T86_FAILURE",
+    "freshness": "BLOCKED:UPSTREAM_T86_FAILURE",
+    "completeness": "BLOCKED:UPSTREAM_T86_FAILURE",
+    "arithmetic_validation": "BLOCKED:UPSTREAM_T86_FAILURE",
+    "institutional_merge": "BLOCKED:UPSTREAM_T86_FAILURE",
+    "production_source_bundle": "BLOCKED:UPSTREAM_T86_FAILURE",
+    "snapshot": "BLOCKED:UPSTREAM_T86_FAILURE",
+    "07:30_e2e": "BLOCKED:UPSTREAM_T86_FAILURE",
+    "decision_state": "BLOCKED:UPSTREAM_T86_FAILURE"
+  },
+  "model_freeze_integrity": "PASS",
+  "blocking_issues": [
+    "T86_RETRIEVAL_ERROR:RuntimeError"
+  ],
+  "input_snapshot_id": null,
+  "decision_state_id": null,
+  "validation_status": "NOT_RUN"
+}
