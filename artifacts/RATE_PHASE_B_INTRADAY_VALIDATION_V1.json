@@ -1,0 +1,9 @@
+{
+  "provider": "FUGLE",
+  "source": "FUGLE_STOCK_INTRADAY_REST",
+  "slots": {},
+  "validation_status": "BLOCKED",
+  "blocking_issues": [
+    "CREDENTIAL_UNAVAILABLE:RATE_SOURCE_API_KEY"
+  ]
+}
