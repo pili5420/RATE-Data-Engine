@@ -30,14 +30,9 @@ def main() -> int:
             ev["gates"][gate]="BLOCKED:UPSTREAM_T86_FAILURE"
         ev["input_snapshot_id"]=None; ev["decision_state_id"]=None
     else:
-        if args.source_bundle and bundle.get('validation_status','PASS')=='PASS':
-            for gate in ("type_validation","duplicate_validation","symbol_validation","trading_date_validation","freshness","completeness","arithmetic_validation","institutional_merge","production_source_bundle","snapshot"): ev['gates'][gate]='PASS'
-            ev['input_snapshot_id']=bundle.get('input_snapshot_id')
-            ev['previous_state_id']='GENESIS_STATE_ID'
-            ev['gates']['07:30_e2e']='PASS'; ev['decision_state_id']='rate-state-'+hashlib.sha256((ev['input_snapshot_id']+'GENESIS_STATE_ID').encode()).hexdigest()[:24]; ev['gates']['decision_state']='PASS'; ev['gates']['deterministic']='PASS'; ev['gates']['query_universe']='PASS'; ev['query_universe_size']=4; ev['blocking_issues']=[]
-        else:
-            for gate in ("type_validation","duplicate_validation","symbol_validation","trading_date_validation","freshness","completeness","arithmetic_validation","institutional_merge","production_source_bundle","snapshot","07:30_e2e","decision_state"): ev["gates"][gate]="NOT_RUN"
-            ev["blocking_issues"]=["PHASE_A2_VALIDATION_PIPELINE_PENDING_IMPLEMENTATION"]; ev["input_snapshot_id"]=None; ev["decision_state_id"]=None
+        for gate in ("type_validation","duplicate_validation","symbol_validation","trading_date_validation","freshness","completeness","arithmetic_validation","institutional_merge","production_source_bundle","snapshot","07:30_e2e","decision_state"): ev["gates"][gate]="NOT_RUN"
+        ev["blocking_issues"]=["VALIDATION_PIPELINE_COMPONENT_INTERFACE_UNAVAILABLE"]
+        ev["input_snapshot_id"]=None; ev["decision_state_id"]=None
     ev["validation_status"]="PASS" if all(v=="PASS" for v in ev["gates"].values()) else "NOT_RUN"
     out=Path("artifacts/RATE_PHASE_A2_VALIDATION_EVIDENCE.json"); out.write_text(json.dumps(ev,ensure_ascii=False,indent=2)+"\n",encoding="utf-8"); print(json.dumps(ev,ensure_ascii=False,indent=2)); return 0
 if __name__=="__main__": sys.exit(main())
