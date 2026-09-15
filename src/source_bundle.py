@@ -43,7 +43,7 @@ def validate_manifest(manifest: Mapping[str, object]) -> list[str]:
     domains = {str(item.get("domain")) for item in manifest.get("domains", [])}
     errors.extend(f"DATA_SOURCE_INCOMPLETE:{domain}" for domain in sorted(REQUIRED_BUNDLE_DOMAINS - domains))
     for item in manifest.get("domains", []):
-        for key in ("provider", "source_type", "source_timestamp", "retrieval_timestamp", "record_count", "schema_version", "content_hash", "freshness_status", "validation_status"):
+        for key in ("provider", "source", "source_type", "source_timestamp", "retrieval_timestamp", "record_count", "schema_version", "content_hash", "freshness_status", "validation_status", "attribution_license_evidence"):
             if key not in item:
                 errors.append(f"LINEAGE_SCHEMA:{item.get('domain', 'unknown')}:{key}")
     if not manifest.get("files"):

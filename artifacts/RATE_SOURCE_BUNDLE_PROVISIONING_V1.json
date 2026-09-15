@@ -2,6 +2,7 @@
   "artifact": "RATE_SOURCE_BUNDLE_PROVISIONING_V1",
   "change_id": "RATE-CER-20260915-004",
   "bundle_contract": "RATE-PRODUCTION-SOURCE-V1",
+  "bundle_schema": "config/RATE_PRODUCTION_SOURCE_BUNDLE_SCHEMA_V1.json",
   "source_authorization_matrix": "artifacts/SOURCE_AUTHORIZATION_MATRIX_V1.json",
   "source_authorization": "PARTIAL",
   "authorized_datasets": ["TPEx 上櫃股票行情", "TPEx 上櫃股票收盤行情", "TPEx 上櫃股票三大法人買賣明細資訊", "TPEx 櫃買指數歷史資料", "TPEx 上櫃股票市場現況"],
