@@ -1,13 +1,15 @@
 {
-  "execution_runtime": "github_actions",
+  "runner": "RATE_0730_E2E_RUNNER",
   "trading_date": "2025-09-12",
+  "model_version": "RATE-ENGINE-1.1.0",
+  "data_contract_version": "RATE-DC-V1.0",
+  "calculation_spec_version": "RATE-PLS-V1.1",
   "model_freeze_integrity": "PASS",
   "gates": {
-    "production_source_bundle": "BLOCKED:SOURCE_BUNDLE_UNAVAILABLE",
-    "07:30_e2e": "BLOCKED:UPSTREAM_BUNDLE"
+    "07:30_e2e": "BLOCKED:SNAPSHOT_UNAVAILABLE"
   },
   "blocking_issues": [
-    "SOURCE_BUNDLE_UNAVAILABLE"
+    "SNAPSHOT_UNAVAILABLE"
   ],
   "current_state_id": null
 }
