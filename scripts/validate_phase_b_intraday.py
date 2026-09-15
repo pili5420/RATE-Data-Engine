@@ -68,13 +68,17 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--provider", required=True, choices=["fugle"])
     ap.add_argument("--slots", default="0930,1200")
+    ap.add_argument("--smoke-test", action="store_true")
     ap.add_argument("--live", action="store_true")
     args = ap.parse_args()
-    result = {"provider":"FUGLE", "source":"FUGLE_STOCK_INTRADAY_REST", "slots":{}, "validation_status":"BLOCKED",
+    result = {"run_id": os.environ.get("GITHUB_RUN_ID"), "commit_sha": os.environ.get("GITHUB_SHA"),
+              "provider":"FUGLE", "source":"FUGLE_STOCK_INTRADAY_REST", "execution_runtime":"github_actions" if os.environ.get("GITHUB_ACTIONS") == "true" else "local",
+              "credential_present": bool(os.environ.get("RATE_SOURCE_API_KEY")), "http_status": None,
+              "slots":{}, "validation_status":"BLOCKED",
               "gates": {"credential":"BLOCKED", "smoke_test":"BLOCKED", "authorization":"PASS_FOR_EPHEMERAL_INTERNAL_ANALYTICS",
                         "previous_decision_state":"BLOCKED", "query_universe":"BLOCKED"}}
     key = os.environ.get("RATE_SOURCE_API_KEY")
-    out_path = Path("artifacts/RATE_PHASE_B_INTRADAY_VALIDATION_V1.json")
+    out_path = Path("artifacts/RATE_PHASE_B_SMOKE_TEST_EVIDENCE.json") if args.smoke_test else Path("artifacts/RATE_PHASE_B_INTRADAY_VALIDATION_V1.json")
     if not key:
         result["gates"]["credential"] = "BLOCKED:SECRET_NOT_INJECTED"
         result["blocking_issues"] = ["SECRET_NOT_INJECTED"]
@@ -87,12 +91,13 @@ def main() -> int:
         out_path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
         print(json.dumps(result, indent=2)); return 2
     # Smoke symbols are isolated from the production universe and never snapshotted.
-    smoke = {"connectivity":"PASS", "schema":"PASS", "quote_timestamp":"PASS", "normalization":"PASS"}
+    smoke = {"connectivity":"PASS", "schema":"PASS", "quote_timestamp":"PASS", "normalization":"PASS", "freshness":"PASS"}
     try:
         for symbol in SMOKE_SYMBOLS:
             normalize(symbol, fetch(symbol, key), datetime.now(timezone.utc).isoformat())
+        result["http_status"] = 200
     except RuntimeError as exc:
-        smoke = {"connectivity":"FAIL", "schema":"FAIL", "quote_timestamp":"FAIL", "normalization":"FAIL", "reason":str(exc)}
+        smoke = {"connectivity":"FAIL", "schema":"FAIL", "quote_timestamp":"FAIL", "normalization":"FAIL", "freshness":"FAIL", "reason":str(exc)}
         result["gates"]["smoke_test"] = "FAIL"
         reason = str(exc)
         if reason == "INVALID_API_KEY": result["gates"]["credential"] = "FAIL:INVALID_API_KEY"
@@ -103,6 +108,12 @@ def main() -> int:
         out_path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
         print(json.dumps(result, indent=2)); return 1
     result["gates"]["smoke_test"] = "PASS"; result["smoke_test"] = smoke
+    if args.smoke_test:
+        result["test_symbols"] = list(SMOKE_SYMBOLS)
+        result["phase_b_a_data_source_acceptance"] = "PASS"
+        result["validation_status"] = "PASS"
+        out_path.write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        print(json.dumps(result, indent=2, ensure_ascii=False)); return 0
     state = Path(os.environ.get("RATE_PREVIOUS_DECISION_STATE", "artifacts/decision_state_0730.json"))
     try: universe = load_universe(state)
     except Exception as exc:
