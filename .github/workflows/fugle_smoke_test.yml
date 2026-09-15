@@ -1,0 +1,82 @@
+name: Fugle Authenticated Smoke Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    env:
+      RATE_SOURCE_API_KEY: ${{ secrets.RATE_SOURCE_API_KEY }}
+
+    steps:
+      - name: Check secret injection
+        shell: bash
+        run: |
+          if [ -z "${RATE_SOURCE_API_KEY:-}" ]; then
+            echo "SECRET_INJECTION=FAIL"
+            exit 1
+          fi
+          echo "SECRET_INJECTION=PASS"
+
+      - name: Send authenticated Fugle request
+        id: fugle
+        shell: bash
+        run: |
+          HTTP_STATUS=$(curl --silent --show-error             --output fugle_response.json             --write-out "%{http_code}"             --request GET             "https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/2330"             --header "X-API-KEY: ${RATE_SOURCE_API_KEY}")
+          echo "HTTP_STATUS=${HTTP_STATUS}"
+          echo "http_status=${HTTP_STATUS}" >> "$GITHUB_OUTPUT"
+          if [ "${HTTP_STATUS}" != "200" ]; then
+            echo "FUGLE_SMOKE_TEST=FAIL"
+            exit 1
+          fi
+          echo "FUGLE_SMOKE_TEST=PASS"
+
+      - name: Validate response schema
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          with open("fugle_response.json", "r", encoding="utf-8") as f:
+              data = json.load(f)
+          required = ["date", "symbol", "exchange", "market"]
+          missing = [k for k in required if k not in data]
+          print("SYMBOL =", data.get("symbol"))
+          print("EXCHANGE =", data.get("exchange"))
+          print("MARKET =", data.get("market"))
+          print("QUOTE_DATE =", data.get("date"))
+          if missing:
+              print("SCHEMA_VALIDATION=FAIL")
+              print("MISSING_FIELDS =", ",".join(missing))
+              raise SystemExit(1)
+          print("SCHEMA_VALIDATION=PASS")
+          PY
+
+      - name: Write evidence
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          evidence = {
+            "execution_runtime": "github_actions",
+            "run_id": os.getenv("GITHUB_RUN_ID"),
+            "commit_sha": os.getenv("GITHUB_SHA"),
+            "provider": "FUGLE",
+            "source": "FUGLE_STOCK_INTRADAY_REST",
+            "credential_present": bool(os.getenv("RATE_SOURCE_API_KEY")),
+            "authorization": "PASS_FOR_EPHEMERAL_INTERNAL_ANALYTICS"
+          }
+          with open("RATE_PHASE_B_SMOKE_TEST_EVIDENCE.json","w",encoding="utf-8") as f:
+              json.dump(evidence,f,ensure_ascii=False,indent=2)
+          PY
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rate-phase-b-smoke-test-evidence
+          path: RATE_PHASE_B_SMOKE_TEST_EVIDENCE.json
