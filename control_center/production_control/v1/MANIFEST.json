@@ -11,7 +11,8 @@
     "05_PRODUCTION_ACCEPTANCE_CRITERIA_V1.0.md",
     "06_RATE-SPEC-20260914-003.md",
     "07_RATE_PRODUCTION_DATA_SOURCE_SPEC_V1.0.md",
-    "08_RATE-CER-20260915-004.md"
+    "08_RATE-CER-20260915-004.md",
+    "09_RATE_FREE_PRODUCTION_DATA_PROFILE_V1.0.md"
   ],
   "additional_specification_requested": "RATE-SPEC-20260914-003",
   "additional_specification_status": "AVAILABLE",
@@ -19,5 +20,8 @@
   "production_data_source_spec_status": "FROZEN / APPROVED FOR ENGINEERING",
   "production_data_change_request": "RATE-CER-20260915-004",
   "production_data_change_request_status": "APPROVED FOR IMPLEMENTATION",
-  "manifest_version": "1.2"
+  "free_production_data_profile": "RATE-FPDP-V1.0",
+  "free_production_data_profile_status": "FROZEN / APPROVED FOR ENGINEERING",
+  "twse_t86_production_authorization": "BLOCKED_PENDING_WRITTEN_CONFIRMATION",
+  "manifest_version": "1.3"
 }
