@@ -6,10 +6,73 @@
   "calculation_spec_version": "RATE-PLS-V1.1",
   "model_freeze_integrity": "PASS",
   "gates": {
-    "07:30_e2e": "BLOCKED:SNAPSHOT_UNAVAILABLE"
+    "07:30_e2e": "PASS",
+    "deterministic": "PASS"
   },
-  "blocking_issues": [
-    "SNAPSHOT_UNAVAILABLE"
-  ],
-  "current_state_id": null
+  "current_state_id": "rate-state-47b05b46bfd6db2b9df275b4",
+  "previous_state_id": "GENESIS_STATE_ID",
+  "input_snapshot_id": "fixture-snapshot-a2",
+  "decision_payload_hash": "47b05b46bfd6db2b9df275b4e0cbd54c0295c6860c7cc45389b68ae0499b4903",
+  "decision": {
+    "input_snapshot_id": "fixture-snapshot-a2",
+    "previous_state_id": "GENESIS_STATE_ID",
+    "trading_date": "2025-09-12",
+    "M7": {
+      "m7_score": 82.0,
+      "m7_state": "STRONG_CONFIRM",
+      "components": {
+        "PT": 90,
+        "PV": 80,
+        "MO": 85,
+        "FI": 75,
+        "IT": 70,
+        "LH": 80,
+        "RS": 90
+      }
+    },
+    "MHE": {
+      "mhe_score": 80.5,
+      "mhe_state": "MULTI_HORIZON_BULLISH",
+      "mhe_conflict_state": "NONE",
+      "components": {
+        "H5": 80,
+        "H20": 85,
+        "H60": 80,
+        "H120": 75
+      }
+    },
+    "Stage": {
+      "stage_current": "MARKUP",
+      "stage_normalized_score": 90,
+      "stage_override": false,
+      "stage_override_reason": null
+    },
+    "Rotation": {
+      "rotation_score": 84.25,
+      "rotation_state": "ACCELERATING",
+      "components": {
+        "RS_CHANGE": 90,
+        "VOL_CHANGE": 80,
+        "SMART_MONEY": 85,
+        "MOMENTUM_CHANGE": 80
+      }
+    },
+    "SmartMoney": {
+      "smart_money_score": 80.25,
+      "smart_money_state": "STRONG_INFLOW",
+      "components": {
+        "FI": 85,
+        "IT": 80,
+        "LH": 75,
+        "FC": 80
+      }
+    },
+    "composite": {
+      "rate_composite_score": 83.15,
+      "short_score": 82.98,
+      "long_score": 82.84
+    },
+    "model_version": "RATE-ENGINE-1.1.0",
+    "calculation_spec_version": "RATE-PLS-V1.1"
+  }
 }
