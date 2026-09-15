@@ -1,0 +1,24 @@
+name: RATE Phase A2 Production Integration
+on:
+  workflow_dispatch:
+    inputs:
+      trading_date:
+        description: "Completed trading date YYYY-MM-DD"
+        required: true
+        default: "2025-09-12"
+jobs:
+  phase-a2:
+    runs-on: ubuntu-latest
+    permissions: {contents: read}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Phase A2 production integration
+        run: python scripts/run_phase_a2.py --trading-date "${{ inputs.trading_date }}"
+      - name: Upload Phase A2 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_PHASE_A2_VALIDATION_EVIDENCE
+          path: artifacts/RATE_PHASE_A2_VALIDATION_EVIDENCE.json
