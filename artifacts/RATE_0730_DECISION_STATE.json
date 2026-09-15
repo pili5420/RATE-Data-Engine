@@ -74,5 +74,18 @@
     },
     "model_version": "RATE-ENGINE-1.1.0",
     "calculation_spec_version": "RATE-PLS-V1.1"
-  }
+  },
+  "short_term_top30": [
+    "2330",
+    "2317"
+  ],
+  "roy_portfolio": [
+    "2330"
+  ],
+  "required_benchmarks": [
+    "TAIEX"
+  ],
+  "explicit_production_watchlist": [
+    "2454"
+  ]
 }

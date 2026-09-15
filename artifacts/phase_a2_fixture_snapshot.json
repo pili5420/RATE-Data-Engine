@@ -1,0 +1,57 @@
+{
+  "input_snapshot_id": "fixture-snapshot-a2",
+  "short_term_top30": [
+    "2330",
+    "2317"
+  ],
+  "roy_portfolio": [
+    "2330"
+  ],
+  "required_benchmarks": [
+    "TAIEX"
+  ],
+  "explicit_production_watchlist": [
+    "2454"
+  ],
+  "records": [
+    {
+      "M7_inputs": {
+        "PT": 90,
+        "PV": 80,
+        "MO": 85,
+        "FI": 75,
+        "IT": 70,
+        "LH": 80,
+        "RS": 90
+      },
+      "MHE_inputs": {
+        "H5": 80,
+        "H20": 85,
+        "H60": 80,
+        "H120": 75
+      },
+      "Rotation_inputs": {
+        "RS_CHANGE": 90,
+        "VOL_CHANGE": 80,
+        "SMART_MONEY": 85,
+        "MOMENTUM_CHANGE": 80
+      },
+      "SmartMoney_inputs": {
+        "FI": 85,
+        "IT": 80,
+        "LH": 75,
+        "FC": 80
+      },
+      "Stage_inputs": {
+        "price_above_all": true,
+        "ma20_above_ma60": true,
+        "ma20_slope_positive": true,
+        "m7_score": 82,
+        "mhe_score": 72,
+        "relative_strength_strong": true
+      },
+      "Fundamental": 80,
+      "RelativeStrength": 85
+    }
+  ]
+}
