@@ -1,0 +1,21 @@
+{
+  "run_id": null,
+  "commit_sha": null,
+  "provider": "FUGLE",
+  "source": "FUGLE_STOCK_INTRADAY_REST",
+  "execution_runtime": "local",
+  "credential_present": false,
+  "http_status": null,
+  "slots": {},
+  "validation_status": "BLOCKED",
+  "gates": {
+    "credential": "BLOCKED:SECRET_NOT_INJECTED",
+    "smoke_test": "BLOCKED",
+    "authorization": "PASS_FOR_EPHEMERAL_INTERNAL_ANALYTICS",
+    "previous_decision_state": "BLOCKED",
+    "query_universe": "BLOCKED"
+  },
+  "blocking_issues": [
+    "SECRET_NOT_INJECTED"
+  ]
+}
