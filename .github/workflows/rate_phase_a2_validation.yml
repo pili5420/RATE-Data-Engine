@@ -15,10 +15,11 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: "3.12"}
       - name: Phase A2 production integration
-        run: python scripts/run_phase_a2.py --trading-date "${{ inputs.trading_date }}"
+        run: python scripts/build_live_source_bundle.py --trading-date "${{ inputs.trading_date }}" --output artifacts/live_source_bundle.json`n      - name: Phase A2 production integration`n        run: python scripts/run_phase_a2.py --trading-date "${{ inputs.trading_date }}" --source-bundle artifacts/live_source_bundle.json
       - name: Upload Phase A2 evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: RATE_PHASE_A2_VALIDATION_EVIDENCE
           path: artifacts/RATE_PHASE_A2_VALIDATION_EVIDENCE.json
+
