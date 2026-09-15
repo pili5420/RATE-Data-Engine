@@ -29,11 +29,12 @@ def compute_scores(records, benchmark):
  tech=[technical_record(r,benchmark) for r in records]; n=len(tech)
  if n<20: raise ValueError('DATA_INCOMPLETE:PERCENTILE_UNIVERSE_TOO_SMALL')
  bclose=[x['close'] for x in benchmark]; ex5=[returns([x['close'] for x in r],5)-returns(bclose,5) for r in records]
+ out=[]
  for i,(r,t) in enumerate(zip(records,tech)):
   c=r[-1]['close']; old=[x['close'] for x in r[:-5]]; pt=.6*(25*(c>t['MA20'])+35*(c>t['MA60'])+40*(c>t['MA120']))+.4*(50*(t['MA20']>sma(old,20))+30*(t['MA60']>sma(old,60))+20*(t['MA120']>sma(old,120)))
   total=sum(x['volume'] for x in r[-20:]); ups=sum(x['volume'] for a,x in zip(r[-20:-1],r[-19:]) if x['close']>a['close']); ratios=[z['AVG_VOLUME_5']/z['AVG_VOLUME_20'] for z in tech]; pv=.7*100*ups/total+.3*pctl(t['AVG_VOLUME_5']/t['AVG_VOLUME_20'],ratios)
   macn=t['MACD_HISTOGRAM']/c; mo=.4*t['RSI14']+.3*pctl(t['RET20'],[z['RET20'] for z in tech])+.3*pctl(macn,[z['MACD_HISTOGRAM']/records[j][-1]['close'] for j,z in enumerate(tech)])
   rs=.4*pctl(t['EXCESS_RET20'],[z['EXCESS_RET20'] for z in tech])+.35*pctl(t['EXCESS_RET60'],[z['EXCESS_RET60'] for z in tech])+.25*pctl(t['EXCESS_RET120'],[z['EXCESS_RET120'] for z in tech])
   tf={'PT':round(pt,2),'PV':round(pv,2),'MO':round(mo,2),'RS':round(rs,2),'RelativeStrength':round(rs,2),'H5':round(.5*pctl(t['RET5'],[z['RET5'] for z in tech])+.5*pctl(ex5[i],ex5),2),'H20':round(.5*pctl(t['RET20'],[z['RET20'] for z in tech])+.5*pctl(t['EXCESS_RET20'],[z['EXCESS_RET20'] for z in tech]),2),'H60':round(.5*pctl(t['RET60'],[z['RET60'] for z in tech])+.5*pctl(t['EXCESS_RET60'],[z['EXCESS_RET60'] for z in tech]),2),'H120':round(.5*pctl(t['RET120'],[z['RET120'] for z in tech])+.5*pctl(t['EXCESS_RET120'],[z['EXCESS_RET120'] for z in tech]),2),'Liquidity':round(pctl(t['AVG_TURNOVER_20'],[z['AVG_TURNOVER_20'] for z in tech]),2)}
-  r['technical_features']=tf; r['feature_evidence']={k:{'symbol':r.get('symbol'),'feature_name':k,'calculation_spec_version':'RATE-DFCS-V1.0','raw_input_values':t,'derived_value':v,'calculation_status':'PASS'} for k,v in tf.items()}
- return records
+  out.append({'symbol':r[0].get('symbol',str(i)) if isinstance(r[0],dict) else str(i),'technical_features':tf,'feature_evidence':{k:{'feature_name':k,'calculation_spec_version':'RATE-DFCS-V1.0','raw_input_values':t,'derived_value':v,'calculation_status':'PASS'} for k,v in tf.items()}})
+ return out
