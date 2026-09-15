@@ -1,0 +1,40 @@
+name: RATE Phase A2 Byte Exact Deployment
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Decode and verify package
+        shell: bash
+        run: |
+          base64 -d .deployment/RATE_PHASE_A2_DEPLOYMENT_PACKAGE.tar.gz.b64 > /tmp/rate_a2.tar.gz
+          echo "8071102bb5adff0d2fbd3f7f03a274f9a2c10f1e11d8ae94cf655730b9193c5b  /tmp/rate_a2.tar.gz" | sha256sum -c -
+          mkdir -p /tmp/rate_a2
+          tar -xzf /tmp/rate_a2.tar.gz -C /tmp/rate_a2
+      - name: Deploy exact package files
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC=/tmp/rate_a2/RATE_PHASE_A2_DEPLOYMENT_PACKAGE
+          python - <<'PY'
+          import json,hashlib,pathlib,shutil
+          src=pathlib.Path("/tmp/rate_a2/RATE_PHASE_A2_DEPLOYMENT_PACKAGE")
+          m=json.loads((src/"DEPLOYMENT_MANIFEST.json").read_text())
+          for rel, expected in m["file_sha256"].items():
+              p=src/rel
+              actual=hashlib.sha256(p.read_bytes()).hexdigest()
+              if actual != expected: raise SystemExit(f"HASH_MISMATCH:{rel}")
+              dst=pathlib.Path(rel); dst.parent.mkdir(parents=True,exist_ok=True); shutil.copyfile(p,dst)
+          PY
+          rm -rf .deployment .github/workflows/rate_phase_a2_byte_exact_deploy.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Deploy RATE Phase A2 Production Integration"
+          git push origin HEAD:main
