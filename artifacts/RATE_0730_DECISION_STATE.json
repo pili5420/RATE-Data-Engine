@@ -1,0 +1,13 @@
+{
+  "execution_runtime": "github_actions",
+  "trading_date": "2025-09-12",
+  "model_freeze_integrity": "PASS",
+  "gates": {
+    "production_source_bundle": "BLOCKED:SOURCE_BUNDLE_UNAVAILABLE",
+    "07:30_e2e": "BLOCKED:UPSTREAM_BUNDLE"
+  },
+  "blocking_issues": [
+    "SOURCE_BUNDLE_UNAVAILABLE"
+  ],
+  "current_state_id": null
+}
