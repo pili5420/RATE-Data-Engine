@@ -1,0 +1,33 @@
+name: Fugle Phase B Smoke Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fugle-smoke-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      RATE_SOURCE_API_KEY: ${{ secrets.RATE_SOURCE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate secret presence
+        shell: bash
+        run: |
+          if [ -z "${RATE_SOURCE_API_KEY:-}" ]; then
+            echo "SECRET_NOT_INJECTED"
+            exit 1
+          fi
+          echo "Secret process injection: PASS"
+      - name: Fugle authenticated smoke test
+        run: python scripts/validate_phase_b_intraday.py --provider fugle --smoke-test --live
+      - name: Upload smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_PHASE_B_SMOKE_TEST_EVIDENCE
+          path: artifacts/RATE_PHASE_B_SMOKE_TEST_EVIDENCE.json
