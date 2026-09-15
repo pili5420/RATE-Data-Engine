@@ -6,7 +6,7 @@
   "gates": {
     "credential": "BLOCKED:SECRET_NOT_INJECTED",
     "smoke_test": "BLOCKED",
-    "authorization": "PASS",
+    "authorization": "BLOCKED:FUGLE_TERMS_EVIDENCE_UNAVAILABLE",
     "previous_decision_state": "BLOCKED",
     "query_universe": "BLOCKED"
   },

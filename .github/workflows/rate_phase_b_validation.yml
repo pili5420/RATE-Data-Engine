@@ -9,15 +9,21 @@ on:
         default: "0930,1200"
 
 jobs:
-  phase-b:
+  phase-b-validation:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     env:
       RATE_SOURCE_API_KEY: ${{ secrets.RATE_SOURCE_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: "3.12"}
-      - name: Run Phase B validation
-        run: python scripts/validate_phase_b_intraday.py --provider fugle --slots "${{ inputs.slots }}" --live
+      - name: Validate secret presence
+        shell: bash
+        run: |
+          if [ -z "${RATE_SOURCE_API_KEY:-}" ]; then
+            echo "RATE_SOURCE_API_KEY is unavailable"
+            exit 1
+          fi
+          echo "RATE_SOURCE_API_KEY is available"
+      - name: Phase B live validation
+        run: python scripts/validate_phase_b_intraday.py --provider fugle --live --slots "${{ inputs.slots }}"

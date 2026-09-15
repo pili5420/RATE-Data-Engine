@@ -64,7 +64,7 @@ def normalize(symbol: str, raw: dict, retrieved: str) -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--provider", required=True, choices=["fugle"])
-    ap.add_argument("--slots", required=True)
+    ap.add_argument("--slots", default="0930,1200")
     ap.add_argument("--live", action="store_true")
     args = ap.parse_args()
     result = {"provider":"FUGLE", "source":"FUGLE_STOCK_INTRADAY_REST", "slots":{}, "validation_status":"BLOCKED",
