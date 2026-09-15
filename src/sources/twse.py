@@ -12,6 +12,18 @@ class TWSEAdapter:
         endpoint = BASE + "/exchangeReport/MI_INDEX"
         payload, digest = fetch_json(endpoint)
         return provenance("benchmark", self.provider, endpoint, digest, payload)
+    def fetch_t86(self):
+        endpoint = BASE + "/exchangeReport/T86"
+        payload, digest = fetch_json(endpoint)
+        return provenance("institutional_listed", self.provider, endpoint, digest, payload)
+    def fetch_symbol_master(self):
+        endpoint = BASE + "/opendata/t187ap03_L"
+        payload, digest = fetch_json(endpoint)
+        return provenance("trading_symbol_master", self.provider, endpoint, digest, payload)
+    def fetch_monthly_revenue(self):
+        endpoint = BASE + "/opendata/t187ap05_L"
+        payload, digest = fetch_json(endpoint)
+        return provenance("fundamental_revenue", self.provider, endpoint, digest, payload)
     def fetch_historical_symbol(self, stock_no: str, year_month: str):
         endpoint = f"https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date={year_month}01&stockNo={stock_no}&response=json"
         payload, digest = fetch_json(endpoint)
