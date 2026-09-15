@@ -1,38 +1,25 @@
-"""RATE Phase A2 production integration entrypoint.
-
-This orchestrates adapters and existing frozen engine modules; it does not
-define strategy formulas.  GitHub Actions is the authoritative live runtime.
-"""
 from __future__ import annotations
-import argparse, hashlib, json, os, sys
-from datetime import datetime, timezone
+import argparse,json,os,sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from src.sources.twse import TWSEAdapter
-from src.sources.tpex import TPExAdapter
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+from src.validation_pipeline import validate_pipeline
+from src.production_integration import build_production_bundle,build_production_snapshot,resolve_previous_state,write_phase_a2_evidence
+from src.state_chain import deterministic_hash
+from scripts.run_rate_0730 import run_rate_0730
+from scripts.build_phase_b_query_universe import build_query_universe
 
-def main() -> int:
-    ap=argparse.ArgumentParser(); ap.add_argument("--trading-date", required=True); ap.add_argument('--source-bundle'); args=ap.parse_args()
-    ev={"artifact":"RATE_PHASE_A2_VALIDATION_EVIDENCE","workflow_run_id":os.getenv("GITHUB_RUN_ID"),"commit_sha":os.getenv("GITHUB_SHA"),"execution_runtime":"github_actions" if os.getenv("GITHUB_ACTIONS")=="true" else "local","trading_date":args.trading_date,"authorization_status":"CONDITIONAL","gates":{},"model_freeze_integrity":"PASS"}
-    ev["gates"]["t86_production_retrieval"]="NOT_RUN"
-    try:
-      if args.source_bundle:
-        bundle=json.loads(Path(args.source_bundle).read_text(encoding='utf-8')); rows=bundle.get('records',bundle.get('data',[])); ev['t86_record_count']=len(rows); ev['t86_diagnostics']={'source':'provided_validated_bundle'}; ev['gates']['t86_production_retrieval']='PASS'; ev['gates']['normalization']='PASS'; ev['gates']['t86_schema_validation']='PASS'
-      else:
-        t86=TWSEAdapter().fetch_t86(args.trading_date); payload=t86.get("payload", t86); ev['t86_diagnostics']=t86.get('diagnostics',{})
-        rows=payload if isinstance(payload,list) else payload.get("data",[])
-        ev["t86_record_count"]=len(rows); ev["gates"]["t86_production_retrieval"]="PASS" if rows else "FAIL"
-        ev["gates"]["normalization"]="PASS"; ev["gates"]["t86_schema_validation"]="PASS" if rows else "FAIL"
-    except Exception as exc:
-        ev["gates"]["t86_production_retrieval"]="FAIL"; ev["blocking_issues"]=["T86_RETRIEVAL_ERROR:"+type(exc).__name__]
-    if ev["gates"]["t86_production_retrieval"] != "PASS":
-        for gate in ("type_validation","duplicate_validation","symbol_validation","trading_date_validation","freshness","completeness","arithmetic_validation","institutional_merge","production_source_bundle","snapshot","07:30_e2e","decision_state"):
-            ev["gates"][gate]="BLOCKED:UPSTREAM_T86_FAILURE"
-        ev["input_snapshot_id"]=None; ev["decision_state_id"]=None
-    else:
-        for gate in ("type_validation","duplicate_validation","symbol_validation","trading_date_validation","freshness","completeness","arithmetic_validation","institutional_merge","production_source_bundle","snapshot","07:30_e2e","decision_state"): ev["gates"][gate]="NOT_RUN"
-        ev["blocking_issues"]=["VALIDATION_PIPELINE_COMPONENT_INTERFACE_UNAVAILABLE"]
-        ev["input_snapshot_id"]=None; ev["decision_state_id"]=None
-    ev["validation_status"]="PASS" if all(v=="PASS" for v in ev["gates"].values()) else "NOT_RUN"
-    out=Path("artifacts/RATE_PHASE_A2_VALIDATION_EVIDENCE.json"); out.write_text(json.dumps(ev,ensure_ascii=False,indent=2)+"\n",encoding="utf-8"); print(json.dumps(ev,ensure_ascii=False,indent=2)); return 0
-if __name__=="__main__": sys.exit(main())
+def execute_phase_a2(source_bundle,trading_date,*,persist_state=True,write_evidence=True):
+ validation=validate_pipeline(source_bundle['institutional_records'],trading_date=trading_date)
+ base={'trading_date':trading_date,'execution_runtime':'github_actions' if os.getenv('GITHUB_ACTIONS')=='true' else 'fixture','commit_sha':os.getenv('GITHUB_SHA'),'authorization_status':'CONDITIONAL','model_freeze_integrity':'PASS','validation_gates':validation,'blocking_issues':[]}
+ if not all(v=='PASS' for v in validation.values()): base.update({'validation_status':'FAIL','production_source_bundle':'BLOCKED','input_snapshot_id':None,'decision_state_id':None}); return base
+ bundle=build_production_bundle(trading_date=trading_date,institutional_records=source_bundle['institutional_records'],decision_records=source_bundle['decision_records'],provenance=source_bundle['source_provenance'],validation=validation,universe_context={k:source_bundle[k] for k in ('short_term_top30','roy_portfolio','required_benchmarks','explicit_production_watchlist')})
+ snapshot=build_production_snapshot(bundle)
+ if snapshot is None: base.update({'validation_status':'FAIL','production_source_bundle':'BLOCKED','input_snapshot_id':None,'decision_state_id':None,'blocking_issues':['PRODUCTION_BUNDLE_GATE_FAILED']}); return base
+ prev=resolve_previous_state('RATE-ENGINE-1.1.0','RATE-DC-V1.0','RATE-PLS-V1.1'); d1=run_rate_0730(snapshot,trading_date,prev,False); d2=run_rate_0730(snapshot,trading_date,prev,False); det=d1['decision_payload_hash']==d2['decision_payload_hash']; final=run_rate_0730(snapshot,trading_date,prev,persist_state) if det else None
+ qstate={**(final or d1),**{k:snapshot[k] for k in ('short_term_top30','roy_portfolio','required_benchmarks','explicit_production_watchlist')}}; q=build_query_universe(qstate); result={**base,'production_source_bundle':bundle['bundle_status'],'data_quality_status':bundle['data_quality_status'],'input_snapshot_id':snapshot['input_snapshot_id'],'previous_state_id':prev,'decision_state_id':(final or d1)['current_state_id'] if det else None,'deterministic_status':'PASS' if det else 'FAIL','decision_payload_hash':(final or d1)['decision_payload_hash'] if det else None,'query_universe_size':len(q),'validation_status':'PASS' if det and q else 'FAIL','blocking_issues':[] if det and q else ['EMPTY_PHASE_B_QUERY_UNIVERSE']};
+ if write_evidence: write_phase_a2_evidence(result)
+ return result
+
+def main():
+ ap=argparse.ArgumentParser(); ap.add_argument('--trading-date',required=True); ap.add_argument('--source-bundle',required=True); a=ap.parse_args(); obj=json.loads(Path(a.source_bundle).read_text(encoding='utf-8')); r=execute_phase_a2(obj,a.trading_date); print(json.dumps(r,ensure_ascii=False,indent=2)); return 0 if r.get('validation_status')=='PASS' else 1
+if __name__=='__main__': raise SystemExit(main())
