@@ -3,7 +3,7 @@ import hashlib, json
 from pathlib import Path
 from .state_chain import resolve_previous
 
-MANDATORY=('type_validation','duplicate_validation','symbol_validation','trading_date_validation','freshness','completeness','arithmetic_validation','cross_source','data_quality')
+MANDATORY=('type','duplicate','symbol','trading_date','freshness','completeness','arithmetic','cross_source','data_quality')
 def build_production_bundle(*, trading_date, records=None, provenance=None, validation=None, institutional_records=None, decision_records=None, universe_context=None):
     institutional_records = institutional_records if institutional_records is not None else (records or [])
     decision_records = decision_records if decision_records is not None else (records or [])
