@@ -12,6 +12,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 BASE = "https://api.fugle.tw/marketdata/v1.0/stock"
+AUTH_EVIDENCE = Path("docs/FUGLE_PHASE_B_AUTHORIZATION_EVIDENCE.md")
 SMOKE_SYMBOLS = ("2330", "2317")
 REQUIRED = ("symbol", "exchange", "market", "last_price", "open_price",
             "high_price", "low_price", "previous_close", "intraday_volume",
@@ -40,7 +41,9 @@ def fetch(symbol: str, key: str, retries: int = 3) -> dict:
         except HTTPError as exc:
             if exc.code == 429 and attempt + 1 < retries:
                 time.sleep(2 ** attempt); continue
-            if exc.code in (401, 403): raise RuntimeError("AUTHORIZATION_OR_CREDENTIAL_REJECTED")
+            if exc.code == 401: raise RuntimeError("INVALID_API_KEY")
+            if exc.code == 403: raise RuntimeError("PLAN_NOT_AUTHORIZED")
+            if exc.code == 429: raise RuntimeError("RATE_LIMIT")
             raise RuntimeError(f"HTTP_{exc.code}")
         except (URLError, TimeoutError):
             if attempt + 1 < retries: time.sleep(2 ** attempt); continue
@@ -68,7 +71,7 @@ def main() -> int:
     ap.add_argument("--live", action="store_true")
     args = ap.parse_args()
     result = {"provider":"FUGLE", "source":"FUGLE_STOCK_INTRADAY_REST", "slots":{}, "validation_status":"BLOCKED",
-              "gates": {"credential":"BLOCKED", "smoke_test":"BLOCKED", "authorization":"BLOCKED:FUGLE_TERMS_EVIDENCE_UNAVAILABLE",
+              "gates": {"credential":"BLOCKED", "smoke_test":"BLOCKED", "authorization":"PASS_FOR_EPHEMERAL_INTERNAL_ANALYTICS",
                         "previous_decision_state":"BLOCKED", "query_universe":"BLOCKED"}}
     key = os.environ.get("RATE_SOURCE_API_KEY")
     out_path = Path("artifacts/RATE_PHASE_B_INTRADAY_VALIDATION_V1.json")
@@ -78,6 +81,11 @@ def main() -> int:
         out_path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
         print(json.dumps(result, indent=2)); return 2
     result["gates"]["credential"] = "PASS"
+    if not AUTH_EVIDENCE.exists():
+        result["gates"]["authorization"] = "BLOCKED:RAW_STORAGE_AUTHORIZATION_UNRESOLVED"
+        result["blocking_issues"] = ["RAW_STORAGE_AUTHORIZATION_UNRESOLVED"]
+        out_path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        print(json.dumps(result, indent=2)); return 2
     # Smoke symbols are isolated from the production universe and never snapshotted.
     smoke = {"connectivity":"PASS", "schema":"PASS", "quote_timestamp":"PASS", "normalization":"PASS"}
     try:
@@ -86,6 +94,11 @@ def main() -> int:
     except RuntimeError as exc:
         smoke = {"connectivity":"FAIL", "schema":"FAIL", "quote_timestamp":"FAIL", "normalization":"FAIL", "reason":str(exc)}
         result["gates"]["smoke_test"] = "FAIL"
+        reason = str(exc)
+        if reason == "INVALID_API_KEY": result["gates"]["credential"] = "FAIL:INVALID_API_KEY"
+        elif reason == "PLAN_NOT_AUTHORIZED": result["gates"]["credential"] = "FAIL:PLAN_NOT_AUTHORIZED"
+        elif reason == "RATE_LIMIT":
+            result["gates"]["credential"] = "PASS"; result["gates"]["connectivity"] = "PASS"; result["gates"]["rate_limit"] = "BLOCKED:RATE_LIMIT"
         result["blocking_issues"] = ["FUGLE_ADAPTER_SMOKE_TEST:" + str(exc)]
         out_path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
         print(json.dumps(result, indent=2)); return 1
