@@ -1,0 +1,87 @@
+name: TWSE T86 Retrieval Smoke Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      trading_date:
+        description: Historical TWSE trading date (YYYYMMDD)
+        required: false
+        default: "20260914"
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request TWSE T86 historical data
+        id: request
+        shell: bash
+        env:
+          TRADING_DATE: ${{ inputs.trading_date }}
+        run: |
+          set -euo pipefail
+          URL="https://www.twse.com.tw/rwd/zh/fund/T86?date=${TRADING_DATE}&selectType=ALLBUT0999&response=json"
+          HTTP_STATUS=$(curl --silent --show-error --location             --output t86_response.json             --write-out "%{http_code}"             --header "User-Agent: RATE-Data-Engine/1.0 internal-validation"             "${URL}")
+          echo "HTTP_STATUS=${HTTP_STATUS}"
+          echo "http_status=${HTTP_STATUS}" >> "$GITHUB_OUTPUT"
+          test "${HTTP_STATUS}" = "200"
+
+      - name: Validate T86 response
+        shell: bash
+        env:
+          TRADING_DATE: ${{ inputs.trading_date }}
+        run: |
+          python - <<'PY'
+          import hashlib, json, os, sys
+          from datetime import datetime, timezone
+          p="t86_response.json"
+          raw=open(p,"rb").read()
+          try:
+              obj=json.loads(raw)
+          except Exception as e:
+              print("JSON_PARSE=FAIL", str(e))
+              sys.exit(1)
+          data=obj.get("data") or []
+          fields=obj.get("fields") or []
+          stat=obj.get("stat")
+          print("TWSE_STAT =", stat)
+          print("RECORD_COUNT =", len(data))
+          print("FIELD_COUNT =", len(fields))
+          print("FIELDS =", " | ".join(map(str, fields)))
+          structure_ok=isinstance(data,list) and isinstance(fields,list) and len(data)>0 and len(fields)>0
+          keywords=("外資","投信","自營商")
+          institutional_ok=all(any(k in str(f) for f in fields) for k in keywords)
+          print("T86_STRUCTURE=" + ("PASS" if structure_ok else "FAIL"))
+          print("INSTITUTIONAL_FIELDS=" + ("PASS" if institutional_ok else "FAIL"))
+          evidence={
+            "execution_runtime":"github_actions",
+            "workflow_run_id":os.getenv("GITHUB_RUN_ID"),
+            "commit_sha":os.getenv("GITHUB_SHA"),
+            "provider":"TWSE",
+            "source":"TWSE_T86",
+            "request_date":os.getenv("TRADING_DATE"),
+            "http_status":200,
+            "response_received":bool(raw),
+            "record_count":len(data),
+            "field_count":len(fields),
+            "t86_structure":"PASS" if structure_ok else "FAIL",
+            "institutional_fields":"PASS" if institutional_ok else "FAIL",
+            "authorization_status":"CONDITIONAL",
+            "retrieval_timestamp":datetime.now(timezone.utc).isoformat(),
+            "response_sha256":hashlib.sha256(raw).hexdigest()
+          }
+          with open("RATE_T86_RETRIEVAL_SMOKE_TEST_EVIDENCE.json","w",encoding="utf-8") as f:
+              json.dump(evidence,f,ensure_ascii=False,indent=2)
+          if not structure_ok or not institutional_ok:
+              sys.exit(1)
+          PY
+
+      - name: Upload T86 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rate-t86-retrieval-smoke-test-evidence
+          path: RATE_T86_RETRIEVAL_SMOKE_TEST_EVIDENCE.json
+          if-no-files-found: warn
