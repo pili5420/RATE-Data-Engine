@@ -19,5 +19,14 @@ def build_live_decision_records(production_sources,trading_date,universe):
                 'Rotation_inputs':source.get('Rotation_inputs'),
                 'SmartMoney_inputs':source.get('SmartMoney_inputs'),
                 'Stage_inputs':source.get('Stage_inputs')}
+        for key in ('FI', 'IT', 'LH'):
+            if key in source:
+                record['M7_inputs'][key] = source[key]
+        if source.get('SmartMoney_inputs') is not None:
+            record['SmartMoney_inputs'] = source['SmartMoney_inputs']
+            record['SMART_MONEY'] = source.get('SMART_MONEY')
+        if source.get('Rotation_inputs') is not None:
+            record['Rotation_inputs'] = source['Rotation_inputs']
+            record['Rotation'] = source.get('Rotation')
         records.append(record); evidence.append({'symbol':str(symbol),'features':{x:{'raw_values':tf[x],'derived_value':tf[x],'calculation_status':'PASS'} for x in TECHNICAL_REQUIRED},'trading_date':trading_date})
     return {'decision_records':records,'feature_evidence':evidence,'feature_validation':{'status':'PASS' if records and not errors else 'BLOCKED:PRODUCTION_DECISION_INPUT_UNAVAILABLE','errors':errors}}
