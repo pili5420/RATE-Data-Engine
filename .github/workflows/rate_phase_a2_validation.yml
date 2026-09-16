@@ -9,6 +9,9 @@ on:
 jobs:
   phase-a2:
     runs-on: ubuntu-latest
+    env:
+      TDCC_OPENAPI_BASE: https://openapi.tdcc.com.tw
+      RATE_TWSE_SYMBOLS: ${{ vars.RATE_TWSE_SYMBOLS }}
     permissions:
       contents: read
     steps:
@@ -16,11 +19,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Probe official sources
+        run: >
+          python scripts/probe_official_sources.py
+          --trading-date "${{ inputs.trading_date }}"
+          --output artifacts/RATE_OFFICIAL_SOURCE_PROBE_EVIDENCE.json
       - name: Build live production source bundle
         run: >
           python scripts/build_live_source_bundle.py
           --trading-date "${{ inputs.trading_date }}"
           --output artifacts/live_source_bundle.json
+          --evidence-output artifacts/RATE_LIVE_SOURCE_ASSEMBLY_EVIDENCE.json
       - name: Run Phase A2 production integration
         run: >
           python scripts/run_phase_a2.py
@@ -32,3 +41,15 @@ jobs:
         with:
           name: RATE_PHASE_A2_VALIDATION_EVIDENCE
           path: artifacts/RATE_PHASE_A2_VALIDATION_EVIDENCE.json
+      - name: Upload LIVE source assembly evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_LIVE_SOURCE_ASSEMBLY_EVIDENCE
+          path: artifacts/RATE_LIVE_SOURCE_ASSEMBLY_EVIDENCE.json
+      - name: Upload official source probe evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_OFFICIAL_SOURCE_PROBE_EVIDENCE
+          path: artifacts/RATE_OFFICIAL_SOURCE_PROBE_EVIDENCE.json
