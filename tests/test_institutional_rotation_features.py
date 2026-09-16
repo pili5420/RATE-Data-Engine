@@ -3,6 +3,7 @@ import json
 import unittest
 
 from src.institutional_features import calculate_institutional_rotation
+from src.live_decision_inputs import build_live_decision_records
 
 
 class InstitutionalRotationFeatureTests(unittest.TestCase):
@@ -37,3 +38,15 @@ class InstitutionalRotationFeatureTests(unittest.TestCase):
         self.assertEqual(payload, payload2)
         self.assertTrue(all('feature_lineage' in x for x in a))
 
+    def test_decision_record_wires_institutional_and_rotation_values(self):
+        row = self.rows[0]
+        tf = {k: 50.0 for k in ('PT', 'PV', 'MO', 'RS', 'H5', 'H20', 'H60', 'H120', 'RelativeStrength', 'Liquidity')}
+        source = {'technical_features': tf, **{k: row[k] for k in ('FI', 'IT', 'LH', 'FC', 'SMART_MONEY', 'RS_CHANGE', 'VOL_CHANGE', 'MOMENTUM_CHANGE', 'Rotation')},
+                  'SmartMoney_inputs': row['SmartMoney_inputs'], 'Rotation_inputs': row['Rotation_inputs']}
+        out = build_live_decision_records({'1000': source}, '2026-09-10', ['1000'])
+        rec = out['decision_records'][0]
+        self.assertEqual(rec['M7_inputs']['FI'], row['FI'])
+        self.assertEqual(rec['M7_inputs']['IT'], row['IT'])
+        self.assertEqual(rec['M7_inputs']['LH'], row['LH'])
+        self.assertEqual(rec['SmartMoney_inputs'], row['SmartMoney_inputs'])
+        self.assertEqual(rec['Rotation_inputs'], row['Rotation_inputs'])
