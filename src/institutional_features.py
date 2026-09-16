@@ -74,9 +74,9 @@ def calculate_institutional_rotation(rows):
         fc = round(x["FC"], 2); sm = calculate_smart_money({"FI": fi, "IT": it, "LH": lh, "FC": fc})["smart_money_score"]
         rs_change, vol_change, momentum_change = round(pctl(rsd[i], rsd), 2), round(pctl(vold[i], vold), 2), round(pctl(mod[i], mod), 2)
         rotation = calculate_rotation({"RS_CHANGE": rs_change, "VOL_CHANGE": vol_change, "SMART_MONEY": sm, "MOMENTUM_CHANGE": momentum_change})["rotation_score"]
-        rs_hist = [{"value": v} for v in x["row"].get("rs_history", [])]
-        vol_hist = [{"value": v} for v in x["row"].get("volume_5_history", [])]
-        mo_hist = [{"value": v} for v in x["row"].get("mo_history", [])]
+        rs_hist = [{"source_id": f"RS-{x['symbol']}-{i}", "source_timestamp": None, "value": v} for i, v in enumerate(x["row"].get("rs_history", []))]
+        vol_hist = [{"source_id": f"VOL-{x['symbol']}-{i}", "source_timestamp": None, "value": v} for i, v in enumerate(x["row"].get("volume_5_history", []))]
+        mo_hist = [{"source_id": f"MO-{x['symbol']}-{i}", "source_timestamp": None, "value": v} for i, v in enumerate(x["row"].get("mo_history", []))]
         lineage = {
             "FI": _lineage(x["symbol"], "FI", x["ih"], fi, {"FI5_RAW": x["FI5_RAW"], "FI20_RAW": x["FI20_RAW"], "FI5_SCORE": fi5_score, "FI20_SCORE": fi20_score}),
             "IT": _lineage(x["symbol"], "IT", x["ih"], it, {"IT5_RAW": x["IT5_RAW"], "IT20_RAW": x["IT20_RAW"], "IT5_SCORE": it5_score, "IT20_SCORE": it20_score}),
