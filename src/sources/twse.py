@@ -1,6 +1,7 @@
 from __future__ import annotations
 from .base import fetch_json, provenance
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 import hashlib, json
 import os
 
@@ -43,10 +44,23 @@ class TWSEAdapter:
         payload, digest = fetch_json(endpoint)
         return provenance("market_daily_history", self.provider, endpoint, digest, payload)
     def fetch_historical_benchmark(self, year_month: str):
-        endpoint = os.getenv('TWSE_BENCHMARK_HISTORY_ENDPOINT', 'https://www.twse.com.tw/rwd/zh/indicesReport/MI_5MINS_HIST')
-        endpoint = endpoint + ('&' if '?' in endpoint else '?') + f'date={year_month}01&response=json'
-        payload, digest = fetch_json(endpoint)
-        return provenance('benchmark_history', self.provider, endpoint, digest, payload)
+        endpoints = [os.getenv('TWSE_BENCHMARK_HISTORY_ENDPOINT', 'https://www.twse.com.tw/rwd/zh/TAIEX/MI_5MINS_HIST'), 'https://www.twse.com.tw/indicesReport/MI_5MINS_HIST']
+        diagnostics=[]
+        for base in endpoints:
+            endpoint = base + ('&' if '?' in base else '?') + f'date={year_month}01&response=json'
+            req=Request(endpoint,headers={'User-Agent':'RATE-Data-Engine/1.0','Accept':'application/json','Accept-Language':'zh-TW,zh;q=0.9'})
+            try:
+                with urlopen(req,timeout=30) as resp: body=resp.read(); status=resp.status; ctype=resp.headers.get('Content-Type','')
+            except HTTPError as exc:
+                diagnostics.append({'endpoint':endpoint,'transport_result':f'HTTP_{exc.code}','http_status':exc.code}); continue
+            except URLError as exc:
+                diagnostics.append({'endpoint':endpoint,'transport_result':'CONNECT_FAILURE','detail':type(exc.reason).__name__}); continue
+            if not body: diagnostics.append({'endpoint':endpoint,'transport_result':'EMPTY_DATA','http_status':status}); continue
+            try: payload=json.loads(body.decode('utf-8'))
+            except (UnicodeDecodeError,json.JSONDecodeError): diagnostics.append({'endpoint':endpoint,'transport_result':'INVALID_JSON','http_status':status,'content_type':ctype,'response_bytes':len(body)}); continue
+            if payload.get('stat') != 'OK' or not payload.get('data'): diagnostics.append({'endpoint':endpoint,'transport_result':'TWSE_STAT_NOT_OK','http_status':status,'stat':payload.get('stat'),'row_count':len(payload.get('data',[]))}); continue
+            digest=hashlib.sha256(body).hexdigest(); out=provenance('benchmark_history',self.provider,endpoint,digest,payload); out['diagnostics']={'endpoint_attempts':diagnostics+[{'endpoint':endpoint,'transport_result':'PASS','http_status':status,'content_type':ctype,'response_bytes':len(body),'stat':payload.get('stat'),'row_count':len(payload.get('data',[]))}]}; return out
+        raise RuntimeError('LIVE_TAIEX_SOURCE_UNAVAILABLE:'+json.dumps(diagnostics,ensure_ascii=False,separators=(',',':')))
     @staticmethod
     def normalize_daily(record: dict) -> dict:
         return {"symbol":record.get("Code"), "trade_date":record.get("Date"),

@@ -4,8 +4,15 @@ import hashlib, json
 from datetime import date
 from .historical_store import PersistentHistoricalStore, _number
 
+def normalize_twse_date(value):
+    text=str(value).strip().replace('/','-')
+    parts=text.split('-')
+    if len(parts)==3 and len(parts[0]) <= 3 and parts[0].isdigit():
+        return f'{int(parts[0])+1911:04d}-{int(parts[1]):02d}-{int(parts[2]):02d}'
+    return text
+
 def normalize_benchmark(record, *, benchmark_symbol, market, source, source_timestamp, ingested_at):
-    out={'benchmark_symbol':benchmark_symbol,'market':market,'trade_date':str(record.get('trade_date') or record.get('Date')),
+    out={'benchmark_symbol':benchmark_symbol,'market':market,'trade_date':normalize_twse_date(record.get('trade_date') or record.get('Date')),
          'open':_number(record.get('open',record.get('OpeningIndex',record.get('Open'))),'open') if record.get('open',record.get('OpeningIndex',record.get('Open'))) not in (None,'') else None,
          'high':_number(record.get('high',record.get('HighestIndex',record.get('High'))),'high') if record.get('high',record.get('HighestIndex',record.get('High'))) not in (None,'') else None,
          'low':_number(record.get('low',record.get('LowestIndex',record.get('Low'))),'low') if record.get('low',record.get('LowestIndex',record.get('Low'))) not in (None,'') else None,

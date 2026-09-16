@@ -1,6 +1,9 @@
 import copy, json, shutil, unittest
 from pathlib import Path
-from src.benchmark_history import normalize_benchmark, validate_benchmark, bootstrap_benchmark_history, update_benchmark_history, benchmark_digest
+from src.benchmark_history import normalize_benchmark, normalize_twse_date, validate_benchmark, bootstrap_benchmark_history, update_benchmark_history, benchmark_digest
+from unittest.mock import patch
+from urllib.error import URLError
+import src.sources.twse as twse
 from src.historical_store import PersistentHistoricalStore
 
 class BenchmarkHistoryTests(unittest.TestCase):
@@ -27,3 +30,8 @@ class BenchmarkHistoryTests(unittest.TestCase):
         with self.assertRaises(ValueError): validate_benchmark([{**self.rows[0],'trade_date':'2999-01-01'}],'TAIEX')
     def test_short_history_fail_closed(self):
         with self.assertRaises(ValueError): bootstrap_benchmark_history(self.store,self.rows[:119],'TAIEX')
+    def test_roc_date_conversion(self): self.assertEqual(normalize_twse_date('115/09/16'),'2026-09-16')
+    def test_transport_failover_is_official_only(self):
+        with patch.object(twse, 'urlopen', side_effect=URLError('refused')):
+            with self.assertRaises(RuntimeError) as ctx: twse.TWSEAdapter().fetch_historical_benchmark('202609')
+        self.assertIn('LIVE_TAIEX_SOURCE_UNAVAILABLE', str(ctx.exception))
