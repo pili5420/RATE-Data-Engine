@@ -17,7 +17,7 @@ class StageEvidenceTests(unittest.TestCase):
         x=self.base(); x.update(updates or {})
         return build_stage_evidence(symbol='2330', stage_inputs=x, previous_stage=previous, prior_m7=prior, source_state_id='s0', input_snapshot_id='i0')
     def test_base_building(self): self.assertEqual(self.stage({'price':90,'ma20':100,'ma60':100,'ma120':120,'m7_score':55,'mhe_score':50,'m7_rising':True})['stage_current'],'BASE_BUILDING')
-    def test_strengthening(self): self.assertEqual(self.stage({'price':110,'ma120':120,'m7_score':70,'mhe_score':65})['stage_current'],'STRENGTHENING')
+    def test_strengthening(self): self.assertEqual(self.stage({'price':110,'m7_score':70,'mhe_score':65,'ma20_slope_positive':False})['stage_current'],'STRENGTHENING')
     def test_pre_markup(self): self.assertEqual(self.stage({'relative_strength_strong':False,'m7_score':70})['stage_current'],'PRE_MARKUP')
     def test_markup(self): self.assertEqual(self.stage()['stage_current'],'MARKUP')
     def test_high_rotation(self): self.assertEqual(self.stage({'price':100,'ma20':110,'prior_m7':90,'m7_score':70,'rotation_deteriorated':True})['stage_current'],'HIGH_ROTATION')

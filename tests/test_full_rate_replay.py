@@ -37,7 +37,7 @@ class FullRateReplayTests(unittest.TestCase):
 
     def test_state_chain_continuity_and_single_persist(self):
         temp = Path('artifacts/test_full_replay_chain'); temp.mkdir(exist_ok=True)
-        chain_file = temp / 'chain.json'; old = state_chain.CHAIN; state_chain.CHAIN = chain_file
+        chain_file = temp / 'chain.json'; chain_file.unlink(missing_ok=True); old = state_chain.CHAIN; state_chain.CHAIN = chain_file
         try:
             append_state({'current_state_id': 'day1', 'previous_state_id': 'GENESIS_STATE_ID'})
             append_state({'current_state_id': 'day2', 'previous_state_id': 'day1'})
@@ -46,4 +46,3 @@ class FullRateReplayTests(unittest.TestCase):
             self.assertEqual(len(chain), 2)
         finally:
             state_chain.CHAIN = old
-
