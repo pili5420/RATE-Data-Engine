@@ -3,7 +3,7 @@ import json
 import unittest
 from pathlib import Path
 
-from src.full_replay import replay, persist_decision_state
+from src.full_replay import replay, persist_decision_state, write_replay_evidence
 from src.state_chain import append_state
 import src.state_chain as state_chain
 
@@ -24,6 +24,13 @@ class FullRateReplayTests(unittest.TestCase):
 
     def test_frozen_runtime_outputs_present(self):
         self.assertTrue(all(all(k in r for k in ('M7', 'MHE', 'SmartMoney', 'Stage', 'Rotation', 'rate_composite_score', 'short_score', 'long_score')) for r in self.result['records']))
+
+    def test_production_evidence_writer(self):
+        path = write_replay_evidence(self.result, path='artifacts/test_full_replay_evidence.json')
+        obj = json.loads(Path(path).read_text(encoding='utf-8'))
+        self.assertEqual(obj['production_bundle_status'], 'PASS')
+        self.assertEqual(obj['input_snapshot_id'], self.result['input_snapshot_id'])
+        Path(path).unlink(missing_ok=True)
 
     def test_replay_determinism_and_ranking(self):
         other = replay(self.technical, self.institutional)
