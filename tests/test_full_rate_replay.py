@@ -3,7 +3,7 @@ import json
 import unittest
 from pathlib import Path
 
-from src.full_replay import replay
+from src.full_replay import replay, persist_decision_state
 from src.state_chain import append_state
 import src.state_chain as state_chain
 
@@ -39,10 +39,15 @@ class FullRateReplayTests(unittest.TestCase):
         temp = Path('artifacts/test_full_replay_chain'); temp.mkdir(exist_ok=True)
         chain_file = temp / 'chain.json'; chain_file.unlink(missing_ok=True); old = state_chain.CHAIN; state_chain.CHAIN = chain_file
         try:
-            append_state({'current_state_id': 'day1', 'previous_state_id': 'GENESIS_STATE_ID'})
-            append_state({'current_state_id': 'day2', 'previous_state_id': 'day1'})
+            day1 = persist_decision_state(self.result, '2026-09-10')
+            day2_result = replay(self.technical, self.institutional, '2026-09-11',
+                                 previous_stage_by_symbol={r['symbol']: r['Stage']['stage_current'] for r in self.result['records']},
+                                 prior_m7_by_symbol={r['symbol']: r['M7']['m7_score'] for r in self.result['records']},
+                                 previous_state_id=day1)
+            day2 = persist_decision_state(day2_result, '2026-09-11', day1)
             chain = json.loads(chain_file.read_text(encoding='utf-8'))
-            self.assertEqual([x['previous_state_id'] for x in chain], ['GENESIS_STATE_ID', 'day1'])
+            self.assertEqual([x['previous_state_id'] for x in chain], ['GENESIS_STATE_ID', day1])
+            self.assertEqual(chain[-1]['current_state_id'], day2)
             self.assertEqual(len(chain), 2)
         finally:
             state_chain.CHAIN = old
