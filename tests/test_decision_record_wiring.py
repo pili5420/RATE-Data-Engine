@@ -43,6 +43,15 @@ class DecisionRecordWiringTests(unittest.TestCase):
         second = build_live_decision_records(sources, '2026-09-10', universe)
         self.assertEqual(first['feature_validation']['status'], 'PASS')
         self.assertEqual(len(first['decision_records']), 30)
+        expected = {str(row['symbol']): row['technical_features'] for row in scored}
+        for record in first['decision_records']:
+            tf = expected[record['symbol']]
+            self.assertEqual({k: record['M7_inputs'][k] for k in ('PT', 'PV', 'MO', 'RS')},
+                             {k: tf[k] for k in ('PT', 'PV', 'MO', 'RS')})
+            self.assertEqual({k: record['MHE_inputs'][k] for k in ('H5', 'H20', 'H60', 'H120')},
+                             {k: tf[k] for k in ('H5', 'H20', 'H60', 'H120')})
+            self.assertEqual(record['RelativeStrength'], tf['RelativeStrength'])
+            self.assertEqual(record['Liquidity'], tf['Liquidity'])
         payload1 = json.dumps(first['decision_records'], sort_keys=True,
                               separators=(',', ':'), ensure_ascii=False)
         payload2 = json.dumps(second['decision_records'], sort_keys=True,
