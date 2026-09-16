@@ -35,3 +35,6 @@ class BenchmarkHistoryTests(unittest.TestCase):
         with patch.object(twse, 'urlopen', side_effect=URLError('refused')):
             with self.assertRaises(RuntimeError) as ctx: twse.TWSEAdapter().fetch_historical_benchmark('202609')
         self.assertIn('LIVE_TAIEX_SOURCE_UNAVAILABLE', str(ctx.exception))
+    def test_future_tpex_missing_benchmark_fail_closed(self):
+        tpex_stock=[{**self.rows[0], 'market':'TPEX'}]
+        with self.assertRaises(ValueError): validate_benchmark(self.rows[:1], 'TPEX_INDEX')
