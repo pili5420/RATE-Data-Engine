@@ -2,6 +2,7 @@ from __future__ import annotations
 from .base import fetch_json, provenance
 from urllib.request import Request, urlopen
 import hashlib, json
+import os
 
 BASE = "https://openapi.twse.com.tw/v1"
 class TWSEAdapter:
@@ -41,6 +42,11 @@ class TWSEAdapter:
         endpoint = f"https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date={year_month}01&stockNo={stock_no}&response=json"
         payload, digest = fetch_json(endpoint)
         return provenance("market_daily_history", self.provider, endpoint, digest, payload)
+    def fetch_historical_benchmark(self, year_month: str):
+        endpoint = os.getenv('TWSE_BENCHMARK_HISTORY_ENDPOINT')
+        if not endpoint: raise RuntimeError('MISSING_REQUIRED_SOURCE_CONFIGURATION:TWSE_BENCHMARK_HISTORY_ENDPOINT')
+        payload, digest = fetch_json(endpoint.format(year_month=year_month))
+        return provenance('benchmark_history', self.provider, endpoint, digest, payload)
     @staticmethod
     def normalize_daily(record: dict) -> dict:
         return {"symbol":record.get("Code"), "trade_date":record.get("Date"),
