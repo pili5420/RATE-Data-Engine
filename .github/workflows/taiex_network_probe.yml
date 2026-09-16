@@ -1,6 +1,9 @@
 name: RATE TAIEX Network Probe
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - rate-runtime-network-probe
 jobs:
   taiex-network-probe:
     runs-on: ubuntu-latest
