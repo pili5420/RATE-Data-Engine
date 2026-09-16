@@ -1,12 +1,23 @@
 from __future__ import annotations
 import json
 
-REQUIRED=('PT','PV','MO','FI','IT','LH','RS','H5','H20','H60','H120','RS_CHANGE','VOL_CHANGE','SMART_MONEY','MOMENTUM_CHANGE','FC','Fundamental','RelativeStrength','Liquidity')
+TECHNICAL_REQUIRED=('PT','PV','MO','RS','H5','H20','H60','H120','RelativeStrength','Liquidity')
+REQUIRED=TECHNICAL_REQUIRED
 def build_live_decision_records(production_sources,trading_date,universe):
     records=[]; evidence=[]; errors=[]
     for symbol in universe:
         source=production_sources.get(str(symbol),{})
-        missing=[x for x in REQUIRED if x not in source]
+        tf=source.get('technical_features', source)
+        missing=[x for x in TECHNICAL_REQUIRED if x not in tf]
         if missing: errors.append({'symbol':str(symbol),'calculation_status':'DATA_INCOMPLETE','missing_components':missing}); continue
-        records.append(source); evidence.append({'symbol':str(symbol),'features':{x:{'raw_values':source[x],'derived_value':source[x],'calculation_status':'PASS'} for x in REQUIRED},'trading_date':trading_date})
+        record={'symbol':str(symbol),
+                'M7_inputs':{k:tf[k] for k in ('PT','PV','MO','RS')},
+                'MHE_inputs':{k:tf[k] for k in ('H5','H20','H60','H120')},
+                'RelativeStrength':tf['RelativeStrength'],
+                'Liquidity':tf['Liquidity'],
+                'Fundamental':source.get('Fundamental'),
+                'Rotation_inputs':source.get('Rotation_inputs'),
+                'SmartMoney_inputs':source.get('SmartMoney_inputs'),
+                'Stage_inputs':source.get('Stage_inputs')}
+        records.append(record); evidence.append({'symbol':str(symbol),'features':{x:{'raw_values':tf[x],'derived_value':tf[x],'calculation_status':'PASS'} for x in TECHNICAL_REQUIRED},'trading_date':trading_date})
     return {'decision_records':records,'feature_evidence':evidence,'feature_validation':{'status':'PASS' if records and not errors else 'BLOCKED:PRODUCTION_DECISION_INPUT_UNAVAILABLE','errors':errors}}
