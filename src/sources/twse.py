@@ -43,9 +43,9 @@ class TWSEAdapter:
         payload, digest = fetch_json(endpoint)
         return provenance("market_daily_history", self.provider, endpoint, digest, payload)
     def fetch_historical_benchmark(self, year_month: str):
-        endpoint = os.getenv('TWSE_BENCHMARK_HISTORY_ENDPOINT')
-        if not endpoint: raise RuntimeError('MISSING_REQUIRED_SOURCE_CONFIGURATION:TWSE_BENCHMARK_HISTORY_ENDPOINT')
-        payload, digest = fetch_json(endpoint.format(year_month=year_month))
+        endpoint = os.getenv('TWSE_BENCHMARK_HISTORY_ENDPOINT', 'https://www.twse.com.tw/rwd/zh/indicesReport/MI_5MINS_HIST')
+        endpoint = endpoint + ('&' if '?' in endpoint else '?') + f'date={year_month}01&response=json'
+        payload, digest = fetch_json(endpoint)
         return provenance('benchmark_history', self.provider, endpoint, digest, payload)
     @staticmethod
     def normalize_daily(record: dict) -> dict:
