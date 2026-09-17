@@ -41,6 +41,22 @@ def main() -> int:
                 'content_digest': None, 'parse_status': str(exc),
                 'requests': getattr(exc, 'diagnostics', []),
             })
+    csv_route_probe = None
+    try:
+        csv_result = adapter.fetch_historical_symbol('3036', '202606', force_representation='CSV_OFFICIAL')
+        csv_route_probe = {
+            'status': 'PASS', 'endpoint': csv_result.get('endpoint'),
+            'representation': csv_result.get('representation'),
+            'encoding': (csv_result.get('raw_payload') or {}).get('csv_encoding'),
+            'headers': (csv_result.get('raw_payload') or {}).get('csv_headers'),
+            'records': len((csv_result.get('raw_payload') or {}).get('data', [])),
+            'content_digest': csv_result.get('content_hash'),
+            'candidate_attempts': (csv_result.get('diagnostics') or {}).get('candidate_attempts', []),
+        }
+    except Exception as exc:
+        csv_route_probe = {'status': 'FAIL', 'reason': str(exc),
+                           'candidate_attempts': getattr(exc, 'candidate_attempts', []),
+                           'requests': getattr(exc, 'diagnostics', [])}
     out = {
         'artifact': 'RATE_TWSE_HISTORY_TRANSPORT_EVIDENCE',
         'execution_runtime': 'github_actions' if os.getenv('GITHUB_ACTIONS') == 'true' else 'local',
@@ -52,8 +68,9 @@ def main() -> int:
         'approved_hosts': ['www.twse.com.tw'],
         'candidate_representations': ['JSON_PRIMARY', 'JSON_FALLBACK', 'CSV_OFFICIAL'],
         'official_csv_route_verification': {
-            'status': 'PASS' if any(x.get('final_representation') == 'CSV_OFFICIAL' for x in results) else 'NOT_OBSERVED',
+            'status': csv_route_probe.get('status') if csv_route_probe else 'NOT_OBSERVED',
             'verified_cases': [x['symbol'] + ':' + x['period'] for x in results if x.get('final_representation') == 'CSV_OFFICIAL'],
+            'probe': csv_route_probe,
         },
         'results': results,
         'status': 'PASS' if all(x['status'] == 'PASS' for x in results) else 'FAIL',

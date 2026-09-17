@@ -238,7 +238,7 @@ class TWSEAdapter:
         endpoint = BASE + "/opendata/t187ap05_L"
         payload, digest = fetch_json(endpoint)
         return provenance("fundamental_revenue", self.provider, endpoint, digest, payload)
-    def fetch_historical_symbol(self, stock_no: str, year_month: str):
+    def fetch_historical_symbol(self, stock_no: str, year_month: str, force_representation: str | None = None):
         endpoint = f"https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date={year_month}01&stockNo={stock_no}&response=json"
         # TWSE's official exchangeReport route is a transport fallback for
         # intermittent CDN 307/security responses from the RWD route.  Both
@@ -253,6 +253,8 @@ class TWSEAdapter:
             (endpoint.replace('response=json', 'response=csv'), 'CSV_OFFICIAL'),
             (f"https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=csv&date={year_month}01&stockNo={stock_no}", 'CSV_OFFICIAL'),
         ]
+        if force_representation:
+            endpoints = [item for item in endpoints if item[1] == force_representation]
         all_diagnostics = []
         last = None
         attempts = []
