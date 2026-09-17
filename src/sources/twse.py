@@ -11,6 +11,35 @@ from urllib.parse import urljoin, urlparse
 BASE = "https://openapi.twse.com.tw/v1"
 MAX_REDIRECTS = 3
 APPROVED_REDIRECT_HOSTS = frozenset({"www.twse.com.tw"})
+_LAST_HISTORY_REQUEST = 0.0
+_TRANSPORT_METRICS = {
+    'host': 'www.twse.com.tw', 'total_requests': 0, 'successful_requests': 0,
+    'redirect_responses': 0, 'bare_307_count': 0, '429_count': 0,
+    '5xx_count': 0, 'retry_count': 0, 'circuit_breaker_count': 0,
+    'elapsed_seconds': 0.0,
+}
+
+def reset_transport_metrics():
+    global _LAST_HISTORY_REQUEST
+    _LAST_HISTORY_REQUEST = 0.0
+    for key in _TRANSPORT_METRICS:
+        if key not in ('host',): _TRANSPORT_METRICS[key] = 0 if key != 'elapsed_seconds' else 0.0
+
+def get_transport_metrics():
+    return dict(_TRANSPORT_METRICS)
+
+def _sleep_backoff(seconds):
+    # Keep deterministic/unit runs fast; staging Actions opts into the real
+    # bounded delays with RATE_STAGING_REALTIME=1.
+    time.sleep(seconds if os.getenv('RATE_STAGING_REALTIME') == '1' else min(seconds, 0.01))
+
+def _pace_history_request():
+    global _LAST_HISTORY_REQUEST
+    interval = float(os.getenv('TWSE_HISTORY_MIN_INTERVAL_SECONDS', '1.5'))
+    if os.getenv('RATE_DETERMINISTIC_TEST') == '1': interval = 0.0
+    elapsed = time.monotonic() - _LAST_HISTORY_REQUEST
+    if elapsed < interval: _sleep_backoff(interval - elapsed)
+    _LAST_HISTORY_REQUEST = time.monotonic()
 
 def _history_rows(payload):
     if not isinstance(payload, dict):
@@ -118,6 +147,9 @@ def _fetch_history_candidate(url, stock_no, year_month, candidate_index, represe
     # transient retry allowance.
     for attempt in range(1, 4 + max_redirects):
         try:
+            _pace_history_request()
+            started = time.monotonic()
+            _TRANSPORT_METRICS['total_requests'] += 1
             req = Request(current, headers={
                 'User-Agent': 'RATE-Data-Engine/1.0',
                 'Accept': 'application/json',
@@ -135,6 +167,7 @@ def _fetch_history_candidate(url, stock_no, year_month, candidate_index, represe
                     'content_type': ctype, 'response_bytes': len(body), 'attempt': attempt,
                 'transport_result': 'HTTP_200', 'representation': representation}
             diagnostics.append(item)
+            _TRANSPORT_METRICS['elapsed_seconds'] += time.monotonic() - started
             if not body:
                 item['transport_result'] = 'EMPTY_RESPONSE'
                 raise RuntimeError('TWSE_HISTORY_EMPTY_RESPONSE')
@@ -164,8 +197,10 @@ def _fetch_history_candidate(url, stock_no, year_month, candidate_index, represe
                 raise RuntimeError('TWSE_HISTORY_EMPTY_DATA')
             _validate_history_identity(payload, stock_no, year_month)
             item['transport_result'] = 'PASS'
+            _TRANSPORT_METRICS['successful_requests'] += 1
             return payload, hashlib.sha256(body).hexdigest(), diagnostics, current
         except HTTPError as exc:
+            _TRANSPORT_METRICS['elapsed_seconds'] += 0
             location = exc.headers.get('Location') if exc.headers else None
             item = {'symbol': stock_no, 'period': year_month, 'candidate_index': candidate_index,
                     'request_url': current, 'http_status': exc.code,
@@ -173,15 +208,24 @@ def _fetch_history_candidate(url, stock_no, year_month, candidate_index, represe
                     'redirect_count': redirects, 'content_type': exc.headers.get('Content-Type', '') if exc.headers else '',
                     'response_bytes': 0, 'attempt': attempt,
                     'transport_result': f'HTTP_{exc.code}'}
+            retry_after = exc.headers.get('Retry-After') if exc.headers else None
+            item['retry_after_present'] = retry_after is not None
+            try: item['retry_after_seconds'] = float(retry_after) if retry_after is not None else None
+            except (TypeError, ValueError): item['retry_after_seconds'] = None
             diagnostics.append(item)
+            if exc.code == 429: _TRANSPORT_METRICS['429_count'] += 1
+            if 500 <= exc.code <= 599: _TRANSPORT_METRICS['5xx_count'] += 1
             if exc.code in (307, 308):
+                _TRANSPORT_METRICS['redirect_responses'] += 1
                 if not location:
+                    _TRANSPORT_METRICS['bare_307_count'] += 1
                     # A CDN edge may emit a bare 307 transiently. Retry the
                     # same official candidate a bounded number of times, then
                     # fail over without inventing a redirect target.
                     if attempt < 3:
                         item['transport_result'] = 'HTTP_307_MISSING_LOCATION_RETRY'
-                        time.sleep(2 ** (attempt - 1))
+                        _TRANSPORT_METRICS['retry_count'] += 1
+                        _sleep_backoff((5, 15, 30)[min(attempt - 1, 2)])
                         continue
                     error = RuntimeError('TWSE_REDIRECT_MISSING_LOCATION'); error.diagnostics = diagnostics; raise error
                 if redirects >= max_redirects:
@@ -197,15 +241,21 @@ def _fetch_history_candidate(url, stock_no, year_month, candidate_index, represe
                 continue
             # Non-redirect HTTP failures are not retried as redirects; the
             # outer candidate loop may proceed to the official fallback.
+            if exc.code in (429, 502, 503, 504) and attempt < 3:
+                _TRANSPORT_METRICS['retry_count'] += 1
+                delay = item.get('retry_after_seconds')
+                _sleep_backoff(min(delay, 60.0) if delay is not None else (5, 15, 30)[min(attempt - 1, 2)])
+                continue
             error = RuntimeError(f'TWSE_HISTORY_HTTP_{exc.code}'); error.diagnostics = diagnostics; raise error from exc
         except (IncompleteRead, URLError, TimeoutError, ConnectionError) as exc:
+            _TRANSPORT_METRICS['retry_count'] += 1
             diagnostics.append({'symbol': stock_no, 'period': year_month, 'candidate_index': candidate_index,
                                 'request_url': current, 'http_status': None, 'redirect_location': None,
                                 'resolved_redirect_url': None, 'redirect_count': redirects,
                                 'content_type': '', 'response_bytes': 0, 'attempt': attempt,
                                 'transport_result': type(exc).__name__})
             if attempt < 3:
-                time.sleep(2 ** (attempt - 1))
+                _sleep_backoff((5, 15, 30)[min(attempt - 1, 2)])
                 continue
             error = RuntimeError(f'TWSE_HISTORY_TRANSPORT_{type(exc).__name__}'); error.diagnostics = diagnostics; raise error from exc
         except RuntimeError as exc:
@@ -293,6 +343,14 @@ class TWSEAdapter:
                 if str(exc) in ('TWSE_UNSAFE_REDIRECT_TARGET', 'TWSE_HISTORY_RESPONSE_IDENTITY_MISMATCH') and representation != 'CSV_OFFICIAL':
                     break
         detail = '|'.join(dict.fromkeys(error_reasons)) if error_reasons else 'UNKNOWN'
+        transient_reps = {a.get('representation') for a in attempts
+                          if a.get('reason') in ('TWSE_REDIRECT_MISSING_LOCATION', 'TWSE_HISTORY_HTTP_429',
+                                                 'TWSE_HISTORY_HTTP_502', 'TWSE_HISTORY_HTTP_503',
+                                                 'TWSE_HISTORY_HTTP_504', 'TWSE_HISTORY_TRANSPORT_IncompleteRead',
+                                                 'TWSE_HISTORY_TRANSPORT_URLError', 'TWSE_HISTORY_TRANSPORT_TimeoutError')}
+        if len(transient_reps) >= 2 and any(a.get('reason') == 'TWSE_REDIRECT_MISSING_LOCATION' for a in attempts):
+            _TRANSPORT_METRICS['circuit_breaker_count'] += 1
+            detail = 'TWSE_HOST_TEMPORARILY_UNAVAILABLE|' + detail
         error = RuntimeError(f"TWSE_HISTORICAL_RETRIEVAL_FAILED:{stock_no}:{year_month}:{detail}")
         error.diagnostics = all_diagnostics
         error.candidate_attempts = attempts

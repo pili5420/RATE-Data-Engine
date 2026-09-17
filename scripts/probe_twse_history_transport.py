@@ -4,7 +4,7 @@ import argparse, json, os, sys
 from datetime import datetime, timezone
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from src.sources.twse import TWSEAdapter
+from src.sources.twse import TWSEAdapter, reset_transport_metrics, get_transport_metrics
 
 
 def main() -> int:
@@ -15,6 +15,7 @@ def main() -> int:
     latest = args.trading_date.replace('-', '')[:6]
     cases = [('2356', '202601'), ('3017', '202603'), ('3036', '202606'), ('2330', latest)]
     adapter = TWSEAdapter()
+    reset_transport_metrics()
     results = []
     for symbol, period in cases:
         try:
@@ -72,6 +73,9 @@ def main() -> int:
             'verified_cases': [x['symbol'] + ':' + x['period'] for x in results if x.get('final_representation') == 'CSV_OFFICIAL'],
             'probe': csv_route_probe,
         },
+        'transport_request_metrics': get_transport_metrics(),
+        'throttle_pattern_classification': ('PATTERN_CONSISTENT_WITH_HOST_THROTTLING_OR_EDGE_POLICY'
+                                            if get_transport_metrics().get('bare_307_count', 0) else 'NONE_OBSERVED'),
         'results': results,
         'status': 'PASS' if all(x['status'] == 'PASS' for x in results) else 'FAIL',
         'retrieval_timestamp': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),

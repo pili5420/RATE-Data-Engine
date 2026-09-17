@@ -14,7 +14,7 @@ from src.rate_logic import calculate_m7, calculate_mhe
 from src.sources.tdcc import TDCCAdapter
 from src.sources.fundamental import FundamentalAdapter
 from src.fundamental_history import PersistentFundamentalStore
-from src.sources.twse import TWSEAdapter
+from src.sources.twse import TWSEAdapter, reset_transport_metrics, get_transport_metrics
 from src.sources.tpex import TPExAdapter
 from src.technical_features import compute_scores, technical_record
 
@@ -23,6 +23,8 @@ REQUIRED_CONFIG = ('TDCC_OPENAPI_BASE',)
 EVIDENCE_DEFAULT = 'artifacts/RATE_LIVE_SOURCE_ASSEMBLY_EVIDENCE.json'
 UNIVERSE_CONTEXT = {}
 LIVE_PROGRESS = {}
+BOOTSTRAP_CONTEXT = {}
+CHECKPOINT_PATH = Path('data/staging/history_bootstrap/RATE_TWSE_HISTORY_BOOTSTRAP_CHECKPOINT_V1.json')
 
 def _now(): return datetime.now(timezone.utc).isoformat().replace('+00:00','Z')
 def _rows(payload):
@@ -101,8 +103,66 @@ def _load_universe():
 def _write(path,value):
     path.parent.mkdir(parents=True,exist_ok=True); path.write_text(json.dumps(value,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
 def _config_readiness(): return {key:('READY' if (os.getenv(key) or key=='TDCC_OPENAPI_BASE') else 'NOT_READY') for key in REQUIRED_CONFIG}
+
+def _checkpoint_digest(obj):
+    payload = {k: v for k, v in obj.items() if k not in ('content_hash', 'last_updated')}
+    return hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+def _load_checkpoint(path, universe_digest):
+    if not path.exists():
+        return {'schema_version': 'RATE-TWSE-HISTORY-CHECKPOINT-V1', 'universe_digest': universe_digest,
+                'staging_source_version': 'TWSE_STOCK_DAY_V1', 'last_updated': None,
+                'symbols': {}, 'months': {}, 'record_count': 0, 'content_hash': None,
+                'validation_status': 'PASS'}
+    try: obj = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, json.JSONDecodeError): raise RuntimeError('TWSE_BOOTSTRAP_CHECKPOINT_CORRUPT')
+    if obj.get('universe_digest') != universe_digest:
+        raise RuntimeError('TWSE_BOOTSTRAP_CHECKPOINT_UNIVERSE_MISMATCH')
+    if obj.get('schema_version') != 'RATE-TWSE-HISTORY-CHECKPOINT-V1' or obj.get('validation_status') != 'PASS':
+        raise RuntimeError('TWSE_BOOTSTRAP_CHECKPOINT_INVALID')
+    if obj.get('content_hash') != _checkpoint_digest(obj):
+        raise RuntimeError('TWSE_BOOTSTRAP_CHECKPOINT_CORRUPT')
+    for entry in obj.get('months', {}).values():
+        if not isinstance(entry, dict) or entry.get('validation_status') != 'PASS' or not entry.get('content_hash'):
+            raise RuntimeError('TWSE_BOOTSTRAP_CHECKPOINT_ENTRY_INVALID')
+        canonical = json.dumps(entry.get('records', []), ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()
+        if hashlib.sha256(canonical).hexdigest() != entry.get('content_hash'):
+            raise RuntimeError('TWSE_BOOTSTRAP_CHECKPOINT_ENTRY_CORRUPT')
+    return obj
+
+def _save_checkpoint(path, checkpoint):
+    checkpoint['last_updated'] = _now()
+    checkpoint['record_count'] = sum(len(v.get('records', [])) for v in checkpoint.get('months', {}).values())
+    checkpoint['content_hash'] = _checkpoint_digest(checkpoint)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + '.tmp')
+    tmp.write_text(json.dumps(checkpoint, ensure_ascii=False, sort_keys=True, indent=2) + '\n', encoding='utf-8')
+    tmp.replace(path)
+
+def _bootstrap_evidence(path, status, reason=None):
+    metrics = get_transport_metrics()
+    progress = LIVE_PROGRESS or {}
+    loaded = BOOTSTRAP_CONTEXT.get('periods_loaded_from_checkpoint', 0)
+    retrieved = BOOTSTRAP_CONTEXT.get('periods_retrieved_this_run', 0)
+    remaining = BOOTSTRAP_CONTEXT.get('periods_remaining')
+    if remaining in (None, 0):
+        total_floor = max(1, len(UNIVERSE_CONTEXT.get('universe_markets', {}))) * 10
+        remaining = max(0, total_floor - loaded - retrieved)
+    _write(path, {'artifact': 'RATE_TWSE_HISTORY_BOOTSTRAP_EVIDENCE', 'status': status,
+        'blocking_reason': reason, 'checkpoint_digest': BOOTSTRAP_CONTEXT.get('checkpoint_digest'),
+        'completed_symbol_count': sum(1 for n in progress.get('aligned_sessions_by_symbol', {}).values() if n >= 180),
+        'raw_sessions_by_symbol': progress.get('raw_sessions_by_symbol', {}),
+        'aligned_sessions_by_symbol': progress.get('aligned_sessions_by_symbol', {}),
+        'periods_loaded_from_checkpoint': loaded, 'periods_retrieved_this_run': retrieved,
+        'periods_newly_validated': BOOTSTRAP_CONTEXT.get('periods_newly_validated', 0),
+        'periods_remaining': remaining, 'transport_request_metrics': metrics,
+        'throttle_pattern_classification': ('PATTERN_CONSISTENT_WITH_HOST_THROTTLING_OR_EDGE_POLICY'
+                                            if metrics.get('bare_307_count') else 'NONE_OBSERVED'),
+        'checkpoint_namespace': str(BOOTSTRAP_CONTEXT.get('checkpoint_path', CHECKPOINT_PATH)),
+        'production_state_modified': 'NO', 'retrieval_timestamp': _now()})
 def _failure(path,trading_date,reason,coverage=None):
-    _write(path,{'status':'BLOCKED','blocking_reason':reason,'trading_date':trading_date,'staging_commit':os.getenv('GITHUB_SHA'),'execution_runtime':'github_actions' if os.getenv('GITHUB_ACTIONS')=='true' else 'local','universe_count':len(os.getenv('RATE_TWSE_SYMBOLS','').split(',')) if os.getenv('RATE_TWSE_SYMBOLS') else UNIVERSE_CONTEXT.get('universe_record_count',0),'source_readiness':_config_readiness(),'history_coverage_reached_before_failure':coverage or {},'benchmark_coverage':None,'timestamps':{'retrieval_timestamp':_now()},'historical_progress':LIVE_PROGRESS,**UNIVERSE_CONTEXT})
+    metrics = get_transport_metrics()
+    _write(path,{'status':'BLOCKED','blocking_reason':reason,'trading_date':trading_date,'staging_commit':os.getenv('GITHUB_SHA'),'execution_runtime':'github_actions' if os.getenv('GITHUB_ACTIONS')=='true' else 'local','universe_count':len(os.getenv('RATE_TWSE_SYMBOLS','').split(',')) if os.getenv('RATE_TWSE_SYMBOLS') else UNIVERSE_CONTEXT.get('universe_record_count',0),'source_readiness':_config_readiness(),'history_coverage_reached_before_failure':coverage or {},'benchmark_coverage':None,'timestamps':{'retrieval_timestamp':_now()},'historical_progress':LIVE_PROGRESS,'transport_request_metrics':metrics,'throttle_pattern_classification':('PATTERN_CONSISTENT_WITH_HOST_THROTTLING_OR_EDGE_POLICY' if metrics.get('bare_307_count') else 'NONE_OBSERVED'),**UNIVERSE_CONTEXT})
 def _history(adapter,symbol,trading_date,market='TWSE'):
     records=[]; seen=set(); end=date.fromisoformat(trading_date)
     LIVE_PROGRESS.setdefault('months_completed_by_symbol', {}).setdefault(symbol, 0)
@@ -111,23 +171,51 @@ def _history(adapter,symbol,trading_date,market='TWSE'):
     LIVE_PROGRESS['current_symbol'] = symbol
     for period in _month_cursor(end):
         LIVE_PROGRESS['current_period'] = period
-        try:
-            result=adapter.fetch_historical_symbol(symbol,period)
-        except Exception as exc:
-            LIVE_PROGRESS['failed_candidate_chain'] = getattr(exc, 'candidate_attempts', getattr(exc, 'diagnostics', []))
-            error = RuntimeError(f"{market}_HISTORICAL_RETRIEVAL:{symbol}:{period}:{exc}")
-            error.candidate_attempts = LIVE_PROGRESS['failed_candidate_chain']
-            raise error from exc
-        raw_rows = _rows(result.get('raw_payload'))
-        LIVE_PROGRESS['raw_sessions_by_symbol'][symbol] += len(raw_rows)
-        for row in raw_rows:
-            raw_date=_pick(row,'trade_date','Date','日期')
-            if raw_date is None: continue
-            td=normalize_twse_date(raw_date)
-            if td>trading_date or td in seen: continue
-            records.append(normalize_stock_record({'symbol':symbol,'market':market,'trade_date':td,'open':_pick(row,'open','OpeningPrice','開盤價','Open'),'high':_pick(row,'high','HighestPrice','最高價','High'),'low':_pick(row,'low','LowestPrice','最低價','Low'),'close':_pick(row,'close','ClosingPrice','收盤價','Close'),'volume':_pick(row,'volume','TradeVolume','成交股數','TradingShares'),'turnover':_pick(row,'turnover','TradeValue','成交金額','TransactionAmount')},source=f'{market}_STOCK_DAY',source_timestamp=result.get('source_timestamp'),ingested_at=result.get('retrieval_timestamp'))); seen.add(td)
+        cp_key = f'{symbol}:{period}'
+        cached = BOOTSTRAP_CONTEXT.get('checkpoint', {}).get('months', {}).get(cp_key)
+        if market == 'TWSE' and isinstance(cached, dict) and cached.get('symbol') == symbol and cached.get('market') == market and cached.get('year_month') == period and cached.get('provider') == 'TWSE' and cached.get('dataset') == 'STOCK_DAY' and cached.get('validation_status') == 'PASS' and cached.get('content_hash') and isinstance(cached.get('records'), list):
+            period_records = cached['records']
+            BOOTSTRAP_CONTEXT['periods_loaded_from_checkpoint'] = BOOTSTRAP_CONTEXT.get('periods_loaded_from_checkpoint', 0) + 1
+        else:
+            try:
+                result=adapter.fetch_historical_symbol(symbol,period)
+            except Exception as exc:
+                LIVE_PROGRESS['failed_candidate_chain'] = getattr(exc, 'candidate_attempts', getattr(exc, 'diagnostics', []))
+                reason = (f'TWSE_HOST_TEMPORARILY_UNAVAILABLE:{symbol}:{period}'
+                          if 'TWSE_HOST_TEMPORARILY_UNAVAILABLE' in str(exc)
+                          else f"{market}_HISTORICAL_RETRIEVAL:{symbol}:{period}:{exc}")
+                error = RuntimeError(reason)
+                error.candidate_attempts = LIVE_PROGRESS['failed_candidate_chain']
+                raise error from exc
+            raw_rows = _rows(result.get('raw_payload'))
+            LIVE_PROGRESS['raw_sessions_by_symbol'][symbol] += len(raw_rows)
+            period_records=[]; period_seen=set()
+            for row in raw_rows:
+                raw_date=_pick(row,'trade_date','Date','日期')
+                if raw_date is None: continue
+                td=normalize_twse_date(raw_date)
+                if td>trading_date or td in period_seen: continue
+                try:
+                    normalized = normalize_stock_record({'symbol':symbol,'market':market,'trade_date':td,'open':_pick(row,'open','OpeningPrice','開盤價','Open'),'high':_pick(row,'high','HighestPrice','最高價','High'),'low':_pick(row,'low','LowestPrice','最低價','Low'),'close':_pick(row,'close','ClosingPrice','收盤價','Close'),'volume':_pick(row,'volume','TradeVolume','成交股數','TradingShares'),'turnover':_pick(row,'turnover','TradeValue','成交金額','TransactionAmount')},source=f'{market}_STOCK_DAY',source_timestamp=result.get('source_timestamp'),ingested_at=result.get('retrieval_timestamp'))
+                except (ValueError, TypeError):
+                    continue
+                period_records.append(normalized); period_seen.add(td)
+            if market == 'TWSE':
+                canonical = json.dumps(period_records, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()
+                BOOTSTRAP_CONTEXT.setdefault('checkpoint', {}).setdefault('months', {})[cp_key] = {
+                    'symbol': symbol, 'market': market, 'year_month': period, 'provider': 'TWSE', 'dataset': 'STOCK_DAY',
+                    'records': period_records, 'content_hash': hashlib.sha256(canonical).hexdigest(),
+                    'validation_status': 'PASS'}
+                _save_checkpoint(BOOTSTRAP_CONTEXT['checkpoint_path'], BOOTSTRAP_CONTEXT['checkpoint'])
+                BOOTSTRAP_CONTEXT['periods_retrieved_this_run'] = BOOTSTRAP_CONTEXT.get('periods_retrieved_this_run', 0) + 1
+                BOOTSTRAP_CONTEXT['periods_newly_validated'] = BOOTSTRAP_CONTEXT.get('periods_newly_validated', 0) + 1
+        for normalized in period_records:
+            td = normalized.get('trade_date')
+            if not td or td > trading_date or td in seen: continue
+            records.append(normalized); seen.add(td)
         LIVE_PROGRESS['aligned_sessions_by_symbol'][symbol] = len(records)
-        LIVE_PROGRESS['months_completed_by_symbol'][symbol] += 1
+        if cached is not None or period_records:
+            LIVE_PROGRESS['months_completed_by_symbol'][symbol] += 1
         LIVE_PROGRESS['last_successful_period'] = period
         if len(records)>=180: break
     records.sort(key=lambda x:x['trade_date'])
@@ -243,17 +331,28 @@ def _live(trading_date):
                      'months_completed_by_symbol': {}, 'raw_sessions_by_symbol': {},
                      'aligned_sessions_by_symbol': {}, 'last_successful_period': None,
                      'failed_candidate_chain': []}
+    reset_transport_metrics()
     missing=[k for k,v in _config_readiness().items() if v!='READY']
     if missing: raise RuntimeError('MISSING_REQUIRED_SOURCE_CONFIGURATION:'+','.join(missing))
     universe=_load_universe(); markets=UNIVERSE_CONTEXT.get('universe_markets', {s:'TWSE' for s in universe})
+    global BOOTSTRAP_CONTEXT
+    checkpoint_path = Path(os.getenv('RATE_TWSE_BOOTSTRAP_CHECKPOINT', str(CHECKPOINT_PATH)))
+    checkpoint = _load_checkpoint(checkpoint_path, UNIVERSE_CONTEXT.get('universe_digest', ''))
+    BOOTSTRAP_CONTEXT = {'checkpoint_path': checkpoint_path, 'checkpoint': checkpoint,
+                         'checkpoint_digest': checkpoint.get('content_hash'),
+                         'periods_loaded_from_checkpoint': 0, 'periods_retrieved_this_run': 0,
+                         'periods_newly_validated': 0, 'periods_remaining': 0}
     twse=TWSEAdapter(); tpex=TPExAdapter()
     stocks={}
     for s in universe:
         market=markets.get(s,'TWSE'); stocks[s]=_history(twse if market=='TWSE' else tpex,s,trading_date,market)
+    BOOTSTRAP_CONTEXT['periods_remaining'] = sum(1 for s in universe if markets.get(s, 'TWSE') == 'TWSE' and len(stocks.get(s, [])) < 180)
     twse_benchmark=_benchmark(twse,trading_date,'TWSE')
     tpex_benchmark=_benchmark(tpex,trading_date,'TPEX') if any(m=='TPEX' for m in markets.values()) else []
     benchmark_by_symbol={s:(twse_benchmark if markets.get(s,'TWSE')=='TWSE' else tpex_benchmark) for s in universe}
-    store=PersistentHistoricalStore()
+    # CER-061 bootstrap writes only to the staging namespace; production
+    # history/state is never mutated by this validation workflow.
+    store=PersistentHistoricalStore(os.getenv('RATE_STAGING_HISTORY_STORE_ROOT', 'data/staging/history'))
     for s,rows in stocks.items(): store.upsert_stock(s,rows)
     store.upsert_benchmark('TAIEX',twse_benchmark)
     if tpex_benchmark: store.upsert_benchmark('TPEX',tpex_benchmark)
@@ -284,7 +383,7 @@ def _validate(records):
         if missing: errors.append({'symbol':r.get('symbol'),'missing_components':sorted(set(missing))})
     return errors
 def main():
-    ap=argparse.ArgumentParser(); ap.add_argument('--trading-date',required=True); ap.add_argument('--output',required=True); ap.add_argument('--source-bundle-input'); ap.add_argument('--evidence-output',default=EVIDENCE_DEFAULT); a=ap.parse_args(); output,evidence=Path(a.output),Path(a.evidence_output)
+    ap=argparse.ArgumentParser(); ap.add_argument('--trading-date',required=True); ap.add_argument('--output',required=True); ap.add_argument('--source-bundle-input'); ap.add_argument('--evidence-output',default=EVIDENCE_DEFAULT); ap.add_argument('--bootstrap-evidence-output',default='artifacts/RATE_TWSE_HISTORY_BOOTSTRAP_EVIDENCE.json'); a=ap.parse_args(); output,evidence=Path(a.output),Path(a.evidence_output); bootstrap_evidence=Path(a.bootstrap_evidence_output)
     try:
         if a.source_bundle_input:
             source=json.loads(Path(a.source_bundle_input).read_text(encoding='utf-8'))
@@ -295,7 +394,7 @@ def main():
             else: bundle=source
         else: bundle=_live(a.trading_date)
         if _validate(bundle.get('decision_records',[])): raise RuntimeError('DATA_INCOMPLETE:FULL_19_COMPONENTS')
-        _write(output,bundle); _write(evidence,{'status':'PASS','trading_date':a.trading_date,'staging_commit':os.getenv('GITHUB_SHA'),'universe_count':len(bundle.get('universe',[])),'source_readiness':_config_readiness(),'history_coverage_reached_before_failure':bundle.get('source_provenance',{}).get('stock_history_coverage',{}),'benchmark_coverage':bundle.get('source_provenance',{}).get('benchmark_records'),'timestamps':{'retrieval_timestamp':_now()},**UNIVERSE_CONTEXT}); return 0
+        _write(output,bundle); _write(evidence,{'status':'PASS','trading_date':a.trading_date,'staging_commit':os.getenv('GITHUB_SHA'),'universe_count':len(bundle.get('universe',[])),'source_readiness':_config_readiness(),'history_coverage_reached_before_failure':bundle.get('source_provenance',{}).get('stock_history_coverage',{}),'benchmark_coverage':bundle.get('source_provenance',{}).get('benchmark_records'),'timestamps':{'retrieval_timestamp':_now()},'transport_request_metrics':get_transport_metrics(),**UNIVERSE_CONTEXT}); _bootstrap_evidence(bootstrap_evidence, 'PASS'); return 0
     except Exception as exc:
-        _failure(evidence,a.trading_date,str(exc)); _write(output,{'validation_status':'BLOCKED','blocking_reason':str(exc)}); print(json.dumps({'validation_status':'BLOCKED','blocking_reason':str(exc)})); return 1
+        _failure(evidence,a.trading_date,str(exc)); _bootstrap_evidence(bootstrap_evidence, 'BLOCKED', str(exc)); _write(output,{'validation_status':'BLOCKED','blocking_reason':str(exc)}); print(json.dumps({'validation_status':'BLOCKED','blocking_reason':str(exc)})); return 1
 if __name__=='__main__': raise SystemExit(main())
