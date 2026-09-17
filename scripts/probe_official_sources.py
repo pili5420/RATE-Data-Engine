@@ -1,25 +1,35 @@
 """Small, read-only probe of the official sources used by LIVE assembly."""
 from __future__ import annotations
-import argparse, hashlib, json, sys
+import argparse, hashlib, json, sys, time
 from datetime import datetime, timezone
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
+from http.client import IncompleteRead
 from src.sources.fundamental import FundamentalAdapter
 from src.sources.tdcc import TDCCAdapter
 from src.sources.twse import TWSEAdapter
 
 def probe(source, endpoint, parser):
     result={'source':source,'official_endpoint':endpoint,'retrieval_timestamp':datetime.now(timezone.utc).isoformat().replace('+00:00','Z')}
-    try:
-        req=Request(endpoint,headers={'User-Agent':'RATE-Data-Engine/1.0','Accept':'application/json'})
-        with urlopen(req,timeout=30) as response:
-            body=response.read(); result.update({'http_status':response.status,'content_type':response.headers.get('Content-Type',''),'response_received':bool(body),'response_bytes':len(body),'digest':hashlib.sha256(body).hexdigest()})
-        payload=json.loads(body.decode('utf-8-sig')); result.update({'records':len(payload.get('data',[])) if isinstance(payload,dict) else len(payload) if isinstance(payload,list) else 0,'parse_status':parser(payload)})
-    except HTTPError as exc: result.update({'http_status':exc.code,'parse_status':'FAIL:HTTP'})
-    except (URLError,TimeoutError) as exc: result.update({'http_status':None,'parse_status':'FAIL:CONNECTIVITY:'+type(exc).__name__})
-    except Exception as exc: result.update({'http_status':result.get('http_status'),'parse_status':'FAIL:'+type(exc).__name__})
+    last = None
+    for attempt in range(3):
+        try:
+            req=Request(endpoint,headers={'User-Agent':'RATE-Data-Engine/1.0','Accept':'application/json'})
+            with urlopen(req,timeout=30) as response:
+                body=response.read(); result.update({'http_status':response.status,'content_type':response.headers.get('Content-Type',''),'response_received':bool(body),'response_bytes':len(body),'digest':hashlib.sha256(body).hexdigest(),'attempt':attempt+1})
+            payload=json.loads(body.decode('utf-8-sig')); result.update({'records':len(payload.get('data',[])) if isinstance(payload,dict) else len(payload) if isinstance(payload,list) else 0,'parse_status':parser(payload)})
+            return result
+        except HTTPError as exc:
+            last = exc; result.update({'http_status':exc.code,'parse_status':'FAIL:HTTP'})
+            if exc.code not in (408,429,500,502,503,504): break
+        except (IncompleteRead, URLError, TimeoutError, ConnectionError, json.JSONDecodeError) as exc:
+            last = exc; result.update({'http_status':result.get('http_status'),'parse_status':'FAIL:'+type(exc).__name__})
+        except Exception as exc:
+            last = exc; result.update({'http_status':result.get('http_status'),'parse_status':'FAIL:'+type(exc).__name__})
+        if attempt < 2:
+            time.sleep(2 ** attempt)
     return result
 def ok(payload): return 'PASS' if payload else 'FAIL:EMPTY'
 def main():
