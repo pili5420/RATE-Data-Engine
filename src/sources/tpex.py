@@ -1,8 +1,37 @@
 from __future__ import annotations
 from .base import fetch_json, provenance
-import os
+import base64, hashlib, json, os, time
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
+from http.client import IncompleteRead
 
 BASE = "https://www.tpex.org.tw/openapi/v1"
+HISTORICAL_ENDPOINT = "https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote.php?l=zh-tw&o=json&d={period}&s={symbol}"
+BENCHMARK_ENDPOINT = "https://www.tpex.org.tw/web/indices/market_index/mktindex.php?l=zh-tw&o=json&d={period}"
+INSTITUTIONAL_HISTORY_ENDPOINT = "https://www.tpex.org.tw/web/stock/3insti/3insti.php?l=zh-tw&o=json&d={period}"
+
+def _roc_period(period: str) -> str:
+    year, month = int(period[:4]), int(period[4:6])
+    return f"{year - 1911:03d}{month:02d}"
+
+def _resilient_json(endpoint: str, retries: int = 3):
+    last = None
+    for attempt in range(retries):
+        try:
+            req = Request(endpoint, headers={"User-Agent": "RATE-Data-Engine/1.0", "Accept": "application/json"})
+            with urlopen(req, timeout=30) as response:
+                body = response.read()
+                status = response.status
+                ctype = response.headers.get("Content-Type", "")
+            if not body:
+                raise RuntimeError("TPEX_EMPTY_RESPONSE")
+            payload = json.loads(body.decode("utf-8-sig"))
+            return payload, hashlib.sha256(body).hexdigest(), {"http_status": status, "content_type": ctype, "response_bytes": len(body), "attempt": attempt + 1}
+        except (IncompleteRead, ConnectionError, TimeoutError, URLError, HTTPError, json.JSONDecodeError) as exc:
+            last = exc
+            if attempt + 1 < retries:
+                time.sleep(2 ** attempt)
+    raise RuntimeError(f"TPEX_HISTORICAL_RETRIEVAL_FAILED:{type(last).__name__}") from last
 class TPExAdapter:
     provider = "TPEx Official OpenAPI"
     def _fetch(self, path: str, domain: str):
@@ -17,15 +46,26 @@ class TPExAdapter:
     def fetch_institutional(self): return self._fetch("tpex_3insti_trading", "institutional")
     def fetch_qfii(self): return self._fetch("tpex_3insti_qfii_trading", "institutional_qfii")
     def fetch_historical_symbol(self, symbol: str, period: str):
-        endpoint = os.getenv('TPEX_HISTORICAL_ENDPOINT')
-        if not endpoint: raise RuntimeError('MISSING_REQUIRED_SOURCE_CONFIGURATION:TPEX_HISTORICAL_ENDPOINT')
-        payload, digest = fetch_json(endpoint.format(symbol=symbol, period=period))
-        return provenance('market_daily_history', self.provider, endpoint, digest, payload)
+        template = os.getenv('TPEX_HISTORICAL_ENDPOINT', HISTORICAL_ENDPOINT)
+        endpoint = template.format(symbol=symbol, period=_roc_period(period), yyyy_mm=period)
+        payload, digest, diagnostics = _resilient_json(endpoint)
+        out = provenance('market_daily_history', self.provider, endpoint, digest, payload)
+        out['diagnostics'] = diagnostics
+        return out
     def fetch_historical_benchmark(self, period: str):
-        endpoint = os.getenv('TPEX_BENCHMARK_HISTORY_ENDPOINT')
-        if not endpoint: raise RuntimeError('MISSING_REQUIRED_SOURCE_CONFIGURATION:TPEX_BENCHMARK_HISTORY_ENDPOINT')
-        payload, digest = fetch_json(endpoint.format(period=period))
-        return provenance('benchmark_history', self.provider, endpoint, digest, payload)
+        template = os.getenv('TPEX_BENCHMARK_HISTORY_ENDPOINT', BENCHMARK_ENDPOINT)
+        endpoint = template.format(period=_roc_period(period), yyyy_mm=period)
+        payload, digest, diagnostics = _resilient_json(endpoint)
+        out = provenance('benchmark_history', self.provider, endpoint, digest, payload)
+        out['benchmark_symbol'] = 'TPEX'; out['benchmark_name'] = 'TPEx Index'; out['diagnostics'] = diagnostics
+        return out
+    def fetch_institutional_history(self, symbol: str, period: str):
+        template = os.getenv('TPEX_INSTITUTIONAL_HISTORY_ENDPOINT', INSTITUTIONAL_HISTORY_ENDPOINT)
+        endpoint = template.format(symbol=symbol, period=_roc_period(period), yyyy_mm=period)
+        payload, digest, diagnostics = _resilient_json(endpoint)
+        out = provenance('institutional_history', self.provider, endpoint, digest, payload)
+        out['diagnostics'] = diagnostics
+        return out
     @staticmethod
     def normalize_daily(record: dict) -> dict:
         return {"symbol":record.get("SecuritiesCompanyCode"), "trade_date":record.get("Date"),

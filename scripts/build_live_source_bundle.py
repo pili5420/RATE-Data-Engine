@@ -15,6 +15,7 @@ from src.sources.tdcc import TDCCAdapter
 from src.sources.fundamental import FundamentalAdapter
 from src.fundamental_history import PersistentFundamentalStore
 from src.sources.twse import TWSEAdapter
+from src.sources.tpex import TPExAdapter
 from src.technical_features import compute_scores, technical_record
 
 FULL_COMPONENTS = ('PT','PV','MO','FI','IT','LH','RS','H5','H20','H60','H120','RS_CHANGE','VOL_CHANGE','SMART_MONEY','MOMENTUM_CHANGE','FC','Fundamental','RelativeStrength','Liquidity')
@@ -82,7 +83,7 @@ def _load_universe():
             digest=hashlib.sha256(json.dumps(digest_payload,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
             if digest != obj.get('universe_symbol_digest') or digest != '30276287608b87f7d9b606891514247da523dce9214e4b82bb34ba118a35af4c': raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:DIGEST')
             if obj.get('record_count') != 30 or obj.get('unique_count',30) != 30 or obj.get('duplicate_count',0) != 0: raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:COUNTS')
-            UNIVERSE_CONTEXT={'universe_source':'CONTROL_CENTER_APPROVED_STAGING_VALIDATION_UNIVERSE_V1','universe_schema_version':obj['schema_version'],'universe_source_state_id':obj['source_state_id'],'universe_source_state_hash':obj['source_state_file_sha256'],'universe_digest':digest,'universe_record_count':30,'twse_count':sum(p['market']=='TWSE' for p in parsed),'tpex_count':sum(p['market']=='TPEX' for p in parsed),'unresolved_market_count':obj.get('unresolved_market_count',0),'fixture_universe_used':False}
+            UNIVERSE_CONTEXT={'universe_source':'CONTROL_CENTER_APPROVED_STAGING_VALIDATION_UNIVERSE_V1','universe_schema_version':obj['schema_version'],'universe_source_state_id':obj['source_state_id'],'universe_source_state_hash':obj['source_state_file_sha256'],'universe_digest':digest,'universe_record_count':30,'twse_count':sum(p['market']=='TWSE' for p in parsed),'tpex_count':sum(p['market']=='TPEX' for p in parsed),'unresolved_market_count':obj.get('unresolved_market_count',0),'fixture_universe_used':False,'universe_markets':{p['symbol']:p['market'] for p in parsed}}
         else:
             parsed = _parse_universe_payload(obj); symbols=[p['symbol'] for p in parsed]
     result=sorted(set(x for x in symbols if x.isdigit()))
@@ -93,7 +94,7 @@ def _write(path,value):
 def _config_readiness(): return {key:('READY' if (os.getenv(key) or key=='TDCC_OPENAPI_BASE') else 'NOT_READY') for key in REQUIRED_CONFIG}
 def _failure(path,trading_date,reason,coverage=None):
     _write(path,{'status':'BLOCKED','blocking_reason':reason,'trading_date':trading_date,'staging_commit':os.getenv('GITHUB_SHA'),'execution_runtime':'github_actions' if os.getenv('GITHUB_ACTIONS')=='true' else 'local','universe_count':len(os.getenv('RATE_TWSE_SYMBOLS','').split(',')) if os.getenv('RATE_TWSE_SYMBOLS') else UNIVERSE_CONTEXT.get('universe_record_count',0),'source_readiness':_config_readiness(),'history_coverage_reached_before_failure':coverage or {},'benchmark_coverage':None,'timestamps':{'retrieval_timestamp':_now()},**UNIVERSE_CONTEXT})
-def _history(adapter,symbol,trading_date):
+def _history(adapter,symbol,trading_date,market='TWSE'):
     records=[]; seen=set(); end=date.fromisoformat(trading_date)
     for period in _month_cursor(end):
         result=adapter.fetch_historical_symbol(symbol,period)
@@ -102,12 +103,12 @@ def _history(adapter,symbol,trading_date):
             if raw_date is None: continue
             td=normalize_twse_date(raw_date)
             if td>trading_date or td in seen: continue
-            records.append(normalize_stock_record({'symbol':symbol,'market':'TWSE','trade_date':td,'open':_pick(row,'open','OpeningPrice','開盤價'),'high':_pick(row,'high','HighestPrice','最高價'),'low':_pick(row,'low','LowestPrice','最低價'),'close':_pick(row,'close','ClosingPrice','收盤價'),'volume':_pick(row,'volume','TradeVolume','成交股數'),'turnover':_pick(row,'turnover','TradeValue','成交金額')},source='TWSE_STOCK_DAY',source_timestamp=result.get('source_timestamp'),ingested_at=result.get('retrieval_timestamp'))); seen.add(td)
+            records.append(normalize_stock_record({'symbol':symbol,'market':market,'trade_date':td,'open':_pick(row,'open','OpeningPrice','開盤價','Open'),'high':_pick(row,'high','HighestPrice','最高價','High'),'low':_pick(row,'low','LowestPrice','最低價','Low'),'close':_pick(row,'close','ClosingPrice','收盤價','Close'),'volume':_pick(row,'volume','TradeVolume','成交股數','TradingShares'),'turnover':_pick(row,'turnover','TradeValue','成交金額','TransactionAmount')},source=f'{market}_STOCK_DAY',source_timestamp=result.get('source_timestamp'),ingested_at=result.get('retrieval_timestamp'))); seen.add(td)
         if len(records)>=180: break
     records.sort(key=lambda x:x['trade_date'])
     if len(records)<180: raise RuntimeError(f'DATA_INCOMPLETE:LIVE_HISTORICAL_STOCK:{symbol}:{len(records)}<180')
     return records[-220:]
-def _benchmark(adapter,trading_date):
+def _benchmark(adapter,trading_date,market='TWSE'):
     records=[]; seen=set(); end=date.fromisoformat(trading_date)
     for period in _month_cursor(end):
         result=adapter.fetch_historical_benchmark(period)
@@ -116,10 +117,10 @@ def _benchmark(adapter,trading_date):
             if raw_date is None or close is None: continue
             td=normalize_twse_date(raw_date)
             if td>trading_date or td in seen: continue
-            records.append({'benchmark_symbol':'TAIEX','market':'TWSE','trade_date':td,'close':_number(close),'source':'TWSE_TAIEX','source_timestamp':result.get('source_timestamp'),'ingested_at':result.get('retrieval_timestamp')}); seen.add(td)
+            records.append({'benchmark_symbol':'TAIEX' if market=='TWSE' else 'TPEX','market':market,'trade_date':td,'close':_number(close),'source':'TWSE_TAIEX' if market=='TWSE' else 'TPEX_INDEX','source_timestamp':result.get('source_timestamp'),'ingested_at':result.get('retrieval_timestamp')}); seen.add(td)
         if len(records)>=180: break
     records.sort(key=lambda x:x['trade_date'])
-    if len(records)<180: raise RuntimeError(f'DATA_INCOMPLETE:LIVE_TAIEX_HISTORY:{len(records)}<180')
+    if len(records)<180: raise RuntimeError(f'DATA_INCOMPLETE:LIVE_{"TAIEX" if market=="TWSE" else "TPEX_INDEX"}_HISTORY:{len(records)}<180')
     return records[-220:]
 def _t86_history(adapter, universe, stocks, trading_date):
     target=date.fromisoformat(trading_date); per={s:[] for s in universe}; cursor=target
@@ -141,6 +142,28 @@ def _t86_history(adapter, universe, stocks, trading_date):
     missing=[s for s,v in per.items() if len(v)<20]
     if missing: raise RuntimeError('DATA_INCOMPLETE:LIVE_T86_HISTORY:'+','.join(missing))
     return per
+
+def _tpex_institutional_history(adapter, universe, stocks, trading_date):
+    target=date.fromisoformat(trading_date); per={s:[] for s in universe}; cursor=target
+    aliases={'symbol':('symbol','SecuritiesCompanyCode','證券代號'),'foreign_buy':('foreign_buy','ForeignBuy','外資及陸資買進股數'),'foreign_sell':('foreign_sell','ForeignSell','外資及陸資賣出股數'),'foreign_net':('foreign_net','ForeignNet','外資及陸資買賣超股數'),'investment_trust_buy':('investment_trust_buy','InvestmentTrustBuy','投信買進股數'),'investment_trust_sell':('investment_trust_sell','InvestmentTrustSell','投信賣出股數'),'investment_trust_net':('investment_trust_net','InvestmentTrustNet','投信買賣超股數')}
+    for _ in range(70):
+        if all(len(v)>=20 for v in per.values()): break
+        try: result=adapter.fetch_institutional_history('', cursor.strftime('%Y%m'))
+        except Exception: cursor-=timedelta(days=1); continue
+        for row in _rows(result.get('raw_payload')):
+            mapped={k:_pick(row,*v) for k,v in aliases.items()}; symbol=str(mapped.get('symbol') or '').strip()
+            if symbol not in per or any(mapped[k] is None for k in aliases): continue
+            td=normalize_twse_date(_pick(row,'trade_date','Date','日期') or cursor.isoformat())
+            if td>trading_date or any(x.get('trading_date')==td for x in per[symbol]): continue
+            close=next((x for x in stocks[symbol] if x['trade_date']==td),None)
+            if close is None: continue
+            try: item={'symbol':symbol,'trading_date':td,**{k:_number(mapped[k]) for k in aliases if k!='symbol'},'foreign_net_shares':_number(mapped['foreign_net']),'investment_trust_net_shares':_number(mapped['investment_trust_net']),'close':close['close'],'turnover':close['turnover'],'source_timestamp':result.get('source_timestamp')}
+            except ValueError: continue
+            per[symbol].append(item)
+        cursor-=timedelta(days=1)
+    missing=[s for s,v in per.items() if len(v)<20]
+    if missing: raise RuntimeError('DATA_INCOMPLETE:TPEX_INSTITUTIONAL_HISTORY:'+','.join(missing))
+    return per
 def _tdcc_history(universe):
     raw=TDCCAdapter().fetch(); rows=_rows(raw.get('raw_payload')); out={}
     for row in rows:
@@ -151,10 +174,15 @@ def _tdcc_history(universe):
     missing=[s for s in universe if len(out.get(s,[]))<5]
     if missing: raise RuntimeError('DATA_INCOMPLETE:LIVE_TDCC_HISTORY:'+','.join(missing))
     return out
-def _fundamental_history(universe):
-    adapter=FundamentalAdapter(); revenue_rows=_rows(adapter.fetch_monthly_revenue()['raw_payload']); by={str(_pick(r,'symbol','公司代號','公司代碼') or ''):r for r in revenue_rows}
+def _fundamental_history(universe, markets=None):
+    adapter=FundamentalAdapter(); markets=markets or {}; twse_symbols=[s for s in universe if markets.get(s,'TWSE')=='TWSE']; tpex_symbols=[s for s in universe if markets.get(s,'TWSE')=='TPEX']
+    revenue_rows=_rows(adapter.fetch_monthly_revenue()['raw_payload'])
+    if tpex_symbols:
+        revenue_rows += _rows(adapter.fetch_otc_monthly_revenue()['raw_payload'])
+    by={str(_pick(r,'symbol','公司代號','公司代碼','SecuritiesCompanyCode') or ''):r for r in revenue_rows}
     eps_rows=[]
-    for endpoint in adapter.EPS_ENDPOINTS:
+    endpoints=list(adapter.EPS_ENDPOINTS) + (list(adapter.OTC_EPS_ENDPOINTS) if tpex_symbols else [])
+    for endpoint in endpoints:
         try: eps_rows.extend(_rows(adapter.fetch_quarterly_eps(endpoint)['raw_payload']))
         except Exception: continue
     eps_by={str(_pick(r,'symbol','公司代號','公司代碼') or ''):r for r in eps_rows}
@@ -184,25 +212,33 @@ def _fundamental_history(universe):
 def _live(trading_date):
     missing=[k for k,v in _config_readiness().items() if v!='READY']
     if missing: raise RuntimeError('MISSING_REQUIRED_SOURCE_CONFIGURATION:'+','.join(missing))
-    universe=_load_universe()
-    if UNIVERSE_CONTEXT.get('tpex_count', 0) > 0:
-        raise RuntimeError('TPEX_PRODUCTION_SOURCE_CAPABILITY_INCOMPLETE')
-    adapter=TWSEAdapter(); stocks={s:_history(adapter,s,trading_date) for s in universe}; benchmark=_benchmark(adapter,trading_date)
+    universe=_load_universe(); markets=UNIVERSE_CONTEXT.get('universe_markets', {s:'TWSE' for s in universe})
+    twse=TWSEAdapter(); tpex=TPExAdapter()
+    stocks={}
+    for s in universe:
+        market=markets.get(s,'TWSE'); stocks[s]=_history(twse if market=='TWSE' else tpex,s,trading_date,market)
+    twse_benchmark=_benchmark(twse,trading_date,'TWSE')
+    tpex_benchmark=_benchmark(tpex,trading_date,'TPEX') if any(m=='TPEX' for m in markets.values()) else []
+    benchmark_by_symbol={s:(twse_benchmark if markets.get(s,'TWSE')=='TWSE' else tpex_benchmark) for s in universe}
     store=PersistentHistoricalStore()
     for s,rows in stocks.items(): store.upsert_stock(s,rows)
-    store.upsert_benchmark('TAIEX',benchmark)
-    t86=_t86_history(adapter,universe,stocks,trading_date); tdcc=_tdcc_history(universe); fundamentals=_fundamental_history(universe)
-    technical=compute_scores(list(stocks.values()),benchmark); tech_by={str(x['symbol']):x for x in technical}
-    inst_input=[{'symbol':s,'institutional_history':t86[s],'tdcc_history':sorted(tdcc[s],key=lambda x:x['period_end']),'rs_history':[x['close'] for x in stocks[s]][-26:],'volume_5_history':[1.0]*6,'mo_history':[x['close'] for x in stocks[s]][-26:]} for s in universe]
+    store.upsert_benchmark('TAIEX',twse_benchmark)
+    if tpex_benchmark: store.upsert_benchmark('TPEX',tpex_benchmark)
+    twse_universe=[s for s in universe if markets.get(s,'TWSE')=='TWSE']; tpex_universe=[s for s in universe if markets.get(s)=='TPEX']
+    t86=_t86_history(twse,twse_universe,stocks,trading_date) if twse_universe else {}
+    tpex_inst=_tpex_institutional_history(tpex,tpex_universe,stocks,trading_date) if tpex_universe else {}
+    inst_hist={**t86,**tpex_inst}; tdcc=_tdcc_history(universe); fundamentals=_fundamental_history(universe,markets)
+    technical=compute_scores(list(stocks.values()), benchmark_by_symbol=benchmark_by_symbol); tech_by={str(x['symbol']):x for x in technical}
+    inst_input=[{'symbol':s,'institutional_history':inst_hist[s],'tdcc_history':sorted(tdcc[s],key=lambda x:x['period_end']),'rs_history':[x['close'] for x in stocks[s]][-26:],'volume_5_history':[1.0]*6,'mo_history':[x['close'] for x in stocks[s]][-26:]} for s in universe]
     institutional=calculate_institutional_rotation(inst_input); inst_by={str(x['symbol']):x for x in institutional}; sources={}
     for symbol in universe:
-        tf=tech_by[symbol]['technical_features']; hist=stocks[symbol]; tr=technical_record(hist,benchmark); ir=inst_by[symbol]
+        tf=tech_by[symbol]['technical_features']; hist=stocks[symbol]; tr=technical_record(hist,benchmark_by_symbol[symbol]); ir=inst_by[symbol]
         m7=calculate_m7({'PT':tf['PT'],'PV':tf['PV'],'MO':tf['MO'],'FI':ir['FI'],'IT':ir['IT'],'LH':ir['LH'],'RS':tf['RS']}); mhe=calculate_mhe({k:tf[k] for k in ('H5','H20','H60','H120')})
         stage={'price':hist[-1]['close'],'ma20':tr['MA20'],'ma60':tr['MA60'],'ma120':tr['MA120'],'price_above_all':hist[-1]['close']>max(tr['MA20'],tr['MA60'],tr['MA120']),'ma20_above_ma60':tr['MA20']>tr['MA60'],'ma20_slope_positive':tr['MA20']>=sum(x['close'] for x in hist[-25:-5])/20,'m7_score':m7['m7_score'],'mhe_score':mhe['mhe_score'],'relative_strength_strong':tf['RelativeStrength']>=50,'ma60_trend_non_negative':True,'price_above_ma60':hist[-1]['close']>tr['MA60'],'price_near_ma20_ma60':False,'long_term_bullish':hist[-1]['close']>=tr['MA120'],'short_swing_mhe_improving':True,'m7_rising':True,'mhe_rising':True,'recent_low_no_longer_deteriorating':True,'rotation_deteriorated':False,'structural_failure':False,'evidence_state_mixed':False}
         sources[symbol]={'technical_features':tf,'FI':ir['FI'],'IT':ir['IT'],'LH':ir['LH'],'SmartMoney_inputs':ir['SmartMoney_inputs'],'Rotation_inputs':ir['Rotation_inputs'],'Stage_inputs':stage,'Fundamental':fundamentals[symbol]['Fundamental']}
     built=build_live_decision_records(sources,trading_date,universe)
     if built['feature_validation']['status']!='PASS' or len(built['decision_records'])!=len(universe): raise RuntimeError('DATA_INCOMPLETE:FULL_19_COMPONENTS')
-    return {'production_sources':sources,'universe':universe,'decision_records':built['decision_records'],'institutional_records':t86[universe[0]],'source_provenance':{'source':'AUTHORIZED_LIVE','provider':'TWSE/TDCC/MOPS','retrieval_timestamp':_now(),'stock_history_coverage':{s:len(v) for s,v in stocks.items()},'benchmark_records':len(benchmark)},'short_term_top30':universe,'roy_portfolio':[],'required_benchmarks':['TAIEX'],'explicit_production_watchlist':[],'validation_status':'PASS'}
+    return {'production_sources':sources,'universe':universe,'decision_records':built['decision_records'],'institutional_records':inst_hist[universe[0]],'source_provenance':{'source':'AUTHORIZED_LIVE','provider':'TWSE/TPEx/TDCC/MOPS','retrieval_timestamp':_now(),'stock_history_coverage':{s:len(v) for s,v in stocks.items()},'benchmark_records':{'TAIEX':len(twse_benchmark),'TPEX':len(tpex_benchmark)}},'short_term_top30':universe,'roy_portfolio':[],'required_benchmarks':['TAIEX','TPEX'],'explicit_production_watchlist':[],'validation_status':'PASS'}
 def _validate(records):
     errors=[]
     for r in records:

@@ -38,12 +38,12 @@ def main():
         # Daily/institutional transport probes are independent of the historical
         # adapter configuration.  Missing configured historical/fundamental/
         # benchmark products remain explicit capability blockers.
-        tpex_endpoints=[('TPEX_HISTORICAL_STOCK','https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes'),('TPEX_INSTITUTIONAL','https://www.tpex.org.tw/openapi/v1/tpex_3insti_trading'),('TPEX_FUNDAMENTAL','',lambda p:'NOT_IMPLEMENTED'),('TPEX_BENCHMARK','',lambda p:'NOT_IMPLEMENTED')]
+        tpex_endpoints=[('TPEX_HISTORICAL_STOCK','https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes'),('TPEX_INSTITUTIONAL_HISTORY','https://www.tpex.org.tw/openapi/v1/tpex_3insti_trading'),('TPEX_MONTHLY_REVENUE','https://openapi.twse.com.tw/v1/opendata/mopsfin_t187ap05_O'),('TPEX_QUARTERLY_EPS','https://openapi.twse.com.tw/v1/opendata/mopsfin_t187ap06_O_basi'),('TPEX_BENCHMARK_HISTORY','https://www.tpex.org.tw/web/indices/market_index/mktindex.php')]
         for item in tpex_endpoints:
             if len(item)==2: name,url=item; parser=lambda p:'PASS' if p else 'FAIL:EMPTY'
             else: name,url,parser=item
             tpex.append(probe(name,url,parser) if url else {'source':name,'official_endpoint':None,'parse_status':'NOT_IMPLEMENTED','retrieval_timestamp':datetime.now(timezone.utc).isoformat().replace('+00:00','Z')})
-    status='PASS' if all(x.get('parse_status')=='PASS' for x in results) else 'FAIL'
     tpex_status='PASS' if (not tpex_required or all(x.get('parse_status')=='PASS' for x in tpex)) else 'FAIL'
+    status='PASS' if all(x.get('parse_status')=='PASS' for x in results) and tpex_status=='PASS' else 'FAIL'
     out={'status':status,'trading_date':a.trading_date,'sources':results,'tpex_required':tpex_required,'tpex_sources':tpex,'tpex_source_capability':tpex_status}; Path(a.output).parent.mkdir(parents=True,exist_ok=True); Path(a.output).write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8'); print(json.dumps(out,ensure_ascii=False)); return 0 if status=='PASS' else 1
 if __name__=='__main__': raise SystemExit(main())

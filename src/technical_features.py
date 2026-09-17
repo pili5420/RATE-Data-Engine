@@ -25,10 +25,14 @@ def technical_record(rows,bench):
  ma20=sma(c,20);ma60=sma(c,60);ma120=sma(c,120); rv20=returns(c,20); rs20=returns(c,20)-returns(bc,20);rs60=returns(c,60)-returns(bc,60);rs120=returns(c,120)-returns(bc,120)
  macd=ema(c,12)-ema(c,26); sig=ema([macd],9) if len(c)<34 else ema([ema(c[:i+1],12)-ema(c[:i+1],26) for i in range(25,len(c))],9); hist=macd-sig
  return {'MA20':ma20,'MA60':ma60,'MA120':ma120,'RET5':returns(c,5),'RET20':rv20,'RET60':returns(c,60),'RET120':returns(c,120),'AVG_VOLUME_5':sum(v[-5:])/5,'AVG_VOLUME_20':sum(v[-20:])/20,'AVG_TURNOVER_20':sum(t[-20:])/20,'RSI14':rsi14(c),'EMA12':ema(c,12),'EMA26':ema(c,26),'MACD':macd,'MACD_SIGNAL9':sig,'MACD_HISTOGRAM':hist,'EXCESS_RET20':rs20,'EXCESS_RET60':rs60,'EXCESS_RET120':rs120}
-def compute_scores(records, benchmark):
- tech=[technical_record(r,benchmark) for r in records]; n=len(tech)
+def compute_scores(records, benchmark=None, benchmark_by_symbol=None):
+ # ``benchmark_by_symbol`` is a market-aware input mapping; the scoring
+ # formula remains unchanged and each symbol is aligned to its own index.
+ benchmark_by_symbol = benchmark_by_symbol or {}
+ tech=[technical_record(r,benchmark_by_symbol.get(str(r[0].get('symbol')), benchmark) if isinstance(r, list) and r and isinstance(r[0], dict) else benchmark) for r in records]; n=len(tech)
  if n<20: raise ValueError('DATA_INCOMPLETE:PERCENTILE_UNIVERSE_TOO_SMALL')
- bclose=[x['close'] for x in benchmark]; ex5=[returns([x['close'] for x in r],5)-returns(bclose,5) for r in records]
+ bclose=[x['close'] for x in benchmark] if benchmark is not None else []
+ ex5=[returns([x['close'] for x in r],5)-returns([x['close'] for x in benchmark_by_symbol.get(str(r[0].get('symbol')), benchmark)],5) for r in records]
  out=[]
  for i,(r,t) in enumerate(zip(records,tech)):
   c=r[-1]['close']; old=[x['close'] for x in r[:-5]]; pt=.6*(25*(c>t['MA20'])+35*(c>t['MA60'])+40*(c>t['MA120']))+.4*(50*(t['MA20']>sma(old,20))+30*(t['MA60']>sma(old,60))+20*(t['MA120']>sma(old,120)))
