@@ -6,8 +6,127 @@ import hashlib, json
 import os
 import time
 from http.client import IncompleteRead
+from urllib.parse import urljoin, urlparse
 
 BASE = "https://openapi.twse.com.tw/v1"
+MAX_REDIRECTS = 3
+APPROVED_REDIRECT_HOSTS = frozenset({"www.twse.com.tw"})
+
+def _history_rows(payload):
+    if not isinstance(payload, dict):
+        return []
+    data = payload.get('data') or payload.get('records') or []
+    fields = payload.get('fields') or []
+    if fields and isinstance(data, list):
+        return [dict(zip(fields, row)) if isinstance(row, list) else row for row in data if isinstance(row, (list, dict))]
+    return [row for row in data if isinstance(row, dict)] if isinstance(data, list) else []
+
+def _date_matches_period(value, year_month):
+    text = str(value or '').strip().replace('-', '/').replace('.', '/')
+    if not text:
+        return False
+    # TWSE returns either Gregorian YYYY/MM/DD or ROC YYY/MM/DD.
+    return text.startswith(year_month[:4] + '/' + year_month[4:6] + '/') or text.startswith(str(int(year_month[:4]) - 1911).zfill(3) + '/' + year_month[4:6] + '/')
+
+def _validate_history_identity(payload, stock_no, year_month):
+    if not isinstance(payload, dict) or payload.get('stat') not in (None, 'OK'):
+        raise RuntimeError('TWSE_HISTORY_RESPONSE_IDENTITY_MISMATCH')
+    rows = _history_rows(payload)
+    if not rows:
+        raise RuntimeError('TWSE_HISTORY_RESPONSE_IDENTITY_MISMATCH')
+    dates = []
+    for row in rows:
+        if isinstance(row, dict):
+            dates.append(row.get('Date') or row.get('date') or row.get('日期') or row.get('交易日期'))
+    # The endpoint is symbol-scoped; when no symbol field exists the URL is
+    # the authoritative symbol identity.  A recognizable date must still
+    # belong to the requested calendar month.
+    if dates and not any(_date_matches_period(value, year_month) for value in dates):
+        raise RuntimeError('TWSE_HISTORY_RESPONSE_IDENTITY_MISMATCH')
+
+def _fetch_history_candidate(url, stock_no, year_month, candidate_index, max_redirects=MAX_REDIRECTS):
+    diagnostics = []
+    current = url
+    redirects = 0
+    # Three transient attempts plus a finite redirect budget. Redirects are
+    # state transitions, not retries, and therefore must not consume the
+    # transient retry allowance.
+    for attempt in range(1, 4 + max_redirects):
+        try:
+            req = Request(current, headers={
+                'User-Agent': 'RATE-Data-Engine/1.0',
+                'Accept': 'application/json',
+                'Accept-Language': 'zh-TW,zh;q=0.9',
+                'Referer': 'https://www.twse.com.tw/zh/',
+                'Connection': 'close',
+            })
+            with urlopen(req, timeout=30) as response:
+                body = response.read()
+                status = response.status
+                ctype = response.headers.get('Content-Type', '')
+            item = {'symbol': stock_no, 'period': year_month, 'candidate_index': candidate_index,
+                    'request_url': current, 'http_status': status, 'redirect_location': None,
+                    'resolved_redirect_url': None, 'redirect_count': redirects,
+                    'content_type': ctype, 'response_bytes': len(body), 'attempt': attempt,
+                    'transport_result': 'HTTP_200'}
+            diagnostics.append(item)
+            if not body:
+                item['transport_result'] = 'EMPTY_RESPONSE'
+                raise RuntimeError('TWSE_HISTORY_EMPTY_RESPONSE')
+            if 'json' not in ctype.lower():
+                item['transport_result'] = 'NON_JSON_RESPONSE'
+                raise RuntimeError('TWSE_HISTORY_NON_JSON_RESPONSE')
+            try:
+                payload = json.loads(body.decode('utf-8-sig'))
+            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                item['transport_result'] = 'JSON_PARSE_FAILURE'
+                raise RuntimeError('TWSE_HISTORY_NON_JSON_RESPONSE') from exc
+            if not isinstance(payload, dict) or (payload.get('stat') is not None and payload.get('stat') != 'OK') or not payload.get('data'):
+                item['transport_result'] = 'EMPTY_OR_NON_OK_DATA'
+                raise RuntimeError('TWSE_HISTORY_EMPTY_DATA')
+            _validate_history_identity(payload, stock_no, year_month)
+            item['transport_result'] = 'PASS'
+            return payload, hashlib.sha256(body).hexdigest(), diagnostics, current
+        except HTTPError as exc:
+            location = exc.headers.get('Location') if exc.headers else None
+            item = {'symbol': stock_no, 'period': year_month, 'candidate_index': candidate_index,
+                    'request_url': current, 'http_status': exc.code,
+                    'redirect_location': location, 'resolved_redirect_url': None,
+                    'redirect_count': redirects, 'content_type': exc.headers.get('Content-Type', '') if exc.headers else '',
+                    'response_bytes': 0, 'attempt': attempt,
+                    'transport_result': f'HTTP_{exc.code}'}
+            diagnostics.append(item)
+            if exc.code in (307, 308):
+                if not location:
+                    error = RuntimeError('TWSE_REDIRECT_MISSING_LOCATION'); error.diagnostics = diagnostics; raise error
+                if redirects >= max_redirects:
+                    error = RuntimeError('TWSE_REDIRECT_LOOP_OR_LIMIT'); error.diagnostics = diagnostics; raise error
+                resolved = urljoin(current, location)
+                parsed = urlparse(resolved)
+                item['resolved_redirect_url'] = resolved
+                if parsed.scheme.lower() != 'https' or (parsed.hostname or '').lower() not in APPROVED_REDIRECT_HOSTS:
+                    item['transport_result'] = 'UNSAFE_REDIRECT_TARGET'
+                    error = RuntimeError('TWSE_UNSAFE_REDIRECT_TARGET'); error.diagnostics = diagnostics; raise error
+                redirects += 1
+                current = resolved
+                continue
+            # Non-redirect HTTP failures are not retried as redirects; the
+            # outer candidate loop may proceed to the official fallback.
+            error = RuntimeError(f'TWSE_HISTORY_HTTP_{exc.code}'); error.diagnostics = diagnostics; raise error from exc
+        except (IncompleteRead, URLError, TimeoutError, ConnectionError) as exc:
+            diagnostics.append({'symbol': stock_no, 'period': year_month, 'candidate_index': candidate_index,
+                                'request_url': current, 'http_status': None, 'redirect_location': None,
+                                'resolved_redirect_url': None, 'redirect_count': redirects,
+                                'content_type': '', 'response_bytes': 0, 'attempt': attempt,
+                                'transport_result': type(exc).__name__})
+            if attempt < 3:
+                time.sleep(2 ** (attempt - 1))
+                continue
+            error = RuntimeError(f'TWSE_HISTORY_TRANSPORT_{type(exc).__name__}'); error.diagnostics = diagnostics; raise error from exc
+        except RuntimeError as exc:
+            exc.diagnostics = diagnostics
+            raise
+    raise RuntimeError('TWSE_HISTORY_RETRY_EXHAUSTED')
 class TWSEAdapter:
     provider = "TWSE Official OpenAPI"
     def fetch_daily(self):
@@ -51,51 +170,29 @@ class TWSEAdapter:
             endpoint,
             f"https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=json&date={year_month}01&stockNo={stock_no}",
         ]
-        # Keep transport diagnostics explicit so a redirect/non-JSON response
-        # cannot be mistaken for a data-quality result.  The endpoint is
-        # intentionally date-aware and remains the sole historical source.
+        all_diagnostics = []
         last = None
-        for candidate in endpoints:
-            current = candidate
-            for attempt in range(3):
-              try:
-                req = Request(current, headers={
-                    "User-Agent": "RATE-Data-Engine/1.0",
-                    "Accept": "application/json",
-                    "Accept-Language": "zh-TW,zh;q=0.9",
-                    "Referer": "https://www.twse.com.tw/zh/",
-                    "Connection": "close",
-                })
-                with urlopen(req, timeout=30) as resp:
-                    body = resp.read(); status = resp.status; ctype = resp.headers.get('Content-Type', '')
-                if not body:
-                    raise RuntimeError('EMPTY_RESPONSE')
-                payload = json.loads(body.decode('utf-8-sig'))
-                if not isinstance(payload, dict) or not payload.get('data'):
-                    raise RuntimeError('EMPTY_DATA')
-                digest = hashlib.sha256(body).hexdigest()
-                out = provenance("market_daily_history", self.provider, current, digest, payload)
-                out['diagnostics'] = {'http_status': status, 'content_type': ctype, 'response_bytes': len(body), 'attempt': attempt + 1}
+        for index, candidate in enumerate(endpoints):
+            try:
+                payload, digest, diagnostics, final_endpoint = _fetch_history_candidate(candidate, stock_no, year_month, index)
+                all_diagnostics.extend(diagnostics)
+                out = provenance("market_daily_history", self.provider, final_endpoint, digest, payload)
+                out['diagnostics'] = {'requests': all_diagnostics, 'final_endpoint': final_endpoint,
+                                      'redirect_count': max((x.get('redirect_count', 0) for x in all_diagnostics), default=0)}
                 return out
-              except HTTPError as exc:
+            except Exception as exc:
                 last = exc
-                location = exc.headers.get('Location') if exc.headers else None
-                if location:
-                    current = location
-                # A 307 from the RWD CDN is a known transport/security
-                # response; move immediately to the official exchangeReport
-                # route instead of spending all retries on the same response.
-                if exc.code == 307:
+                diagnostics = getattr(exc, 'diagnostics', None)
+                if diagnostics:
+                    all_diagnostics.extend(diagnostics)
+                # Unsafe redirects and identity failures are hard stops. A
+                # normal transport failure permits the official fallback.
+                if str(exc) in ('TWSE_UNSAFE_REDIRECT_TARGET', 'TWSE_REDIRECT_MISSING_LOCATION', 'TWSE_REDIRECT_LOOP_OR_LIMIT', 'TWSE_HISTORY_RESPONSE_IDENTITY_MISMATCH'):
                     break
-              except (IncompleteRead, URLError, TimeoutError, ConnectionError, json.JSONDecodeError, RuntimeError) as exc:
-                last = exc
-              if attempt < 2:
-                time.sleep(2 ** attempt)
-            # Move to the official fallback after this candidate exhausts
-            # bounded retries; do not hide a data-integrity failure.
-        code = getattr(last, 'code', None)
-        detail = f"HTTP_{code}" if code else type(last).__name__
-        raise RuntimeError(f"TWSE_HISTORICAL_RETRIEVAL_FAILED:{stock_no}:{year_month}:{detail}") from last
+        detail = str(last) if last else 'UNKNOWN'
+        error = RuntimeError(f"TWSE_HISTORICAL_RETRIEVAL_FAILED:{stock_no}:{year_month}:{detail}")
+        error.diagnostics = all_diagnostics
+        raise error from last
     def fetch_historical_benchmark(self, year_month: str):
         endpoints = [os.getenv('TWSE_BENCHMARK_HISTORY_ENDPOINT', 'https://www.twse.com.tw/rwd/zh/TAIEX/MI_5MINS_HIST'), 'https://www.twse.com.tw/indicesReport/MI_5MINS_HIST']
         diagnostics=[]

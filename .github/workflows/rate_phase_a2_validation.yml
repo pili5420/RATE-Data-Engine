@@ -25,6 +25,11 @@ jobs:
           python scripts/resolve_staging_universe.py
           --approval config/staging/RATE_STAGING_UNIVERSE_APPROVAL_V1.json
           --output config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json
+      - name: Probe TWSE historical redirect transport
+        run: >
+          python scripts/probe_twse_history_transport.py
+          --trading-date "${{ inputs.trading_date }}"
+          --output artifacts/RATE_TWSE_HISTORY_TRANSPORT_EVIDENCE.json
       - name: Probe official sources
         run: >
           python scripts/probe_official_sources.py
@@ -60,3 +65,9 @@ jobs:
         with:
           name: RATE_OFFICIAL_SOURCE_PROBE_EVIDENCE
           path: artifacts/RATE_OFFICIAL_SOURCE_PROBE_EVIDENCE.json
+      - name: Upload TWSE history transport evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_TWSE_HISTORY_TRANSPORT_EVIDENCE
+          path: artifacts/RATE_TWSE_HISTORY_TRANSPORT_EVIDENCE.json
