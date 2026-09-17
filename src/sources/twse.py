@@ -2,7 +2,7 @@ from __future__ import annotations
 from .base import fetch_json, provenance
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
-import hashlib, json
+import hashlib, json, csv, io
 import os
 import time
 from http.client import IncompleteRead
@@ -38,13 +38,78 @@ def _validate_history_identity(payload, stock_no, year_month):
     for row in rows:
         if isinstance(row, dict):
             dates.append(row.get('Date') or row.get('date') or row.get('日期') or row.get('交易日期'))
-    # The endpoint is symbol-scoped; when no symbol field exists the URL is
-    # the authoritative symbol identity.  A recognizable date must still
-    # belong to the requested calendar month.
     if dates and not any(_date_matches_period(value, year_month) for value in dates):
         raise RuntimeError('TWSE_HISTORY_RESPONSE_IDENTITY_MISMATCH')
 
-def _fetch_history_candidate(url, stock_no, year_month, candidate_index, max_redirects=MAX_REDIRECTS):
+_CSV_HEADER_ALIASES = {
+    'trade_date': ('日期', '交易日期', 'Date', 'date'),
+    'volume': ('成交股數', '成交股數(股)', 'TradeVolume', 'volume'),
+    'turnover': ('成交金額', 'TradeValue', 'turnover'),
+    'open': ('開盤價', 'OpeningPrice', 'open'),
+    'high': ('最高價', 'HighestPrice', 'high'),
+    'low': ('最低價', 'LowestPrice', 'low'),
+    'close': ('收盤價', 'ClosingPrice', 'close'),
+    'change': ('漲跌價差', 'Change', 'change'),
+    'transactions': ('成交筆數', 'Transactions', 'transactions'),
+}
+
+def _decode_csv(body):
+    """Decode official TWSE CSV without replacement or silent corruption."""
+    for encoding in ('utf-8-sig', 'cp950', 'big5'):
+        try:
+            return body.decode(encoding), encoding
+        except UnicodeDecodeError:
+            continue
+    raise RuntimeError('TWSE_CSV_ENCODING_INVALID')
+
+def _parse_history_csv(body, stock_no, year_month):
+    text, encoding = _decode_csv(body)
+    if '<html' in text[:512].lower() or '<!doctype' in text[:512].lower():
+        raise RuntimeError('TWSE_CSV_NON_DATA_RESPONSE')
+    rows = list(csv.reader(io.StringIO(text)))
+    # Drop blank lines and TWSE title/preamble rows; the first row containing
+    # the required date/price headers is the deterministic table header.
+    rows = [[cell.strip() for cell in row] for row in rows if any(str(cell).strip() for cell in row)]
+    header_index = next((i for i, row in enumerate(rows)
+                         if any(alias in row for aliases in _CSV_HEADER_ALIASES.values() for alias in aliases)), None)
+    if header_index is None:
+        raise RuntimeError('TWSE_CSV_HEADER_INVALID')
+    header = rows[header_index]
+    selected = {}
+    for key, aliases in _CSV_HEADER_ALIASES.items():
+        for alias in aliases:
+            if alias in header:
+                selected[key] = header.index(alias)
+                break
+    required = ('trade_date', 'open', 'high', 'low', 'close', 'volume')
+    if any(key not in selected for key in required):
+        raise RuntimeError('TWSE_CSV_HEADER_INVALID')
+    data = []
+    for row in rows[header_index + 1:]:
+        if len(row) <= max(selected.values()):
+            continue
+        date = row[selected['trade_date']]
+        if not date or date.startswith('合計') or date.startswith('說明'):
+            continue
+        if not _date_matches_period(date, year_month):
+            # Ignore footer rows, but reject a table with no matching dates.
+            continue
+        item = {key: row[index] for key, index in selected.items()}
+        item['Date'] = item.pop('trade_date')
+        aliases = {'open': 'OpeningPrice', 'high': 'HighestPrice', 'low': 'LowestPrice',
+                   'close': 'ClosingPrice', 'volume': 'TradeVolume', 'turnover': 'TradeValue',
+                   'change': 'Change', 'transactions': 'Transactions'}
+        for key, out_key in aliases.items():
+            if key in item:
+                item[out_key] = item.pop(key)
+        data.append(item)
+    if not data:
+        raise RuntimeError('TWSE_HISTORY_RESPONSE_IDENTITY_MISMATCH')
+    payload = {'stat': 'OK', 'fields': list(data[0].keys()), 'data': data,
+               'csv_encoding': encoding, 'csv_headers': header}
+    return payload, encoding, header
+
+def _fetch_history_candidate(url, stock_no, year_month, candidate_index, representation='JSON', max_redirects=MAX_REDIRECTS):
     diagnostics = []
     current = url
     redirects = 0
@@ -68,19 +133,32 @@ def _fetch_history_candidate(url, stock_no, year_month, candidate_index, max_red
                     'request_url': current, 'http_status': status, 'redirect_location': None,
                     'resolved_redirect_url': None, 'redirect_count': redirects,
                     'content_type': ctype, 'response_bytes': len(body), 'attempt': attempt,
-                    'transport_result': 'HTTP_200'}
+                'transport_result': 'HTTP_200', 'representation': representation}
             diagnostics.append(item)
             if not body:
                 item['transport_result'] = 'EMPTY_RESPONSE'
                 raise RuntimeError('TWSE_HISTORY_EMPTY_RESPONSE')
-            if 'json' not in ctype.lower():
-                item['transport_result'] = 'NON_JSON_RESPONSE'
-                raise RuntimeError('TWSE_HISTORY_NON_JSON_RESPONSE')
-            try:
-                payload = json.loads(body.decode('utf-8-sig'))
-            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-                item['transport_result'] = 'JSON_PARSE_FAILURE'
-                raise RuntimeError('TWSE_HISTORY_NON_JSON_RESPONSE') from exc
+            if representation == 'CSV':
+                if 'json' in ctype.lower() or ('csv' not in ctype.lower() and 'text/plain' not in ctype.lower() and 'octet-stream' not in ctype.lower()):
+                    # Some TWSE responses omit a useful content type. Parse
+                    # only if the bytes are a valid official CSV table.
+                    item['content_type_warning'] = 'CSV_CONTENT_TYPE_UNSPECIFIED'
+                try:
+                    payload, encoding, headers = _parse_history_csv(body, stock_no, year_month)
+                except RuntimeError as exc:
+                    item['transport_result'] = str(exc)
+                    raise
+                item['csv_encoding'] = encoding
+                item['csv_headers'] = headers
+            else:
+                if 'json' not in ctype.lower():
+                    item['transport_result'] = 'NON_JSON_RESPONSE'
+                    raise RuntimeError('TWSE_HISTORY_NON_JSON_RESPONSE')
+                try:
+                    payload = json.loads(body.decode('utf-8-sig'))
+                except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                    item['transport_result'] = 'JSON_PARSE_FAILURE'
+                    raise RuntimeError('TWSE_HISTORY_NON_JSON_RESPONSE') from exc
             if not isinstance(payload, dict) or (payload.get('stat') is not None and payload.get('stat') != 'OK') or not payload.get('data'):
                 item['transport_result'] = 'EMPTY_OR_NON_OK_DATA'
                 raise RuntimeError('TWSE_HISTORY_EMPTY_DATA')
@@ -167,31 +245,48 @@ class TWSEAdapter:
         # are official date-aware monthly products; no alternate data vendor
         # or synthetic value is introduced.
         endpoints = [
-            endpoint,
-            f"https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=json&date={year_month}01&stockNo={stock_no}",
+            (endpoint, 'JSON_PRIMARY'),
+            (f"https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=json&date={year_month}01&stockNo={stock_no}", 'JSON_FALLBACK'),
+            # Official CSV action for the same two TWSE products.  The route
+            # is derived only by changing the documented response format on
+            # the official endpoint; no guessed host or redirect is used.
+            (endpoint.replace('response=json', 'response=csv'), 'CSV_OFFICIAL'),
+            (f"https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=csv&date={year_month}01&stockNo={stock_no}", 'CSV_OFFICIAL'),
         ]
         all_diagnostics = []
         last = None
-        for index, candidate in enumerate(endpoints):
+        attempts = []
+        error_reasons = []
+        for index, (candidate, representation) in enumerate(endpoints):
             try:
-                payload, digest, diagnostics, final_endpoint = _fetch_history_candidate(candidate, stock_no, year_month, index)
+                payload, digest, diagnostics, final_endpoint = _fetch_history_candidate(candidate, stock_no, year_month, index, representation='CSV' if representation == 'CSV_OFFICIAL' else 'JSON')
                 all_diagnostics.extend(diagnostics)
                 out = provenance("market_daily_history", self.provider, final_endpoint, digest, payload)
                 out['diagnostics'] = {'requests': all_diagnostics, 'final_endpoint': final_endpoint,
-                                      'redirect_count': max((x.get('redirect_count', 0) for x in all_diagnostics), default=0)}
+                                      'redirect_count': max((x.get('redirect_count', 0) for x in all_diagnostics), default=0),
+                                      'representation': representation, 'candidate_index': index,
+                                      'candidate_attempts': attempts + [{'candidate_index': index, 'representation': representation, 'status': 'PASS'}]}
+                out['representation'] = representation
+                out['csv_route_verification'] = ({'status': 'PASS', 'endpoint': final_endpoint,
+                                                   'encoding': payload.get('csv_encoding'),
+                                                   'headers': payload.get('csv_headers')}
+                                                  if representation == 'CSV_OFFICIAL' else None)
                 return out
             except Exception as exc:
                 last = exc
+                error_reasons.append(str(exc))
                 diagnostics = getattr(exc, 'diagnostics', None)
                 if diagnostics:
                     all_diagnostics.extend(diagnostics)
+                attempts.append({'candidate_index': index, 'representation': representation, 'status': 'FAIL', 'reason': str(exc), 'requests': diagnostics or []})
                 # Unsafe redirects and identity failures are hard stops. A
                 # normal transport failure permits the official fallback.
-                if str(exc) in ('TWSE_UNSAFE_REDIRECT_TARGET', 'TWSE_HISTORY_RESPONSE_IDENTITY_MISMATCH'):
+                if str(exc) in ('TWSE_UNSAFE_REDIRECT_TARGET', 'TWSE_HISTORY_RESPONSE_IDENTITY_MISMATCH') and representation != 'CSV_OFFICIAL':
                     break
-        detail = str(last) if last else 'UNKNOWN'
+        detail = '|'.join(dict.fromkeys(error_reasons)) if error_reasons else 'UNKNOWN'
         error = RuntimeError(f"TWSE_HISTORICAL_RETRIEVAL_FAILED:{stock_no}:{year_month}:{detail}")
         error.diagnostics = all_diagnostics
+        error.candidate_attempts = attempts
         raise error from last
     def fetch_historical_benchmark(self, year_month: str):
         endpoints = [os.getenv('TWSE_BENCHMARK_HISTORY_ENDPOINT', 'https://www.twse.com.tw/rwd/zh/TAIEX/MI_5MINS_HIST'), 'https://www.twse.com.tw/indicesReport/MI_5MINS_HIST']

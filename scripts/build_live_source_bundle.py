@@ -22,6 +22,7 @@ FULL_COMPONENTS = ('PT','PV','MO','FI','IT','LH','RS','H5','H20','H60','H120','R
 REQUIRED_CONFIG = ('TDCC_OPENAPI_BASE',)
 EVIDENCE_DEFAULT = 'artifacts/RATE_LIVE_SOURCE_ASSEMBLY_EVIDENCE.json'
 UNIVERSE_CONTEXT = {}
+LIVE_PROGRESS = {}
 
 def _now(): return datetime.now(timezone.utc).isoformat().replace('+00:00','Z')
 def _rows(payload):
@@ -101,20 +102,33 @@ def _write(path,value):
     path.parent.mkdir(parents=True,exist_ok=True); path.write_text(json.dumps(value,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
 def _config_readiness(): return {key:('READY' if (os.getenv(key) or key=='TDCC_OPENAPI_BASE') else 'NOT_READY') for key in REQUIRED_CONFIG}
 def _failure(path,trading_date,reason,coverage=None):
-    _write(path,{'status':'BLOCKED','blocking_reason':reason,'trading_date':trading_date,'staging_commit':os.getenv('GITHUB_SHA'),'execution_runtime':'github_actions' if os.getenv('GITHUB_ACTIONS')=='true' else 'local','universe_count':len(os.getenv('RATE_TWSE_SYMBOLS','').split(',')) if os.getenv('RATE_TWSE_SYMBOLS') else UNIVERSE_CONTEXT.get('universe_record_count',0),'source_readiness':_config_readiness(),'history_coverage_reached_before_failure':coverage or {},'benchmark_coverage':None,'timestamps':{'retrieval_timestamp':_now()},**UNIVERSE_CONTEXT})
+    _write(path,{'status':'BLOCKED','blocking_reason':reason,'trading_date':trading_date,'staging_commit':os.getenv('GITHUB_SHA'),'execution_runtime':'github_actions' if os.getenv('GITHUB_ACTIONS')=='true' else 'local','universe_count':len(os.getenv('RATE_TWSE_SYMBOLS','').split(',')) if os.getenv('RATE_TWSE_SYMBOLS') else UNIVERSE_CONTEXT.get('universe_record_count',0),'source_readiness':_config_readiness(),'history_coverage_reached_before_failure':coverage or {},'benchmark_coverage':None,'timestamps':{'retrieval_timestamp':_now()},'historical_progress':LIVE_PROGRESS,**UNIVERSE_CONTEXT})
 def _history(adapter,symbol,trading_date,market='TWSE'):
     records=[]; seen=set(); end=date.fromisoformat(trading_date)
+    LIVE_PROGRESS.setdefault('months_completed_by_symbol', {}).setdefault(symbol, 0)
+    LIVE_PROGRESS.setdefault('raw_sessions_by_symbol', {}).setdefault(symbol, 0)
+    LIVE_PROGRESS.setdefault('aligned_sessions_by_symbol', {}).setdefault(symbol, 0)
+    LIVE_PROGRESS['current_symbol'] = symbol
     for period in _month_cursor(end):
+        LIVE_PROGRESS['current_period'] = period
         try:
             result=adapter.fetch_historical_symbol(symbol,period)
         except Exception as exc:
-            raise RuntimeError(f"{market}_HISTORICAL_RETRIEVAL:{symbol}:{period}:{exc}") from exc
-        for row in _rows(result.get('raw_payload')):
+            LIVE_PROGRESS['failed_candidate_chain'] = getattr(exc, 'candidate_attempts', getattr(exc, 'diagnostics', []))
+            error = RuntimeError(f"{market}_HISTORICAL_RETRIEVAL:{symbol}:{period}:{exc}")
+            error.candidate_attempts = LIVE_PROGRESS['failed_candidate_chain']
+            raise error from exc
+        raw_rows = _rows(result.get('raw_payload'))
+        LIVE_PROGRESS['raw_sessions_by_symbol'][symbol] += len(raw_rows)
+        for row in raw_rows:
             raw_date=_pick(row,'trade_date','Date','日期')
             if raw_date is None: continue
             td=normalize_twse_date(raw_date)
             if td>trading_date or td in seen: continue
             records.append(normalize_stock_record({'symbol':symbol,'market':market,'trade_date':td,'open':_pick(row,'open','OpeningPrice','開盤價','Open'),'high':_pick(row,'high','HighestPrice','最高價','High'),'low':_pick(row,'low','LowestPrice','最低價','Low'),'close':_pick(row,'close','ClosingPrice','收盤價','Close'),'volume':_pick(row,'volume','TradeVolume','成交股數','TradingShares'),'turnover':_pick(row,'turnover','TradeValue','成交金額','TransactionAmount')},source=f'{market}_STOCK_DAY',source_timestamp=result.get('source_timestamp'),ingested_at=result.get('retrieval_timestamp'))); seen.add(td)
+        LIVE_PROGRESS['aligned_sessions_by_symbol'][symbol] = len(records)
+        LIVE_PROGRESS['months_completed_by_symbol'][symbol] += 1
+        LIVE_PROGRESS['last_successful_period'] = period
         if len(records)>=180: break
     records.sort(key=lambda x:x['trade_date'])
     if len(records)<180: raise RuntimeError(f'DATA_INCOMPLETE:LIVE_HISTORICAL_STOCK:{symbol}:{len(records)}<180')
@@ -224,6 +238,11 @@ def _fundamental_history(universe, markets=None):
     if any(s not in by for s in universe): raise RuntimeError('DATA_INCOMPLETE:LIVE_FUNDAMENTAL_HISTORY')
     return by
 def _live(trading_date):
+    global LIVE_PROGRESS
+    LIVE_PROGRESS = {'current_symbol': None, 'current_period': None,
+                     'months_completed_by_symbol': {}, 'raw_sessions_by_symbol': {},
+                     'aligned_sessions_by_symbol': {}, 'last_successful_period': None,
+                     'failed_candidate_chain': []}
     missing=[k for k,v in _config_readiness().items() if v!='READY']
     if missing: raise RuntimeError('MISSING_REQUIRED_SOURCE_CONFIGURATION:'+','.join(missing))
     universe=_load_universe(); markets=UNIVERSE_CONTEXT.get('universe_markets', {s:'TWSE' for s in universe})
