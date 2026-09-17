@@ -27,7 +27,15 @@ def _now(): return datetime.now(timezone.utc).isoformat().replace('+00:00','Z')
 def _rows(payload):
     if isinstance(payload,list): return [x for x in payload if isinstance(x,dict)]
     if not isinstance(payload,dict): return []
-    data=payload.get('data') or payload.get('records') or []; fields=payload.get('fields') or []
+    data=payload.get('data') or payload.get('records') or payload.get('aaData') or []; fields=payload.get('fields') or []
+    if not data and isinstance(payload.get('tables'), list):
+        for table in payload['tables']:
+            if isinstance(table, dict):
+                table_data=table.get('data') or table.get('records') or table.get('aaData') or []
+                table_fields=table.get('fields') or fields
+                if table_data:
+                    data, fields = table_data, table_fields
+                    break
     if fields and isinstance(data,list): return [dict(zip(fields,x)) if isinstance(x,list) else x for x in data if isinstance(x,(list,dict))]
     return [x for x in data if isinstance(x,dict)] if isinstance(data,list) else []
 def _pick(row,*names):

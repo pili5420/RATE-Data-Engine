@@ -6,7 +6,11 @@ from urllib.error import HTTPError, URLError
 from http.client import IncompleteRead
 
 BASE = "https://www.tpex.org.tw/openapi/v1"
+# ``stk_quote.php`` is the documented product page.  Its paired official
+# result endpoint returns the complete monthly table; filtering by symbol in
+# the normalizer gives a deterministic 180-session history.
 HISTORICAL_ENDPOINT = "https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote.php?l=zh-tw&o=json&d={period}&s={symbol}"
+HISTORICAL_RESULT_ENDPOINT = "https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote_result.php?l=zh-tw&o=json&d={period}&s=0,asc,0"
 BENCHMARK_ENDPOINT = "https://www.tpex.org.tw/openapi/v1/tpex_index"
 INSTITUTIONAL_HISTORY_ENDPOINT = "https://www.tpex.org.tw/web/stock/3insti/3insti.php?l=zh-tw&o=json&d={period}"
 
@@ -51,7 +55,7 @@ class TPExAdapter:
     def fetch_institutional(self): return self._fetch("tpex_3insti_trading", "institutional")
     def fetch_qfii(self): return self._fetch("tpex_3insti_qfii_trading", "institutional_qfii")
     def fetch_historical_symbol(self, symbol: str, period: str):
-        template = os.getenv('TPEX_HISTORICAL_ENDPOINT', HISTORICAL_ENDPOINT)
+        template = os.getenv('TPEX_HISTORICAL_ENDPOINT', HISTORICAL_RESULT_ENDPOINT)
         endpoint = template.format(symbol=symbol, period=_roc_period(period), yyyy_mm=period)
         payload, digest, diagnostics = _resilient_json(endpoint)
         out = provenance('market_daily_history', self.provider, endpoint, digest, payload)
