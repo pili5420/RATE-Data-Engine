@@ -4,6 +4,8 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 import hashlib, json
 import os
+import time
+from http.client import IncompleteRead
 
 BASE = "https://openapi.twse.com.tw/v1"
 class TWSEAdapter:
@@ -44,15 +46,39 @@ class TWSEAdapter:
         # Keep transport diagnostics explicit so a redirect/non-JSON response
         # cannot be mistaken for a data-quality result.  The endpoint is
         # intentionally date-aware and remains the sole historical source.
-        try:
-            payload, digest = fetch_json(endpoint)
-        except Exception as exc:
-            location = getattr(getattr(exc, 'headers', None), 'get', lambda *_: None)('Location')
-            detail = f"HTTP_{getattr(exc, 'code', 'ERROR')}" if getattr(exc, 'code', None) else type(exc).__name__
-            if location:
-                detail = f"{detail}:LOCATION_PRESENT"
-            raise RuntimeError(f"TWSE_HISTORICAL_RETRIEVAL_FAILED:{stock_no}:{year_month}:{detail}") from exc
-        return provenance("market_daily_history", self.provider, endpoint, digest, payload)
+        current = endpoint; last = None
+        for attempt in range(3):
+            try:
+                req = Request(current, headers={
+                    "User-Agent": "RATE-Data-Engine/1.0",
+                    "Accept": "application/json",
+                    "Accept-Language": "zh-TW,zh;q=0.9",
+                    "Referer": "https://www.twse.com.tw/zh/",
+                    "Connection": "close",
+                })
+                with urlopen(req, timeout=30) as resp:
+                    body = resp.read(); status = resp.status; ctype = resp.headers.get('Content-Type', '')
+                if not body:
+                    raise RuntimeError('EMPTY_RESPONSE')
+                payload = json.loads(body.decode('utf-8-sig'))
+                if not isinstance(payload, dict) or not payload.get('data'):
+                    raise RuntimeError('EMPTY_DATA')
+                digest = hashlib.sha256(body).hexdigest()
+                out = provenance("market_daily_history", self.provider, endpoint, digest, payload)
+                out['diagnostics'] = {'http_status': status, 'content_type': ctype, 'response_bytes': len(body), 'attempt': attempt + 1}
+                return out
+            except HTTPError as exc:
+                last = exc
+                location = exc.headers.get('Location') if exc.headers else None
+                if location:
+                    current = location
+            except (IncompleteRead, URLError, TimeoutError, ConnectionError, json.JSONDecodeError, RuntimeError) as exc:
+                last = exc
+            if attempt < 2:
+                time.sleep(2 ** attempt)
+        code = getattr(last, 'code', None)
+        detail = f"HTTP_{code}" if code else type(last).__name__
+        raise RuntimeError(f"TWSE_HISTORICAL_RETRIEVAL_FAILED:{stock_no}:{year_month}:{detail}") from last
     def fetch_historical_benchmark(self, year_month: str):
         endpoints = [os.getenv('TWSE_BENCHMARK_HISTORY_ENDPOINT', 'https://www.twse.com.tw/rwd/zh/TAIEX/MI_5MINS_HIST'), 'https://www.twse.com.tw/indicesReport/MI_5MINS_HIST']
         diagnostics=[]
