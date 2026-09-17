@@ -43,6 +43,12 @@ def _resilient_json(endpoint: str, retries: int = 3):
     raise RuntimeError(f"TPEX_HISTORICAL_RETRIEVAL_FAILED:{detail}") from last
 class TPExAdapter:
     provider = "TPEx Official OpenAPI"
+    def __init__(self):
+        # Official historical endpoints return a complete monthly table. Keep
+        # one immutable response per period so a five-symbol universe does not
+        # issue the same request five times.
+        self._historical_cache = {}
+        self._institutional_cache = {}
     def _fetch(self, path: str, domain: str):
         endpoint = BASE + "/" + path
         payload, digest = fetch_json(endpoint)
@@ -57,7 +63,12 @@ class TPExAdapter:
     def fetch_historical_symbol(self, symbol: str, period: str):
         template = os.getenv('TPEX_HISTORICAL_ENDPOINT', HISTORICAL_RESULT_ENDPOINT)
         endpoint = template.format(symbol=symbol, period=_roc_period(period), yyyy_mm=period)
-        payload, digest, diagnostics = _resilient_json(endpoint)
+        cache_key = (template, _roc_period(period))
+        if cache_key in self._historical_cache:
+            payload, digest, diagnostics = self._historical_cache[cache_key]
+        else:
+            payload, digest, diagnostics = _resilient_json(endpoint)
+            self._historical_cache[cache_key] = (payload, digest, diagnostics)
         out = provenance('market_daily_history', self.provider, endpoint, digest, payload)
         out['diagnostics'] = diagnostics
         return out
@@ -71,7 +82,12 @@ class TPExAdapter:
     def fetch_institutional_history(self, symbol: str, period: str):
         template = os.getenv('TPEX_INSTITUTIONAL_HISTORY_ENDPOINT', INSTITUTIONAL_HISTORY_ENDPOINT)
         endpoint = template.format(symbol=symbol, period=_roc_period(period), yyyy_mm=period)
-        payload, digest, diagnostics = _resilient_json(endpoint)
+        cache_key = (template, _roc_period(period))
+        if cache_key in self._institutional_cache:
+            payload, digest, diagnostics = self._institutional_cache[cache_key]
+        else:
+            payload, digest, diagnostics = _resilient_json(endpoint)
+            self._institutional_cache[cache_key] = (payload, digest, diagnostics)
         out = provenance('institutional_history', self.provider, endpoint, digest, payload)
         out['diagnostics'] = diagnostics
         return out
