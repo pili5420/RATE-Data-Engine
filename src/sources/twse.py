@@ -82,6 +82,11 @@ class TWSEAdapter:
                 location = exc.headers.get('Location') if exc.headers else None
                 if location:
                     current = location
+                # A 307 from the RWD CDN is a known transport/security
+                # response; move immediately to the official exchangeReport
+                # route instead of spending all retries on the same response.
+                if exc.code == 307:
+                    break
               except (IncompleteRead, URLError, TimeoutError, ConnectionError, json.JSONDecodeError, RuntimeError) as exc:
                 last = exc
               if attempt < 2:
