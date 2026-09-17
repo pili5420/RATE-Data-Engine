@@ -89,9 +89,10 @@ class CER061BootstrapTests(unittest.TestCase):
     def test_host_throttle_classification_after_multiple_representations(self):
         headers = Message()
         err = HTTPError('https://www.twse.com.tw/x', 307, 'redirect', headers, None)
-        with patch.object(twse, 'urlopen', side_effect=err):
-            with self.assertRaisesRegex(RuntimeError, 'TWSE_HOST_TEMPORARILY_UNAVAILABLE'):
-                twse.TWSEAdapter().fetch_historical_symbol('3036', '202606')
+        with patch.dict('os.environ', {'RATE_STAGING_REALTIME':'1','RATE_DETERMINISTIC_TEST':'1','TWSE_HISTORY_CIRCUIT_COOLDOWN_SECONDS':'0'}, clear=False):
+            with patch.object(twse, 'urlopen', side_effect=err):
+                with self.assertRaisesRegex(RuntimeError, 'TWSE_HOST_TEMPORARILY_UNAVAILABLE'):
+                    twse.TWSEAdapter().fetch_historical_symbol('3036', '202606')
         self.assertGreaterEqual(twse.get_transport_metrics()['circuit_breaker_count'], 1)
 
     def test_checkpoint_entry_corruption_rejected(self):

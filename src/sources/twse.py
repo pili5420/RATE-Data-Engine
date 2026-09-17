@@ -28,9 +28,17 @@ def reset_transport_metrics():
 def get_transport_metrics():
     return dict(_TRANSPORT_METRICS)
 
+def _is_host_transient(reason):
+    return reason in ('TWSE_REDIRECT_MISSING_LOCATION', 'TWSE_HISTORY_HTTP_429',
+                      'TWSE_HISTORY_HTTP_502', 'TWSE_HISTORY_HTTP_503',
+                      'TWSE_HISTORY_HTTP_504', 'TWSE_HISTORY_TRANSPORT_IncompleteRead',
+                      'TWSE_HISTORY_TRANSPORT_URLError', 'TWSE_HISTORY_TRANSPORT_TimeoutError')
+
 def _sleep_backoff(seconds):
     # Keep deterministic/unit runs fast; staging Actions opts into the real
     # bounded delays with RATE_STAGING_REALTIME=1.
+    if os.getenv('RATE_DETERMINISTIC_TEST') == '1':
+        return
     time.sleep(seconds if os.getenv('RATE_STAGING_REALTIME') == '1' else min(seconds, 0.01))
 
 def _pace_history_request():
@@ -316,6 +324,7 @@ class TWSEAdapter:
         last = None
         attempts = []
         error_reasons = []
+        primary_retry_after_circuit = False
         for index, (candidate, representation) in enumerate(endpoints):
             try:
                 payload, digest, diagnostics, final_endpoint = _fetch_history_candidate(candidate, stock_no, year_month, index, representation='CSV' if representation == 'CSV_OFFICIAL' else 'JSON')
@@ -338,6 +347,29 @@ class TWSEAdapter:
                 if diagnostics:
                     all_diagnostics.extend(diagnostics)
                 attempts.append({'candidate_index': index, 'representation': representation, 'status': 'FAIL', 'reason': str(exc), 'requests': diagnostics or []})
+                transient_reps = {a.get('representation') for a in attempts if _is_host_transient(a.get('reason'))}
+                if len(transient_reps) >= 2 and not primary_retry_after_circuit and os.getenv('RATE_STAGING_REALTIME') == '1':
+                    _TRANSPORT_METRICS['circuit_breaker_count'] += 1
+                    primary_retry_after_circuit = True
+                    _sleep_backoff(float(os.getenv('TWSE_HISTORY_CIRCUIT_COOLDOWN_SECONDS', '60')))
+                    try:
+                        payload, digest, retry_diag, final_endpoint = _fetch_history_candidate(endpoints[0][0], stock_no, year_month, 0, representation='JSON')
+                        all_diagnostics.extend(retry_diag)
+                        out = provenance('market_daily_history', self.provider, final_endpoint, digest, payload)
+                        out['diagnostics'] = {'requests': all_diagnostics, 'final_endpoint': final_endpoint,
+                                              'redirect_count': max((x.get('redirect_count', 0) for x in all_diagnostics), default=0),
+                                              'representation': endpoints[0][1], 'candidate_index': 0,
+                                              'candidate_attempts': attempts + [{'candidate_index': 0, 'representation': endpoints[0][1], 'status': 'PASS_AFTER_CIRCUIT'}]}
+                        out['representation'] = endpoints[0][1]
+                        out['csv_route_verification'] = None
+                        return out
+                    except Exception as retry_exc:
+                        retry_diag = getattr(retry_exc, 'diagnostics', None)
+                        if retry_diag: all_diagnostics.extend(retry_diag)
+                        attempts.append({'candidate_index': 0, 'representation': endpoints[0][1], 'status': 'FAIL_AFTER_CIRCUIT', 'reason': str(retry_exc), 'requests': retry_diag or []})
+                        error_reasons.append(str(retry_exc))
+                        last = retry_exc
+                        break
                 # Unsafe redirects and identity failures are hard stops. A
                 # normal transport failure permits the official fallback.
                 if str(exc) in ('TWSE_UNSAFE_REDIRECT_TARGET', 'TWSE_HISTORY_RESPONSE_IDENTITY_MISMATCH') and representation != 'CSV_OFFICIAL':
