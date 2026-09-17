@@ -11,7 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TDCC_OPENAPI_BASE: https://openapi.tdcc.com.tw
-      RATE_TWSE_SYMBOLS: ${{ vars.RATE_TWSE_SYMBOLS }}
+      RATE_TWSE_SYMBOLS: ""
+      RATE_UNIVERSE_FILE: config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json
     permissions:
       contents: read
     steps:
@@ -19,11 +20,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Resolve approved staging universe
+        run: >
+          python scripts/resolve_staging_universe.py
+          --approval config/staging/RATE_STAGING_UNIVERSE_APPROVAL_V1.json
+          --output config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json
       - name: Probe official sources
         run: >
           python scripts/probe_official_sources.py
           --trading-date "${{ inputs.trading_date }}"
           --output artifacts/RATE_OFFICIAL_SOURCE_PROBE_EVIDENCE.json
+          --universe-file config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json
       - name: Build live production source bundle
         run: >
           python scripts/build_live_source_bundle.py

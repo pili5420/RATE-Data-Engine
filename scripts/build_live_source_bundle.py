@@ -1,6 +1,7 @@
 """Build the LIVE RATE source bundle, fail-closed and without fixture fallback."""
 from __future__ import annotations
 import argparse, json, os, sys
+import hashlib
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -19,6 +20,7 @@ from src.technical_features import compute_scores, technical_record
 FULL_COMPONENTS = ('PT','PV','MO','FI','IT','LH','RS','H5','H20','H60','H120','RS_CHANGE','VOL_CHANGE','SMART_MONEY','MOMENTUM_CHANGE','FC','Fundamental','RelativeStrength','Liquidity')
 REQUIRED_CONFIG = ('TDCC_OPENAPI_BASE',)
 EVIDENCE_DEFAULT = 'artifacts/RATE_LIVE_SOURCE_ASSEMBLY_EVIDENCE.json'
+UNIVERSE_CONTEXT = {}
 
 def _now(): return datetime.now(timezone.utc).isoformat().replace('+00:00','Z')
 def _rows(payload):
@@ -41,15 +43,48 @@ def _month_cursor(end):
         yield f'{year:04d}{month:02d}'
         month-=1
         if month==0: month,year=12,year-1
+def _parse_universe_payload(obj):
+    """Parse supported universe shapes without stringifying structured entries."""
+    if isinstance(obj, list):
+        entries = obj
+    elif isinstance(obj, dict) and isinstance(obj.get('symbols'), list):
+        entries = obj['symbols']
+    else:
+        entries = []
+    parsed=[]
+    for entry in entries:
+        if isinstance(entry, str):
+            parsed.append({'symbol': entry.strip()})
+        elif isinstance(entry, dict) and entry.get('symbol') is not None:
+            parsed.append({'symbol': str(entry['symbol']).strip(), 'market': entry.get('market'), **entry})
+    return parsed
+
 def _load_universe():
+    global UNIVERSE_CONTEXT
+    UNIVERSE_CONTEXT = {}
     symbols=[x.strip() for x in os.getenv('RATE_TWSE_SYMBOLS','').split(',') if x.strip()]
     path=os.getenv('RATE_UNIVERSE_FILE')
     if not symbols and path:
         obj=json.loads(Path(path).read_text(encoding='utf-8'))
-        if isinstance(obj,list): symbols=[str(x) for x in obj]
-        elif isinstance(obj,dict):
-            for key in ('short_term_top30','short_top30','symbols'):
-                if isinstance(obj.get(key),list): symbols.extend(str(x) for x in obj[key])
+        if isinstance(obj, dict):
+            if obj.get('artifact') != 'CONTROL_CENTER_APPROVED_STAGING_VALIDATION_UNIVERSE_V1' or obj.get('schema_version') != 'RATE-UNIVERSE-V1.0' or obj.get('validation_scope') != 'STAGING_LIVE_ONLY' or obj.get('ranking_status') != 'NOT_A_VALIDATED_TOP30_RANKING':
+                raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY')
+            if obj.get('validation_status') != 'PASS': raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:VALIDATION_STATUS')
+            if obj.get('source_state_id') != 'RATE-V11.1-PS-20260913-V1-r000009' or obj.get('source_state_file_sha256') != 'f1cc9c5f005a07f081943e279cfab9624079d51ae7d3ef1f1e23ef74b638864b':
+                raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:STATE')
+            parsed = _parse_universe_payload(obj)
+            if any(not p.get('market') in ('TWSE','TPEX') for p in parsed): raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:MARKET')
+            if any(p['symbol'].upper() == 'TAIEX' for p in parsed): raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:BENCHMARK_IN_EQUITY_UNIVERSE')
+            symbols = [p['symbol'] for p in parsed]
+            if any(not x.isdigit() for x in symbols) or len(set(symbols)) != len(symbols): raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:SYMBOLS')
+            if len(parsed) != 30: raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:RECORD_COUNT')
+            digest_payload={'source_state_id':obj['source_state_id'],'symbols':symbols}
+            digest=hashlib.sha256(json.dumps(digest_payload,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+            if digest != obj.get('universe_symbol_digest') or digest != '30276287608b87f7d9b606891514247da523dce9214e4b82bb34ba118a35af4c': raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:DIGEST')
+            if obj.get('record_count') != 30 or obj.get('unique_count',30) != 30 or obj.get('duplicate_count',0) != 0: raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:COUNTS')
+            UNIVERSE_CONTEXT={'universe_source':'CONTROL_CENTER_APPROVED_STAGING_VALIDATION_UNIVERSE_V1','universe_schema_version':obj['schema_version'],'universe_source_state_id':obj['source_state_id'],'universe_source_state_hash':obj['source_state_file_sha256'],'universe_digest':digest,'universe_record_count':30,'twse_count':sum(p['market']=='TWSE' for p in parsed),'tpex_count':sum(p['market']=='TPEX' for p in parsed),'unresolved_market_count':obj.get('unresolved_market_count',0),'fixture_universe_used':False}
+        else:
+            parsed = _parse_universe_payload(obj); symbols=[p['symbol'] for p in parsed]
     result=sorted(set(x for x in symbols if x.isdigit()))
     if not result: raise RuntimeError('MISSING_REQUIRED_SOURCE_CONFIGURATION:RATE_TWSE_SYMBOLS_OR_RATE_UNIVERSE_FILE')
     return result
@@ -57,7 +92,7 @@ def _write(path,value):
     path.parent.mkdir(parents=True,exist_ok=True); path.write_text(json.dumps(value,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
 def _config_readiness(): return {key:('READY' if (os.getenv(key) or key=='TDCC_OPENAPI_BASE') else 'NOT_READY') for key in REQUIRED_CONFIG}
 def _failure(path,trading_date,reason,coverage=None):
-    _write(path,{'status':'BLOCKED','blocking_reason':reason,'trading_date':trading_date,'staging_commit':os.getenv('GITHUB_SHA'),'execution_runtime':'github_actions' if os.getenv('GITHUB_ACTIONS')=='true' else 'local','universe_count':len(os.getenv('RATE_TWSE_SYMBOLS','').split(',')) if os.getenv('RATE_TWSE_SYMBOLS') else 0,'source_readiness':_config_readiness(),'history_coverage_reached_before_failure':coverage or {},'benchmark_coverage':None,'timestamps':{'retrieval_timestamp':_now()}})
+    _write(path,{'status':'BLOCKED','blocking_reason':reason,'trading_date':trading_date,'staging_commit':os.getenv('GITHUB_SHA'),'execution_runtime':'github_actions' if os.getenv('GITHUB_ACTIONS')=='true' else 'local','universe_count':len(os.getenv('RATE_TWSE_SYMBOLS','').split(',')) if os.getenv('RATE_TWSE_SYMBOLS') else UNIVERSE_CONTEXT.get('universe_record_count',0),'source_readiness':_config_readiness(),'history_coverage_reached_before_failure':coverage or {},'benchmark_coverage':None,'timestamps':{'retrieval_timestamp':_now()},**UNIVERSE_CONTEXT})
 def _history(adapter,symbol,trading_date):
     records=[]; seen=set(); end=date.fromisoformat(trading_date)
     for period in _month_cursor(end):
@@ -149,7 +184,10 @@ def _fundamental_history(universe):
 def _live(trading_date):
     missing=[k for k,v in _config_readiness().items() if v!='READY']
     if missing: raise RuntimeError('MISSING_REQUIRED_SOURCE_CONFIGURATION:'+','.join(missing))
-    universe=_load_universe(); adapter=TWSEAdapter(); stocks={s:_history(adapter,s,trading_date) for s in universe}; benchmark=_benchmark(adapter,trading_date)
+    universe=_load_universe()
+    if UNIVERSE_CONTEXT.get('tpex_count', 0) > 0:
+        raise RuntimeError('TPEX_PRODUCTION_SOURCE_CAPABILITY_INCOMPLETE')
+    adapter=TWSEAdapter(); stocks={s:_history(adapter,s,trading_date) for s in universe}; benchmark=_benchmark(adapter,trading_date)
     store=PersistentHistoricalStore()
     for s,rows in stocks.items(): store.upsert_stock(s,rows)
     store.upsert_benchmark('TAIEX',benchmark)
@@ -188,7 +226,7 @@ def main():
             else: bundle=source
         else: bundle=_live(a.trading_date)
         if _validate(bundle.get('decision_records',[])): raise RuntimeError('DATA_INCOMPLETE:FULL_19_COMPONENTS')
-        _write(output,bundle); _write(evidence,{'status':'PASS','trading_date':a.trading_date,'staging_commit':os.getenv('GITHUB_SHA'),'universe_count':len(bundle.get('universe',[])),'source_readiness':_config_readiness(),'history_coverage_reached_before_failure':bundle.get('source_provenance',{}).get('stock_history_coverage',{}),'benchmark_coverage':bundle.get('source_provenance',{}).get('benchmark_records'),'timestamps':{'retrieval_timestamp':_now()}}); return 0
+        _write(output,bundle); _write(evidence,{'status':'PASS','trading_date':a.trading_date,'staging_commit':os.getenv('GITHUB_SHA'),'universe_count':len(bundle.get('universe',[])),'source_readiness':_config_readiness(),'history_coverage_reached_before_failure':bundle.get('source_provenance',{}).get('stock_history_coverage',{}),'benchmark_coverage':bundle.get('source_provenance',{}).get('benchmark_records'),'timestamps':{'retrieval_timestamp':_now()},**UNIVERSE_CONTEXT}); return 0
     except Exception as exc:
         _failure(evidence,a.trading_date,str(exc)); _write(output,{'validation_status':'BLOCKED','blocking_reason':str(exc)}); print(json.dumps({'validation_status':'BLOCKED','blocking_reason':str(exc)})); return 1
 if __name__=='__main__': raise SystemExit(main())

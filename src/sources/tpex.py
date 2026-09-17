@@ -11,6 +11,9 @@ class TPExAdapter:
         return provenance(domain, self.provider, endpoint, digest, payload)
     def fetch_daily(self): return self._fetch("tpex_mainboard_daily_close_quotes", "market_daily")
     def fetch_quotes(self): return self._fetch("tpex_mainboard_quotes", "market_intraday")
+    def fetch_symbol_master(self):
+        """Return the official OTC market symbol master used for classification."""
+        return self._fetch("tpex_mainboard_quotes", "trading_symbol_master")
     def fetch_institutional(self): return self._fetch("tpex_3insti_trading", "institutional")
     def fetch_qfii(self): return self._fetch("tpex_3insti_qfii_trading", "institutional_qfii")
     def fetch_historical_symbol(self, symbol: str, period: str):
