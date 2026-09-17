@@ -30,7 +30,8 @@ def _payload(date='115/01/02'):
 
 def _redirect(url, location):
     headers = Message()
-    headers['Location'] = location
+    if location is not None:
+        headers['Location'] = location
     return HTTPError(url, 307, 'Temporary Redirect', headers, None)
 
 
@@ -95,6 +96,20 @@ class CER059TransportTests(unittest.TestCase):
             out = twse.TWSEAdapter().fetch_historical_symbol('2356', '202601')
         self.assertIn('exchangeReport/STOCK_DAY', out['endpoint'])
         self.assertEqual(len(calls), 2)
+
+    def test_missing_redirect_location_uses_official_fallback(self):
+        calls = []
+        primary = 'https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date=20260401&stockNo=2449&response=json'
+
+        def fake(req, timeout=30):
+            calls.append(req.full_url)
+            if 'exchangeReport' not in req.full_url:
+                raise _redirect(req.full_url, None)
+            return _Response(_payload('115/04/02'))
+
+        with patch.object(twse, 'urlopen', side_effect=fake):
+            out = twse.TWSEAdapter().fetch_historical_symbol('2449', '202604')
+        self.assertIn('exchangeReport/STOCK_DAY', out['endpoint'])
 
     def test_fallback_redirect_can_succeed(self):
         calls = []

@@ -187,7 +187,7 @@ class TWSEAdapter:
                     all_diagnostics.extend(diagnostics)
                 # Unsafe redirects and identity failures are hard stops. A
                 # normal transport failure permits the official fallback.
-                if str(exc) in ('TWSE_UNSAFE_REDIRECT_TARGET', 'TWSE_REDIRECT_MISSING_LOCATION', 'TWSE_REDIRECT_LOOP_OR_LIMIT', 'TWSE_HISTORY_RESPONSE_IDENTITY_MISMATCH'):
+                if str(exc) in ('TWSE_UNSAFE_REDIRECT_TARGET', 'TWSE_HISTORY_RESPONSE_IDENTITY_MISMATCH'):
                     break
         detail = str(last) if last else 'UNKNOWN'
         error = RuntimeError(f"TWSE_HISTORICAL_RETRIEVAL_FAILED:{stock_no}:{year_month}:{detail}")
