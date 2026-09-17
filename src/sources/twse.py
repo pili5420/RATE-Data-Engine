@@ -43,12 +43,22 @@ class TWSEAdapter:
         return provenance("fundamental_revenue", self.provider, endpoint, digest, payload)
     def fetch_historical_symbol(self, stock_no: str, year_month: str):
         endpoint = f"https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date={year_month}01&stockNo={stock_no}&response=json"
+        # TWSE's official exchangeReport route is a transport fallback for
+        # intermittent CDN 307/security responses from the RWD route.  Both
+        # are official date-aware monthly products; no alternate data vendor
+        # or synthetic value is introduced.
+        endpoints = [
+            endpoint,
+            f"https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=json&date={year_month}01&stockNo={stock_no}",
+        ]
         # Keep transport diagnostics explicit so a redirect/non-JSON response
         # cannot be mistaken for a data-quality result.  The endpoint is
         # intentionally date-aware and remains the sole historical source.
-        current = endpoint; last = None
-        for attempt in range(3):
-            try:
+        last = None
+        for candidate in endpoints:
+            current = candidate
+            for attempt in range(3):
+              try:
                 req = Request(current, headers={
                     "User-Agent": "RATE-Data-Engine/1.0",
                     "Accept": "application/json",
@@ -64,18 +74,20 @@ class TWSEAdapter:
                 if not isinstance(payload, dict) or not payload.get('data'):
                     raise RuntimeError('EMPTY_DATA')
                 digest = hashlib.sha256(body).hexdigest()
-                out = provenance("market_daily_history", self.provider, endpoint, digest, payload)
+                out = provenance("market_daily_history", self.provider, current, digest, payload)
                 out['diagnostics'] = {'http_status': status, 'content_type': ctype, 'response_bytes': len(body), 'attempt': attempt + 1}
                 return out
-            except HTTPError as exc:
+              except HTTPError as exc:
                 last = exc
                 location = exc.headers.get('Location') if exc.headers else None
                 if location:
                     current = location
-            except (IncompleteRead, URLError, TimeoutError, ConnectionError, json.JSONDecodeError, RuntimeError) as exc:
+              except (IncompleteRead, URLError, TimeoutError, ConnectionError, json.JSONDecodeError, RuntimeError) as exc:
                 last = exc
-            if attempt < 2:
+              if attempt < 2:
                 time.sleep(2 ** attempt)
+            # Move to the official fallback after this candidate exhausts
+            # bounded retries; do not hide a data-integrity failure.
         code = getattr(last, 'code', None)
         detail = f"HTTP_{code}" if code else type(last).__name__
         raise RuntimeError(f"TWSE_HISTORICAL_RETRIEVAL_FAILED:{stock_no}:{year_month}:{detail}") from last
