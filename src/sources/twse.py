@@ -176,6 +176,13 @@ def _fetch_history_candidate(url, stock_no, year_month, candidate_index, represe
             diagnostics.append(item)
             if exc.code in (307, 308):
                 if not location:
+                    # A CDN edge may emit a bare 307 transiently. Retry the
+                    # same official candidate a bounded number of times, then
+                    # fail over without inventing a redirect target.
+                    if attempt < 3:
+                        item['transport_result'] = 'HTTP_307_MISSING_LOCATION_RETRY'
+                        time.sleep(2 ** (attempt - 1))
+                        continue
                     error = RuntimeError('TWSE_REDIRECT_MISSING_LOCATION'); error.diagnostics = diagnostics; raise error
                 if redirects >= max_redirects:
                     error = RuntimeError('TWSE_REDIRECT_LOOP_OR_LIMIT'); error.diagnostics = diagnostics; raise error
