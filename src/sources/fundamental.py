@@ -13,14 +13,14 @@ class FundamentalAdapter:
         "https://openapi.twse.com.tw/v1/opendata/t187ap06_L_ins",
         "https://openapi.twse.com.tw/v1/opendata/t187ap06_L_mim",
     )
-    OTC_REVENUE_ENDPOINT = "https://openapi.twse.com.tw/v1/opendata/mopsfin_t187ap05_O"
+    OTC_REVENUE_ENDPOINT = "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap05_O"
     OTC_EPS_ENDPOINTS = (
-        "https://openapi.twse.com.tw/v1/opendata/mopsfin_t187ap06_O_basi",
-        "https://openapi.twse.com.tw/v1/opendata/mopsfin_t187ap06_O_bd",
-        "https://openapi.twse.com.tw/v1/opendata/mopsfin_t187ap06_O_ci",
-        "https://openapi.twse.com.tw/v1/opendata/mopsfin_t187ap06_O_fh",
-        "https://openapi.twse.com.tw/v1/opendata/mopsfin_t187ap06_O_ins",
-        "https://openapi.twse.com.tw/v1/opendata/mopsfin_t187ap06_O_mim",
+        "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap06_O_basi",
+        "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap06_O_bd",
+        "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap06_O_ci",
+        "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap06_O_fh",
+        "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap06_O_ins",
+        "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap06_O_mim",
     )
     def fetch_monthly_revenue(self):
         payload, digest = fetch_json(self.REVENUE_ENDPOINT)

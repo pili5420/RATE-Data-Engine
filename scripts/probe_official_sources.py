@@ -38,7 +38,7 @@ def main():
         # Daily/institutional transport probes are independent of the historical
         # adapter configuration.  Missing configured historical/fundamental/
         # benchmark products remain explicit capability blockers.
-        tpex_endpoints=[('TPEX_HISTORICAL_STOCK','https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes'),('TPEX_INSTITUTIONAL_HISTORY','https://www.tpex.org.tw/openapi/v1/tpex_3insti_trading'),('TPEX_MONTHLY_REVENUE','https://openapi.twse.com.tw/v1/opendata/mopsfin_t187ap05_O'),('TPEX_QUARTERLY_EPS','https://openapi.twse.com.tw/v1/opendata/mopsfin_t187ap06_O_basi'),('TPEX_BENCHMARK_HISTORY','https://www.tpex.org.tw/web/indices/market_index/mktindex.php')]
+        tpex_endpoints=[('TPEX_HISTORICAL_STOCK','https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes'),('TPEX_INSTITUTIONAL_HISTORY','https://www.tpex.org.tw/openapi/v1/tpex_3insti_daily_trading'),('TPEX_MONTHLY_REVENUE','https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap05_O'),('TPEX_QUARTERLY_EPS','https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap06_O_basi'),('TPEX_BENCHMARK_HISTORY','https://www.tpex.org.tw/openapi/v1/tpex_index')]
         for item in tpex_endpoints:
             if len(item)==2: name,url=item; parser=lambda p:'PASS' if p else 'FAIL:EMPTY'
             else: name,url,parser=item

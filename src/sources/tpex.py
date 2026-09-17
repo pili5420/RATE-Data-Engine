@@ -7,7 +7,7 @@ from http.client import IncompleteRead
 
 BASE = "https://www.tpex.org.tw/openapi/v1"
 HISTORICAL_ENDPOINT = "https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote.php?l=zh-tw&o=json&d={period}&s={symbol}"
-BENCHMARK_ENDPOINT = "https://www.tpex.org.tw/web/indices/market_index/mktindex.php?l=zh-tw&o=json&d={period}"
+BENCHMARK_ENDPOINT = "https://www.tpex.org.tw/openapi/v1/tpex_index"
 INSTITUTIONAL_HISTORY_ENDPOINT = "https://www.tpex.org.tw/web/stock/3insti/3insti.php?l=zh-tw&o=json&d={period}"
 
 def _roc_period(period: str) -> str:
