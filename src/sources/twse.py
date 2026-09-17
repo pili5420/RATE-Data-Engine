@@ -41,7 +41,17 @@ class TWSEAdapter:
         return provenance("fundamental_revenue", self.provider, endpoint, digest, payload)
     def fetch_historical_symbol(self, stock_no: str, year_month: str):
         endpoint = f"https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date={year_month}01&stockNo={stock_no}&response=json"
-        payload, digest = fetch_json(endpoint)
+        # Keep transport diagnostics explicit so a redirect/non-JSON response
+        # cannot be mistaken for a data-quality result.  The endpoint is
+        # intentionally date-aware and remains the sole historical source.
+        try:
+            payload, digest = fetch_json(endpoint)
+        except Exception as exc:
+            location = getattr(getattr(exc, 'headers', None), 'get', lambda *_: None)('Location')
+            detail = f"HTTP_{getattr(exc, 'code', 'ERROR')}" if getattr(exc, 'code', None) else type(exc).__name__
+            if location:
+                detail = f"{detail}:LOCATION_PRESENT"
+            raise RuntimeError(f"TWSE_HISTORICAL_RETRIEVAL_FAILED:{stock_no}:{year_month}:{detail}") from exc
         return provenance("market_daily_history", self.provider, endpoint, digest, payload)
     def fetch_historical_benchmark(self, year_month: str):
         endpoints = [os.getenv('TWSE_BENCHMARK_HISTORY_ENDPOINT', 'https://www.twse.com.tw/rwd/zh/TAIEX/MI_5MINS_HIST'), 'https://www.twse.com.tw/indicesReport/MI_5MINS_HIST']

@@ -97,7 +97,10 @@ def _failure(path,trading_date,reason,coverage=None):
 def _history(adapter,symbol,trading_date,market='TWSE'):
     records=[]; seen=set(); end=date.fromisoformat(trading_date)
     for period in _month_cursor(end):
-        result=adapter.fetch_historical_symbol(symbol,period)
+        try:
+            result=adapter.fetch_historical_symbol(symbol,period)
+        except Exception as exc:
+            raise RuntimeError(f"{market}_HISTORICAL_RETRIEVAL:{symbol}:{period}:{exc}") from exc
         for row in _rows(result.get('raw_payload')):
             raw_date=_pick(row,'trade_date','Date','日期')
             if raw_date is None: continue
@@ -111,7 +114,10 @@ def _history(adapter,symbol,trading_date,market='TWSE'):
 def _benchmark(adapter,trading_date,market='TWSE'):
     records=[]; seen=set(); end=date.fromisoformat(trading_date)
     for period in _month_cursor(end):
-        result=adapter.fetch_historical_benchmark(period)
+        try:
+            result=adapter.fetch_historical_benchmark(period)
+        except Exception as exc:
+            raise RuntimeError(f"{market}_BENCHMARK_RETRIEVAL:{period}:{exc}") from exc
         for row in _rows(result.get('raw_payload')):
             raw_date=_pick(row,'trade_date','Date','日期'); close=_pick(row,'close','ClosingIndex','收盤指數','收盤價')
             if raw_date is None or close is None: continue

@@ -31,7 +31,12 @@ def _resilient_json(endpoint: str, retries: int = 3):
             last = exc
             if attempt + 1 < retries:
                 time.sleep(2 ** attempt)
-    raise RuntimeError(f"TPEX_HISTORICAL_RETRIEVAL_FAILED:{type(last).__name__}") from last
+    code = getattr(last, 'code', None)
+    location = getattr(getattr(last, 'headers', None), 'get', lambda *_: None)('Location')
+    detail = f"HTTP_{code}" if code else type(last).__name__
+    if location:
+        detail += ":LOCATION_PRESENT"
+    raise RuntimeError(f"TPEX_HISTORICAL_RETRIEVAL_FAILED:{detail}") from last
 class TPExAdapter:
     provider = "TPEx Official OpenAPI"
     def _fetch(self, path: str, domain: str):
