@@ -309,13 +309,13 @@ jobs:
         with:
           name: RATE_TWSE_TAIEX_ALIGNMENT_EVIDENCE
           path: artifacts/RATE_TWSE_TAIEX_ALIGNMENT_EVIDENCE.json
-       - name: Upload TPEx individual history contract evidence
-         if: always()
-         uses: actions/upload-artifact@v4
-         with:
+      - name: Upload TPEx individual history contract evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
           name: RATE_TPEX_INDIVIDUAL_HISTORY_CONTRACT_EVIDENCE
           path: artifacts/RATE_TPEX_INDIVIDUAL_HISTORY_CONTRACT_EVIDENCE.json
-       - name: Upload TPEx bootstrap evidence
+      - name: Upload TPEx bootstrap evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -326,7 +326,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: RATE_TPEX_HISTORY_BOOTSTRAP_CHECKPOINT
-           path: data/staging/history_bootstrap/RATE_TPEX_HISTORY_CHECKPOINT_V2.json
+          path: data/staging/history_bootstrap/RATE_TPEX_HISTORY_CHECKPOINT_V2.json
       - name: Upload TPEx materialization evidence
         if: always()
         uses: actions/upload-artifact@v4
