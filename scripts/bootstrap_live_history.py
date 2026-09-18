@@ -76,6 +76,37 @@ def _records_for_symbol(checkpoint, symbol):
     return sorted((x for x in rows.values() if x.get('trade_date')), key=lambda row: row['trade_date'])
 
 
+def _campaign_status(path, context, status, reason=None):
+    checkpoint = context['checkpoint']
+    details = {}
+    for symbol in context['universe']:
+        rows = _records_for_symbol(checkpoint, symbol)
+        details[symbol] = {
+            'symbol': symbol, 'months_cached': sum(1 for x in checkpoint.get('months', {}).values() if x.get('symbol') == symbol),
+            'raw_sessions': len(rows), 'earliest_trade_date': rows[0]['trade_date'] if rows else None,
+            'latest_trade_date': rows[-1]['trade_date'] if rows else None,
+            'checkpoint_content_hash': next((x.get('content_hash') for x in checkpoint.get('months', {}).values() if x.get('symbol') == symbol), None),
+            'completion_status': 'COMPLETE' if len(rows) >= TARGET_RAW_SESSIONS else 'INCOMPLETE',
+        }
+    completed = sorted([s for s, d in details.items() if d['completion_status'] == 'COMPLETE'])
+    incomplete = sorted([s for s, d in details.items() if d['completion_status'] != 'COMPLETE'])
+    payload = {
+        'artifact': 'RATE_TWSE_BOOTSTRAP_CAMPAIGN_STATUS', 'universe_digest': context['universe_digest'],
+        'current_checkpoint_digest': checkpoint.get('content_hash'),
+        'source_cache_key': os.getenv('RATE_BOOTSTRAP_CACHE_KEY'), 'completed_symbols': completed,
+        'incomplete_symbols': incomplete, 'raw_sessions_by_symbol': {s: details[s]['raw_sessions'] for s in details},
+        'cached_period_count': len(checkpoint.get('months', {})), 'last_completed_run_id': os.getenv('GITHUB_RUN_ID'),
+        'last_completed_period': context['progress'].get('last_successful_period'),
+        'campaign_status': status, 'blocking_reason': reason, 'symbol_details': details,
+        'workflow_execution_status': 'SUCCESS' if status in ('IN_PROGRESS', 'COMPLETE', 'TEMPORARILY_PAUSED') else 'FAILURE',
+        'bootstrap_status': context.get('bootstrap_status', status),
+        'historical_acceptance_status': 'PASS' if status == 'COMPLETE' else 'HOLD',
+        'source_authorization_gate': 'BLOCKED:T86_LICENSE_EVIDENCE',
+        'generated_at': bundle._now(),
+    }
+    bundle._atomic_write_json(Path(path), payload)
+    return payload
+
 def _evidence(path, context, status, reason=None):
     progress = context['progress']
     checkpoint = context['checkpoint']
@@ -109,6 +140,10 @@ def _evidence(path, context, status, reason=None):
         'checkpoint_namespace': str(context['checkpoint_path']), 'production_state_modified': 'NO',
     }
     bundle._atomic_write_json(Path(path), payload)
+    campaign_path = context.get('campaign_status_path')
+    if campaign_path:
+        context['bootstrap_status'] = status
+        _campaign_status(campaign_path, context, 'COMPLETE' if status == 'BOOTSTRAP_COMPLETE' else ('TEMPORARILY_PAUSED' if status == 'TEMPORARY_SOURCE_UNAVAILABLE' else ('FATAL' if status == 'FATAL_DATA_INTEGRITY_FAILURE' else 'IN_PROGRESS')), reason)
     return payload
 
 
@@ -118,7 +153,7 @@ def validate_checkpoint(path, universe_digest):
 
 def run(*, trading_date: str, universe_file: Path, checkpoint_path: Path, evidence_path: Path,
         max_new_periods: int = DEFAULT_MAX_PERIODS, max_runtime_seconds: int = DEFAULT_MAX_RUNTIME_SECONDS,
-        chunk_sequence: int = 1):
+        chunk_sequence: int = 1, campaign_status_path: Path | None = None):
     reset_transport_metrics()
     universe_obj = json.loads(Path(universe_file).read_text(encoding='utf-8'))
     universe = [x['symbol'] for x in universe_obj.get('symbols', []) if x.get('market') == 'TWSE']
@@ -135,6 +170,7 @@ def run(*, trading_date: str, universe_file: Path, checkpoint_path: Path, eviden
         'finalization_reserve_seconds': float(os.getenv('CHECKPOINT_FINALIZATION_RESERVE_SECONDS', str(DEFAULT_FINALIZATION_RESERVE_SECONDS))),
         'deadline_exit_triggered': False, 'deadline_remaining_at_exit': None,
         'required_periods': max(1, len(universe) * len(_periods(date.fromisoformat(trading_date)))),
+        'universe': universe, 'universe_digest': universe_digest, 'campaign_status_path': campaign_status_path,
         'progress': {'current_symbol': None, 'current_period': None, 'last_successful_period': None,
                      'raw_sessions_by_symbol': {}, 'aligned_sessions_by_symbol': {}},
     }
@@ -162,7 +198,7 @@ def run(*, trading_date: str, universe_file: Path, checkpoint_path: Path, eviden
                 if context['retrieved'] >= max_new_periods or _deadline_remaining(context['deadline']) <= 0:
                     context['deadline_exit_triggered'] = True
                     context['deadline_remaining_at_exit'] = _deadline_remaining(context['deadline'])
-                    _evidence(evidence_path, context, 'CHUNK_COMPLETE_MORE_WORK'); return context
+                    _evidence(evidence_path, context, 'CHUNK_COMPLETE_MORE_WORK'); return context | {'status': 'CHUNK_COMPLETE_MORE_WORK'}
                 records = _normalized_period(adapter, symbol, period, deadline=context['deadline'])
                 canonical = json.dumps(records, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()
                 checkpoint.setdefault('months', {})[key] = {
@@ -179,11 +215,11 @@ def run(*, trading_date: str, universe_file: Path, checkpoint_path: Path, eviden
                 if context['retrieved'] >= max_new_periods or _deadline_remaining(context['deadline']) <= 0:
                     context['deadline_exit_triggered'] = _deadline_remaining(context['deadline']) <= 0
                     context['deadline_remaining_at_exit'] = _deadline_remaining(context['deadline'])
-                    _evidence(evidence_path, context, 'CHUNK_COMPLETE_MORE_WORK'); return context
+                    _evidence(evidence_path, context, 'CHUNK_COMPLETE_MORE_WORK'); return context | {'status': 'CHUNK_COMPLETE_MORE_WORK'}
                 if all(context['progress']['raw_sessions_by_symbol'].get(s, 0) >= TARGET_RAW_SESSIONS for s in universe):
-                    _evidence(evidence_path, context, 'BOOTSTRAP_COMPLETE'); return context
+                    _evidence(evidence_path, context, 'BOOTSTRAP_COMPLETE'); return context | {'status': 'BOOTSTRAP_COMPLETE'}
         status = 'BOOTSTRAP_COMPLETE' if all(context['progress']['raw_sessions_by_symbol'].get(s, 0) >= TARGET_RAW_SESSIONS for s in universe) else 'CHUNK_COMPLETE_MORE_WORK'
-        _evidence(evidence_path, context, status); return context
+        _evidence(evidence_path, context, status); return context | {'status': status}
     except ChunkDeadlineReached:
         bundle._save_checkpoint(checkpoint_path, checkpoint)
         context['deadline_exit_triggered'] = True; context['deadline_remaining_at_exit'] = _deadline_remaining(context['deadline'])
@@ -206,10 +242,11 @@ def main():
     ap.add_argument('--max-new-periods', type=int, default=int(os.getenv('MAX_NEW_PERIODS_PER_CHUNK', DEFAULT_MAX_PERIODS)))
     ap.add_argument('--max-runtime-seconds', type=int, default=int(os.getenv('MAX_CHUNK_RUNTIME_SECONDS', DEFAULT_MAX_RUNTIME_SECONDS)))
     ap.add_argument('--chunk-sequence', type=int, default=int(os.getenv('BOOTSTRAP_CHUNK_SEQUENCE', '1')))
+    ap.add_argument('--campaign-status-output', default='artifacts/RATE_TWSE_BOOTSTRAP_CAMPAIGN_STATUS.json')
     args = ap.parse_args()
     try:
-        result = run(trading_date=args.trading_date, universe_file=Path(args.universe_file), checkpoint_path=Path(args.checkpoint), evidence_path=Path(args.evidence_output), max_new_periods=args.max_new_periods, max_runtime_seconds=args.max_runtime_seconds, chunk_sequence=args.chunk_sequence)
-        status = result.get('status') or 'BOOTSTRAP_COMPLETE'
+        result = run(trading_date=args.trading_date, universe_file=Path(args.universe_file), checkpoint_path=Path(args.checkpoint), evidence_path=Path(args.evidence_output), max_new_periods=args.max_new_periods, max_runtime_seconds=args.max_runtime_seconds, chunk_sequence=args.chunk_sequence, campaign_status_path=Path(args.campaign_status_output))
+        status = result.get('status', 'FATAL_DATA_INTEGRITY_FAILURE')
         print(json.dumps({'status': status, 'periods_retrieved': result['retrieved'], 'periods_loaded': result['loaded']}))
         return 0
     except Exception as exc:
