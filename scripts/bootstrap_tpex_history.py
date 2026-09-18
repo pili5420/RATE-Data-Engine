@@ -173,6 +173,7 @@ def bootstrap(*, trading_date: str, checkpoint: Path, output: Path, max_months: 
             # One shared response per month.  The first approved symbol is a
             # route argument only; rows for all five symbols are filtered here.
             result = adapter.fetch_historical_symbol(TPEx_SYMBOLS[0], period)
+            request_count += 1
             records = extract_month_rows(result, TPEx_SYMBOLS, period)
             grouped = {symbol: [] for symbol in TPEx_SYMBOLS}
             for row in records:
@@ -186,7 +187,7 @@ def bootstrap(*, trading_date: str, checkpoint: Path, output: Path, max_months: 
                 "content_hash": hashlib.sha256(json.dumps(records, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
                 "validation_status": "PASS",
             }
-            _save(checkpoint, cp); request_count += 1
+            _save(checkpoint, cp)
         counts = {symbol: len(_records_for_symbol(cp, symbol)) for symbol in TPEx_SYMBOLS}
         if not all(value >= TARGET_RAW_SESSIONS for value in counts.values()):
             raise RuntimeError("DATA_INCOMPLETE:TPEX_RAW_HISTORY:" + ",".join(f"{s}={counts[s]}" for s in TPEx_SYMBOLS))
