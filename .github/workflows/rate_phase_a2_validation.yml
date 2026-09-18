@@ -95,7 +95,11 @@ jobs:
         if: always()
         shell: bash
         run: |
-          status=$(python -c "import json; print(json.load(open('artifacts/RATE_TWSE_HISTORY_BOOTSTRAP_EVIDENCE.json', encoding='utf-8')).get('status','FATAL_DATA_INTEGRITY_FAILURE'))")
+          if [ -f artifacts/RATE_TWSE_HISTORY_BOOTSTRAP_EVIDENCE.json ]; then
+            status=$(python -c "import json; print(json.load(open('artifacts/RATE_TWSE_HISTORY_BOOTSTRAP_EVIDENCE.json', encoding='utf-8')).get('status','FATAL_DATA_INTEGRITY_FAILURE'))")
+          else
+            status=FATAL_DATA_INTEGRITY_FAILURE
+          fi
           echo "bootstrap_status=$status"
           if [ "$status" = "BOOTSTRAP_COMPLETE" ]; then echo "complete=true" >> "$GITHUB_OUTPUT"; else echo "complete=false" >> "$GITHUB_OUTPUT"; fi
       - name: Probe TWSE historical redirect transport

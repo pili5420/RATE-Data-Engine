@@ -9,10 +9,12 @@ import argparse
 import hashlib
 import json
 import os
+import sys
 import time
 from datetime import date
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from scripts import build_live_source_bundle as bundle
 from src.historical_store import normalize_stock_record
 from src.benchmark_history import normalize_twse_date
