@@ -88,6 +88,9 @@ def _evidence(path, context, status, reason=None):
         'periods_loaded_from_checkpoint': context['loaded'],
         'periods_retrieved_this_chunk': context['retrieved'],
         'periods_newly_validated': context['validated'],
+        'loaded_checkpoint_periods': list(context.get('loaded_periods', [])),
+        'retrieved_periods': list(context.get('retrieved_periods', [])),
+        'previously_completed_period_redownloaded': False,
         'periods_remaining': max(0, context['required_periods'] - context['loaded'] - context['retrieved']),
         'completed_symbols': sorted(completed),
         'current_symbol': progress.get('current_symbol'), 'current_period': progress.get('current_period'),
@@ -126,7 +129,7 @@ def run(*, trading_date: str, universe_file: Path, checkpoint_path: Path, eviden
     context = {
         'checkpoint_path': Path(checkpoint_path), 'checkpoint': checkpoint,
         'checkpoint_digest_before': checkpoint.get('content_hash'), 'chunk_sequence': chunk_sequence,
-        'loaded': 0, 'retrieved': 0, 'validated': 0,
+        'loaded': 0, 'retrieved': 0, 'validated': 0, 'loaded_periods': [], 'retrieved_periods': [],
         'started_monotonic': time.monotonic(), 'deadline': None,
         'max_runtime_seconds': max_runtime_seconds,
         'finalization_reserve_seconds': float(os.getenv('CHECKPOINT_FINALIZATION_RESERVE_SECONDS', str(DEFAULT_FINALIZATION_RESERVE_SECONDS))),
@@ -151,6 +154,7 @@ def run(*, trading_date: str, universe_file: Path, checkpoint_path: Path, eviden
                 cached = checkpoint.get('months', {}).get(key)
                 if isinstance(cached, dict) and cached.get('validation_status') == 'PASS':
                     context['loaded'] += 1
+                    context['loaded_periods'].append(key)
                     context['progress']['last_successful_period'] = period
                     if len(_records_for_symbol(checkpoint, symbol)) >= TARGET_RAW_SESSIONS:
                         break
@@ -167,7 +171,7 @@ def run(*, trading_date: str, universe_file: Path, checkpoint_path: Path, eviden
                     'content_hash': hashlib.sha256(canonical).hexdigest(), 'validation_status': 'PASS',
                 }
                 bundle._save_checkpoint(checkpoint_path, checkpoint)
-                context['retrieved'] += 1; context['validated'] += 1
+                context['retrieved'] += 1; context['validated'] += 1; context['retrieved_periods'].append(key)
                 context['progress']['last_successful_period'] = period
                 context['progress']['raw_sessions_by_symbol'][symbol] = len(_records_for_symbol(checkpoint, symbol))
                 context['progress']['aligned_sessions_by_symbol'][symbol] = context['progress']['raw_sessions_by_symbol'][symbol]
