@@ -53,4 +53,8 @@ def update_benchmark_history(store: PersistentHistoricalStore, record, benchmark
     return store.upsert_benchmark(benchmark_symbol,[record])
 
 def benchmark_digest(records):
-    return hashlib.sha256(json.dumps(records,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()).hexdigest()
+    # Retrieval/ingestion timestamps are lineage metadata and may differ on a
+    # refetch.  Exclude only those volatile fields so the benchmark identity is
+    # stable for the same normalized market sessions.
+    canonical = [{k: v for k, v in row.items() if k not in ('source_timestamp', 'ingested_at')} for row in records]
+    return hashlib.sha256(json.dumps(canonical,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()).hexdigest()

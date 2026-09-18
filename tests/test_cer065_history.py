@@ -11,7 +11,7 @@ from scripts import bootstrap_taiex_history as taiex_bootstrap
 from scripts import build_historical_state_manifest as manifest
 from scripts import materialize_twse_history as materializer
 from src.historical_store import PersistentHistoricalStore
-from src.benchmark_history import normalize_benchmark
+from src.benchmark_history import benchmark_digest, normalize_benchmark
 
 
 def _stock_rows(symbol, count=195, market="TWSE"):
@@ -76,6 +76,12 @@ class Cer065HistoryTests(unittest.TestCase):
         row = normalize_benchmark({"日期": "115/09/16", "開盤指數": "25000", "最高指數": "25100", "最低指數": "24900", "收盤指數": "25050"}, benchmark_symbol="TAIEX", market="TWSE", source="TWSE_TAIEX_MI_5MINS_HIST", source_timestamp="x", ingested_at="x")
         self.assertEqual(row["trade_date"], "2026-09-16")
         self.assertEqual(row["close"], 25050.0)
+
+    def test_taiex_digest_excludes_volatile_lineage_timestamps(self):
+        base = {"benchmark_symbol": "TAIEX", "market": "TWSE", "trade_date": "2026-09-16", "close": 25050.0, "source": "TWSE_TAIEX_MI_5MINS_HIST"}
+        a = {**base, "source_timestamp": "2026-09-16T00:00:00Z", "ingested_at": "2026-09-16T00:01:00Z"}
+        b = {**base, "source_timestamp": "2026-09-18T00:00:00Z", "ingested_at": "2026-09-18T00:01:00Z"}
+        self.assertEqual(benchmark_digest([a]), benchmark_digest([b]))
 
     def test_taiex_monthly_cache_deduplicates_requests(self):
         periods = []
