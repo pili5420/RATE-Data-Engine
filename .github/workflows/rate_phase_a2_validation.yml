@@ -35,6 +35,8 @@ jobs:
       TWSE_HISTORY_CIRCUIT_COOLDOWN_SECONDS: "5"
       RATE_TWSE_BOOTSTRAP_CHECKPOINT: data/staging/history_bootstrap/RATE_TWSE_HISTORY_BOOTSTRAP_CHECKPOINT_V1.json
       RATE_TAIEX_HISTORY_CHECKPOINT: data/staging/history_bootstrap/RATE_TAIEX_HISTORY_CHECKPOINT_V1.json
+      RATE_TPEX_HISTORY_CHECKPOINT: data/staging/history_bootstrap/RATE_TPEX_HISTORY_CHECKPOINT_V1.json
+      RATE_TPEX_INDEX_HISTORY_CHECKPOINT: data/staging/history_bootstrap/RATE_TPEX_INDEX_HISTORY_CHECKPOINT_V1.json
       RATE_STAGING_HISTORY_STORE_ROOT: data/staging/history
       RATE_NORMALIZATION_SCHEMA_VERSION: RATE-STOCK-NORMALIZED-V1
       RATE_SOURCE_DATASET_VERSION: TWSE_STOCK_DAY_V1
@@ -157,14 +159,52 @@ jobs:
           --universe-file config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json
           --history-root data/staging/history
           --output artifacts/RATE_TWSE_TAIEX_ALIGNMENT_EVIDENCE.json
+      - name: Bootstrap TPEx historical stock tables
+        id: tpex_bootstrap
+        if: steps.bootstrap_gate.outputs.complete == 'true'
+        continue-on-error: true
+        run: >
+          python scripts/bootstrap_tpex_history.py
+          --trading-date "${{ inputs.trading_date }}"
+          --checkpoint "$RATE_TPEX_HISTORY_CHECKPOINT"
+          --output artifacts/RATE_TPEX_HISTORY_BOOTSTRAP_EVIDENCE.json
+      - name: Materialize TPEx historical store
+        id: tpex_materialization
+        if: always() && steps.bootstrap_gate.outputs.complete == 'true'
+        continue-on-error: true
+        run: >
+          python scripts/materialize_tpex_history.py
+          --checkpoint "$RATE_TPEX_HISTORY_CHECKPOINT"
+          --history-root data/staging/history
+          --output artifacts/RATE_TPEX_HISTORY_MATERIALIZATION_EVIDENCE.json
+      - name: Bootstrap TPEx Index historical benchmark
+        id: tpex_index_bootstrap
+        if: steps.bootstrap_gate.outputs.complete == 'true'
+        continue-on-error: true
+        run: >
+          python scripts/bootstrap_tpex_index.py
+          --trading-date "${{ inputs.trading_date }}"
+          --checkpoint "$RATE_TPEX_INDEX_HISTORY_CHECKPOINT"
+          --history-root data/staging/history
+          --output artifacts/RATE_TPEX_INDEX_HISTORY_EVIDENCE.json
+      - name: Align TPEx histories to TPEx Index exact dates
+        id: tpex_alignment
+        if: always() && steps.bootstrap_gate.outputs.complete == 'true'
+        continue-on-error: true
+        run: >
+          python scripts/align_tpex_index_history.py
+          --history-root data/staging/history
+          --output artifacts/RATE_TPEX_INDEX_ALIGNMENT_EVIDENCE.json
       - name: Build historical state manifest
         id: historical_manifest
-        if: steps.bootstrap_gate.outputs.complete == 'true'
+        if: always() && steps.bootstrap_gate.outputs.complete == 'true'
+        continue-on-error: true
         run: >
           python scripts/build_historical_state_manifest.py
           --universe-file config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json
           --checkpoint "$RATE_TWSE_BOOTSTRAP_CHECKPOINT"
           --history-root data/staging/history
+          --tpex-benchmark-file data/staging/history/benchmark/TPEX.json
           --output artifacts/RATE_STAGING_HISTORICAL_STATE_MANIFEST_V1.json
       - name: Save canonical historical materialization
         if: steps.historical_manifest.outcome == 'success'
@@ -261,6 +301,36 @@ jobs:
         with:
           name: RATE_TWSE_TAIEX_ALIGNMENT_EVIDENCE
           path: artifacts/RATE_TWSE_TAIEX_ALIGNMENT_EVIDENCE.json
+      - name: Upload TPEx bootstrap evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_TPEX_HISTORY_BOOTSTRAP_EVIDENCE
+          path: artifacts/RATE_TPEX_HISTORY_BOOTSTRAP_EVIDENCE.json
+      - name: Upload TPEx bootstrap checkpoint
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_TPEX_HISTORY_BOOTSTRAP_CHECKPOINT
+          path: data/staging/history_bootstrap/RATE_TPEX_HISTORY_CHECKPOINT_V1.json
+      - name: Upload TPEx materialization evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_TPEX_HISTORY_MATERIALIZATION_EVIDENCE
+          path: artifacts/RATE_TPEX_HISTORY_MATERIALIZATION_EVIDENCE.json
+      - name: Upload TPEx Index evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_TPEX_INDEX_HISTORY_EVIDENCE
+          path: artifacts/RATE_TPEX_INDEX_HISTORY_EVIDENCE.json
+      - name: Upload TPEx alignment evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_TPEX_INDEX_ALIGNMENT_EVIDENCE
+          path: artifacts/RATE_TPEX_INDEX_ALIGNMENT_EVIDENCE.json
       - name: Upload historical state manifest
         if: always()
         uses: actions/upload-artifact@v4

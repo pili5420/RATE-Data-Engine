@@ -1,6 +1,7 @@
 from __future__ import annotations
 from .base import fetch_json, provenance
 import base64, hashlib, json, os, time
+from datetime import date
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 from http.client import IncompleteRead
@@ -12,11 +13,41 @@ BASE = "https://www.tpex.org.tw/openapi/v1"
 HISTORICAL_ENDPOINT = "https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote.php?l=zh-tw&o=json&d={period}&s={symbol}"
 HISTORICAL_RESULT_ENDPOINT = "https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote_result.php?l=zh-tw&o=json&d={period}&s=0,asc,0"
 BENCHMARK_ENDPOINT = "https://www.tpex.org.tw/openapi/v1/tpex_index"
+# The OpenAPI product above is a latest-month snapshot.  TPEx's official
+# historical index page exposes the month-scoped JSON contract below.
+INDEX_HISTORY_ENDPOINT = "https://www.tpex.org.tw/www/en-us/indexInfo/inx?date={yyyy_mm_slash}&response=json"
 INSTITUTIONAL_HISTORY_ENDPOINT = "https://www.tpex.org.tw/web/stock/3insti/3insti.php?l=zh-tw&o=json&d={period}"
 
 def _roc_period(period: str) -> str:
     year, month = int(period[:4]), int(period[4:6])
     return f"{year - 1911:03d}{month:02d}"
+
+def _period_date(period: str) -> str:
+    """Return the first Gregorian day used by TPEx historical page APIs."""
+    year, month = int(period[:4]), int(period[4:6])
+    return f"{year:04d}/{month:02d}/01"
+
+def normalize_tpex_date(value) -> str:
+    """Normalize Gregorian/ROC TPEx date representations to YYYY-MM-DD."""
+    text = str(value or '').strip().replace('-', '/').replace('.', '/')
+    if not text:
+        raise ValueError('INVALID_TPEX_DATE')
+    digits = ''.join(ch for ch in text if ch.isdigit())
+    if len(digits) == 8:
+        year, month, day = int(digits[:4]), int(digits[4:6]), int(digits[6:8])
+    elif len(digits) == 7:  # ROC YYYMMDD
+        year, month, day = int(digits[:3]) + 1911, int(digits[3:5]), int(digits[5:7])
+    else:
+        parts = [p for p in text.split('/') if p]
+        if len(parts) != 3:
+            raise ValueError(f'INVALID_TPEX_DATE:{value}')
+        year, month, day = map(int, parts)
+        if year < 1000:
+            year += 1911
+    try:
+        return date(year, month, day).isoformat()
+    except ValueError as exc:
+        raise ValueError(f'INVALID_TPEX_DATE:{value}') from exc
 
 def _resilient_json(endpoint: str, retries: int = 3):
     last = None
@@ -73,8 +104,8 @@ class TPExAdapter:
         out['diagnostics'] = diagnostics
         return out
     def fetch_historical_benchmark(self, period: str):
-        template = os.getenv('TPEX_BENCHMARK_HISTORY_ENDPOINT', BENCHMARK_ENDPOINT)
-        endpoint = template.format(period=_roc_period(period), yyyy_mm=period)
+        template = os.getenv('TPEX_BENCHMARK_HISTORY_ENDPOINT', INDEX_HISTORY_ENDPOINT)
+        endpoint = template.format(period=_roc_period(period), yyyy_mm=period, yyyy_mm_slash=_period_date(period))
         payload, digest, diagnostics = _resilient_json(endpoint)
         out = provenance('benchmark_history', self.provider, endpoint, digest, payload)
         out['benchmark_symbol'] = 'TPEX'; out['benchmark_name'] = 'TPEx Index'; out['diagnostics'] = diagnostics
