@@ -6,6 +6,14 @@ on:
         description: "Completed trading date YYYY-MM-DD"
         required: true
         default: "2025-09-12"
+      max_new_periods:
+        description: "Bounded historical periods per invocation"
+        required: false
+        default: "12"
+      max_chunk_runtime_seconds:
+        description: "Bounded bootstrap runtime per invocation"
+        required: false
+        default: "600"
 jobs:
   phase-a2:
     runs-on: ubuntu-latest
@@ -20,8 +28,8 @@ jobs:
       RATE_NORMALIZATION_SCHEMA_VERSION: RATE-STOCK-NORMALIZED-V1
       RATE_SOURCE_DATASET_VERSION: TWSE_STOCK_DAY_V1
       RATE_CHECKPOINT_SCHEMA_VERSION: RATE-TWSE-HISTORY-CHECKPOINT-V1
-      MAX_NEW_PERIODS_PER_CHUNK: "12"
-      MAX_CHUNK_RUNTIME_SECONDS: "600"
+      MAX_NEW_PERIODS_PER_CHUNK: "${{ inputs.max_new_periods }}"
+      MAX_CHUNK_RUNTIME_SECONDS: "${{ inputs.max_chunk_runtime_seconds }}"
     permissions:
       contents: read
     steps:
