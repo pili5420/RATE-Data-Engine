@@ -269,7 +269,7 @@ def _fetch_history_candidate(url, stock_no, year_month, candidate_index, represe
                     if attempt < 3:
                         item['transport_result'] = 'HTTP_307_MISSING_LOCATION_RETRY'
                         _TRANSPORT_METRICS['retry_count'] += 1
-                        _sleep_backoff((5, 15, 30)[min(attempt - 1, 2)])
+                        _sleep_backoff((5, 15, 30)[min(attempt - 1, 2)], deadline, item)
                         continue
                     error = RuntimeError('TWSE_REDIRECT_MISSING_LOCATION'); error.diagnostics = diagnostics; raise error
                 if redirects >= max_redirects:
