@@ -1,6 +1,6 @@
 """Build the LIVE RATE source bundle, fail-closed and without fixture fallback."""
 from __future__ import annotations
-import argparse, json, os, sys
+import argparse, json, os, sys, tempfile
 import hashlib
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -25,6 +25,9 @@ UNIVERSE_CONTEXT = {}
 LIVE_PROGRESS = {}
 BOOTSTRAP_CONTEXT = {}
 CHECKPOINT_PATH = Path('data/staging/history_bootstrap/RATE_TWSE_HISTORY_BOOTSTRAP_CHECKPOINT_V1.json')
+CHECKPOINT_SCHEMA_VERSION = 'RATE-TWSE-HISTORY-CHECKPOINT-V1'
+NORMALIZATION_SCHEMA_VERSION = 'RATE-STOCK-NORMALIZED-V1'
+SOURCE_DATASET_VERSION = 'TWSE_STOCK_DAY_V1'
 
 def _now(): return datetime.now(timezone.utc).isoformat().replace('+00:00','Z')
 def _rows(payload):
@@ -100,8 +103,21 @@ def _load_universe():
     result=sorted(set(x for x in symbols if x.isdigit()))
     if not result: raise RuntimeError('MISSING_REQUIRED_SOURCE_CONFIGURATION:RATE_TWSE_SYMBOLS_OR_RATE_UNIVERSE_FILE')
     return result
+def _atomic_write_json(path, value):
+    """Write JSON durably so cancellation cannot leave a partial artifact."""
+    path = Path(path); path.parent.mkdir(parents=True, exist_ok=True)
+    payload = (json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + '\n').encode('utf-8')
+    fd, tmp_name = tempfile.mkstemp(prefix=f'.{path.name}.', suffix='.tmp', dir=str(path.parent))
+    try:
+        with os.fdopen(fd, 'wb') as handle:
+            handle.write(payload); handle.flush(); os.fsync(handle.fileno())
+        os.replace(tmp_name, path)
+    finally:
+        try: os.unlink(tmp_name)
+        except FileNotFoundError: pass
+
 def _write(path,value):
-    path.parent.mkdir(parents=True,exist_ok=True); path.write_text(json.dumps(value,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+    _atomic_write_json(path, value)
 def _config_readiness(): return {key:('READY' if (os.getenv(key) or key=='TDCC_OPENAPI_BASE') else 'NOT_READY') for key in REQUIRED_CONFIG}
 
 def _checkpoint_digest(obj):
@@ -110,16 +126,24 @@ def _checkpoint_digest(obj):
 
 def _load_checkpoint(path, universe_digest):
     if not path.exists():
-        return {'schema_version': 'RATE-TWSE-HISTORY-CHECKPOINT-V1', 'universe_digest': universe_digest,
-                'staging_source_version': 'TWSE_STOCK_DAY_V1', 'last_updated': None,
+        return {'schema_version': CHECKPOINT_SCHEMA_VERSION, 'checkpoint_schema_version': CHECKPOINT_SCHEMA_VERSION,
+                'normalization_schema_version': NORMALIZATION_SCHEMA_VERSION,
+                'source_dataset_version': SOURCE_DATASET_VERSION, 'universe_digest': universe_digest,
+                'staging_source_version': SOURCE_DATASET_VERSION, 'last_updated': None,
                 'symbols': {}, 'months': {}, 'record_count': 0, 'content_hash': None,
                 'validation_status': 'PASS'}
     try: obj = json.loads(path.read_text(encoding='utf-8'))
     except (OSError, json.JSONDecodeError): raise RuntimeError('TWSE_BOOTSTRAP_CHECKPOINT_CORRUPT')
     if obj.get('universe_digest') != universe_digest:
         raise RuntimeError('TWSE_BOOTSTRAP_CHECKPOINT_UNIVERSE_MISMATCH')
-    if obj.get('schema_version') != 'RATE-TWSE-HISTORY-CHECKPOINT-V1' or obj.get('validation_status') != 'PASS':
+    if obj.get('schema_version') != CHECKPOINT_SCHEMA_VERSION or obj.get('validation_status') != 'PASS':
         raise RuntimeError('TWSE_BOOTSTRAP_CHECKPOINT_INVALID')
+    if obj.get('checkpoint_schema_version', CHECKPOINT_SCHEMA_VERSION) != CHECKPOINT_SCHEMA_VERSION:
+        raise RuntimeError('TWSE_BOOTSTRAP_CHECKPOINT_VERSION_MISMATCH')
+    if obj.get('normalization_schema_version', NORMALIZATION_SCHEMA_VERSION) != NORMALIZATION_SCHEMA_VERSION:
+        raise RuntimeError('TWSE_BOOTSTRAP_CHECKPOINT_NORMALIZATION_MISMATCH')
+    if obj.get('source_dataset_version', SOURCE_DATASET_VERSION) != SOURCE_DATASET_VERSION:
+        raise RuntimeError('TWSE_BOOTSTRAP_CHECKPOINT_SOURCE_VERSION_MISMATCH')
     if obj.get('content_hash') != _checkpoint_digest(obj):
         raise RuntimeError('TWSE_BOOTSTRAP_CHECKPOINT_CORRUPT')
     for entry in obj.get('months', {}).values():
@@ -130,14 +154,21 @@ def _load_checkpoint(path, universe_digest):
             raise RuntimeError('TWSE_BOOTSTRAP_CHECKPOINT_ENTRY_CORRUPT')
     return obj
 
+def validate_checkpoint(path, universe_digest):
+    """Public integrity gate used by the cache-save workflow step."""
+    obj = _load_checkpoint(Path(path), universe_digest)
+    return {'status': 'PASS', 'content_hash': obj.get('content_hash'), 'checkpoint': obj}
+
 def _save_checkpoint(path, checkpoint):
+    checkpoint['schema_version'] = CHECKPOINT_SCHEMA_VERSION
+    checkpoint['checkpoint_schema_version'] = CHECKPOINT_SCHEMA_VERSION
+    checkpoint['normalization_schema_version'] = NORMALIZATION_SCHEMA_VERSION
+    checkpoint['source_dataset_version'] = SOURCE_DATASET_VERSION
     checkpoint['last_updated'] = _now()
     checkpoint['record_count'] = sum(len(v.get('records', [])) for v in checkpoint.get('months', {}).values())
     checkpoint['content_hash'] = _checkpoint_digest(checkpoint)
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + '.tmp')
-    tmp.write_text(json.dumps(checkpoint, ensure_ascii=False, sort_keys=True, indent=2) + '\n', encoding='utf-8')
-    tmp.replace(path)
+    _atomic_write_json(path, checkpoint)
 
 def _bootstrap_evidence(path, status, reason=None):
     metrics = get_transport_metrics()
@@ -149,6 +180,9 @@ def _bootstrap_evidence(path, status, reason=None):
         total_floor = max(1, len(UNIVERSE_CONTEXT.get('universe_markets', {}))) * 10
         remaining = max(0, total_floor - loaded - retrieved)
     _write(path, {'artifact': 'RATE_TWSE_HISTORY_BOOTSTRAP_EVIDENCE', 'status': status,
+        'chunk_sequence': BOOTSTRAP_CONTEXT.get('chunk_sequence', 0),
+        'checkpoint_digest_before': BOOTSTRAP_CONTEXT.get('checkpoint_digest_before'),
+        'checkpoint_digest_after': BOOTSTRAP_CONTEXT.get('checkpoint', {}).get('content_hash'),
         'blocking_reason': reason, 'checkpoint_digest': BOOTSTRAP_CONTEXT.get('checkpoint_digest'),
         'completed_symbol_count': sum(1 for n in progress.get('aligned_sessions_by_symbol', {}).values() if n >= 180),
         'raw_sessions_by_symbol': progress.get('raw_sessions_by_symbol', {}),
@@ -159,7 +193,11 @@ def _bootstrap_evidence(path, status, reason=None):
         'throttle_pattern_classification': ('PATTERN_CONSISTENT_WITH_HOST_THROTTLING_OR_EDGE_POLICY'
                                             if metrics.get('bare_307_count') else 'NONE_OBSERVED'),
         'checkpoint_namespace': str(BOOTSTRAP_CONTEXT.get('checkpoint_path', CHECKPOINT_PATH)),
-        'production_state_modified': 'NO', 'retrieval_timestamp': _now()})
+        'completed_symbols': sorted([s for s,n in progress.get('aligned_sessions_by_symbol', {}).items() if n >= 180]),
+        'current_symbol': progress.get('current_symbol'), 'current_period': progress.get('current_period'),
+        'last_successful_period': progress.get('last_successful_period'),
+        'run_id': os.getenv('GITHUB_RUN_ID'), 'run_attempt': os.getenv('GITHUB_RUN_ATTEMPT'),
+        'head_sha': os.getenv('GITHUB_SHA'), 'production_state_modified': 'NO', 'retrieval_timestamp': _now()})
 def _failure(path,trading_date,reason,coverage=None):
     metrics = get_transport_metrics()
     _write(path,{'status':'BLOCKED','blocking_reason':reason,'trading_date':trading_date,'staging_commit':os.getenv('GITHUB_SHA'),'execution_runtime':'github_actions' if os.getenv('GITHUB_ACTIONS')=='true' else 'local','universe_count':len(os.getenv('RATE_TWSE_SYMBOLS','').split(',')) if os.getenv('RATE_TWSE_SYMBOLS') else UNIVERSE_CONTEXT.get('universe_record_count',0),'source_readiness':_config_readiness(),'history_coverage_reached_before_failure':coverage or {},'benchmark_coverage':None,'timestamps':{'retrieval_timestamp':_now()},'historical_progress':LIVE_PROGRESS,'transport_request_metrics':metrics,'throttle_pattern_classification':('PATTERN_CONSISTENT_WITH_HOST_THROTTLING_OR_EDGE_POLICY' if metrics.get('bare_307_count') else 'NONE_OBSERVED'),**UNIVERSE_CONTEXT})
@@ -223,11 +261,29 @@ def _history(adapter,symbol,trading_date,market='TWSE'):
     return records[-220:]
 def _benchmark(adapter,trading_date,market='TWSE'):
     records=[]; seen=set(); end=date.fromisoformat(trading_date)
+    cache_root = Path(os.getenv('RATE_STAGING_BENCHMARK_CACHE_ROOT', 'data/staging/history_bootstrap/benchmarks'))
+    cache_root.mkdir(parents=True, exist_ok=True)
     for period in _month_cursor(end):
-        try:
-            result=adapter.fetch_historical_benchmark(period)
-        except Exception as exc:
-            raise RuntimeError(f"{market}_BENCHMARK_RETRIEVAL:{period}:{exc}") from exc
+        cache_path = cache_root / f'{market}_{period}.json'
+        result = None
+        if cache_path.exists():
+            try:
+                cached = json.loads(cache_path.read_text(encoding='utf-8'))
+                canonical = json.dumps(cached.get('records', []), ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()
+                if cached.get('validation_status') == 'PASS' and cached.get('content_hash') == hashlib.sha256(canonical).hexdigest():
+                    result = {'raw_payload': {'data': cached.get('records', [])}, 'source_timestamp': cached.get('source_timestamp'), 'retrieval_timestamp': cached.get('retrieval_timestamp')}
+            except (OSError, json.JSONDecodeError):
+                result = None
+        if result is None:
+            try:
+                result=adapter.fetch_historical_benchmark(period)
+            except Exception as exc:
+                raise RuntimeError(f"{market}_BENCHMARK_RETRIEVAL:{period}:{exc}") from exc
+            cache_records = _rows(result.get('raw_payload'))
+            canonical = json.dumps(cache_records, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()
+            _atomic_write_json(cache_path, {'market': market, 'year_month': period, 'records': cache_records,
+                'content_hash': hashlib.sha256(canonical).hexdigest(), 'validation_status': 'PASS',
+                'source_timestamp': result.get('source_timestamp'), 'retrieval_timestamp': result.get('retrieval_timestamp')})
         for row in _rows(result.get('raw_payload')):
             raw_date=_pick(row,'trade_date','Date','日期'); close=_pick(row,'close','ClosingIndex','收盤指數','收盤價')
             if raw_date is None or close is None: continue
