@@ -35,7 +35,7 @@ jobs:
       TWSE_HISTORY_CIRCUIT_COOLDOWN_SECONDS: "5"
       RATE_TWSE_BOOTSTRAP_CHECKPOINT: data/staging/history_bootstrap/RATE_TWSE_HISTORY_BOOTSTRAP_CHECKPOINT_V1.json
       RATE_TAIEX_HISTORY_CHECKPOINT: data/staging/history_bootstrap/RATE_TAIEX_HISTORY_CHECKPOINT_V1.json
-       RATE_TPEX_HISTORY_CHECKPOINT: data/staging/history_bootstrap/RATE_TPEX_HISTORY_CHECKPOINT_V2.json
+      RATE_TPEX_HISTORY_CHECKPOINT: data/staging/history_bootstrap/RATE_TPEX_HISTORY_CHECKPOINT_V2.json
       RATE_TPEX_INDEX_HISTORY_CHECKPOINT: data/staging/history_bootstrap/RATE_TPEX_INDEX_HISTORY_CHECKPOINT_V1.json
       RATE_STAGING_HISTORY_STORE_ROOT: data/staging/history
       RATE_NORMALIZATION_SCHEMA_VERSION: RATE-STOCK-NORMALIZED-V1
@@ -159,15 +159,15 @@ jobs:
           --universe-file config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json
           --history-root data/staging/history
           --output artifacts/RATE_TWSE_TAIEX_ALIGNMENT_EVIDENCE.json
-       - name: Probe TPEx individual-stock historical contract
-         id: tpex_contract
-         if: steps.bootstrap_gate.outputs.complete == 'true'
-         continue-on-error: true
-         run: >
+      - name: Probe TPEx individual-stock historical contract
+        id: tpex_contract
+        if: steps.bootstrap_gate.outputs.complete == 'true'
+        continue-on-error: true
+        run: >
           python scripts/probe_tpex_individual_history_contract.py
           --period "${{ inputs.trading_date }}"
           --output artifacts/RATE_TPEX_INDIVIDUAL_HISTORY_CONTRACT_EVIDENCE.json
-       - name: Bootstrap TPEx historical stock tables
+      - name: Bootstrap TPEx historical stock tables
         id: tpex_bootstrap
         if: steps.bootstrap_gate.outputs.complete == 'true'
         continue-on-error: true
