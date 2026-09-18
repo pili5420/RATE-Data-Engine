@@ -165,7 +165,7 @@ def _fetch_history_candidate(url, stock_no, year_month, candidate_index, represe
                 'Referer': 'https://www.twse.com.tw/zh/',
                 'Connection': 'close',
             })
-            with urlopen(req, timeout=30) as response:
+            with urlopen(req, timeout=float(os.getenv('TWSE_HISTORY_HTTP_TIMEOUT_SECONDS', '30'))) as response:
                 body = response.read()
                 status = response.status
                 ctype = response.headers.get('Content-Type', '')
@@ -347,6 +347,17 @@ class TWSEAdapter:
                 if diagnostics:
                     all_diagnostics.extend(diagnostics)
                 attempts.append({'candidate_index': index, 'representation': representation, 'status': 'FAIL', 'reason': str(exc), 'requests': diagnostics or []})
+                # In staging, a repeated host-level transient ends the bounded
+                # chunk immediately.  This prevents a single unavailable host
+                # from consuming the entire runner budget across fallback
+                # representations; no data is accepted on this path.
+                if (os.getenv('TWSE_STAGING_FAIL_FAST_HOST') == '1'
+                        and _is_host_transient(str(exc))
+                        and os.getenv('RATE_STAGING_REALTIME') == '1'):
+                    _TRANSPORT_METRICS['circuit_breaker_count'] += 1
+                    error = RuntimeError('TWSE_HOST_TEMPORARILY_UNAVAILABLE')
+                    error.diagnostics = all_diagnostics; error.candidate_attempts = attempts
+                    raise error from exc
                 transient_reps = {a.get('representation') for a in attempts if _is_host_transient(a.get('reason'))}
                 if len(transient_reps) >= 2 and not primary_retry_after_circuit and os.getenv('RATE_STAGING_REALTIME') == '1':
                     _TRANSPORT_METRICS['circuit_breaker_count'] += 1
