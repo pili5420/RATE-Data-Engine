@@ -14,6 +14,10 @@ on:
         description: "Bounded bootstrap runtime per invocation"
         required: false
         default: "600"
+      finalization_reserve_seconds:
+        description: "Reserved time for checkpoint validation and cache save"
+        required: false
+        default: "15"
 jobs:
   phase-a2:
     runs-on: ubuntu-latest
@@ -33,6 +37,7 @@ jobs:
       RATE_CHECKPOINT_SCHEMA_VERSION: RATE-TWSE-HISTORY-CHECKPOINT-V1
       MAX_NEW_PERIODS_PER_CHUNK: "${{ inputs.max_new_periods }}"
       MAX_CHUNK_RUNTIME_SECONDS: "${{ inputs.max_chunk_runtime_seconds }}"
+      CHECKPOINT_FINALIZATION_RESERVE_SECONDS: "${{ inputs.finalization_reserve_seconds }}"
     permissions:
       contents: read
     steps:

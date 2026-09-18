@@ -18,6 +18,8 @@ _TRANSPORT_METRICS = {
     '5xx_count': 0, 'retry_count': 0, 'circuit_breaker_count': 0,
     'elapsed_seconds': 0.0,
 }
+class ChunkDeadlineReached(RuntimeError):
+    """Internal non-failure exit used to finalize a bounded bootstrap chunk."""
 
 def reset_transport_metrics():
     global _LAST_HISTORY_REQUEST
@@ -34,19 +36,40 @@ def _is_host_transient(reason):
                       'TWSE_HISTORY_HTTP_504', 'TWSE_HISTORY_TRANSPORT_IncompleteRead',
                       'TWSE_HISTORY_TRANSPORT_URLError', 'TWSE_HISTORY_TRANSPORT_TimeoutError')
 
-def _sleep_backoff(seconds):
+def _deadline_remaining(deadline, reserve=None):
+    if deadline is None: return None
+    if reserve is None: reserve = float(os.getenv('CHECKPOINT_FINALIZATION_RESERVE_SECONDS', '15'))
+    return max(0.0, deadline - time.monotonic() - reserve)
+
+def _sleep_backoff(seconds, deadline=None, diagnostic=None):
     # Keep deterministic/unit runs fast; staging Actions opts into the real
     # bounded delays with RATE_STAGING_REALTIME=1.
+    requested = float(seconds)
+    remaining = _deadline_remaining(deadline)
+    if remaining is not None:
+        if remaining <= 0:
+            if diagnostic is not None:
+                diagnostic.update({'requested_delay_seconds': requested, 'applied_delay_seconds': 0.0,
+                                   'remaining_budget_before_delay': remaining, 'deadline_limited': True})
+            raise ChunkDeadlineReached('TWSE_CHUNK_DEADLINE_REACHED')
+        applied = min(requested, remaining)
+        if diagnostic is not None:
+            diagnostic.update({'requested_delay_seconds': requested, 'applied_delay_seconds': applied,
+                               'remaining_budget_before_delay': remaining, 'deadline_limited': applied < requested})
+        if applied < requested:
+            if applied > 0 and os.getenv('RATE_DETERMINISTIC_TEST') != '1': time.sleep(applied)
+            raise ChunkDeadlineReached('TWSE_CHUNK_DEADLINE_REACHED')
+        seconds = applied
     if os.getenv('RATE_DETERMINISTIC_TEST') == '1':
         return
     time.sleep(seconds if os.getenv('RATE_STAGING_REALTIME') == '1' else min(seconds, 0.01))
 
-def _pace_history_request():
+def _pace_history_request(deadline=None, diagnostic=None):
     global _LAST_HISTORY_REQUEST
     interval = float(os.getenv('TWSE_HISTORY_MIN_INTERVAL_SECONDS', '1.5'))
     if os.getenv('RATE_DETERMINISTIC_TEST') == '1': interval = 0.0
     elapsed = time.monotonic() - _LAST_HISTORY_REQUEST
-    if elapsed < interval: _sleep_backoff(interval - elapsed)
+    if elapsed < interval: _sleep_backoff(interval - elapsed, deadline, diagnostic)
     _LAST_HISTORY_REQUEST = time.monotonic()
 
 def _history_rows(payload):
@@ -146,7 +169,7 @@ def _parse_history_csv(body, stock_no, year_month):
                'csv_encoding': encoding, 'csv_headers': header}
     return payload, encoding, header
 
-def _fetch_history_candidate(url, stock_no, year_month, candidate_index, representation='JSON', max_redirects=MAX_REDIRECTS):
+def _fetch_history_candidate(url, stock_no, year_month, candidate_index, representation='JSON', max_redirects=MAX_REDIRECTS, deadline=None):
     diagnostics = []
     current = url
     redirects = 0
@@ -155,7 +178,11 @@ def _fetch_history_candidate(url, stock_no, year_month, candidate_index, represe
     # transient retry allowance.
     for attempt in range(1, 4 + max_redirects):
         try:
-            _pace_history_request()
+            remaining_budget = _deadline_remaining(deadline)
+            if remaining_budget is not None and remaining_budget <= 0:
+                raise ChunkDeadlineReached('TWSE_CHUNK_DEADLINE_REACHED')
+            pace_diag = {}
+            _pace_history_request(deadline, pace_diag)
             started = time.monotonic()
             _TRANSPORT_METRICS['total_requests'] += 1
             req = Request(current, headers={
@@ -165,7 +192,11 @@ def _fetch_history_candidate(url, stock_no, year_month, candidate_index, represe
                 'Referer': 'https://www.twse.com.tw/zh/',
                 'Connection': 'close',
             })
-            with urlopen(req, timeout=float(os.getenv('TWSE_HISTORY_HTTP_TIMEOUT_SECONDS', '30'))) as response:
+            configured_timeout = float(os.getenv('TWSE_HISTORY_HTTP_TIMEOUT_SECONDS', '30'))
+            effective_timeout = min(configured_timeout, remaining_budget) if remaining_budget is not None else configured_timeout
+            if effective_timeout <= 0:
+                raise ChunkDeadlineReached('TWSE_CHUNK_DEADLINE_REACHED')
+            with urlopen(req, timeout=effective_timeout) as response:
                 body = response.read()
                 status = response.status
                 ctype = response.headers.get('Content-Type', '')
@@ -173,7 +204,9 @@ def _fetch_history_candidate(url, stock_no, year_month, candidate_index, represe
                     'request_url': current, 'http_status': status, 'redirect_location': None,
                     'resolved_redirect_url': None, 'redirect_count': redirects,
                     'content_type': ctype, 'response_bytes': len(body), 'attempt': attempt,
-                'transport_result': 'HTTP_200', 'representation': representation}
+                'transport_result': 'HTTP_200', 'representation': representation,
+                'configured_timeout': configured_timeout, 'effective_timeout': effective_timeout,
+                'remaining_chunk_budget': remaining_budget, **pace_diag}
             diagnostics.append(item)
             _TRANSPORT_METRICS['elapsed_seconds'] += time.monotonic() - started
             if not body:
@@ -215,7 +248,10 @@ def _fetch_history_candidate(url, stock_no, year_month, candidate_index, represe
                     'redirect_location': location, 'resolved_redirect_url': None,
                     'redirect_count': redirects, 'content_type': exc.headers.get('Content-Type', '') if exc.headers else '',
                     'response_bytes': 0, 'attempt': attempt,
-                    'transport_result': f'HTTP_{exc.code}'}
+                    'transport_result': f'HTTP_{exc.code}',
+                    'configured_timeout': locals().get('configured_timeout', float(os.getenv('TWSE_HISTORY_HTTP_TIMEOUT_SECONDS', '30'))),
+                    'effective_timeout': locals().get('effective_timeout', _deadline_remaining(deadline)),
+                    'remaining_chunk_budget': _deadline_remaining(deadline), **locals().get('pace_diag', {})}
             retry_after = exc.headers.get('Retry-After') if exc.headers else None
             item['retry_after_present'] = retry_after is not None
             try: item['retry_after_seconds'] = float(retry_after) if retry_after is not None else None
@@ -252,7 +288,7 @@ def _fetch_history_candidate(url, stock_no, year_month, candidate_index, represe
             if exc.code in (429, 502, 503, 504) and attempt < 3:
                 _TRANSPORT_METRICS['retry_count'] += 1
                 delay = item.get('retry_after_seconds')
-                _sleep_backoff(min(delay, 60.0) if delay is not None else (5, 15, 30)[min(attempt - 1, 2)])
+                _sleep_backoff(min(delay, 60.0) if delay is not None else (5, 15, 30)[min(attempt - 1, 2)], deadline, item)
                 continue
             error = RuntimeError(f'TWSE_HISTORY_HTTP_{exc.code}'); error.diagnostics = diagnostics; raise error from exc
         except (IncompleteRead, URLError, TimeoutError, ConnectionError) as exc:
@@ -261,9 +297,12 @@ def _fetch_history_candidate(url, stock_no, year_month, candidate_index, represe
                                 'request_url': current, 'http_status': None, 'redirect_location': None,
                                 'resolved_redirect_url': None, 'redirect_count': redirects,
                                 'content_type': '', 'response_bytes': 0, 'attempt': attempt,
-                                'transport_result': type(exc).__name__})
+                                'transport_result': type(exc).__name__,
+                                'configured_timeout': locals().get('configured_timeout', float(os.getenv('TWSE_HISTORY_HTTP_TIMEOUT_SECONDS', '30'))),
+                                'effective_timeout': locals().get('effective_timeout', _deadline_remaining(deadline)),
+                                'remaining_chunk_budget': _deadline_remaining(deadline), **locals().get('pace_diag', {})})
             if attempt < 3:
-                _sleep_backoff((5, 15, 30)[min(attempt - 1, 2)])
+                _sleep_backoff((5, 15, 30)[min(attempt - 1, 2)], deadline, diagnostics[-1])
                 continue
             error = RuntimeError(f'TWSE_HISTORY_TRANSPORT_{type(exc).__name__}'); error.diagnostics = diagnostics; raise error from exc
         except RuntimeError as exc:
@@ -303,7 +342,7 @@ class TWSEAdapter:
         endpoint = BASE + "/opendata/t187ap05_L"
         payload, digest = fetch_json(endpoint)
         return provenance("fundamental_revenue", self.provider, endpoint, digest, payload)
-    def fetch_historical_symbol(self, stock_no: str, year_month: str, force_representation: str | None = None):
+    def fetch_historical_symbol(self, stock_no: str, year_month: str, force_representation: str | None = None, deadline=None):
         endpoint = f"https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date={year_month}01&stockNo={stock_no}&response=json"
         # TWSE's official exchangeReport route is a transport fallback for
         # intermittent CDN 307/security responses from the RWD route.  Both
@@ -327,7 +366,7 @@ class TWSEAdapter:
         primary_retry_after_circuit = False
         for index, (candidate, representation) in enumerate(endpoints):
             try:
-                payload, digest, diagnostics, final_endpoint = _fetch_history_candidate(candidate, stock_no, year_month, index, representation='CSV' if representation == 'CSV_OFFICIAL' else 'JSON')
+                payload, digest, diagnostics, final_endpoint = _fetch_history_candidate(candidate, stock_no, year_month, index, representation='CSV' if representation == 'CSV_OFFICIAL' else 'JSON', deadline=deadline)
                 all_diagnostics.extend(diagnostics)
                 out = provenance("market_daily_history", self.provider, final_endpoint, digest, payload)
                 out['diagnostics'] = {'requests': all_diagnostics, 'final_endpoint': final_endpoint,
@@ -340,6 +379,8 @@ class TWSEAdapter:
                                                    'headers': payload.get('csv_headers')}
                                                   if representation == 'CSV_OFFICIAL' else None)
                 return out
+            except ChunkDeadlineReached:
+                raise
             except Exception as exc:
                 last = exc
                 error_reasons.append(str(exc))
@@ -362,9 +403,9 @@ class TWSEAdapter:
                 if len(transient_reps) >= 2 and not primary_retry_after_circuit and os.getenv('RATE_STAGING_REALTIME') == '1':
                     _TRANSPORT_METRICS['circuit_breaker_count'] += 1
                     primary_retry_after_circuit = True
-                    _sleep_backoff(float(os.getenv('TWSE_HISTORY_CIRCUIT_COOLDOWN_SECONDS', '60')))
+                    _sleep_backoff(float(os.getenv('TWSE_HISTORY_CIRCUIT_COOLDOWN_SECONDS', '60')), deadline)
                     try:
-                        payload, digest, retry_diag, final_endpoint = _fetch_history_candidate(endpoints[0][0], stock_no, year_month, 0, representation='JSON')
+                        payload, digest, retry_diag, final_endpoint = _fetch_history_candidate(endpoints[0][0], stock_no, year_month, 0, representation='JSON', deadline=deadline)
                         all_diagnostics.extend(retry_diag)
                         out = provenance('market_daily_history', self.provider, final_endpoint, digest, payload)
                         out['diagnostics'] = {'requests': all_diagnostics, 'final_endpoint': final_endpoint,

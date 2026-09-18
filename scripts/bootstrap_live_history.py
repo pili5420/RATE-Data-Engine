@@ -19,18 +19,20 @@ from scripts import build_live_source_bundle as bundle
 from src.historical_store import normalize_stock_record
 from src.benchmark_history import normalize_twse_date
 from src.sources.twse import TWSEAdapter, reset_transport_metrics, get_transport_metrics
+from src.sources.twse import ChunkDeadlineReached, _deadline_remaining
 
 TARGET_RAW_SESSIONS = 190
 DEFAULT_MAX_PERIODS = 12
 DEFAULT_MAX_RUNTIME_SECONDS = 600
+DEFAULT_FINALIZATION_RESERVE_SECONDS = 15
 
 
 def _periods(end: date):
     return list(bundle._month_cursor(end))
 
 
-def _normalized_period(adapter, symbol: str, period: str):
-    result = adapter.fetch_historical_symbol(symbol, period)
+def _normalized_period(adapter, symbol: str, period: str, deadline=None):
+    result = adapter.fetch_historical_symbol(symbol, period, deadline=deadline)
     rows = bundle._rows(result.get('raw_payload'))
     records, seen = [], set()
     for row in rows:
@@ -90,6 +92,12 @@ def _evidence(path, context, status, reason=None):
         'raw_sessions_by_symbol': progress['raw_sessions_by_symbol'],
         'aligned_sessions_by_symbol': progress['aligned_sessions_by_symbol'],
         'transport_request_metrics': get_transport_metrics(),
+        'chunk_runtime_budget_seconds': context.get('max_runtime_seconds'),
+        'finalization_reserve_seconds': context.get('finalization_reserve_seconds', DEFAULT_FINALIZATION_RESERVE_SECONDS),
+        'network_runtime_budget_seconds': max(0.0, (context.get('max_runtime_seconds') or 0) - context.get('finalization_reserve_seconds', DEFAULT_FINALIZATION_RESERVE_SECONDS)),
+        'actual_elapsed_seconds': round(time.monotonic() - context.get('started_monotonic', time.monotonic()), 3),
+        'deadline_exit_triggered': context.get('deadline_exit_triggered', False),
+        'deadline_remaining_at_exit': context.get('deadline_remaining_at_exit'),
         'run_id': os.getenv('GITHUB_RUN_ID'), 'run_attempt': os.getenv('GITHUB_RUN_ATTEMPT'),
         'head_sha': os.getenv('GITHUB_SHA'), 'retrieval_timestamp': bundle._now(),
         'checkpoint_namespace': str(context['checkpoint_path']), 'production_state_modified': 'NO',
@@ -116,10 +124,15 @@ def run(*, trading_date: str, universe_file: Path, checkpoint_path: Path, eviden
         'checkpoint_path': Path(checkpoint_path), 'checkpoint': checkpoint,
         'checkpoint_digest_before': checkpoint.get('content_hash'), 'chunk_sequence': chunk_sequence,
         'loaded': 0, 'retrieved': 0, 'validated': 0,
+        'started_monotonic': time.monotonic(), 'deadline': None,
+        'max_runtime_seconds': max_runtime_seconds,
+        'finalization_reserve_seconds': float(os.getenv('CHECKPOINT_FINALIZATION_RESERVE_SECONDS', str(DEFAULT_FINALIZATION_RESERVE_SECONDS))),
+        'deadline_exit_triggered': False, 'deadline_remaining_at_exit': None,
         'required_periods': max(1, len(universe) * len(_periods(date.fromisoformat(trading_date)))),
         'progress': {'current_symbol': None, 'current_period': None, 'last_successful_period': None,
                      'raw_sessions_by_symbol': {}, 'aligned_sessions_by_symbol': {}},
     }
+    context['deadline'] = context['started_monotonic'] + max_runtime_seconds
     # Evidence exists before the first network request and is atomically updated.
     _evidence(evidence_path, context, 'CHUNK_COMPLETE_MORE_WORK')
     adapter = TWSEAdapter(); started = time.monotonic()
@@ -139,9 +152,11 @@ def run(*, trading_date: str, universe_file: Path, checkpoint_path: Path, eviden
                     if len(_records_for_symbol(checkpoint, symbol)) >= TARGET_RAW_SESSIONS:
                         break
                     continue
-                if context['retrieved'] >= max_new_periods or time.monotonic() - started >= max_runtime_seconds:
+                if context['retrieved'] >= max_new_periods or _deadline_remaining(context['deadline']) <= 0:
+                    context['deadline_exit_triggered'] = True
+                    context['deadline_remaining_at_exit'] = _deadline_remaining(context['deadline'])
                     _evidence(evidence_path, context, 'CHUNK_COMPLETE_MORE_WORK'); return context
-                records = _normalized_period(adapter, symbol, period)
+                records = _normalized_period(adapter, symbol, period, deadline=context['deadline'])
                 canonical = json.dumps(records, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()
                 checkpoint.setdefault('months', {})[key] = {
                     'symbol': symbol, 'market': 'TWSE', 'year_month': period, 'provider': 'TWSE',
@@ -154,12 +169,19 @@ def run(*, trading_date: str, universe_file: Path, checkpoint_path: Path, eviden
                 context['progress']['raw_sessions_by_symbol'][symbol] = len(_records_for_symbol(checkpoint, symbol))
                 context['progress']['aligned_sessions_by_symbol'][symbol] = context['progress']['raw_sessions_by_symbol'][symbol]
                 _evidence(evidence_path, context, 'CHUNK_COMPLETE_MORE_WORK')
-                if context['retrieved'] >= max_new_periods or time.monotonic() - started >= max_runtime_seconds:
+                if context['retrieved'] >= max_new_periods or _deadline_remaining(context['deadline']) <= 0:
+                    context['deadline_exit_triggered'] = _deadline_remaining(context['deadline']) <= 0
+                    context['deadline_remaining_at_exit'] = _deadline_remaining(context['deadline'])
                     _evidence(evidence_path, context, 'CHUNK_COMPLETE_MORE_WORK'); return context
                 if all(context['progress']['raw_sessions_by_symbol'].get(s, 0) >= TARGET_RAW_SESSIONS for s in universe):
                     _evidence(evidence_path, context, 'BOOTSTRAP_COMPLETE'); return context
         status = 'BOOTSTRAP_COMPLETE' if all(context['progress']['raw_sessions_by_symbol'].get(s, 0) >= TARGET_RAW_SESSIONS for s in universe) else 'CHUNK_COMPLETE_MORE_WORK'
         _evidence(evidence_path, context, status); return context
+    except ChunkDeadlineReached:
+        bundle._save_checkpoint(checkpoint_path, checkpoint)
+        context['deadline_exit_triggered'] = True; context['deadline_remaining_at_exit'] = _deadline_remaining(context['deadline'])
+        _evidence(evidence_path, context, 'CHUNK_COMPLETE_MORE_WORK', 'TWSE_CHUNK_DEADLINE_REACHED')
+        return context | {'status': 'CHUNK_COMPLETE_MORE_WORK', 'blocking_reason': None}
     except Exception as exc:
         bundle._save_checkpoint(checkpoint_path, checkpoint)
         status = 'TEMPORARY_SOURCE_UNAVAILABLE' if 'TWSE_HOST_TEMPORARILY_UNAVAILABLE' in str(exc) else 'FATAL_DATA_INTEGRITY_FAILURE'

@@ -7,6 +7,7 @@ from unittest.mock import patch
 from scripts.bootstrap_cache import compatibility_prefix, versioned_cache_key
 from scripts import bootstrap_live_history as bootstrap
 from scripts import build_live_source_bundle as builder
+from src.sources.twse import ChunkDeadlineReached
 
 
 class CER062BootstrapTests(unittest.TestCase):
@@ -50,6 +51,31 @@ class CER062BootstrapTests(unittest.TestCase):
             self.assertEqual(out['status'], 'TEMPORARY_SOURCE_UNAVAILABLE')
             self.assertEqual(builder.validate_checkpoint(cp, 'u')['status'], 'PASS')
             self.assertEqual(json.loads(ev.read_text(encoding='utf-8'))['status'], 'TEMPORARY_SOURCE_UNAVAILABLE')
+        finally: shutil.rmtree(root, ignore_errors=True)
+
+    def test_deadline_before_http_request(self):
+        from src.sources import twse
+        with patch.object(twse, 'urlopen') as request:
+            with self.assertRaises(ChunkDeadlineReached):
+                twse.TWSEAdapter().fetch_historical_symbol('3036', '202601', deadline=twse.time.monotonic() - 1)
+            request.assert_not_called()
+
+    def test_deadline_limits_backoff_and_is_not_source_failure(self):
+        from src.sources import twse
+        diag = {}
+        with patch.dict('os.environ', {'CHECKPOINT_FINALIZATION_RESERVE_SECONDS': '15', 'RATE_STAGING_REALTIME': '1'}, clear=False):
+            with self.assertRaises(ChunkDeadlineReached):
+                twse._sleep_backoff(30, deadline=twse.time.monotonic() + 1, diagnostic=diag)
+        self.assertTrue(diag['deadline_limited']); self.assertEqual(diag['requested_delay_seconds'], 30.0)
+
+    def test_deadline_exit_returns_zero_state(self):
+        root = Path('artifacts/test_cer062_deadline'); shutil.rmtree('artifacts/test_cer062_deadline', ignore_errors=True); root.mkdir(parents=True)
+        try:
+            universe = root / 'universe.json'; cp = root / 'checkpoint.json'; ev = root / 'evidence.json'
+            universe.write_text(json.dumps({'universe_symbol_digest': 'u', 'symbols': [{'symbol': '3036', 'market': 'TWSE'}]}), encoding='utf-8')
+            with patch.object(bootstrap, '_periods', return_value=['202601']), patch.object(bootstrap, '_normalized_period', side_effect=ChunkDeadlineReached('TWSE_CHUNK_DEADLINE_REACHED')):
+                out = bootstrap.run(trading_date='2026-01-31', universe_file=universe, checkpoint_path=cp, evidence_path=ev, max_new_periods=1, max_runtime_seconds=60)
+            self.assertEqual(out['status'], 'CHUNK_COMPLETE_MORE_WORK'); self.assertEqual(builder.validate_checkpoint(cp, 'u')['status'], 'PASS')
         finally: shutil.rmtree(root, ignore_errors=True)
 
 
