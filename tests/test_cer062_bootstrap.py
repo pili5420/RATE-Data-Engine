@@ -17,6 +17,10 @@ class CER062BootstrapTests(unittest.TestCase):
         self.assertTrue(key.startswith(prefix)); self.assertTrue(key.endswith('123-2'))
         self.assertNotEqual(key, versioned_cache_key('u', '124', '1'))
 
+    def test_period_planning_is_finite(self):
+        from datetime import date
+        self.assertEqual(len(bootstrap._periods(date(2026, 9, 16))), 24)
+
     def test_checkpoint_compatibility_and_atomic_evidence(self):
         root = Path('artifacts/test_cer062_atomic'); shutil.rmtree('artifacts/test_cer062_atomic', ignore_errors=True); root.mkdir(parents=True)
         try:

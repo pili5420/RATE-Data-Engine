@@ -28,7 +28,10 @@ DEFAULT_FINALIZATION_RESERVE_SECONDS = 15
 
 
 def _periods(end: date):
-    return list(bundle._month_cursor(end))
+    cursor = bundle._month_cursor(end)
+    # A 24-month bounded window is sufficient for the 190-session target and
+    # keeps period planning finite before the network/deadline loop starts.
+    return [next(cursor) for _ in range(24)]
 
 
 def _normalized_period(adapter, symbol: str, period: str, deadline=None):
