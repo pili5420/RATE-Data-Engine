@@ -27,9 +27,9 @@ class CER057TPExTests(unittest.TestCase):
         self.assertEqual(out["symbol"], "6274")
         self.assertEqual(out["source"], "TPEx Official OpenAPI")
 
-    def test_historical_route_has_default_and_roc_period(self):
-        self.assertIn("stk_quote.php", tpex.HISTORICAL_ENDPOINT)
-        self.assertEqual(tpex._roc_period("202609"), "11509")
+    def test_historical_route_is_official_individual_stock_contract(self):
+        self.assertIn("afterTrading/tradingStock", tpex.HISTORICAL_ENDPOINT)
+        self.assertEqual(tpex._period_date("202609"), "2026/09/01")
 
     def test_incomplete_read_retries_then_passes(self):
         calls = []

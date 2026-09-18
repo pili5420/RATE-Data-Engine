@@ -10,7 +10,8 @@ BASE = "https://www.tpex.org.tw/openapi/v1"
 # ``stk_quote.php`` is the documented product page.  Its paired official
 # result endpoint returns the complete monthly table; filtering by symbol in
 # the normalizer gives a deterministic 180-session history.
-HISTORICAL_ENDPOINT = "https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote.php?l=zh-tw&o=json&d={period}&s={symbol}"
+HISTORICAL_PAGE_URL = "https://www.tpex.org.tw/en-us/mainboard/trading/info/stock-pricing.html"
+HISTORICAL_ENDPOINT = "https://www.tpex.org.tw/www/en-us/afterTrading/tradingStock"
 HISTORICAL_RESULT_ENDPOINT = "https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote_result.php?l=zh-tw&o=json&d={period}&s=0,asc,0"
 BENCHMARK_ENDPOINT = "https://www.tpex.org.tw/openapi/v1/tpex_index"
 # The OpenAPI product above is a latest-month snapshot.  TPEx's official
@@ -49,11 +50,18 @@ def normalize_tpex_date(value) -> str:
     except ValueError as exc:
         raise ValueError(f'INVALID_TPEX_DATE:{value}') from exc
 
-def _resilient_json(endpoint: str, retries: int = 3):
+def _resilient_json(endpoint: str, retries: int = 3, *, method: str = "GET", form: dict | None = None):
     last = None
     for attempt in range(retries):
         try:
-            req = Request(endpoint, headers={"User-Agent": "RATE-Data-Engine/1.0", "Accept": "application/json"})
+            headers = {"User-Agent": "RATE-Data-Engine/1.0", "Accept": "application/json"}
+            if method == "POST":
+                from urllib.parse import urlencode
+                body = urlencode(form or {}).encode("utf-8")
+                headers["Content-Type"] = "application/x-www-form-urlencoded"
+                req = Request(endpoint, data=body, headers=headers, method="POST")
+            else:
+                req = Request(endpoint, headers=headers)
             with urlopen(req, timeout=30) as response:
                 body = response.read()
                 status = response.status
@@ -75,9 +83,7 @@ def _resilient_json(endpoint: str, retries: int = 3):
 class TPExAdapter:
     provider = "TPEx Official OpenAPI"
     def __init__(self):
-        # Official historical endpoints return a complete monthly table. Keep
-        # one immutable response per period so a five-symbol universe does not
-        # issue the same request five times.
+        # Historical individual-stock responses are keyed by (symbol, period).
         self._historical_cache = {}
         self._institutional_cache = {}
     def _fetch(self, path: str, domain: str):
@@ -92,15 +98,22 @@ class TPExAdapter:
     def fetch_institutional(self): return self._fetch("tpex_3insti_trading", "institutional")
     def fetch_qfii(self): return self._fetch("tpex_3insti_qfii_trading", "institutional_qfii")
     def fetch_historical_symbol(self, symbol: str, period: str):
-        template = os.getenv('TPEX_HISTORICAL_ENDPOINT', HISTORICAL_RESULT_ENDPOINT)
-        endpoint = template.format(symbol=symbol, period=_roc_period(period), yyyy_mm=period)
-        cache_key = (template, _roc_period(period))
+        endpoint = os.getenv('TPEX_HISTORICAL_ENDPOINT', HISTORICAL_ENDPOINT)
+        cache_key = (endpoint, symbol, period, 'json')
         if cache_key in self._historical_cache:
             payload, digest, diagnostics = self._historical_cache[cache_key]
         else:
-            payload, digest, diagnostics = _resilient_json(endpoint)
+            # The official Daily Stock Info page submits date as the first day
+            # of the requested month in Gregorian form (YYYY/MM/01).
+            payload, digest, diagnostics = _resilient_json(
+                endpoint, method="POST",
+                form={"code": symbol, "date": _period_date(period), "response": "json"})
             self._historical_cache[cache_key] = (payload, digest, diagnostics)
         out = provenance('market_daily_history', self.provider, endpoint, digest, payload)
+        out['request_method'] = 'POST'
+        out['request_params'] = {'code': symbol, 'date': _period_date(period), 'response': 'json'}
+        out['product_page'] = HISTORICAL_PAGE_URL
+        out['historical_product'] = 'Daily Stock Info / Historical Data of Individual Mainboard Stock'
         out['diagnostics'] = diagnostics
         return out
     def fetch_historical_benchmark(self, period: str):

@@ -22,7 +22,7 @@ def materialize(*, checkpoint: Path, history_root: Path, output: Path):
     try:
         for symbol in TPEx_SYMBOLS:
             records = []
-            for entry in cp.get("months", {}).values():
+            for entry in cp.get("records", {}).values():
                 records.extend(row for row in entry.get("records", []) if row.get("symbol") == symbol)
             if len(records) < TARGET_RAW_SESSIONS:
                 raise RuntimeError(f"DATA_INCOMPLETE:TPEX_RAW_HISTORY:{symbol}:{len(records)}")
@@ -73,7 +73,7 @@ def materialize(*, checkpoint: Path, history_root: Path, output: Path):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--checkpoint", default="data/staging/history_bootstrap/RATE_TPEX_HISTORY_CHECKPOINT_V1.json")
+    ap.add_argument("--checkpoint", default="data/staging/history_bootstrap/RATE_TPEX_HISTORY_CHECKPOINT_V2.json")
     ap.add_argument("--history-root", default="data/staging/history")
     ap.add_argument("--output", default="artifacts/RATE_TPEX_HISTORY_MATERIALIZATION_EVIDENCE.json")
     args = ap.parse_args()

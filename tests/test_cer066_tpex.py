@@ -26,6 +26,11 @@ def _stock_row(symbol, period, day):
     y, m = int(period[:4]), int(period[4:6])
     return {"symbol": symbol, "trade_date": f"{y:04d}-{m:02d}-{day:02d}", "open": "10", "high": "11", "low": "9", "close": "10.5", "volume": "1000", "turnover": "10000"}
 
+def _official_stock_result(symbol, period, days=10):
+    y, m = int(period[:4]), int(period[4:6])
+    dates = [f"{y:04d}/{m:02d}/{d:02d}" for d in range(1, days + 1)]
+    return {"code": symbol, "tables": [{"subtitle": f"{symbol} TEST {y:04d}/{m:02d}", "fields": ["Date", "Trade unit", "Trade Amt.(NTD1000)", "Open", "High", "Low", "Close"], "data": [[d, "1000", "10000", "10", "11", "9", "10.5"] for d in dates]}]}
+
 
 def _index_row(period, day):
     y, m = int(period[:4]), int(period[4:6])
@@ -36,7 +41,7 @@ class _StockAdapter:
     calls = []
     def fetch_historical_symbol(self, symbol, period):
         self.calls.append(period)
-        return {"endpoint": "official-test", "source_timestamp": "x", "retrieval_timestamp": "x", "raw_payload": [{**_stock_row(s, period, d)} for s in stock_bootstrap.TPEx_SYMBOLS for d in range(1, 11)]}
+        return {"endpoint": "official-test", "source_timestamp": "x", "retrieval_timestamp": "x", "raw_payload": _official_stock_result(symbol, period)}
 
 
 class _IndexAdapter:
@@ -60,20 +65,25 @@ class Cer066TPExTests(unittest.TestCase):
         self.assertEqual(normalize_tpex_date("20260916"), "2026-09-16")
         self.assertEqual(normalize_tpex_date("2026-09-16"), "2026-09-16")
 
-    def test_monthly_shared_response_filters_and_deduplicates(self):
-        period = "202609"; result = {"source_timestamp":"x", "retrieval_timestamp":"x", "raw_payload":[_stock_row(s, period, 1) for s in stock_bootstrap.TPEx_SYMBOLS]}
-        rows = stock_bootstrap.extract_month_rows(result, stock_bootstrap.TPEx_SYMBOLS, period)
-        self.assertEqual({r["symbol"] for r in rows}, set(stock_bootstrap.TPEx_SYMBOLS)); self.assertEqual(len(rows), 5)
+    def test_symbol_month_contract_parses_official_response(self):
+        period = "202609"; result = {"source_timestamp":"x", "retrieval_timestamp":"x", "raw_payload":_official_stock_result("6274", period)}
+        rows = stock_bootstrap.extract_symbol_month_rows(result, "6274", period)
+        self.assertEqual({r["symbol"] for r in rows}, {"6274"}); self.assertEqual(len(rows), 10)
+
+    def test_daily_snapshot_product_rejected_as_history(self):
+        result = {"raw_payload": [{**_stock_row("6274", "202609", 1)}]}
+        with self.assertRaisesRegex(RuntimeError, "SCHEMA_MISMATCH"):
+            stock_bootstrap.extract_symbol_month_rows(result, "6274", "202609")
 
     def test_response_identity_mismatch_fails_closed(self):
-        result = {"raw_payload":[_stock_row("6274", "202608", 1)]}
-        with self.assertRaisesRegex(RuntimeError, "TPEX_HISTORY_RESPONSE_IDENTITY_MISMATCH"):
-            stock_bootstrap.extract_month_rows(result, stock_bootstrap.TPEx_SYMBOLS, "202609")
+        result = {"raw_payload":_official_stock_result("6274", "202608")}
+        with self.assertRaisesRegex(RuntimeError, "TPEX_HISTORY_RESPONSE_PERIOD_MISMATCH"):
+            stock_bootstrap.extract_symbol_month_rows(result, "6274", "202609")
 
-    def test_bootstrap_uses_one_request_per_month(self):
+    def test_bootstrap_uses_one_request_per_symbol_month(self):
         cp=self.root/"cp.json"; ev=self.root/"ev.json"
         result=stock_bootstrap.bootstrap(trading_date="2026-09-18", checkpoint=cp, output=ev, max_months=22, adapter=_StockAdapter())
-        self.assertEqual(result["status"], "PASS"); self.assertEqual(result["monthly_request_count"], len(set(_StockAdapter.calls))); self.assertEqual(result["monthly_request_deduplication"], "PASS")
+        self.assertEqual(result["status"], "PASS"); self.assertEqual(result["monthly_request_count"], len(_StockAdapter.calls)); self.assertEqual(result["request_granularity"], "SYMBOL_MONTH")
         self.assertEqual(result["raw_coverage"], "5/5"); self.assertEqual(result["raw_sessions_ge_190"], "5/5")
 
     def test_materialization_persists_five_tpex_symbols(self):
