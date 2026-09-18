@@ -34,6 +34,7 @@ jobs:
       TWSE_STAGING_FAIL_FAST_HOST: "1"
       TWSE_HISTORY_CIRCUIT_COOLDOWN_SECONDS: "5"
       RATE_TWSE_BOOTSTRAP_CHECKPOINT: data/staging/history_bootstrap/RATE_TWSE_HISTORY_BOOTSTRAP_CHECKPOINT_V1.json
+      RATE_TAIEX_HISTORY_CHECKPOINT: data/staging/history_bootstrap/RATE_TAIEX_HISTORY_CHECKPOINT_V1.json
       RATE_STAGING_HISTORY_STORE_ROOT: data/staging/history
       RATE_NORMALIZATION_SCHEMA_VERSION: RATE-STOCK-NORMALIZED-V1
       RATE_SOURCE_DATASET_VERSION: TWSE_STOCK_DAY_V1
@@ -130,6 +131,49 @@ jobs:
         run: |
           echo "SOURCE_AUTHORIZATION_GATE=$RATE_SOURCE_AUTHORIZATION_GATE"
           echo "authorized=false" >> "$GITHUB_OUTPUT"
+      - name: Materialize accepted TWSE historical store
+        id: twse_materialization
+        if: steps.bootstrap_gate.outputs.complete == 'true'
+        run: >
+          python scripts/materialize_twse_history.py
+          --checkpoint "$RATE_TWSE_BOOTSTRAP_CHECKPOINT"
+          --universe-file config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json
+          --history-root data/staging/history
+          --output artifacts/RATE_TWSE_HISTORY_MATERIALIZATION_EVIDENCE.json
+      - name: Bootstrap official TAIEX historical benchmark
+        id: taiex_bootstrap
+        if: steps.bootstrap_gate.outputs.complete == 'true'
+        run: >
+          python scripts/bootstrap_taiex_history.py
+          --trading-date "${{ inputs.trading_date }}"
+          --checkpoint "$RATE_TAIEX_HISTORY_CHECKPOINT"
+          --history-root data/staging/history
+          --output artifacts/RATE_TAIEX_HISTORY_EVIDENCE.json
+      - name: Align TWSE histories to TAIEX exact dates
+        id: taiex_alignment
+        if: steps.bootstrap_gate.outputs.complete == 'true'
+        run: >
+          python scripts/align_twse_taiex_history.py
+          --universe-file config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json
+          --history-root data/staging/history
+          --output artifacts/RATE_TWSE_TAIEX_ALIGNMENT_EVIDENCE.json
+      - name: Build historical state manifest
+        id: historical_manifest
+        if: steps.bootstrap_gate.outputs.complete == 'true'
+        run: >
+          python scripts/build_historical_state_manifest.py
+          --universe-file config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json
+          --checkpoint "$RATE_TWSE_BOOTSTRAP_CHECKPOINT"
+          --history-root data/staging/history
+          --output artifacts/RATE_STAGING_HISTORICAL_STATE_MANIFEST_V1.json
+      - name: Save canonical historical materialization
+        if: steps.historical_manifest.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data/staging/history_bootstrap
+            data/staging/history
+          key: ${{ env.RATE_BOOTSTRAP_CACHE_KEY }}-materialized
       - name: Probe TWSE historical redirect transport
         if: steps.bootstrap_gate.outputs.complete == 'true' && steps.source_authorization.outputs.authorized == 'true'
         run: >
@@ -199,3 +243,27 @@ jobs:
         with:
           name: RATE_TWSE_BOOTSTRAP_CAMPAIGN_STATUS
           path: artifacts/RATE_TWSE_BOOTSTRAP_CAMPAIGN_STATUS.json
+      - name: Upload TWSE materialization evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_TWSE_HISTORY_MATERIALIZATION_EVIDENCE
+          path: artifacts/RATE_TWSE_HISTORY_MATERIALIZATION_EVIDENCE.json
+      - name: Upload TAIEX history evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_TAIEX_HISTORY_EVIDENCE
+          path: artifacts/RATE_TAIEX_HISTORY_EVIDENCE.json
+      - name: Upload TWSE TAIEX alignment evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_TWSE_TAIEX_ALIGNMENT_EVIDENCE
+          path: artifacts/RATE_TWSE_TAIEX_ALIGNMENT_EVIDENCE.json
+      - name: Upload historical state manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_STAGING_HISTORICAL_STATE_MANIFEST_V1
+          path: artifacts/RATE_STAGING_HISTORICAL_STATE_MANIFEST_V1.json

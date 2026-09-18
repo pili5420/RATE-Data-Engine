@@ -45,6 +45,33 @@ class PersistentHistoricalStore:
     def _write(self, kind,key,records): self._path(kind,key).write_text(json.dumps(records,sort_keys=True,separators=(',',':'),ensure_ascii=False)+'\n',encoding='utf-8')
     def upsert_stock(self, symbol, records): return self._upsert('market_daily',symbol,records,lambda r:(r['symbol'],r['trade_date']))
     def upsert_benchmark(self, benchmark_symbol, records): return self._upsert('benchmark',benchmark_symbol,records,lambda r:(r['benchmark_symbol'],r['trade_date']))
+    def materialize_stock(self, symbol, records):
+        """Replace one canonical stock file using the store's retention rule.
+
+        Bootstrap checkpoints are provenance; materialization must produce the
+        exact retained subset consumed by downstream runtime.  This method
+        keeps that operation on the existing PersistentHistoricalStore rather
+        than introducing a second retention policy.
+        """
+        unique = {}
+        for record in records:
+            key = (record.get('symbol'), record.get('trade_date'))
+            if key in unique and unique[key] != record:
+                raise ValueError(f'DATA_CONFLICT:{key}')
+            if key in unique:
+                raise ValueError(f'DUPLICATE:{key}')
+            unique[key] = record
+        ordered = sorted(unique.values(), key=lambda row: row['trade_date'])
+        retained = ordered[-MAX_SESSIONS:]
+        self._write('market_daily', symbol, retained)
+        digest = hashlib.sha256(json.dumps(retained, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+        return {
+            'status': 'REPLACED',
+            'record_count': len(retained),
+            'checkpoint_record_count': len(ordered),
+            'trimmed_count': max(0, len(ordered) - len(retained)),
+            'content_hash': digest,
+        }
     def _upsert(self,kind,key,records,keyfn):
         old=self._read(kind,key); merged={keyfn(r):r for r in old}; status='NO_OP'
         for r in records:

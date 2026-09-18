@@ -12,11 +12,22 @@ def normalize_twse_date(value):
     return text
 
 def normalize_benchmark(record, *, benchmark_symbol, market, source, source_timestamp, ingested_at):
-    out={'benchmark_symbol':benchmark_symbol,'market':market,'trade_date':normalize_twse_date(record.get('trade_date') or record.get('Date')),
-         'open':_number(record.get('open',record.get('OpeningIndex',record.get('Open'))),'open') if record.get('open',record.get('OpeningIndex',record.get('Open'))) not in (None,'') else None,
-         'high':_number(record.get('high',record.get('HighestIndex',record.get('High'))),'high') if record.get('high',record.get('HighestIndex',record.get('High'))) not in (None,'') else None,
-         'low':_number(record.get('low',record.get('LowestIndex',record.get('Low'))),'low') if record.get('low',record.get('LowestIndex',record.get('Low'))) not in (None,'') else None,
-         'close':_number(record.get('close',record.get('ClosingIndex',record.get('Close'))),'close'),'source':source,'source_timestamp':source_timestamp,'ingested_at':ingested_at}
+    def pick(*names):
+        for name in names:
+            value = record.get(name)
+            if value not in (None, ''):
+                return value
+        return None
+    raw_date = pick('trade_date', 'Date', '日期', '日期')
+    raw_open = pick('open', 'OpeningIndex', 'Open', '開盤指數', '開盤')
+    raw_high = pick('high', 'HighestIndex', 'High', '最高指數', '最高')
+    raw_low = pick('low', 'LowestIndex', 'Low', '最低指數', '最低')
+    raw_close = pick('close', 'ClosingIndex', 'Close', '收盤指數', '收盤')
+    out={'benchmark_symbol':benchmark_symbol,'market':market,'trade_date':normalize_twse_date(raw_date),
+         'open':_number(raw_open,'open') if raw_open not in (None,'','-','--') else None,
+         'high':_number(raw_high,'high') if raw_high not in (None,'','-','--') else None,
+         'low':_number(raw_low,'low') if raw_low not in (None,'','-','--') else None,
+         'close':_number(raw_close,'close'),'source':source,'source_timestamp':source_timestamp,'ingested_at':ingested_at}
     if out['close'] <= 0: raise ValueError('RANGE:benchmark_close')
     return out
 
