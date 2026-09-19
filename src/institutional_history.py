@@ -292,9 +292,9 @@ def _daily_field_mapping(fields):
         action = None
         if "買賣超" in label or "淨買" in label or "net" in label:
             action = "net"
-        elif "買進" in label or "買入" in label or "buy" in label:
+        elif "買進" in label or "買入" in label or "買股數" in label or "buy" in label:
             action = "buy"
-        elif "賣出" in label or "sell" in label:
+        elif "賣出" in label or "賣股數" in label or "sell" in label:
             action = "sell"
         if action:
             key = f"{group}.{action}"

@@ -165,6 +165,16 @@ class CER072InstitutionalHistoryTests(unittest.TestCase):
         self.assertEqual(parsed['field_mapping']['foreign_ex_dealer.buy'],
                          '外資及陸資(不含外資自營商)買進股數')
 
+    def test_official_daily_report_buy_sell_net_share_labels_are_supported(self):
+        day='2026-09-18'; symbols=['6274']; payload=self._tpex_daily(day,symbols)
+        fields=payload['raw_payload']['tables'][0]['fields']
+        payload['raw_payload']['tables'][0]['fields']=[
+            f.replace('買進股數','買股數').replace('賣出股數','賣股數').replace('買賣超股數','淨買股數')
+            for f in fields]
+        parsed=normalize_tpex_daily_response(payload,day,_stock_rows(symbols,[day]),symbols)
+        self.assertEqual(parsed['records']['6274']['foreign_net'],7)
+        self.assertEqual(parsed['records']['6274']['investment_trust_net'],5)
+
     def test_roc_response_date_normalizes_and_requires_exact_identity(self):
         day='2026-09-18'; symbols=['6274']; stocks=_stock_rows(symbols,[day])
         payload=self._tpex_daily(day,symbols)
