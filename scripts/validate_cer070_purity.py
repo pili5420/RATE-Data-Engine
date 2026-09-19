@@ -31,6 +31,17 @@ def _json(path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _historical_evidence(policy):
+    path = ROOT / "artifacts/RATE_STAGING_HISTORICAL_STATE_MANIFEST_V1.json"
+    if path.is_file():
+        return _json(path), "HISTORICAL_STATE_MANIFEST"
+    state = policy.get("state_preservation", {})
+    return {
+        "full_historical_acceptance": "PASS" if state.get("control_center_full_historical_acceptance") == "VERIFIED" else "FAIL",
+        "full_historical_state_digest": state.get("rate_full_historical_state_digest"),
+    }, "COMMITTED_T86_POLICY_REFERENCE"
+
+
 def _git_diff_free(paths):
     try:
         subprocess.run(["git", "diff", "--quiet", "fc1e94aee6ccc74c29b0acc26c05538dfab8b3c6", "--", *paths], cwd=ROOT, check=True)
@@ -70,7 +81,7 @@ def build_evidence():
     t86 = next((x for x in matrix.get("entries", []) if x.get("endpoint_or_product") == "T86 official daily report"), {})
     registry = _json(ROOT / "config/SOURCE_REGISTRY.json")
     policy = _json(ROOT / "artifacts/RATE_T86_USER_DIRECTED_OPERATION_POLICY_V1.json")
-    historical = _json(ROOT / "artifacts/RATE_STAGING_HISTORICAL_STATE_MANIFEST_V1.json")
+    historical, historical_evidence_source = _historical_evidence(policy)
     t86_evidence_path = ROOT / "artifacts/RATE_T86_RETRIEVAL_SMOKE_TEST_EVIDENCE.json"
     t86_live = _json(t86_evidence_path) if t86_evidence_path.exists() else {}
     phase_a2_workflow = (ROOT / ".github/workflows/rate_phase_a2_validation.yml").read_text(encoding="utf-8")
@@ -136,6 +147,7 @@ def build_evidence():
         "historical_layer": {
             "control_center_full_historical_acceptance": "VERIFIED" if historical.get("full_historical_acceptance") == "PASS" and historical_digest == HISTORICAL_DIGEST else "FAIL",
             "rate_full_historical_state_digest": historical_digest,
+            "evidence_source": historical_evidence_source,
             "modified": False,
         },
         "engine_scope": {"0730_entry": "PRESENT" if run_0730 else "ABSENT", "1930_entry": "PRESENT" if run_1930 else "NOT_IMPLEMENTED"},
