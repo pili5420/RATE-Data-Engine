@@ -8,6 +8,7 @@ from src.sources.fundamental_history import (
     FundamentalHistoryStoreV2,
     MOPSHistoricalFundamentalAdapter,
     extract_disclosure_date,
+    _table_records,
     normalize_revenue_period,
 )
 
@@ -132,6 +133,23 @@ class TestCER073FundamentalHistoryV2(unittest.TestCase):
         adapter = MOPSHistoricalFundamentalAdapter(opener=fake_opener(html), min_interval_seconds=0)
         with self.assertRaisesRegex(RuntimeError, "FUNDAMENTAL_REVENUE_PERIOD_IDENTITY_UNPROVEN"):
             adapter.fetch_revenue_period("TWSE", "2026-08")
+
+    def test_revenue_nested_table_parser_preserves_outer_rows(self):
+        html = """
+        <html><table>
+          <tr><th>資料年月</th><th>公司代號</th><th>去年同月增減(%)</th><th>出表日期</th></tr>
+          <tr><td>11508</td><td>2330</td><td>12.3</td><td>115年09月10日</td></tr>
+          <tr><td colspan="4"><table>
+            <tr><th>nested header</th></tr>
+            <tr><td>nested value</td></tr>
+          </table></td></tr>
+          <tr><td>11508</td><td>2317</td><td>1.2</td><td>115年09月10日</td></tr>
+        </table></html>
+        """
+        rows, schemas = _table_records(html, {"symbol": ("公司代號",), "period": ("資料年月",),
+                                              "yoy": ("去年同月增減",), "disclosure": ("出表日期",)})
+        self.assertEqual([row["symbol"] for row in rows], ["2330", "2317"])
+        self.assertEqual(len(schemas), 1)
 
     def test_eps_returned_period_identity_is_required(self):
         adapter = MOPSHistoricalFundamentalAdapter(opener=fake_opener(eps_html(include_identity=False)), min_interval_seconds=0)

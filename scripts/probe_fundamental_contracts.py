@@ -58,8 +58,12 @@ def _load_universe(path):
         if isinstance(entry, str):
             result.append({"symbol": entry, "market": None})
         elif isinstance(entry, dict) and entry.get("symbol"):
-            result.append({"symbol": str(entry["symbol"]), "market": entry.get("market")})
+            result.append({**entry, "symbol": str(entry["symbol"]), "market": entry.get("market")})
     return result
+
+
+def _market_universe(universe, market):
+    return [row for row in universe if row.get("market") == market]
 
 
 def _hit_count(rows, universe, market):
@@ -68,6 +72,39 @@ def _hit_count(rows, universe, market):
         return 0
     returned = {str(row.get("symbol")) for row in rows}
     return len(wanted & returned)
+
+
+def _foreign_ky_universe(universe):
+    keys = ("is_foreign_issuer", "foreign_issuer", "is_ky", "ky_issuer")
+    result = []
+    for row in universe:
+        name = str(row.get("company_name") or row.get("name") or row.get("security_name") or "")
+        if any(row.get(key) is True for key in keys) or name.endswith("-KY") or "KY" in str(row.get("issuer_type", "")).upper():
+            result.append(row)
+    return result
+
+
+def _failure_class(reason):
+    text = str(reason)
+    if "TRANSPORT" in text or "HTTP" in text or "EMPTY_RESPONSE" in text:
+        return "TRANSPORT_FAILURE"
+    if "EDGE_POLICY" in text:
+        return "EDGE_POLICY_BLOCK"
+    if "HTML" in text or "NoneType" in text:
+        return "HTML_PARSE_FAILURE"
+    if "SCHEMA" in text:
+        return "SCHEMA_FAILURE"
+    if "IDENTITY_UNPROVEN" in text:
+        return "PERIOD_IDENTITY_UNPROVEN"
+    if "IDENTITY_MISMATCH" in text:
+        return "PERIOD_IDENTITY_MISMATCH"
+    if "DISCLOSURE_DATE" in text:
+        return "DISCLOSURE_DATE_MISSING"
+    if "CATEGORY" in text:
+        return "ACCOUNTING_CATEGORY_UNVERIFIED"
+    if "SEMANTIC" in text:
+        return "SEMANTIC_UNVERIFIED"
+    return "SCHEMA_FAILURE"
 
 
 def _latest_diag(adapter, domain):
@@ -80,14 +117,18 @@ def _latest_diag(adapter, domain):
 def probe_revenue(adapter, universe):
     probes = []
     pass_count = 0
+    actual_hits = {"TWSE": set(), "TPEX": set()}
     for market, period in REVENUE_PROBES:
         item = {"market": market, "requested_period": period, "validation_status": "FAIL"}
         try:
             rows = adapter.fetch_revenue_period(market, period)
             diag = _latest_diag(adapter, "revenue")
             returned = sorted({row.get("revenue_period") for row in rows if row.get("revenue_period")})
+            hit_symbols = {str(row.get("symbol")) for row in rows} & {row["symbol"] for row in _market_universe(universe, market)}
+            actual_hits[market].update(hit_symbols)
             item.update({
                 "validation_status": "PASS" if returned == [period] else "FAIL",
+                "failure_class": None if returned == [period] else "PERIOD_IDENTITY_MISMATCH",
                 "official_endpoint": rows[0]["endpoint"] if rows else diag.get("final_url"),
                 "http_status": diag.get("http_status"),
                 "content_type": diag.get("content_type"),
@@ -97,7 +138,8 @@ def probe_revenue(adapter, universe):
                 "schema": diag.get("schema_header"),
                 "row_count": len(rows),
                 "distinct_row_level_periods": returned,
-                "universe_symbol_hits": _hit_count(rows, universe, market),
+                "universe_symbol_hits": len(hit_symbols),
+                "actual_hit_symbols": sorted(hit_symbols),
                 "official_disclosure_date_field": "出表日期",
                 "period_identity_source": diag.get("period_identity_source"),
                 "archive_variant": "t21sc03_roc_month_0",
@@ -108,6 +150,7 @@ def probe_revenue(adapter, universe):
             diag = _latest_diag(adapter, "revenue")
             item.update({
                 "blocking_reason": str(exc),
+                "failure_class": _failure_class(exc),
                 "official_endpoint": diag.get("final_url"),
                 "http_status": diag.get("http_status"),
                 "content_type": diag.get("content_type"),
@@ -115,8 +158,12 @@ def probe_revenue(adapter, universe):
                 "response_bytes": diag.get("response_bytes"),
             })
         probes.append(item)
-    coverage = sum(1 for row in universe if row.get("symbol"))
-    archive_contract = "VERIFIED" if pass_count == len(REVENUE_PROBES) and coverage == 30 else "UNVERIFIED"
+    twse_total=len(_market_universe(universe,"TWSE")); tpex_total=len(_market_universe(universe,"TPEX"))
+    total_hits=len(actual_hits["TWSE"] | actual_hits["TPEX"])
+    foreign_ky=_foreign_ky_universe(universe)
+    returned_all=actual_hits["TWSE"] | actual_hits["TPEX"]
+    foreign_hits={row["symbol"] for row in foreign_ky} & returned_all
+    archive_contract = "VERIFIED" if pass_count == len(REVENUE_PROBES) and total_hits == len(universe) else "UNVERIFIED"
     return {
         "artifact": "RATE_CER073_REVENUE_CONTRACT_EVIDENCE",
         "validation_status": "PASS" if pass_count == len(REVENUE_PROBES) else "FAIL",
@@ -124,7 +171,11 @@ def probe_revenue(adapter, universe):
         "probe_total": len(REVENUE_PROBES),
         "period_identity_source": "ROW_LEVEL_OFFICIAL_FIELD",
         "archive_variant_contract": archive_contract,
-        "foreign_ky_revenue_coverage": f"{coverage}/30" if coverage else "0/30",
+        "twse_actual_coverage": f"{len(actual_hits['TWSE'])}/{twse_total}",
+        "tpex_actual_coverage": f"{len(actual_hits['TPEX'])}/{tpex_total}",
+        "actual_symbol_coverage": f"{total_hits}/{len(universe)}",
+        "foreign_ky_universe_count": len(foreign_ky),
+        "foreign_ky_revenue_coverage": f"{len(foreign_hits)}/{len(foreign_ky)}",
         "monthly_revenue_historical_transport_contract": "VERIFIED" if pass_count == len(REVENUE_PROBES) and archive_contract == "VERIFIED" else "FAIL",
         "probes": probes,
         "retrieval_timestamp": _now(),
@@ -142,6 +193,7 @@ def probe_eps(adapter, universe):
             returned = sorted({(row.get("fiscal_year"), row.get("quarter")) for row in rows})
             item.update({
                 "validation_status": "PASS" if returned == [(year, quarter)] else "FAIL",
+                "failure_class": None if returned == [(year, quarter)] else "PERIOD_IDENTITY_MISMATCH",
                 "official_endpoint": rows[0]["endpoint"] if rows else diag.get("final_url"),
                 "http_status": diag.get("http_status"),
                 "content_type": diag.get("content_type"),
@@ -154,6 +206,8 @@ def probe_eps(adapter, universe):
                 "accounting_category": "UNVERIFIED_CATEGORY_AUTHORITY",
                 "official_disclosure_date": rows[0]["official_disclosure_date"] if rows else None,
                 "returned_periods": [{"fiscal_year": y, "quarter": q} for y, q in returned],
+                "identity_source": diag.get("period_identity_source"),
+                "period_identity_candidates": diag.get("period_identity_candidates"),
                 "universe_symbol_hits": _hit_count(rows, universe, market),
             })
             if item["validation_status"] == "PASS":
@@ -162,14 +216,19 @@ def probe_eps(adapter, universe):
             diag = _latest_diag(adapter, "eps")
             item.update({
                 "blocking_reason": str(exc),
+                "failure_class": _failure_class(exc),
                 "official_endpoint": diag.get("final_url"),
                 "http_status": diag.get("http_status"),
                 "content_type": diag.get("content_type"),
                 "body_sha256": diag.get("body_sha256"),
                 "response_bytes": diag.get("response_bytes"),
+                "table_count": len(diag.get("schema_header", [])),
+                "first_relevant_headers": diag.get("schema_header", [])[:2],
+                "period_identity_candidates": diag.get("period_identity_candidates"),
+                "identity_source": (diag.get("period_identity_candidates") or {}).get("identity_source"),
             })
         probes.append(item)
-    category_status = "FAIL"
+    category_status = "NOT_RUN"
     return {
         "artifact": "RATE_CER073_EPS_CONTRACT_EVIDENCE",
         "validation_status": "PASS" if pass_count == len(EPS_PROBES) and category_status == "PASS" else "FAIL",
@@ -177,6 +236,7 @@ def probe_eps(adapter, universe):
         "probe_total": len(EPS_PROBES),
         "eps_returned_period_identity": "PASS" if pass_count == len(EPS_PROBES) else "FAIL",
         "eps_accounting_category_authority": category_status,
+        "eps_semantics": "UNVERIFIED" if pass_count < len(EPS_PROBES) else "PENDING_CATEGORY_AUTHORITY",
         "eps_historical_transport_contract": "VERIFIED" if pass_count == len(EPS_PROBES) and category_status == "PASS" else "FAIL",
         "probes": probes,
         "retrieval_timestamp": _now(),

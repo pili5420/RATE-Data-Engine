@@ -89,24 +89,30 @@ def extract_disclosure_date(text):
 
 class _TableParser(HTMLParser):
     def __init__(self):
-        super().__init__(); self.tables=[]; self._table=None; self._row=None; self._cell=None
+        super().__init__(); self.tables=[]; self._stack=[]; self._cell=None
     def handle_starttag(self, tag, attrs):
         tag=tag.lower()
-        if tag == "table": self._table=[]
-        elif tag == "tr" and self._table is not None: self._row=[]
-        elif tag in ("th", "td") and self._row is not None: self._cell=[]
+        if tag == "table":
+            self._stack.append({"rows":[],"row":None})
+        elif tag == "tr" and self._stack:
+            self._stack[-1]["row"]=[]
+        elif tag in ("th", "td") and self._stack and self._stack[-1]["row"] is not None:
+            self._cell=[]
     def handle_data(self, data):
         if self._cell is not None: self._cell.append(data)
     def handle_endtag(self, tag):
         tag=tag.lower()
         if tag in ("th", "td") and self._cell is not None:
-            self._row.append(_plain(" ".join(self._cell))); self._cell=None
-        elif tag == "tr" and self._row is not None:
-            if any(self._row): self._table.append(self._row)
-            self._row=None
-        elif tag == "table" and self._table is not None:
-            if self._table: self.tables.append(self._table)
-            self._table=None
+            if self._stack and self._stack[-1]["row"] is not None:
+                self._stack[-1]["row"].append(_plain(" ".join(self._cell)))
+            self._cell=None
+        elif tag == "tr" and self._stack and self._stack[-1]["row"] is not None:
+            row=self._stack[-1]["row"]
+            if any(row): self._stack[-1]["rows"].append(row)
+            self._stack[-1]["row"]=None
+        elif tag == "table" and self._stack:
+            table=self._stack.pop()["rows"]
+            if table: self.tables.append(table)
 
 
 def _tables(html):
@@ -135,6 +141,32 @@ def _table_records(html, required):
             item={key:row[index] for key,index in indices.items()}
             if re.fullmatch(r"[0-9A-Za-z]{4,6}", _plain(item.get("symbol"))): records.append(item)
     return records,schemas
+
+
+def discover_eps_identity(html):
+    plain=_plain(re.sub(r"<[^>]+>"," ",html))
+    snippets=[]
+    for pattern in (
+        r"資料年度\s*[：:]?\s*(\d{2,4})\s*年?.{0,12}?第?\s*(\d{1,2})\s*季",
+        r"(\d{2,4})\s*年.{0,12}?第?\s*(\d{1,2})\s*季",
+        r"value=[\"']?(\d{2,3})[\"']?[^>]{0,120}selected[^>]{0,120}(?:年度|year)",
+        r"(?:season|季別)[^>]{0,120}value=[\"']?(\d{1,2})[\"']?[^>]{0,120}selected",
+    ):
+        for found in re.finditer(pattern, html, flags=re.IGNORECASE):
+            snippets.append(_plain(found.group(0))[:200])
+    selected_years=[int(x)+1911 for x in re.findall(r"<option[^>]+value=[\"']?(\d{2,3})[\"']?[^>]*selected", html, flags=re.IGNORECASE)]
+    selected_seasons=[int(x) for x in re.findall(r"<option[^>]+value=[\"']?0?([1-4])[\"']?[^>]*selected", html, flags=re.IGNORECASE)]
+    title_match=re.search(r"資料年度\s*[：:]?\s*(\d{2,4})\s*年?.{0,12}?第?\s*(\d{1,2})\s*季",plain)
+    if title_match:
+        raw_year=int(title_match.group(1)); year=raw_year+1911 if raw_year < 1911 else raw_year
+        return {"year":year,"quarter":int(title_match.group(2)),"identity_source":"OFFICIAL_RESPONSE_TITLE",
+                "period_bearing_text_snippets":snippets[:8],"selected_years":selected_years,"selected_seasons":selected_seasons}
+    if selected_years and selected_seasons:
+        return {"year":selected_years[-1],"quarter":selected_seasons[-1],
+                "identity_source":"OFFICIAL_RESPONSE_SELECTED_CONTROL",
+                "period_bearing_text_snippets":snippets[:8],"selected_years":selected_years,"selected_seasons":selected_seasons}
+    return {"year":None,"quarter":None,"identity_source":"UNPROVEN",
+            "period_bearing_text_snippets":snippets[:8],"selected_years":selected_years,"selected_seasons":selected_seasons}
 
 
 def _classify_body(body, content_type):
@@ -214,16 +246,18 @@ class MOPSHistoricalFundamentalAdapter:
         body=urlencode(params).encode("ascii")
         req=Request(MOPS_EPS_ENDPOINT,data=body,method="POST",headers={"User-Agent":"RATE-Data-Engine/1.0",
             "Content-Type":"application/x-www-form-urlencoded","Referer":MOPS_EPS_PAGE})
-        html,diag=self._open(req,"eps",period); plain=_plain(re.sub(r"<[^>]+>"," ",html))
-        identity=re.search(r"資料年度\s*[：:]?\s*(\d{2,3})\s*年.*?第?\s*(\d)\s*季",plain)
-        if not identity:
+        html,diag=self._open(req,"eps",period)
+        identity=discover_eps_identity(html)
+        diag.update({"period_identity_candidates":identity})
+        if identity["year"] is None or identity["quarter"] is None:
             raise RuntimeError("FUNDAMENTAL_EPS_PERIOD_IDENTITY_UNPROVEN")
-        if int(identity.group(1))+1911 != fiscal_year or int(identity.group(2)) != quarter:
+        if identity["year"] != fiscal_year or identity["quarter"] != quarter:
             raise RuntimeError("FUNDAMENTAL_EPS_PERIOD_IDENTITY_MISMATCH")
         disclosure=extract_disclosure_date(html)
         rows,schemas=_table_records(html,{"symbol":("公司代號",),"eps":("基本每股盈餘",)})
         if not rows: raise RuntimeError("FUNDAMENTAL_EPS_SCHEMA_MISSING")
-        diag.update({"schema_header":schemas,"returned_period":period,"official_disclosure_date":disclosure})
+        diag.update({"schema_header":schemas,"returned_period":period,"official_disclosure_date":disclosure,
+                     "period_identity_source":identity["identity_source"]})
         return [{"symbol":_plain(row["symbol"]),"market":market,"fiscal_year":fiscal_year,"quarter":quarter,
                  "single_quarter_eps":_number(row["eps"]),"official_disclosure_date":disclosure,
                  "source_semantics":"OFFICIAL_SINGLE_QUARTER","provider":self.provider,
