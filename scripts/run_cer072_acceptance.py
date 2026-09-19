@@ -23,7 +23,7 @@ from src.historical_store import PersistentHistoricalStore
 from src.institutional_features import calculate_institutional_rotation
 from src.institutional_history import (
     INSTITUTIONAL_HISTORY_MINIMUM, T86_OFFICIAL_SOURCE, TPEX_OFFICIAL_SOURCE,
-    canonical_digest, fetch_t86_sessions, fetch_tpex_monthly_history,
+    canonical_digest, fetch_t86_sessions, fetch_tpex_daily_sessions,
     valid_stock_session_dates, validate_history_rows,
 )
 from src.sources.tdcc import TDCCAdapter
@@ -321,6 +321,15 @@ def run(args):
     freeze = _verify_model_freeze()
     evidence["model_freeze_integrity"] = freeze
     t86_evidence = {"artifact":"RATE_CER072_T86_26_SESSION_EVIDENCE",**provenance,"requested_end_date":None,"valid_session_dates":[],"request_count":0,"daily_request_deduplication":"NOT_RUN","valid_response_count":0,"empty_nontrading_dates":[],"response_date_identity_status":"NOT_RUN","symbols_required":25,"symbols_complete":0,"session_count_by_symbol":{},"minimum_sessions":0,"maximum_sessions":0,"FI_field_status":"NOT_RUN","IT_field_status":"NOT_RUN"}
+    tpex_contract_evidence = {"artifact":"RATE_TPEX_INSTITUTIONAL_DAILY_CONTRACT_EVIDENCE",**provenance,
+        "transport_status":"NOT_RUN","official_product":"Foreign & Institutional Investors Trading Detail",
+        "endpoint":None,"sample_dates":["2026-09-18","2026-09-17","2026-08-14"],"probes":[]}
+    tpex_daily_evidence = {"artifact":"RATE_CER072_TPEX_26_SESSION_EVIDENCE",**provenance,
+        "validation_status":"NOT_RUN","requested_dates":26,"request_count":0,"successful_requests":0,
+        "daily_request_deduplication":"NOT_RUN","response_date_identity":"NOT_RUN",
+        "session_count_by_symbol":{},"minimum_sessions":0,"maximum_sessions":0}
+    _atomic_write(outdir/"RATE_TPEX_INSTITUTIONAL_DAILY_CONTRACT_EVIDENCE.json",tpex_contract_evidence)
+    _atomic_write(outdir/"RATE_CER072_TPEX_26_SESSION_EVIDENCE.json",tpex_daily_evidence)
     prior_package = {"artifact":"RATE_FIRST_PRODUCTION_PRIOR_STAGE_PACKAGE_V1",**provenance,"scope":"FIRST_PRODUCTION_BOOTSTRAP_EVIDENCE","input_snapshot_id":None,"current_state_id":None,"production_decision_state_persist":0,"symbols":[]}
     prior_evidence = {"artifact":"RATE_CER072_PRIOR_STAGE_RECONSTRUCTION_EVIDENCE",**provenance,"reconstruction_status":"NOT_RUN","no_lookahead":"NOT_RUN","current_stage_evidence_ready":"NOT_RUN","blocking_reasons":[]}
     try:
@@ -362,7 +371,16 @@ def run(args):
             "maximum_sessions":max(map(len,t86_rows.values())),"FI_field_status":"PASS","IT_field_status":"PASS",
             "source":"TWSE T86 date-aware endpoint","source_lineage":{s:t86_rows[s] for s in twse_symbols}})
         tpex_symbols=list(TPEX_SYMBOLS)
-        tpex_result=fetch_tpex_monthly_history(TPExAdapter(),tpex_symbols,data["stocks"],twse_result["session_dates"])
+        def tpex_evidence_writer(value, daily=False):
+            nonlocal tpex_contract_evidence, tpex_daily_evidence
+            if daily:
+                tpex_daily_evidence={"artifact":"RATE_CER072_TPEX_26_SESSION_EVIDENCE",**provenance,**value}
+                _atomic_write(outdir/"RATE_CER072_TPEX_26_SESSION_EVIDENCE.json",tpex_daily_evidence)
+            else:
+                tpex_contract_evidence={**tpex_contract_evidence,**value}
+                _atomic_write(outdir/"RATE_TPEX_INSTITUTIONAL_DAILY_CONTRACT_EVIDENCE.json",tpex_contract_evidence)
+        tpex_result=fetch_tpex_daily_sessions(TPExAdapter(),tpex_symbols,data["stocks"],
+            twse_result["session_dates"],evidence_writer=tpex_evidence_writer)
         tpex_rows=tpex_result["records"]
         tpex_dates=set.intersection(*(set(r["trading_date"] for r in tpex_rows[s]) for s in tpex_symbols))
         common_dates=sorted(set(twse_result["session_dates"]) & tpex_dates)
@@ -392,8 +410,8 @@ def run(args):
           "first_live_prior_stage_reconstruction":f"{sum(stages[s]['prior_stage_source']=='RECONSTRUCTED_FROM_AUTHORIZED_HISTORICAL_EVIDENCE' for s in stages)}/30",
           "live_prior_stage_reconstruction_no_lookahead":"PASS","current_stage_evidence_ready":f"{sum(stages[s]['calculation_status']=='PASS' for s in stages)}/30",
           "tdcc_historical_asof_coverage":"30/30 PASS","stage_institutional_asof_alignment":replay_status["stage_institutional_asof_alignment"],**replay_status,
-          "tpex_month_request_count":tpex_result["request_count"],"tpex_months_requested":tpex_result["months_requested"],
-          "tpex_institutional_monthly_request_deduplication":tpex_result["monthly_request_deduplication"],
+          "tpex_daily_request_count":tpex_result["request_count"],"tpex_session_dates":tpex_result["session_dates"],
+          "tpex_institutional_daily_request_deduplication":tpex_result["daily_request_deduplication"],
           "tdcc_source_timestamp":tdcc_result.get("source_timestamp"),"source_t86":T86_OFFICIAL_SOURCE,"source_tpex":TPEX_OFFICIAL_SOURCE,
           "rate_full_historical_state_digest":HISTORICAL_DIGEST,"production_snapshot_created":False,"production_decision_state_persisted":0})
         evidence.update({"validation_status":"PASS","trading_date":t,"institutional_historical_coverage":"30/30",
@@ -405,7 +423,7 @@ def run(args):
           "live_prior_stage_reconstruction_no_lookahead":"PASS","current_stage_evidence_ready":"30/30",
           "prior_stage_package_determinism":"PASS","prior_stage_package_digest":package_digest,
           "stage_lineage_snapshot_binding":"PENDING_SNAPSHOT_BINDING","institutional_record_lineage":institutional,
-          "tdcc_record_lineage":tdcc,"source_endpoint_counts":{"TWSE_T86":twse_result["request_count"],"TPEX_INSTITUTIONAL_MONTHLY":tpex_result["request_count"]},
+          "tdcc_record_lineage":tdcc,"source_endpoint_counts":{"TWSE_T86":twse_result["request_count"],"TPEX_INSTITUTIONAL_DAILY":tpex_result["request_count"]},
           "production_snapshot_created":False,"production_decision_state_persisted":0})
     except Exception as exc:
         reason=str(exc)
@@ -416,7 +434,13 @@ def run(args):
         prior_evidence["blocking_reasons"].append(reason)
         prior_evidence["reconstruction_status"]="BLOCKED" if evidence["validation_status"]=="BLOCKED" else "FAIL"
         prior_package["blocking_reason"]=reason
+        if tpex_contract_evidence.get("transport_status") == "NOT_RUN":
+            tpex_contract_evidence.update({"transport_status":"BLOCKED","blocking_reason":reason})
+        if tpex_daily_evidence.get("validation_status") == "NOT_RUN":
+            tpex_daily_evidence.update({"validation_status":"BLOCKED","blocking_reason":reason})
     _atomic_write(outdir/"RATE_CER072_T86_26_SESSION_EVIDENCE.json",t86_evidence)
+    _atomic_write(outdir/"RATE_TPEX_INSTITUTIONAL_DAILY_CONTRACT_EVIDENCE.json",tpex_contract_evidence)
+    _atomic_write(outdir/"RATE_CER072_TPEX_26_SESSION_EVIDENCE.json",tpex_daily_evidence)
     _atomic_write(outdir/"RATE_CER072_INSTITUTIONAL_HISTORY_EVIDENCE.json",evidence)
     _atomic_write(outdir/"RATE_FIRST_PRODUCTION_PRIOR_STAGE_PACKAGE_V1.json",prior_package)
     _atomic_write(outdir/"RATE_CER072_PRIOR_STAGE_RECONSTRUCTION_EVIDENCE.json",prior_evidence)
