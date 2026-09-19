@@ -242,8 +242,9 @@ def fetch_tpex_monthly_history(adapter, symbols, stock_rows_by_symbol, candidate
             "monthly_request_deduplication": "PASS"}
 
 
-def _tpex_daily_schema(payload):
-    """Extract date, schema labels and records without guessing positional fields."""
+def _tpex_daily_schema(result):
+    """Validate JSON rows against unique labels joined from TPEx's official grouped headers."""
+    payload = result.get("raw_payload")
     if not isinstance(payload, dict):
         raise ValueError("TPEX_INSTITUTIONAL_RESPONSE_SCHEMA_INVALID")
     tables = payload.get("tables")
@@ -252,19 +253,31 @@ def _tpex_daily_schema(payload):
     if raw_date is None:
         raise ValueError("TPEX_INSTITUTIONAL_RESPONSE_DATE_MISSING")
     response_date = normalize_tpex_date(raw_date)
-    fields = table.get("fields") or payload.get("fields")
+    api_fields = table.get("fields") or payload.get("fields")
     data = table.get("data") or table.get("records") or payload.get("data") or payload.get("records")
-    if not isinstance(fields, list) or not fields or not isinstance(data, list):
+    semantic_fields = (result.get("diagnostics") or {}).get("semantic_field_names")
+    if not isinstance(api_fields, list) or not api_fields or not isinstance(data, list):
         raise ValueError("TPEX_INSTITUTIONAL_RESPONSE_SCHEMA_INVALID")
+    if not isinstance(semantic_fields, list) or len(semantic_fields) != len(api_fields):
+        raise ValueError("TPEX_INSTITUTIONAL_SEMANTIC_HEADER_SCHEMA_MISSING")
+    def token(value):
+        return "".join(str(value).lower().replace("（", "(").replace("）", ")").split())
+    if len(set(semantic_fields)) != len(semantic_fields):
+        raise ValueError("TPEX_INSTITUTIONAL_SEMANTIC_HEADER_SCHEMA_DUPLICATE")
+    if any(token(qualified.rsplit(".", 1)[-1]) != token(api)
+           for qualified, api in zip(semantic_fields, api_fields)):
+        raise ValueError("TPEX_INSTITUTIONAL_SEMANTIC_HEADER_SCHEMA_MISMATCH")
     records = []
     for row in data:
         if isinstance(row, dict):
+            if not set(semantic_fields).issubset(row):
+                raise ValueError("TPEX_INSTITUTIONAL_RESPONSE_ROW_SCHEMA_INVALID")
             records.append(row)
-        elif isinstance(row, (list, tuple)) and len(row) == len(fields):
-            records.append(dict(zip(fields, row)))
+        elif isinstance(row, (list, tuple)) and len(row) == len(semantic_fields):
+            records.append(dict(zip(semantic_fields, row)))
         else:
             raise ValueError("TPEX_INSTITUTIONAL_RESPONSE_ROW_SCHEMA_INVALID")
-    return response_date, fields, records, table
+    return response_date, semantic_fields, records, table
 
 
 def _label_key(value):
@@ -272,35 +285,30 @@ def _label_key(value):
 
 
 def _daily_field_mapping(fields):
-    """Map official labels by semantic content; require non-dealer foreign totals."""
+    """Map required RATE fields from fully qualified official grouped-header labels."""
     mapping = {}
     for field in fields:
         label = _label_key(field)
-        foreign = ("外資" in label or "外陸資" in label or "foreign" in label)
-        trust = "投信" in label or "investmenttrust" in label.replace("_", "")
-        excluded_dealer = ("不含外資自營商" in label or "不包括外資自營商" in label
-                           or "不含自營商" in label or "不包括自營商" in label
-                           or "excludingforeigndealer" in label or "excludingdealer" in label
-                           or "exforeigndealer" in label)
-        aggregate = ("合計" in label or "total" in label)
-        if foreign and not trust and excluded_dealer and not aggregate:
-            group = "foreign_ex_dealer"
-        elif trust and not aggregate:
-            group = "investment_trust"
+        foreign_prefix = _label_key("外資及陸資(不含外資自營商)") + "."
+        trust_prefix = _label_key("投信") + "."
+        if label.startswith(foreign_prefix):
+            group, action_label = "foreign_ex_dealer", label[len(foreign_prefix):]
+        elif label.startswith(trust_prefix):
+            group, action_label = "investment_trust", label[len(trust_prefix):]
         else:
             continue
-        action = None
-        if "買賣超" in label or "淨買" in label or "net" in label:
-            action = "net"
-        elif "買進" in label or "買入" in label or "買股數" in label or "buy" in label:
+        if action_label in ("買進股數", "買股數", "buy", "totalbuy"):
             action = "buy"
-        elif "賣出" in label or "賣股數" in label or "sell" in label:
+        elif action_label in ("賣出股數", "賣股數", "sell", "totalsell"):
             action = "sell"
-        if action:
-            key = f"{group}.{action}"
-            if key in mapping:
-                raise ValueError(f"TPEX_INSTITUTIONAL_AMBIGUOUS_FIELD:{group}:{action}")
-            mapping[key] = str(field)
+        elif action_label in ("買賣超股數", "淨買股數", "difference", "net"):
+            action = "net"
+        else:
+            continue
+        key = f"{group}.{action}"
+        if key in mapping:
+            raise ValueError(f"TPEX_INSTITUTIONAL_AMBIGUOUS_FIELD:{group}:{action}")
+        mapping[key] = str(field)
     required = [(group, action) for group in ("foreign_ex_dealer", "investment_trust")
                 for action in ("buy", "sell", "net")]
     missing = [f"{group}.{action}" for group, action in required if f"{group}.{action}" not in mapping]
@@ -308,13 +316,12 @@ def _daily_field_mapping(fields):
         raise ValueError("TPEX_INSTITUTIONAL_REQUIRED_FIELDS_MISSING:" + ",".join(missing))
     return mapping
 
-
 def normalize_tpex_daily_response(result, requested_date, stock_rows_by_symbol, required_symbols):
     diagnostics = result.get("diagnostics") or {}
     if diagnostics.get("http_status") != 200:
         raise ValueError(f"TPEX_INSTITUTIONAL_HTTP_STATUS:{diagnostics.get('http_status')}")
     payload = result.get("raw_payload")
-    response_date, fields, rows, table = _tpex_daily_schema(payload)
+    response_date, fields, rows, table = _tpex_daily_schema(result)
     if response_date != requested_date:
         raise ValueError("TPEX_INSTITUTIONAL_RESPONSE_DATE_MISMATCH")
     mapping = _daily_field_mapping(fields)
@@ -388,7 +395,11 @@ def fetch_tpex_daily_sessions(adapter, symbols, stock_rows_by_symbol, candidate_
                 "table_count": diag.get("table_count"), "response_field_names": diag.get("response_field_names"),
                 "response_date": diag.get("response_date"),
                 "response_date_location": diag.get("response_date_location"),
-                "table_title": diag.get("table_title"), "record_count": diag.get("record_count")}
+                "table_title": diag.get("table_title"), "record_count": diag.get("record_count"),
+                "semantic_schema_source": diag.get("semantic_schema_source"),
+                "semantic_schema_status": diag.get("semantic_schema_status"),
+                "semantic_schema_sha256": diag.get("semantic_schema_sha256"),
+                "semantic_field_names": diag.get("semantic_field_names")}
             probe_evidence.append(fetched_probe)
             contract.update({"endpoint": result.get("endpoint"), "request_params": result.get("request_params"),
                 "http_statuses": [x.get("http_status") for x in probe_evidence],

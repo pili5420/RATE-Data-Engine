@@ -1,6 +1,6 @@
 from __future__ import annotations
 from .base import fetch_json, provenance
-import base64, hashlib, json, os, time
+import base64, hashlib, html, json, os, re, time
 from datetime import date, datetime, timezone
 from urllib.request import Request, urlopen, build_opener, HTTPRedirectHandler
 from urllib.error import HTTPError, URLError
@@ -92,6 +92,76 @@ class TPExAdapter:
         self._historical_cache = {}
         self._institutional_cache = {}
         self._institutional_daily_cache = {}
+        self._institutional_daily_schema_cache = None
+
+    def _parse_institutional_header_template(self, page, api_fields):
+        """Build qualified semantic labels from TPEx's official grouped table headers."""
+        template = re.search(r'<template\s+id=["\']theads["\']\s*>(.*?)</template>', page, re.I | re.S)
+        first_head = re.search(r"<thead\b[^>]*>(.*?)</thead>", template.group(1), re.I | re.S) if template else None
+        rows = re.findall(r"<tr\b[^>]*>(.*?)</tr>", first_head.group(1), re.I | re.S) if first_head else []
+        if len(rows) < 2:
+            raise RuntimeError("TPEX_INSTITUTIONAL_HEADER_SCHEMA_TEMPLATE_INVALID")
+        def cells(row):
+            output = []
+            for attrs, body in re.findall(r"<th\b([^>]*)>(.*?)</th>", row, re.I | re.S):
+                label = " ".join(html.unescape(re.sub(r"<[^>]+>", " ", body)).split())
+                colspan = re.search(r'colspan=["\']?(\d+)', attrs, re.I)
+                rowspan = re.search(r'rowspan=["\']?(\d+)', attrs, re.I)
+                output.append((label, int(colspan.group(1)) if colspan else 1,
+                               int(rowspan.group(1)) if rowspan else 1))
+            return output
+        groups, leaves = cells(rows[0]), [label for label, _, _ in cells(rows[1])]
+        semantic = []
+        leaf_offset = 0
+        for label, span, row_span in groups:
+            if span > 1:
+                if leaf_offset + span > len(leaves):
+                    raise RuntimeError("TPEX_INSTITUTIONAL_HEADER_SCHEMA_WIDTH_INVALID")
+                semantic.extend(f"{label}.{leaf}" for leaf in leaves[leaf_offset:leaf_offset + span])
+                leaf_offset += span
+            elif row_span > 1:
+                semantic.append(label)
+            else:
+                raise RuntimeError("TPEX_INSTITUTIONAL_HEADER_SCHEMA_CELL_UNSUPPORTED")
+        if leaf_offset != len(leaves) or len(semantic) != len(api_fields):
+            raise RuntimeError("TPEX_INSTITUTIONAL_HEADER_SCHEMA_WIDTH_MISMATCH")
+        def token(value):
+            return "".join(str(value).lower().replace("（", "(").replace("）", ")").split())
+        if any(token(qualified.rsplit(".", 1)[-1]) != token(api)
+               for qualified, api in zip(semantic, api_fields)):
+            raise RuntimeError("TPEX_INSTITUTIONAL_HEADER_SCHEMA_FIELD_MISMATCH")
+        return semantic
+
+    def _fetch_institutional_daily_semantic_schema(self, api_fields):
+        if self._institutional_daily_schema_cache is None:
+            req = Request(INSTITUTIONAL_DAILY_OFFICIAL_PAGE, headers={
+                "User-Agent": "RATE-Data-Engine/1.0 (+https://github.com/pili5420/RATE-Data-Engine)",
+                "Accept": "text/html",
+            })
+            try:
+                with urlopen(req, timeout=20) as response:
+                    status = getattr(response, "status", response.getcode())
+                    content_type = response.headers.get("Content-Type", "")
+                    page_bytes = response.read()
+            except Exception as exc:
+                raise RuntimeError(f"TPEX_INSTITUTIONAL_HEADER_SCHEMA_FETCH_FAILED:{type(exc).__name__}") from exc
+            if status != 200 or "html" not in content_type.lower():
+                raise RuntimeError("TPEX_INSTITUTIONAL_HEADER_SCHEMA_RESPONSE_INVALID")
+            page = page_bytes.decode("utf-8-sig")
+            semantic = self._parse_institutional_header_template(page, api_fields)
+            self._institutional_daily_schema_cache = {
+                "semantic_schema_source": INSTITUTIONAL_DAILY_OFFICIAL_PAGE,
+                "semantic_schema_status": "PASS",
+                "semantic_schema_sha256": hashlib.sha256(page_bytes).hexdigest(),
+                "semantic_schema_http_status": status,
+                "semantic_schema_content_type": content_type,
+                "semantic_schema_response_bytes": len(page_bytes),
+                "semantic_field_names": semantic,
+            }
+        schema = self._institutional_daily_schema_cache
+        if len(api_fields) != len(schema["semantic_field_names"]):
+            raise RuntimeError("TPEX_INSTITUTIONAL_HEADER_SCHEMA_WIDTH_MISMATCH")
+        return dict(schema)
     def _fetch(self, path: str, domain: str):
         endpoint = BASE + "/" + path
         payload, digest = fetch_json(endpoint)
@@ -151,6 +221,7 @@ class TPExAdapter:
         endpoint = os.getenv("TPEX_INSTITUTIONAL_DAILY_ENDPOINT", INSTITUTIONAL_DAILY_ENDPOINT)
         result = _resilient_tpex_daily_json(endpoint, params)
         payload, digest, diagnostics = result["payload"], result["body_sha256"], result["diagnostics"]
+        diagnostics.update(self._fetch_institutional_daily_semantic_schema(diagnostics.get("response_field_names") or []))
         now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         source_timestamp = diagnostics.get("http_date") or now
         out = {

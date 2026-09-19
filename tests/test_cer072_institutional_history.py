@@ -140,19 +140,47 @@ class CER072InstitutionalHistoryTests(unittest.TestCase):
 
     @staticmethod
     def _tpex_daily(day, symbols):
-        fields = ['代號','外資及陸資(不含外資自營商)買進股數','外資及陸資(不含外資自營商)賣出股數',
-                  '外資及陸資(不含外資自營商)買賣超股數','外資自營商買進股數',
-                  '投信買進股數','投信賣出股數','投信買賣超股數']
-        data = [[s,'12','5','7','1000','9','4','5'] for s in symbols]
+        fields = ['代號','名稱'] + ['買進股數','賣出股數','買賣超股數'] * 7 + ['三大法人買賣超股數合計']
+        semantic = ['代號','名稱']
+        for group in ('外資及陸資(不含外資自營商)','外資自營商','外資及陸資','投信',
+                      '自營商(自行買賣)','自營商(避險)','自營商'):
+            semantic.extend(f'{group}.{leaf}' for leaf in ('買進股數','賣出股數','買賣超股數'))
+        semantic.append('三大法人買賣超股數合計')
+        values = ['12','5','7','1000','0','1000','1012','255','757','9','4','5',
+                  '0','0','0','0','0','0','0','0','0','76']
+        data = [[s,'測試'] + values for s in symbols]
         payload = {'tables':[{'date':f'{int(day[:4])-1911:03d}/{day[5:7]}/{day[8:]}',
                               'title':'三大法人買賣明細資訊','fields':fields,'data':data}]}
         return {'raw_payload':payload,'diagnostics':{'http_status':200,'content_type':'application/json',
+            'semantic_field_names':semantic,'semantic_schema_source':'official-product-template',
             'record_count':len(data),'response_date_location':'tables[0].date','body_sha256':'digest'},
             'source_timestamp':'2026-09-18T09:00:00Z','content_hash':'digest'}
 
     def test_legacy_adapter_route_is_disabled(self):
         with self.assertRaisesRegex(RuntimeError,'LEGACY_INSTITUTIONAL_ROUTE_DISABLED'):
             TPExAdapter().fetch_institutional_history('', '202609')
+
+    def test_official_grouped_header_template_maps_repeated_api_fields_semantically(self):
+        source = '''<template id="theads"><thead><tr>
+          <th rowspan="2">代號</th><th rowspan="2">名稱</th>
+          <th colspan="3">外資及陸資(不含外資自營商)</th><th colspan="3">外資自營商</th>
+          <th colspan="3">外資及陸資</th><th colspan="3">投信</th>
+          <th colspan="3">自營商(自行買賣)</th><th colspan="3">自營商(避險)</th>
+          <th colspan="3">自營商</th><th rowspan="2">三大法人買賣超股數合計</th></tr><tr>
+          ''' + ''.join('<th>' + x + '</th>' for _ in range(7)
+                         for x in ('買進股數','賣出股數','買賣超股數')) + '''
+          </tr></thead></template>'''
+        api_fields = ['代號','名稱'] + ['買進股數','賣出股數','買賣超股數'] * 7 + ['三大法人買賣超股數合計']
+        parsed = TPExAdapter()._parse_institutional_header_template(source, api_fields)
+        self.assertEqual(parsed[2], '外資及陸資(不含外資自營商).買進股數')
+        self.assertEqual(parsed[13], '投信.買賣超股數')
+        self.assertEqual(parsed[-1], '三大法人買賣超股數合計')
+
+    def test_semantic_header_schema_is_required_for_duplicate_json_labels(self):
+        day='2026-09-18'; symbols=['6274']; payload=self._tpex_daily(day,symbols)
+        payload['diagnostics'].pop('semantic_field_names')
+        with self.assertRaisesRegex(ValueError,'SEMANTIC_HEADER_SCHEMA_MISSING'):
+            normalize_tpex_daily_response(payload,day,_stock_rows(symbols,[day]),symbols)
 
     def test_current_dailytrade_schema_maps_by_field_names_and_excludes_dealer(self):
         day='2026-09-18'; symbols=['6274']; stocks=_stock_rows(symbols,[day])
@@ -163,7 +191,7 @@ class CER072InstitutionalHistoryTests(unittest.TestCase):
         self.assertNotEqual(row['foreign_buy'],1012)
         self.assertEqual(parsed['response_date'],day)
         self.assertEqual(parsed['field_mapping']['foreign_ex_dealer.buy'],
-                         '外資及陸資(不含外資自營商)買進股數')
+                         '外資及陸資(不含外資自營商).買進股數')
 
     def test_official_daily_report_buy_sell_net_share_labels_are_supported(self):
         day='2026-09-18'; symbols=['6274']; payload=self._tpex_daily(day,symbols)
@@ -171,6 +199,10 @@ class CER072InstitutionalHistoryTests(unittest.TestCase):
         payload['raw_payload']['tables'][0]['fields']=[
             f.replace('買進股數','買股數').replace('賣出股數','賣股數').replace('買賣超股數','淨買股數')
             for f in fields]
+        payload['diagnostics']['semantic_field_names']=[
+            f.rsplit('.',1)[0] + '.' + f.rsplit('.',1)[-1].replace('買進股數','買股數')
+             .replace('賣出股數','賣股數').replace('買賣超股數','淨買股數')
+            if '.' in f else f for f in payload['diagnostics']['semantic_field_names']]
         parsed=normalize_tpex_daily_response(payload,day,_stock_rows(symbols,[day]),symbols)
         self.assertEqual(parsed['records']['6274']['foreign_net'],7)
         self.assertEqual(parsed['records']['6274']['investment_trust_net'],5)
@@ -185,7 +217,9 @@ class CER072InstitutionalHistoryTests(unittest.TestCase):
     def test_aggregate_foreign_field_cannot_substitute_for_ex_dealer_fi(self):
         day='2026-09-18'; symbols=['6274']; payload=self._tpex_daily(day,symbols)
         table=payload['raw_payload']['tables'][0]
-        table['fields']=[x.replace('(不含外資自營商)','合計') for x in table['fields']]
+        payload['diagnostics']['semantic_field_names']=[
+            x.replace('外資及陸資(不含外資自營商).','外資及陸資合計.')
+            for x in payload['diagnostics']['semantic_field_names']]
         with self.assertRaisesRegex(ValueError,'REQUIRED_FIELDS_MISSING'):
             normalize_tpex_daily_response(payload,day,_stock_rows(symbols,[day]),symbols)
 
@@ -197,7 +231,7 @@ class CER072InstitutionalHistoryTests(unittest.TestCase):
 
     def test_investment_trust_arithmetic_mismatch_fails_closed(self):
         day='2026-09-18'; symbols=['6274']; payload=self._tpex_daily(day,symbols)
-        payload['raw_payload']['tables'][0]['data'][0][7]='6'
+        payload['raw_payload']['tables'][0]['data'][0][13]='6'
         with self.assertRaisesRegex(ValueError,'IT_ARITHMETIC_MISMATCH'):
             normalize_tpex_daily_response(payload,day,_stock_rows(symbols,[day]),symbols)
 
