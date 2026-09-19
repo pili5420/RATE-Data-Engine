@@ -1,0 +1,154 @@
+name: RATE CER-072 Live Institutional and Prior-Stage Validation
+
+on:
+  push:
+    branches:
+      - rate-v2-6-1r2-staging
+  workflow_dispatch:
+    inputs:
+      trading_date:
+        description: Completed trading date YYYY-MM-DD; blank selects latest common session
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  cer072-live-validation:
+    runs-on: ubuntu-latest
+    env:
+      RATE_LIVE_E2E_ENABLED: "false"
+      RATE_OPERATION_POLICY_GATE: PASS_WITH_USER_ASSUMPTION
+      RATE_T86_AUTHORIZATION_BASIS: USER_DIRECTED_ASSUMPTION
+      RATE_T86_FORMAL_AUTHORIZATION: UNVERIFIED
+      RATE_STAGING_REALTIME: "1"
+      RATE_T86_MIN_INTERVAL_SECONDS: "1.2"
+      TDCC_OPENAPI_BASE: https://openapi.tdcc.com.tw
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Initialize fail-closed evidence artifacts
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          out = Path('artifacts'); out.mkdir(exist_ok=True)
+          provenance={'execution_runtime':'github_actions','run_id':os.getenv('GITHUB_RUN_ID'),'commit_sha':os.getenv('GITHUB_SHA'),'fixture_used':False}
+          items = {
+            'RATE_CER072_T86_26_SESSION_EVIDENCE.json': {'artifact':'RATE_CER072_T86_26_SESSION_EVIDENCE',**provenance,'validation_status':'NOT_RUN','request_count':0,'valid_response_count':0},
+            'RATE_CER072_INSTITUTIONAL_HISTORY_EVIDENCE.json': {'artifact':'RATE_CER072_INSTITUTIONAL_HISTORY_EVIDENCE',**provenance,'validation_status':'NOT_RUN','input_snapshot_id':None,'production_decision_state_persisted':0,'blocking_reasons':['CER072_VALIDATION_NOT_RUN']},
+            'RATE_FIRST_PRODUCTION_PRIOR_STAGE_PACKAGE_V1.json': {'artifact':'RATE_FIRST_PRODUCTION_PRIOR_STAGE_PACKAGE_V1',**provenance,'validation_status':'NOT_RUN','scope':'FIRST_PRODUCTION_BOOTSTRAP_EVIDENCE','input_snapshot_id':None,'current_state_id':None,'production_decision_state_persist':0,'symbols':[]},
+            'RATE_CER072_PRIOR_STAGE_RECONSTRUCTION_EVIDENCE.json': {'artifact':'RATE_CER072_PRIOR_STAGE_RECONSTRUCTION_EVIDENCE',**provenance,'reconstruction_status':'NOT_RUN','no_lookahead':'NOT_RUN','current_stage_evidence_ready':'NOT_RUN','blocking_reasons':['CER072_VALIDATION_NOT_RUN']},
+          }
+          for name, data in items.items():
+              (out/name).write_text(json.dumps(data, sort_keys=True, indent=2)+'\n', encoding='utf-8')
+          PY
+      - name: Resolve deterministic accepted-history cache identity
+        shell: bash
+        run: |
+          python - <<'PY' >> "$GITHUB_ENV"
+          import json
+          path='config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json'
+          obj=json.load(open(path,encoding='utf-8'))
+          digest=obj['universe_symbol_digest']
+          prefix=f'rate-twse-bootstrap-v1-{digest}-RATE-STOCK-NORMALIZED-V1-TWSE_STOCK_DAY_V1-RATE-TWSE-HISTORY-CHECKPOINT-V1-'
+          print('RATE_BOOTSTRAP_CACHE_PREFIX='+prefix)
+          print('RATE_BOOTSTRAP_CACHE_KEY='+prefix+'cer072-${{ github.run_id }}-${{ github.run_attempt }}')
+          PY
+      - name: Restore previously accepted historical layer
+        id: accepted-history
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            data/staging/history_bootstrap
+            data/staging/history
+          key: ${{ env.RATE_BOOTSTRAP_CACHE_KEY }}
+          restore-keys: ${{ env.RATE_BOOTSTRAP_CACHE_PREFIX }}
+      - name: Download accepted historical manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: RATE_STAGING_HISTORICAL_STATE_MANIFEST_V1
+          run-id: 35420021665
+          github-token: ${{ github.token }}
+          path: artifacts/accepted/manifest
+      - name: Download accepted TWSE materialization evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: RATE_TWSE_HISTORY_MATERIALIZATION_EVIDENCE
+          run-id: 35420021665
+          github-token: ${{ github.token }}
+          path: artifacts/accepted/twse
+      - name: Download accepted TPEx materialization evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: RATE_TPEX_HISTORY_MATERIALIZATION_EVIDENCE
+          run-id: 35420021665
+          github-token: ${{ github.token }}
+          path: artifacts/accepted/tpex
+      - name: Download accepted TAIEX evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: RATE_TAIEX_HISTORY_EVIDENCE
+          run-id: 35420021665
+          github-token: ${{ github.token }}
+          path: artifacts/accepted/taiex
+      - name: Download accepted TPEx index evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: RATE_TPEX_INDEX_HISTORY_EVIDENCE
+          run-id: 35420021665
+          github-token: ${{ github.token }}
+          path: artifacts/accepted/tpex-index
+      - name: Run unit and regression tests
+        run: python -m unittest discover -s tests -v
+      - name: Run live CER-072 institutional and prior-stage acceptance
+        env:
+          CER072_TRADING_DATE: ${{ inputs.trading_date }}
+        shell: bash
+        run: |
+          args=(
+            --history-root data/staging/history
+            --universe-file config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json
+            --accepted-manifest artifacts/accepted/manifest/RATE_STAGING_HISTORICAL_STATE_MANIFEST_V1.json
+            --twse-materialization artifacts/accepted/twse/RATE_TWSE_HISTORY_MATERIALIZATION_EVIDENCE.json
+            --tpex-materialization artifacts/accepted/tpex/RATE_TPEX_HISTORY_MATERIALIZATION_EVIDENCE.json
+            --taiex-evidence artifacts/accepted/taiex/RATE_TAIEX_HISTORY_EVIDENCE.json
+            --tpex-index-evidence artifacts/accepted/tpex-index/RATE_TPEX_INDEX_HISTORY_EVIDENCE.json
+            --output-dir artifacts
+          )
+          if [[ -n "${CER072_TRADING_DATE:-}" ]]; then args+=(--trading-date "$CER072_TRADING_DATE"); fi
+          python scripts/run_cer072_acceptance.py "${args[@]}"
+      - name: Upload T86 26-session evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER072_T86_26_SESSION_EVIDENCE
+          path: artifacts/RATE_CER072_T86_26_SESSION_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload institutional history evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER072_INSTITUTIONAL_HISTORY_EVIDENCE
+          path: artifacts/RATE_CER072_INSTITUTIONAL_HISTORY_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload first-production prior-stage package
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_FIRST_PRODUCTION_PRIOR_STAGE_PACKAGE_V1
+          path: artifacts/RATE_FIRST_PRODUCTION_PRIOR_STAGE_PACKAGE_V1.json
+          if-no-files-found: error
+      - name: Upload prior-stage reconstruction evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER072_PRIOR_STAGE_RECONSTRUCTION_EVIDENCE
+          path: artifacts/RATE_CER072_PRIOR_STAGE_RECONSTRUCTION_EVIDENCE.json
+          if-no-files-found: error

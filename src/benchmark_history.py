@@ -5,7 +5,12 @@ from datetime import date
 from .historical_store import PersistentHistoricalStore, _number
 
 def normalize_twse_date(value):
-    text=str(value).strip().replace('/','-')
+    text=str(value).strip().replace('/','-').replace('.', '-')
+    digits=''.join(ch for ch in text if ch.isdigit())
+    if len(digits)==8:
+        return f'{int(digits[:4]):04d}-{int(digits[4:6]):02d}-{int(digits[6:8]):02d}'
+    if len(digits)==7:
+        return f'{int(digits[:3])+1911:04d}-{int(digits[3:5]):02d}-{int(digits[5:7]):02d}'
     parts=text.split('-')
     if len(parts)==3 and len(parts[0]) <= 3 and parts[0].isdigit():
         return f'{int(parts[0])+1911:04d}-{int(parts[1]):02d}-{int(parts[2]):02d}'

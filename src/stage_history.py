@@ -33,6 +33,10 @@ def build_stage_feature_histories(stock_histories, benchmark_by_symbol, institut
             if not ih or str(ih[-1].get("trading_date",ih[-1].get("trade_date",""))) != session:
                 raise ValueError(f"DATA_INCOMPLETE:STAGE_INSTITUTIONAL_DATE:{s}:{session}")
             dh = sorted((dict(r) for r in tdcc_histories[s] if str(r.get("period_end", "")) <= session),key=lambda r:str(r.get("period_end","")))
+            if len({str(r.get("period_end")) for r in dh}) != len(dh):
+                raise ValueError(f"TDCC_HISTORICAL_DUPLICATE_PERIOD:{s}:{session}")
+            if len(dh) < 5:
+                raise ValueError(f"DATA_INCOMPLETE:TDCC_ASOF_FIVE_PERIODS:{s}:{session}")
             institutional_rows.append({"symbol":s,"institutional_history":ih,"tdcc_history":dh,**rotation_history[s]})
         inst = {str(r["symbol"]):r for r in calculate_institutional_rotation(institutional_rows)}
         for s in symbols:
@@ -42,6 +46,8 @@ def build_stage_feature_histories(stock_histories, benchmark_by_symbol, institut
             hist=records_by[s]; tr=technical_record(hist,benches_asof[s])
             output[s].append({"trade_date":session,"M7":m7["m7_score"],"MHE":mhe["mhe_score"],
                 "Rotation":ir["Rotation"],"RotationClass":calculate_rotation(ir["Rotation_inputs"])["rotation_state"],
+                "FI":ir["FI"],"IT":ir["IT"],"FC":ir["FC"],"LH":ir["LH"],
+                "institutional_lineage":ir["feature_lineage"],"Rotation_inputs":ir["Rotation_inputs"],
                 "close":float(hist[-1]["close"]),
                 "technical_features":tf,"technical_record":tr,"stock_low_values":[{"trade_date":r["trade_date"],"low":float(r["low"])} for r in hist],
                 "calculation_spec_version":"RATE-SPEC-20260919-004","source_type":"DERIVED_FROM_HISTORICAL_FEATURE_REPLAY"})
