@@ -148,6 +148,9 @@ def probe_revenue(adapter, universe):
                 pass_count += 1
         except Exception as exc:
             diag = _latest_diag(adapter, "revenue")
+            parsed_symbols = set(diag.get("parsed_symbols") or [])
+            hit_symbols = parsed_symbols & {row["symbol"] for row in _market_universe(universe, market)}
+            actual_hits[market].update(hit_symbols)
             item.update({
                 "blocking_reason": str(exc),
                 "failure_class": _failure_class(exc),
@@ -156,6 +159,11 @@ def probe_revenue(adapter, universe):
                 "content_type": diag.get("content_type"),
                 "body_sha256": diag.get("body_sha256"),
                 "response_bytes": diag.get("response_bytes"),
+                "table_count": len(diag.get("basic_schema_header", [])),
+                "schema": diag.get("basic_schema_header"),
+                "row_count": diag.get("basic_row_count"),
+                "universe_symbol_hits": len(hit_symbols),
+                "actual_hit_symbols": sorted(hit_symbols),
             })
         probes.append(item)
     twse_total=len(_market_universe(universe,"TWSE")); tpex_total=len(_market_universe(universe,"TPEX"))

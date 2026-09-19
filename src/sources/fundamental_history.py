@@ -206,7 +206,11 @@ class MOPSHistoricalFundamentalAdapter:
         if classification == "OFFICIAL_MOPS_TRANSPORT_BLOCKED_BY_EDGE_POLICY":
             raise RuntimeError(classification)
         if classification != "HTML": raise RuntimeError(f"MOPS_{domain.upper()}_NON_HTML_RESPONSE")
-        for encoding in ("utf-8-sig","big5","cp950"):
+        encodings=("utf-8-sig","big5","cp950")
+        head=body[:2048].decode("ascii",errors="ignore").lower()
+        if "charset=big5" in head or "charset=ms950" in head:
+            encodings=("big5","cp950","utf-8-sig")
+        for encoding in encodings:
             try: return body.decode(encoding),diag
             except UnicodeDecodeError: pass
         raise RuntimeError(f"MOPS_{domain.upper()}_ENCODING_UNSUPPORTED")
@@ -218,6 +222,9 @@ class MOPSHistoricalFundamentalAdapter:
         html,diag=self._open(Request(endpoint,headers={"User-Agent":"RATE-Data-Engine/1.0"}),"revenue",period)
         rows,schemas=_table_records(html,{"symbol":("公司代號",),"period":("資料年月",),
                                           "yoy":("去年同月增減",),"disclosure":("出表日期",)})
+        basic_rows,basic_schemas=_table_records(html,{"symbol":("公司代號",),"yoy":("去年同月增減",)})
+        diag.update({"basic_schema_header":basic_schemas,"basic_row_count":len(basic_rows),
+                     "parsed_symbols":sorted({_plain(row["symbol"]) for row in basic_rows})})
         normalized_rows=[]; returned_periods=set()
         for row in rows:
             try:
