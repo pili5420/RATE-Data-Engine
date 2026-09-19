@@ -9,7 +9,7 @@ from src.institutional_history import (
 )
 from src.sources.tpex import (TPExAdapter, TPExDailyTransportError,
                               _body_prefix_class, _resilient_tpex_daily_json)
-from scripts.run_cer072_acceptance import _stable_digest, _tdcc_history, _verify_model_freeze
+from scripts.run_cer072_acceptance import (_institutional_asof_history, _stable_digest, _tdcc_history, _verify_model_freeze)
 
 
 def _dates(count=26):
@@ -114,6 +114,15 @@ class CER072InstitutionalHistoryTests(unittest.TestCase):
                   'InvestmentTrustSell':'4','InvestmentTrustNet':'5'}]}
         with self.assertRaisesRegex(ValueError,'PERIOD_MISMATCH'):
             fetch_tpex_monthly_history(Adapter(),symbols,stocks,days[:26])
+
+    def test_institutional_asof_window_accepts_20_rows_and_excludes_future(self):
+        rows=[{'trading_date':f'2026-08-{day:02d}','foreign_net_shares':1} for day in range(1,21)]
+        rows.append({'trading_date':'2026-09-11','foreign_net_shares':999})
+        selected=_institutional_asof_history(rows,'2330','2026-09-10')
+        self.assertEqual(len(selected),20)
+        self.assertEqual(selected[-1]['trading_date'],'2026-08-20')
+        with self.assertRaisesRegex(RuntimeError,'STAGE_INSTITUTIONAL_WINDOW'):
+            _institutional_asof_history(rows[:19],'2330','2026-09-10')
 
     def test_prior_stage_identity_hash_is_deterministic(self):
         value={'prior_session':'2026-09-17','symbols':[{'symbol':'2330','previous_stage':'BUILD'}]}
