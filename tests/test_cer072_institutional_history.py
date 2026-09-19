@@ -123,7 +123,7 @@ class CER072InstitutionalHistoryTests(unittest.TestCase):
         self.assertEqual(len(selected),20)
         self.assertEqual(selected[-1]['trading_date'],'2026-09-10')
         with self.assertRaisesRegex(RuntimeError,'STAGE_INSTITUTIONAL_WINDOW'):
-            _institutional_asof_history(rows[:-2],'2330','2026-09-10')
+            _institutional_asof_history(rows[1:-1],'2330','2026-09-10')
 
     def test_prior_stage_identity_hash_is_deterministic(self):
         value={'prior_session':'2026-09-17','symbols':[{'symbol':'2330','previous_stage':'BUILD'}]}
