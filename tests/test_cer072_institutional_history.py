@@ -126,17 +126,26 @@ class CER072InstitutionalHistoryTests(unittest.TestCase):
         self.assertEqual(_verify_model_freeze()['status'],'PASS')
 
     def test_tdcc_history_is_filtered_as_of_and_uses_published_holder_tiers(self):
-        payload=[]
-        for period in ('2026/09/04','2026/09/11','2026/09/18','2026/09/25'):
-            payload.extend([
-              {'證券代號':'2330','資料日期':period,'持股分級':'11','占集保庫存數比例%':'20.0'},
-              {'證券代號':'2330','資料日期':period,'持股分級':'12','占集保庫存數比例%':'30.0'},
-              {'證券代號':'2330','資料日期':period,'持股分級':'16','占集保庫存數比例%':'10.0'},
-            ])
-        with patch('scripts.run_cer072_acceptance.TDCCAdapter.fetch',return_value={'raw_payload':payload,'source_timestamp':'2026-09-18T10:00:00Z'}):
-            history,_=_tdcc_history(['2330'],'2026-09-18')
-        self.assertEqual([r['period_end'] for r in history['2330']],['2026-09-04','2026-09-11','2026-09-18'])
-        self.assertEqual([r['holder_pct_400'] for r in history['2330']],[40.0,40.0,40.0])
+        from scripts.run_cer072_acceptance import _tdcc_history
+        periods=['2026-08-07','2026-08-14','2026-08-21','2026-08-28','2026-09-04',
+                 '2026-09-11','2026-09-18','2026-09-25']
+        normalized=[]
+        for period in periods:
+            for tier in range(1,16):
+                normalized.append({'symbol':'2330','period_end':period,'holding_range':tier,
+                    'holder_percentage':float(tier),'retrieval_timestamp':'2026-09-19T10:00:00Z'})
+        class FakeAdapter:
+            available_periods=periods
+            def fetch_period_union(self, symbols, requested):
+                return {'normalized_rows':[x for x in normalized if x['period_end'] in requested],
+                    'transport_contract':{'method':'POST'},'request_count':len(requested),
+                    'source_timestamp':'2026-09-18','response_date_identity_status':'PASS',
+                    'symbols_required':1,'symbols_complete':1}
+        with patch('scripts.run_cer072_acceptance.TDCCHistoricalAdapter',return_value=FakeAdapter()):
+            history,_=_tdcc_history(['2330'],'2026-09-18',['2026-09-18'])
+        self.assertEqual([r['period_end'] for r in history['2330']],
+                         ['2026-08-21','2026-08-28','2026-09-04','2026-09-11','2026-09-18'])
+        self.assertEqual([r['holder_pct_400'] for r in history['2330']],[54.0]*5)
 
     @staticmethod
     def _tpex_daily(day, symbols):

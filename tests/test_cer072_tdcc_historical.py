@@ -137,7 +137,7 @@ class TDCCHistoricalContractTests(unittest.TestCase):
             histories, result=_tdcc_history(symbols, "2026-09-18", replay)
         self.assertEqual(len(histories),30)
         self.assertEqual(result["request_granularity"],"SYMBOL_DATE")
-        self.assertTrue(all(len(x)==5 for x in result["asof_coverage_by_replay_session"]["2026-09-10"].values()))
+        self.assertTrue(all(len(x["selected_five_periods"])==5 for x in result["asof_coverage_by_replay_session"]["2026-09-10"].values()))
         self.assertTrue(all("2026-09-11" not in x["selected_five_periods"]
                             for x in result["asof_coverage_by_replay_session"]["2026-09-10"].values()))
 
