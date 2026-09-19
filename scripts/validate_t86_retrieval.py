@@ -7,9 +7,24 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 
 BASE = "https://www.twse.com.tw/rwd/zh/fund/T86"
-FIELDS = ("證券代號", "外陸資買進股數", "外陸資賣出股數", "外陸資買賣超股數",
-          "投信買進股數", "投信賣出股數", "投信買賣超股數",
-          "自營商買進股數", "自營商賣出股數", "自營商買賣超股數")
+FOREIGN_FIELDS = (
+    "外陸資買進股數(不含外資自營商)", "外陸資賣出股數(不含外資自營商)",
+    "外陸資買賣超股數(不含外資自營商)",
+)
+LEGACY_FOREIGN_FIELDS = ("外資買進股數", "外資賣出股數", "外資買賣超股數")
+TRUST_FIELDS = ("投信買進股數", "投信賣出股數", "投信買賣超股數")
+DEALER_FIELDS = (
+    ("自營商買進股數", "自營商賣出股數", "自營商買賣超股數"),
+    ("自營商買進股數(自行買賣)", "自營商賣出股數(自行買賣)", "自營商買賣超股數(自行買賣)",
+     "自營商買進股數(避險)", "自營商賣出股數(避險)", "自營商買賣超股數(避險)"),
+)
+
+def has_institutional_fields(fields) -> bool:
+    available = set(fields)
+    foreign_ok = all(name in available for name in FOREIGN_FIELDS) or all(name in available for name in LEGACY_FOREIGN_FIELDS)
+    trust_ok = all(name in available for name in TRUST_FIELDS)
+    dealer_ok = any(all(name in available for name in group) for group in DEALER_FIELDS)
+    return foreign_ok and trust_ok and dealer_ok
 
 def main() -> int:
     ap = argparse.ArgumentParser(); ap.add_argument("--date", required=True); args = ap.parse_args()
@@ -39,8 +54,8 @@ def main() -> int:
         if isinstance(row, list) and isinstance(payload, dict) and isinstance(payload.get("fields"), list):
             row = dict(zip(payload["fields"], row))
         keys = set(row.keys()) if isinstance(row, dict) else set()
-        out["schema_detected"] = "PASS" if out["record_count"] > 0 and FIELDS[0] in keys else "FAIL"
-        out["institutional_fields"] = "PASS" if all(k in keys for k in FIELDS[1:]) else "FAIL"
+        out["schema_detected"] = "PASS" if out["record_count"] > 0 and "證券代號" in keys else "FAIL"
+        out["institutional_fields"] = "PASS" if has_institutional_fields(payload.get("fields", keys) if isinstance(payload, dict) else keys) else "FAIL"
         out["trading_date"] = args.date
         out["t86_retrieval_capability"] = "PASS" if out["HTTP_status"] == 200 and out["response_received"] == "YES" and out["record_count"] > 0 and out["schema_detected"] == "PASS" and out["institutional_fields"] == "PASS" else "FAIL"
         if out["t86_retrieval_capability"] == "FAIL": out["exact_blocking_reason"] = "T86_STRUCTURE_OR_CONTENT_INVALID"

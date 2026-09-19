@@ -21,6 +21,8 @@ jobs:
       RATE_LIVE_E2E_ENABLED: "false"
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -36,7 +38,7 @@ jobs:
         id: t86
         if: always()
         continue-on-error: true
-        run: python scripts/validate_t86_retrieval.py --date "${{ inputs.trading_date }}"
+        run: python scripts/validate_t86_retrieval.py --date "${{ inputs.trading_date || '2026-09-18' }}"
       - name: Generate CER-070 evidence purity artifact
         id: purity
         if: always()
