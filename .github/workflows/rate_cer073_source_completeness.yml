@@ -62,6 +62,8 @@ jobs:
           prefix=f'rate-twse-bootstrap-v1-{digest}-RATE-STOCK-NORMALIZED-V1-TWSE_STOCK_DAY_V1-RATE-TWSE-HISTORY-CHECKPOINT-V1-'
           print('RATE_BOOTSTRAP_CACHE_PREFIX='+prefix)
           print('RATE_BOOTSTRAP_CACHE_KEY='+prefix+'cer073-${{ github.run_id }}-${{ github.run_attempt }}')
+          print('RATE_FUNDAMENTAL_CACHE_PREFIX=rate-fundamental-history-v2-'+digest+'-')
+          print('RATE_FUNDAMENTAL_CACHE_KEY=rate-fundamental-history-v2-'+digest+'-${{ github.run_id }}-${{ github.run_attempt }}')
           PY
       - name: Restore accepted rolling historical store
         id: accepted-history
@@ -70,9 +72,14 @@ jobs:
           path: |
             data/staging/history_bootstrap
             data/staging/history
-            data/staging/fundamental
           key: ${{ env.RATE_BOOTSTRAP_CACHE_KEY }}
           restore-keys: ${{ env.RATE_BOOTSTRAP_CACHE_PREFIX }}
+      - name: Restore fundamental disclosure event store
+        uses: actions/cache/restore@v4
+        with:
+          path: data/staging/fundamental
+          key: ${{ env.RATE_FUNDAMENTAL_CACHE_KEY }}
+          restore-keys: ${{ env.RATE_FUNDAMENTAL_CACHE_PREFIX }}
 
       - name: Download accepted historical manifest
         uses: actions/download-artifact@v4
@@ -174,8 +181,13 @@ jobs:
             data/staging/history_bootstrap
             data/staging/history
             data/staging/history_bootstrap/benchmarks
-            data/staging/fundamental
           key: ${{ env.RATE_BOOTSTRAP_CACHE_KEY }}
+      - name: Persist fundamental disclosure event store
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/staging/fundamental
+          key: ${{ env.RATE_FUNDAMENTAL_CACHE_KEY }}
 
       - name: Verify production isolation and deferred snapshot
         if: always()
