@@ -52,6 +52,25 @@ def normalize_official_date(value):
     return date(year, month, day).isoformat()
 
 
+def normalize_revenue_period(value):
+    text = _plain(value)
+    digits = "".join(x for x in text if x.isdigit())
+    if len(digits) == 6:
+        year, month = int(digits[:4]), int(digits[4:6])
+    elif len(digits) == 5:
+        year, month = int(digits[:3]) + 1911, int(digits[3:5])
+    else:
+        m = re.search(r"(\d{2,4})\s*(?:年|/|-)?\s*(\d{1,2})\s*(?:月)?", text)
+        if not m:
+            raise ValueError("FUNDAMENTAL_REVENUE_PERIOD_IDENTITY_UNPROVEN")
+        raw_year = int(m.group(1))
+        year = raw_year + 1911 if raw_year < 1911 else raw_year
+        month = int(m.group(2))
+    if not 1 <= month <= 12:
+        raise ValueError("FUNDAMENTAL_REVENUE_PERIOD_IDENTITY_UNPROVEN")
+    return f"{year:04d}-{month:02d}"
+
+
 def extract_disclosure_date(text):
     # Only an explicit official report/publication field is accepted. HTTP Date,
     # retrieval time and runtime source timestamps are intentionally excluded.
@@ -165,16 +184,29 @@ class MOPSHistoricalFundamentalAdapter:
         year,month=(int(x) for x in period.split("-")); roc=year-1911; mk=self._market(market)
         endpoint=MOPS_REVENUE_ARCHIVE.format(market=mk,roc_year=roc,month=month)
         html,diag=self._open(Request(endpoint,headers={"User-Agent":"RATE-Data-Engine/1.0"}),"revenue",period)
-        returned=re.search(r"資料年月\s*[：:]?\s*(\d{2,3})\s*年\s*(\d{1,2})\s*月",_plain(re.sub(r"<[^>]+>"," ",html)))
-        if not returned or f"{int(returned.group(1))+1911:04d}-{int(returned.group(2)):02d}" != period:
-            raise RuntimeError("FUNDAMENTAL_REVENUE_PERIOD_IDENTITY_MISMATCH")
-        disclosure=extract_disclosure_date(html)
-        rows,schemas=_table_records(html,{"symbol":("公司代號",),"yoy":("去年同月增減",)})
-        diag.update({"schema_header":schemas,"returned_period":period,"official_disclosure_date":disclosure})
-        return [{"symbol":_plain(row["symbol"]),"market":market,"revenue_period":period,
+        rows,schemas=_table_records(html,{"symbol":("公司代號",),"period":("資料年月",),
+                                          "yoy":("去年同月增減",),"disclosure":("出表日期",)})
+        normalized_rows=[]; returned_periods=set()
+        for row in rows:
+            try:
+                row_period=normalize_revenue_period(row["period"])
+            except ValueError:
+                continue
+            returned_periods.add(row_period)
+            normalized_rows.append((row,row_period,normalize_official_date(row["disclosure"])))
+        if not normalized_rows:
+            raise RuntimeError("FUNDAMENTAL_REVENUE_PERIOD_IDENTITY_UNPROVEN")
+        if returned_periods != {period}:
+            returned=",".join(sorted(returned_periods)) or "NONE"
+            raise RuntimeError(f"FUNDAMENTAL_REVENUE_PERIOD_IDENTITY_MISMATCH:{period}:{returned}")
+        diag.update({"schema_header":schemas,"distinct_returned_periods":sorted(returned_periods),
+                     "period_identity_source":"ROW_LEVEL_OFFICIAL_FIELD",
+                     "official_disclosure_date_fields":"ROW_LEVEL 出表日期"})
+        return [{"symbol":_plain(row["symbol"]),"market":market,"revenue_period":row_period,
                  "revenue_yoy":_number(row["yoy"]),"official_disclosure_date":disclosure,
                  "provider":self.provider,"official_product":"月營業收入資訊","endpoint":endpoint,
-                 "content_hash":diag["body_sha256"],"retrieval_timestamp":diag["retrieval_timestamp"]} for row in rows]
+                 "content_hash":diag["body_sha256"],"retrieval_timestamp":diag["retrieval_timestamp"]}
+                for row,row_period,disclosure in normalized_rows]
     def fetch_eps_period(self, market, fiscal_year, quarter):
         mk=self._market(market); period=f"{fiscal_year}Q{quarter}"
         params={"encodeURIComponent":"1","step":"1","firstin":"1","off":"1","isQuery":"Y",
@@ -184,7 +216,9 @@ class MOPSHistoricalFundamentalAdapter:
             "Content-Type":"application/x-www-form-urlencoded","Referer":MOPS_EPS_PAGE})
         html,diag=self._open(req,"eps",period); plain=_plain(re.sub(r"<[^>]+>"," ",html))
         identity=re.search(r"資料年度\s*[：:]?\s*(\d{2,3})\s*年.*?第?\s*(\d)\s*季",plain)
-        if identity and (int(identity.group(1))+1911 != fiscal_year or int(identity.group(2)) != quarter):
+        if not identity:
+            raise RuntimeError("FUNDAMENTAL_EPS_PERIOD_IDENTITY_UNPROVEN")
+        if int(identity.group(1))+1911 != fiscal_year or int(identity.group(2)) != quarter:
             raise RuntimeError("FUNDAMENTAL_EPS_PERIOD_IDENTITY_MISMATCH")
         disclosure=extract_disclosure_date(html)
         rows,schemas=_table_records(html,{"symbol":("公司代號",),"eps":("基本每股盈餘",)})
@@ -222,6 +256,10 @@ class FundamentalHistoryStoreV2:
         tmp=self.path.with_suffix(".tmp"); tmp.write_text(json.dumps(obj,ensure_ascii=False,sort_keys=True,indent=2)+"\n",encoding="utf-8"); tmp.replace(self.path)
     def upsert(self,revenue_events,eps_events):
         obj=self.load()
+        for row in revenue_events:
+            self._validate_revenue_event(row)
+        for row in eps_events:
+            self._validate_eps_event(row)
         for key,new_rows in (("revenue_events",revenue_events),("eps_events",eps_events)):
             seen={hashlib.sha256(_canonical(row).encode()).hexdigest() for row in obj[key]}
             for row in new_rows:
@@ -229,6 +267,26 @@ class FundamentalHistoryStoreV2:
                 if digest not in seen: obj[key].append(row); seen.add(digest)
             obj[key].sort(key=lambda x:(str(x.get("symbol")),str(x.get("revenue_period",x.get("fiscal_year"))),str(x.get("quarter","")),str(x.get("official_disclosure_date"))))
         self.save(obj); return obj
+    @staticmethod
+    def _validate_revenue_event(row):
+        required=("symbol","market","revenue_period","revenue_yoy","official_disclosure_date",
+                  "provider","official_product","endpoint","content_hash","retrieval_timestamp")
+        missing=[key for key in required if row.get(key) in (None,"")]
+        if missing:
+            raise RuntimeError("UNVERIFIED_REVENUE_EVENT:" + ",".join(missing))
+        normalize_revenue_period(row["revenue_period"])
+        normalize_official_date(row["official_disclosure_date"])
+    @staticmethod
+    def _validate_eps_event(row):
+        required=("symbol","market","fiscal_year","quarter","single_quarter_eps","official_disclosure_date",
+                  "source_semantics","provider","official_product","endpoint","content_hash","retrieval_timestamp")
+        missing=[key for key in required if row.get(key) in (None,"")]
+        if missing:
+            raise RuntimeError("UNVERIFIED_EPS_EVENT:" + ",".join(missing))
+        if row["source_semantics"] not in ("OFFICIAL_SINGLE_QUARTER","OFFICIAL_CUMULATIVE",
+                                           "OFFICIAL_DOCUMENTED_Q4_DERIVATION"):
+            raise RuntimeError("FUNDAMENTAL_EPS_SOURCE_SEMANTICS_INVALID")
+        normalize_official_date(row["official_disclosure_date"])
     @staticmethod
     def select_asof(obj,universe,as_of_date):
         selected={str(s):{"revenue":{},"eps":{}} for s in universe}

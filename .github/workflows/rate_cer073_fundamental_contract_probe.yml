@@ -1,0 +1,42 @@
+name: RATE CER-073 Fundamental Contract Probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  fundamental-contract-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run CER-073 focused tests
+        run: python -m unittest tests.test_cer073_fundamental_history_v2 tests.test_cer073_source_wiring
+
+      - name: Probe official fundamental historical contracts
+        run: python scripts/probe_fundamental_contracts.py --universe-file artifacts/accepted/staging-universe/CONTROL_CENTER_APPROVED_STAGING_VALIDATION_UNIVERSE_V1.json
+
+      - name: Upload revenue contract evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER073_REVENUE_CONTRACT_EVIDENCE
+          path: artifacts/RATE_CER073_REVENUE_CONTRACT_EVIDENCE.json
+          if-no-files-found: error
+
+      - name: Upload EPS contract evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER073_EPS_CONTRACT_EVIDENCE
+          path: artifacts/RATE_CER073_EPS_CONTRACT_EVIDENCE.json
+          if-no-files-found: error

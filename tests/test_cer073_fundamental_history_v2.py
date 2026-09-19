@@ -1,9 +1,15 @@
 from __future__ import annotations
 
 import unittest
+from io import BytesIO
 from pathlib import Path
 
-from src.sources.fundamental_history import FundamentalHistoryStoreV2, extract_disclosure_date
+from src.sources.fundamental_history import (
+    FundamentalHistoryStoreV2,
+    MOPSHistoricalFundamentalAdapter,
+    extract_disclosure_date,
+    normalize_revenue_period,
+)
 
 
 def revenue(symbol, period, disclosure, value=1.0):
@@ -20,6 +26,47 @@ def eps(symbol, year, quarter, disclosure, value=1.0):
             "source_semantics": "OFFICIAL_SINGLE_QUARTER", "provider": "MOPS Official",
             "official_product": "綜合損益表", "endpoint": "official",
             "content_hash": f"{year}-{quarter}-{disclosure}", "retrieval_timestamp": "2026-09-18T00:00:00Z"}
+
+
+class FakeResponse(BytesIO):
+    status = 200
+
+    def __init__(self, text):
+        super().__init__(text.encode("utf-8"))
+        self.headers = {"Content-Type": "text/html; charset=utf-8"}
+
+    def getcode(self):
+        return self.status
+
+    def geturl(self):
+        return "https://official.example.test/fundamental"
+
+
+def fake_opener(html):
+    def _open(_request, timeout=45):
+        return FakeResponse(html)
+    return _open
+
+
+def revenue_html(rows):
+    body = "".join(
+        f"<tr><td>{period}</td><td>{symbol}</td><td>{yoy}</td><td>{disclosure}</td></tr>"
+        for period, symbol, yoy, disclosure in rows
+    )
+    return (
+        "<html><table><tr><th>資料年月</th><th>公司代號</th>"
+        "<th>去年同月增減(%)</th><th>出表日期</th></tr>"
+        f"{body}</table></html>"
+    )
+
+
+def eps_html(include_identity=True):
+    prefix = "資料年度：115年 第2季" if include_identity else "綜合損益表"
+    return (
+        f"<html>{prefix} 出表日期：115年08月14日"
+        "<table><tr><th>公司代號</th><th>基本每股盈餘</th></tr>"
+        "<tr><td>2330</td><td>10.25</td></tr></table></html>"
+    )
 
 
 class TestCER073FundamentalHistoryV2(unittest.TestCase):
@@ -55,6 +102,54 @@ class TestCER073FundamentalHistoryV2(unittest.TestCase):
         selected_one = FundamentalHistoryStoreV2.select_asof({"revenue_events": rows, "eps_events": []}, ["2330"], "2026-09-18")
         selected_two = FundamentalHistoryStoreV2.select_asof({"revenue_events": list(reversed(rows)), "eps_events": []}, ["2330"], "2026-09-18")
         self.assertEqual(selected_one, selected_two)
+
+    def test_revenue_period_normalization_accepts_official_forms(self):
+        self.assertEqual(normalize_revenue_period("11508"), "2026-08")
+        self.assertEqual(normalize_revenue_period("115/08"), "2026-08")
+        self.assertEqual(normalize_revenue_period("115年08月"), "2026-08")
+        self.assertEqual(normalize_revenue_period("202608"), "2026-08")
+        self.assertEqual(normalize_revenue_period("2026/08"), "2026-08")
+
+    def test_revenue_identity_uses_row_level_official_period(self):
+        html = revenue_html([("11508", "2330", "12.3", "115年09月10日")])
+        adapter = MOPSHistoricalFundamentalAdapter(opener=fake_opener(html), min_interval_seconds=0)
+        rows = adapter.fetch_revenue_period("TWSE", "2026-08")
+        self.assertEqual(rows[0]["revenue_period"], "2026-08")
+        self.assertEqual(rows[0]["official_disclosure_date"], "2026-09-10")
+        self.assertEqual(adapter.diagnostics[-1]["period_identity_source"], "ROW_LEVEL_OFFICIAL_FIELD")
+
+    def test_revenue_mixed_period_response_is_rejected(self):
+        html = revenue_html([
+            ("11508", "2330", "12.3", "115年09月10日"),
+            ("11507", "2317", "1.2", "115年08月10日"),
+        ])
+        adapter = MOPSHistoricalFundamentalAdapter(opener=fake_opener(html), min_interval_seconds=0)
+        with self.assertRaisesRegex(RuntimeError, "FUNDAMENTAL_REVENUE_PERIOD_IDENTITY_MISMATCH:2026-08:2026-07,2026-08"):
+            adapter.fetch_revenue_period("TWSE", "2026-08")
+
+    def test_revenue_zero_parseable_period_is_rejected(self):
+        html = revenue_html([("unknown", "2330", "12.3", "115年09月10日")])
+        adapter = MOPSHistoricalFundamentalAdapter(opener=fake_opener(html), min_interval_seconds=0)
+        with self.assertRaisesRegex(RuntimeError, "FUNDAMENTAL_REVENUE_PERIOD_IDENTITY_UNPROVEN"):
+            adapter.fetch_revenue_period("TWSE", "2026-08")
+
+    def test_eps_returned_period_identity_is_required(self):
+        adapter = MOPSHistoricalFundamentalAdapter(opener=fake_opener(eps_html(include_identity=False)), min_interval_seconds=0)
+        with self.assertRaisesRegex(RuntimeError, "FUNDAMENTAL_EPS_PERIOD_IDENTITY_UNPROVEN"):
+            adapter.fetch_eps_period("TWSE", 2026, 2)
+
+    def test_unverified_events_are_not_persisted(self):
+        store = FundamentalHistoryStoreV2("data/staging/test-fundamental")
+        bad_revenue = revenue("2330", "2026-08", "")
+        with self.assertRaisesRegex(RuntimeError, "UNVERIFIED_REVENUE_EVENT"):
+            store.upsert([bad_revenue], [])
+
+    def test_eps_semantics_are_validated_before_persistence(self):
+        store = FundamentalHistoryStoreV2("data/staging/test-fundamental")
+        bad_eps = eps("2330", 2026, 2, "2026-08-14")
+        bad_eps["source_semantics"] = "MIXED_CUMULATIVE_SINGLE"
+        with self.assertRaisesRegex(RuntimeError, "FUNDAMENTAL_EPS_SOURCE_SEMANTICS_INVALID"):
+            store.upsert([], [bad_eps])
 
 
 if __name__ == "__main__":

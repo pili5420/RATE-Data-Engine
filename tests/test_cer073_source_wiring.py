@@ -96,6 +96,21 @@ class TestCER073FrozenSourceWiring(unittest.TestCase):
         self.assertNotIn('run_phase_a2',source)
         self.assertNotIn('run_rate_0730(',source)
 
+    def test_fundamental_contract_probe_workflow_is_contract_only(self):
+        root = Path(builder.__file__).resolve().parents[1]
+        workflow = (root / ".github" / "workflows" / "rate_cer073_fundamental_contract_probe.yml").read_text(encoding="utf-8")
+        self.assertIn("scripts/probe_fundamental_contracts.py", workflow)
+        forbidden = (
+            "build_live_source_bundle.py",
+            "run_phase_a2.py",
+            "run_rate_0730.py",
+            "institutional replay",
+            "TDCC replay",
+            "Stage replay",
+        )
+        for token in forbidden:
+            self.assertNotIn(token, workflow)
+
 
 class TestCER073FundamentalHistory(unittest.TestCase):
     def test_v2_history_adapter_is_used_for_live_bootstrap(self):
