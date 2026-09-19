@@ -17,7 +17,7 @@ def probe(source, endpoint, parser):
     """Compatibility seam used by tests; endpoint is the real adapter call."""
     result=endpoint()
     payload=result.get('raw_payload') if isinstance(result,dict) else None
-    rows=parser(payload) if payload is not None else (result.get('normalized_rows',[]) if isinstance(result,dict) else [])
+    rows=parser(payload) if payload is not None else (result.get('normalized_rows',[]) if isinstance(result,dict) else parser(result) if isinstance(result,list) else [])
     return {'source':source,'parse_status':'PASS' if rows else 'FAIL:EMPTY',
             'record_count':len(rows),'result':result}
 
@@ -28,13 +28,14 @@ def check(name, provider, method, call):
         checked=probe(name,call,_rows)
         result=checked.get('result',{})
         payload=result.get('raw_payload') if isinstance(result,dict) else None
-        rows=_rows(payload) if payload is not None else (result.get('normalized_rows',[]) if isinstance(result,dict) else [])
+        rows=_rows(payload) if payload is not None else (result.get('normalized_rows',[]) if isinstance(result,dict) else _rows(result) if isinstance(result,list) else [])
         parse_status=checked.get('parse_status','FAIL:INVALID_PROBE_RESULT')
         diagnostics=result.get('diagnostics',{}) if isinstance(result,dict) else {}
         item.update({'status':parse_status,'record_count':checked.get('record_count',len(rows)),
             'source':result.get('source',name) if isinstance(result,dict) else name,
-            'endpoint':result.get('endpoint'),'source_timestamp':result.get('source_timestamp'),
-            'content_hash':result.get('content_hash') or diagnostics.get('body_sha256'),
+            'endpoint':result.get('endpoint') if isinstance(result,dict) else None,
+            'source_timestamp':result.get('source_timestamp') if isinstance(result,dict) else None,
+            'content_hash':(result.get('content_hash') if isinstance(result,dict) else None) or diagnostics.get('body_sha256'),
             'http_status':diagnostics.get('http_status'),'transport_identity':'PRODUCTION_ADAPTER'})
         if not rows: item['blocking_reason']='EMPTY_OFFICIAL_RESPONSE'
     except Exception as exc:
