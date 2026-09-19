@@ -40,7 +40,7 @@ class StageHistoryTests(unittest.TestCase):
 
     def test_explicit_replay_calendar_must_be_common_and_is_used(self):
         stocks,bench,inst,tdcc,dates=_fixture(); asof=dates[159]
-        selected=dates[-7:]
+        selected=dates[153:160]
         histories=build_stage_feature_histories(stocks,bench,inst,tdcc,as_of_date=asof,sessions=7,
             session_dates=selected)
         self.assertEqual([r['trade_date'] for r in histories['1000']],selected)
