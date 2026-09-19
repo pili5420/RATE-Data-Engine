@@ -1,0 +1,247 @@
+"""Official MOPS historical fundamental transports and revision-aware staging store."""
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+import time
+from datetime import date, datetime, timezone
+from html import unescape
+from html.parser import HTMLParser
+from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
+
+SCHEMA_VERSION = "RATE-FUNDAMENTAL-HISTORY-V2"
+MOPS_REVENUE_PAGE = "https://mops.twse.com.tw/mops/web/t21sc03"
+MOPS_REVENUE_ARCHIVE = "https://mopsov.twse.com.tw/nas/t21/{market}/t21sc03_{roc_year}_{month}_0.html"
+MOPS_EPS_PAGE = "https://mops.twse.com.tw/mops/web/t163sb04"
+MOPS_EPS_ENDPOINT = "https://mopsov.twse.com.tw/mops/web/ajax_t163sb04"
+
+
+def _now():
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _plain(value):
+    return re.sub(r"\s+", " ", unescape(str(value))).strip()
+
+
+def _number(value):
+    text = _plain(value).replace(",", "").replace("％", "").replace("%", "")
+    if text in ("", "-", "--", "N/A"):
+        raise ValueError("FUNDAMENTAL_NUMERIC_MISSING")
+    return float(text.replace("(", "-").replace(")", ""))
+
+
+def normalize_official_date(value):
+    text = _plain(value).replace("/", "-")
+    digits = "".join(x for x in text if x.isdigit())
+    if len(digits) == 8:
+        year, month, day = int(digits[:4]), int(digits[4:6]), int(digits[6:])
+    elif len(digits) == 7:
+        year, month, day = int(digits[:3]) + 1911, int(digits[3:5]), int(digits[5:])
+    else:
+        m = re.search(r"(\d{2,3})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日", text)
+        if not m:
+            raise ValueError("DATA_INCOMPLETE:FUNDAMENTAL_DISCLOSURE_DATE")
+        year, month, day = int(m.group(1)) + 1911, int(m.group(2)), int(m.group(3))
+    if year < 1911:
+        year += 1911
+    return date(year, month, day).isoformat()
+
+
+def extract_disclosure_date(text):
+    # Only an explicit official report/publication field is accepted. HTTP Date,
+    # retrieval time and runtime source timestamps are intentionally excluded.
+    patterns = (
+        r"出表日期\s*[：:]?\s*([0-9]{2,4}[^\s<]{0,3}[0-9]{1,2}[^\s<]{0,3}[0-9]{1,2})",
+        r"資料發布日期\s*[：:]?\s*([0-9]{2,4}[^\s<]{0,3}[0-9]{1,2}[^\s<]{0,3}[0-9]{1,2})",
+        r"公告日期\s*[：:]?\s*([0-9]{2,4}[^\s<]{0,3}[0-9]{1,2}[^\s<]{0,3}[0-9]{1,2})",
+    )
+    plain = _plain(re.sub(r"<[^>]+>", " ", text))
+    for pattern in patterns:
+        found = re.search(pattern, plain)
+        if found:
+            return normalize_official_date(found.group(1))
+    raise ValueError("DATA_INCOMPLETE:FUNDAMENTAL_DISCLOSURE_DATE")
+
+
+class _TableParser(HTMLParser):
+    def __init__(self):
+        super().__init__(); self.tables=[]; self._table=None; self._row=None; self._cell=None
+    def handle_starttag(self, tag, attrs):
+        tag=tag.lower()
+        if tag == "table": self._table=[]
+        elif tag == "tr" and self._table is not None: self._row=[]
+        elif tag in ("th", "td") and self._row is not None: self._cell=[]
+    def handle_data(self, data):
+        if self._cell is not None: self._cell.append(data)
+    def handle_endtag(self, tag):
+        tag=tag.lower()
+        if tag in ("th", "td") and self._cell is not None:
+            self._row.append(_plain(" ".join(self._cell))); self._cell=None
+        elif tag == "tr" and self._row is not None:
+            if any(self._row): self._table.append(self._row)
+            self._row=None
+        elif tag == "table" and self._table is not None:
+            if self._table: self.tables.append(self._table)
+            self._table=None
+
+
+def _tables(html):
+    parser=_TableParser(); parser.feed(html); return parser.tables
+
+
+def _header_index(header, candidates):
+    normalized=[re.sub(r"\s+", "", x) for x in header]
+    for i,value in enumerate(normalized):
+        if any(candidate in value for candidate in candidates): return i
+    return None
+
+
+def _table_records(html, required):
+    records=[]; schemas=[]
+    for table in _tables(html):
+        header_pos=None; indices=None
+        for pos,row in enumerate(table[:8]):
+            trial={key:_header_index(row,names) for key,names in required.items()}
+            if all(value is not None for value in trial.values()):
+                header_pos,indices=pos,trial; schemas.append(row); break
+        if indices is None: continue
+        width=max(indices.values())
+        for row in table[header_pos+1:]:
+            if len(row)<=width: continue
+            item={key:row[index] for key,index in indices.items()}
+            if re.fullmatch(r"[0-9A-Za-z]{4,6}", _plain(item.get("symbol"))): records.append(item)
+    return records,schemas
+
+
+def _classify_body(body, content_type):
+    sample=body[:4096].decode("utf-8",errors="ignore").lower()
+    if "access denied" in sample or "captcha" in sample or "驗證碼" in sample or "系統忙碌" in sample:
+        return "OFFICIAL_MOPS_TRANSPORT_BLOCKED_BY_EDGE_POLICY"
+    if "html" in content_type.lower() or "<html" in sample or "<table" in sample: return "HTML"
+    return "UNKNOWN"
+
+
+class MOPSHistoricalFundamentalAdapter:
+    provider="MOPS Official"
+    revenue_request_granularity="MARKET_PERIOD"
+    eps_request_granularity="MARKET_QUARTER"
+    def __init__(self, opener=urlopen, min_interval_seconds=0.25):
+        self.opener=opener; self.min_interval_seconds=min_interval_seconds; self._last=None
+        self.request_count={"revenue":0,"eps":0}; self.diagnostics=[]
+    def _open(self, request, domain, requested_period):
+        if self._last is not None:
+            time.sleep(max(0,self.min_interval_seconds-(time.monotonic()-self._last)))
+        self._last=time.monotonic()
+        try:
+            response=self.opener(request,timeout=45)
+            status=getattr(response,"status",response.getcode()); final_url=response.geturl()
+            content_type=response.headers.get("Content-Type",""); body=response.read()
+        except HTTPError as exc:
+            raise RuntimeError(f"MOPS_{domain.upper()}_HTTP_{exc.code}") from exc
+        except (URLError,TimeoutError,OSError) as exc:
+            raise RuntimeError(f"MOPS_{domain.upper()}_TRANSPORT:{type(exc).__name__}") from exc
+        classification=_classify_body(body,content_type)
+        diag={"domain":domain,"requested_period":requested_period,"http_status":status,"final_url":final_url,
+              "content_type":content_type,"response_bytes":len(body),"body_classification":classification,
+              "body_sha256":hashlib.sha256(body).hexdigest(),"retrieval_timestamp":_now()}
+        self.diagnostics.append(diag); self.request_count[domain]+=1
+        if status != 200: raise RuntimeError(f"MOPS_{domain.upper()}_HTTP_{status}")
+        if not body: raise RuntimeError(f"MOPS_{domain.upper()}_EMPTY_RESPONSE")
+        if classification == "OFFICIAL_MOPS_TRANSPORT_BLOCKED_BY_EDGE_POLICY":
+            raise RuntimeError(classification)
+        if classification != "HTML": raise RuntimeError(f"MOPS_{domain.upper()}_NON_HTML_RESPONSE")
+        for encoding in ("utf-8-sig","big5","cp950"):
+            try: return body.decode(encoding),diag
+            except UnicodeDecodeError: pass
+        raise RuntimeError(f"MOPS_{domain.upper()}_ENCODING_UNSUPPORTED")
+    @staticmethod
+    def _market(market): return "sii" if market == "TWSE" else "otc"
+    def fetch_revenue_period(self, market, period):
+        year,month=(int(x) for x in period.split("-")); roc=year-1911; mk=self._market(market)
+        endpoint=MOPS_REVENUE_ARCHIVE.format(market=mk,roc_year=roc,month=month)
+        html,diag=self._open(Request(endpoint,headers={"User-Agent":"RATE-Data-Engine/1.0"}),"revenue",period)
+        returned=re.search(r"資料年月\s*[：:]?\s*(\d{2,3})\s*年\s*(\d{1,2})\s*月",_plain(re.sub(r"<[^>]+>"," ",html)))
+        if not returned or f"{int(returned.group(1))+1911:04d}-{int(returned.group(2)):02d}" != period:
+            raise RuntimeError("FUNDAMENTAL_REVENUE_PERIOD_IDENTITY_MISMATCH")
+        disclosure=extract_disclosure_date(html)
+        rows,schemas=_table_records(html,{"symbol":("公司代號",),"yoy":("去年同月增減",)})
+        diag.update({"schema_header":schemas,"returned_period":period,"official_disclosure_date":disclosure})
+        return [{"symbol":_plain(row["symbol"]),"market":market,"revenue_period":period,
+                 "revenue_yoy":_number(row["yoy"]),"official_disclosure_date":disclosure,
+                 "provider":self.provider,"official_product":"月營業收入資訊","endpoint":endpoint,
+                 "content_hash":diag["body_sha256"],"retrieval_timestamp":diag["retrieval_timestamp"]} for row in rows]
+    def fetch_eps_period(self, market, fiscal_year, quarter):
+        mk=self._market(market); period=f"{fiscal_year}Q{quarter}"
+        params={"encodeURIComponent":"1","step":"1","firstin":"1","off":"1","isQuery":"Y",
+                "TYPEK":mk,"year":str(fiscal_year-1911),"season":f"{quarter:02d}"}
+        body=urlencode(params).encode("ascii")
+        req=Request(MOPS_EPS_ENDPOINT,data=body,method="POST",headers={"User-Agent":"RATE-Data-Engine/1.0",
+            "Content-Type":"application/x-www-form-urlencoded","Referer":MOPS_EPS_PAGE})
+        html,diag=self._open(req,"eps",period); plain=_plain(re.sub(r"<[^>]+>"," ",html))
+        identity=re.search(r"資料年度\s*[：:]?\s*(\d{2,3})\s*年.*?第?\s*(\d)\s*季",plain)
+        if identity and (int(identity.group(1))+1911 != fiscal_year or int(identity.group(2)) != quarter):
+            raise RuntimeError("FUNDAMENTAL_EPS_PERIOD_IDENTITY_MISMATCH")
+        disclosure=extract_disclosure_date(html)
+        rows,schemas=_table_records(html,{"symbol":("公司代號",),"eps":("基本每股盈餘",)})
+        if not rows: raise RuntimeError("FUNDAMENTAL_EPS_SCHEMA_MISSING")
+        diag.update({"schema_header":schemas,"returned_period":period,"official_disclosure_date":disclosure})
+        return [{"symbol":_plain(row["symbol"]),"market":market,"fiscal_year":fiscal_year,"quarter":quarter,
+                 "single_quarter_eps":_number(row["eps"]),"official_disclosure_date":disclosure,
+                 "source_semantics":"OFFICIAL_SINGLE_QUARTER","provider":self.provider,
+                 "official_product":"綜合損益表","endpoint":MOPS_EPS_ENDPOINT,
+                 "content_hash":diag["body_sha256"],"retrieval_timestamp":diag["retrieval_timestamp"]} for row in rows]
+
+
+def _canonical(value):
+    return json.dumps(value,ensure_ascii=False,sort_keys=True,separators=(",",":"))
+
+
+class FundamentalHistoryStoreV2:
+    def __init__(self, root="data/staging/fundamental"):
+        self.root=Path(root)
+        if "production" in {part.lower() for part in self.root.parts}:
+            raise RuntimeError("PRODUCTION_FUNDAMENTAL_NAMESPACE_FORBIDDEN")
+        self.path=self.root/"RATE_FUNDAMENTAL_HISTORY_V2.json"
+    def load(self):
+        if not self.path.is_file():
+            return {"schema_version":SCHEMA_VERSION,"revenue_events":[],"eps_events":[]}
+        obj=json.loads(self.path.read_text(encoding="utf-8"))
+        if obj.get("schema_version") != SCHEMA_VERSION: raise RuntimeError("FUNDAMENTAL_HISTORY_SCHEMA_MISMATCH")
+        return obj
+    def save(self,obj):
+        obj={**obj,"schema_version":SCHEMA_VERSION,"updated_at":_now()}
+        # Operational write time is not part of a historical snapshot's identity.
+        payload=_canonical({k:v for k,v in obj.items() if k not in ("content_hash", "updated_at")})
+        obj["content_hash"]=hashlib.sha256(payload.encode()).hexdigest()
+        self.root.mkdir(parents=True,exist_ok=True)
+        tmp=self.path.with_suffix(".tmp"); tmp.write_text(json.dumps(obj,ensure_ascii=False,sort_keys=True,indent=2)+"\n",encoding="utf-8"); tmp.replace(self.path)
+    def upsert(self,revenue_events,eps_events):
+        obj=self.load()
+        for key,new_rows in (("revenue_events",revenue_events),("eps_events",eps_events)):
+            seen={hashlib.sha256(_canonical(row).encode()).hexdigest() for row in obj[key]}
+            for row in new_rows:
+                digest=hashlib.sha256(_canonical(row).encode()).hexdigest()
+                if digest not in seen: obj[key].append(row); seen.add(digest)
+            obj[key].sort(key=lambda x:(str(x.get("symbol")),str(x.get("revenue_period",x.get("fiscal_year"))),str(x.get("quarter","")),str(x.get("official_disclosure_date"))))
+        self.save(obj); return obj
+    @staticmethod
+    def select_asof(obj,universe,as_of_date):
+        selected={str(s):{"revenue":{},"eps":{}} for s in universe}
+        for row in obj.get("revenue_events",[]):
+            symbol=str(row.get("symbol")); period=row.get("revenue_period"); disclosed=row.get("official_disclosure_date")
+            if symbol not in selected or not period or not disclosed: continue
+            if period <= as_of_date[:7] and disclosed <= as_of_date:
+                old=selected[symbol]["revenue"].get(period)
+                if old is None or old["official_disclosure_date"] < disclosed: selected[symbol]["revenue"][period]=row
+        for row in obj.get("eps_events",[]):
+            symbol=str(row.get("symbol")); disclosed=row.get("official_disclosure_date"); key=(row.get("fiscal_year"),row.get("quarter"))
+            if symbol not in selected or None in key or not disclosed: continue
+            if disclosed <= as_of_date:
+                old=selected[symbol]["eps"].get(key)
+                if old is None or old["official_disclosure_date"] < disclosed: selected[symbol]["eps"][key]=row
+        return selected

@@ -1,147 +1,4 @@
-"""Build the LIVE RATE source bundle, fail-closed and without fixture fallback."""
-from __future__ import annotations
-import argparse, json, os, sys, tempfile, calendar
-import hashlib
-from datetime import date, datetime, timedelta, timezone
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from src.benchmark_history import normalize_twse_date
-from src.fundamental import calculate_fundamental
-from src.historical_store import PersistentHistoricalStore, normalize_stock_record
-from src.institutional_features import calculate_institutional_rotation
-from src.institutional_history import valid_stock_session_dates, fetch_t86_sessions, fetch_tpex_daily_sessions, validate_history_rows
-from src.sources.tdcc_historical import TDCCHistoricalAdapter, holder_pct_400_from_tiers, select_required_period_union
-from src.rotation_history import build_rotation_feature_histories
-from src.stage_history import build_stage_feature_histories
-from src.stage_evidence import build_production_stage_evidence
-from src.live_decision_inputs import build_live_decision_records
-from src.rate_logic import calculate_m7, calculate_mhe
-from src.sources.fundamental import FundamentalAdapter
-from src.sources.twse import TWSEAdapter, reset_transport_metrics, get_transport_metrics
-from src.sources.tpex import TPExAdapter
-from src.technical_features import compute_scores, technical_record
-
-FULL_COMPONENTS = ('PT','PV','MO','FI','IT','LH','RS','H5','H20','H60','H120','RS_CHANGE','VOL_CHANGE','SMART_MONEY','MOMENTUM_CHANGE','FC','Fundamental','RelativeStrength','Liquidity')
-REQUIRED_CONFIG = ('TDCC_OPENAPI_BASE',)
-EVIDENCE_DEFAULT = 'artifacts/RATE_LIVE_SOURCE_ASSEMBLY_EVIDENCE.json'
-UNIVERSE_CONTEXT = {}
-LIVE_PROGRESS = {}
-BOOTSTRAP_CONTEXT = {}
-CHECKPOINT_PATH = Path('data/staging/history_bootstrap/RATE_TWSE_HISTORY_BOOTSTRAP_CHECKPOINT_V1.json')
-CHECKPOINT_SCHEMA_VERSION = 'RATE-TWSE-HISTORY-CHECKPOINT-V1'
-NORMALIZATION_SCHEMA_VERSION = 'RATE-STOCK-NORMALIZED-V1'
-SOURCE_DATASET_VERSION = 'TWSE_STOCK_DAY_V1'
-
-def _now(): return datetime.now(timezone.utc).isoformat().replace('+00:00','Z')
-def _rows(payload):
-    if isinstance(payload,list): return [x for x in payload if isinstance(x,dict)]
-    if not isinstance(payload,dict): return []
-    data=payload.get('data') or payload.get('records') or payload.get('aaData') or []; fields=payload.get('fields') or []
-    if not data and isinstance(payload.get('tables'), list):
-        for table in payload['tables']:
-            if isinstance(table, dict):
-                table_data=table.get('data') or table.get('records') or table.get('aaData') or []
-                table_fields=table.get('fields') or fields
-                if table_data:
-                    data, fields = table_data, table_fields
-                    break
-    if fields and isinstance(data,list): return [dict(zip(fields,x)) if isinstance(x,list) else x for x in data if isinstance(x,(list,dict))]
-    return [x for x in data if isinstance(x,dict)] if isinstance(data,list) else []
-def _pick(row,*names):
-    for name in names:
-        if name in row and row[name] not in (None,'','-','--'): return row[name]
-    return None
-def _number(value):
-    text=str(value).strip().replace(',','')
-    if text in ('','-','--','None','null'): raise ValueError('MISSING_NUMERIC')
-    return float(text.replace('(','-').replace(')',''))
-def _month_cursor(end):
-    year,month=end.year,end.month
-    while True:
-        yield f'{year:04d}{month:02d}'
-        month-=1
-        if month==0: month,year=12,year-1
-def _parse_universe_payload(obj):
-    """Parse supported universe shapes without stringifying structured entries."""
-    if isinstance(obj, list):
-        entries = obj
-    elif isinstance(obj, dict) and isinstance(obj.get('symbols'), list):
-        entries = obj['symbols']
-    else:
-        entries = []
-    parsed=[]
-    for entry in entries:
-        if isinstance(entry, str):
-            parsed.append({'symbol': entry.strip()})
-        elif isinstance(entry, dict) and entry.get('symbol') is not None:
-            parsed.append({'symbol': str(entry['symbol']).strip(), 'market': entry.get('market'), **entry})
-    return parsed
-
-def _load_universe():
-    global UNIVERSE_CONTEXT
-    UNIVERSE_CONTEXT = {}
-    symbols=[x.strip() for x in os.getenv('RATE_TWSE_SYMBOLS','').split(',') if x.strip()]
-    path=os.getenv('RATE_UNIVERSE_FILE')
-    if not symbols and path:
-        obj=json.loads(Path(path).read_text(encoding='utf-8'))
-        if isinstance(obj, dict):
-            if obj.get('artifact') != 'CONTROL_CENTER_APPROVED_STAGING_VALIDATION_UNIVERSE_V1' or obj.get('schema_version') != 'RATE-UNIVERSE-V1.0' or obj.get('validation_scope') != 'STAGING_LIVE_ONLY' or obj.get('ranking_status') != 'NOT_A_VALIDATED_TOP30_RANKING':
-                raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY')
-            if obj.get('validation_status') != 'PASS': raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:VALIDATION_STATUS')
-            if obj.get('source_state_id') != 'RATE-V11.1-PS-20260913-V1-r000009' or obj.get('source_state_file_sha256') != 'f1cc9c5f005a07f081943e279cfab9624079d51ae7d3ef1f1e23ef74b638864b':
-                raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:STATE')
-            parsed = _parse_universe_payload(obj)
-            if any(not p.get('market') in ('TWSE','TPEX') for p in parsed): raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:MARKET')
-            if any(p['symbol'].upper() == 'TAIEX' for p in parsed): raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:BENCHMARK_IN_EQUITY_UNIVERSE')
-            symbols = [p['symbol'] for p in parsed]
-            if any(not x.isdigit() for x in symbols) or len(set(symbols)) != len(symbols): raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:SYMBOLS')
-            if len(parsed) != 30: raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:RECORD_COUNT')
-            digest_payload={'source_state_id':obj['source_state_id'],'symbols':symbols}
-            digest=hashlib.sha256(json.dumps(digest_payload,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
-            if digest != obj.get('universe_symbol_digest') or digest != '30276287608b87f7d9b606891514247da523dce9214e4b82bb34ba118a35af4c': raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:DIGEST')
-            if obj.get('record_count') != 30 or obj.get('unique_count',30) != 30 or obj.get('duplicate_count',0) != 0: raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:COUNTS')
-            UNIVERSE_CONTEXT={'universe_source':'CONTROL_CENTER_APPROVED_STAGING_VALIDATION_UNIVERSE_V1','universe_schema_version':obj['schema_version'],'universe_source_state_id':obj['source_state_id'],'universe_source_state_hash':obj['source_state_file_sha256'],'universe_digest':digest,'universe_record_count':30,'twse_count':sum(p['market']=='TWSE' for p in parsed),'tpex_count':sum(p['market']=='TPEX' for p in parsed),'unresolved_market_count':obj.get('unresolved_market_count',0),'fixture_universe_used':False,'universe_markets':{p['symbol']:p['market'] for p in parsed}}
-        else:
-            parsed = _parse_universe_payload(obj); symbols=[p['symbol'] for p in parsed]
-    result=sorted(set(x for x in symbols if x.isdigit()))
-    if not result: raise RuntimeError('MISSING_REQUIRED_SOURCE_CONFIGURATION:RATE_TWSE_SYMBOLS_OR_RATE_UNIVERSE_FILE')
-    return result
-def _atomic_write_json(path, value):
-    """Write JSON durably so cancellation cannot leave a partial artifact."""
-    path = Path(path); path.parent.mkdir(parents=True, exist_ok=True)
-    payload = (json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + '\n').encode('utf-8')
-    fd, tmp_name = tempfile.mkstemp(prefix=f'.{path.name}.', suffix='.tmp', dir=str(path.parent))
-    try:
-        with os.fdopen(fd, 'wb') as handle:
-            handle.write(payload); handle.flush(); os.fsync(handle.fileno())
-        os.replace(tmp_name, path)
-    finally:
-        try: os.unlink(tmp_name)
-        except FileNotFoundError: pass
-
-def _write(path,value):
-    _atomic_write_json(path, value)
-def _config_readiness(): return {key:('READY' if (os.getenv(key) or key=='TDCC_OPENAPI_BASE') else 'NOT_READY') for key in REQUIRED_CONFIG}
-
-def _checkpoint_digest(obj):
-    payload = {k: v for k, v in obj.items() if k not in ('content_hash', 'last_updated')}
-    return hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
-
-def _load_checkpoint(path, universe_digest):
-    if not path.exists():
-        return {'schema_version': CHECKPOINT_SCHEMA_VERSION, 'checkpoint_schema_version': CHECKPOINT_SCHEMA_VERSION,
-                'normalization_schema_version': NORMALIZATION_SCHEMA_VERSION,
-                'source_dataset_version': SOURCE_DATASET_VERSION, 'universe_digest': universe_digest,
-                'staging_source_version': SOURCE_DATASET_VERSION, 'last_updated': None,
-                'symbols': {}, 'months': {}, 'record_count': 0, 'content_hash': None,
-                'validation_status': 'PASS'}
-    try: obj = json.loads(path.read_text(encoding='utf-8'))
-    except (OSError, json.JSONDecodeError): raise RuntimeError('TWSE_BOOTSTRAP_CHECKPOINT_CORRUPT')
-    if obj.get('universe_digest') != universe_digest:
-        raise RuntimeError('TWSE_BOOTSTRAP_CHECKPOINT_UNIVERSE_MISMATCH')
-    if obj.get('schema_version') != CHECKPOINT_SCHEMA_VERSION or obj.get('validation_status') != 'PASS':
-        raise RuntimeError('TWSE_BOOTSTRAP_CHECKPOINT_INVALID')
-    if obj.get('checkpoint_schema_version', CHECKPOINT_SCHEMA_VERSION) != CHECKPOINT_SCHEMA_VERSION:
+INT_SCHEMA_VERSION:
         raise RuntimeError('TWSE_BOOTSTRAP_CHECKPOINT_VERSION_MISMATCH')
     if obj.get('normalization_schema_version', NORMALIZATION_SCHEMA_VERSION) != NORMALIZATION_SCHEMA_VERSION:
         raise RuntimeError('TWSE_BOOTSTRAP_CHECKPOINT_NORMALIZATION_MISMATCH')
@@ -212,21 +69,9 @@ def _history(adapter,symbol,trading_date,market='TWSE'):
     persisted_dates = [str(row.get('trade_date', '')) for row in persisted]
     if len(persisted_dates) != len(set(persisted_dates)) or any(row.get('symbol') != symbol or row.get('market') != market for row in persisted):
         raise RuntimeError(f'PERSISTED_STOCK_HISTORY_INVALID:{symbol}')
-    # A persisted cache can be ahead of a historical replay target. Never let
-    # future rows satisfy this as-of request; use only eligible rows and resume
-    # from the durable checkpoint when the accepted rolling window is incomplete.
-    persisted = [row for row in persisted if str(row.get('trade_date', '')) <= trading_date]
-    persisted_dates = [str(row.get('trade_date', '')) for row in persisted]
-    checkpoint_months = BOOTSTRAP_CONTEXT.get('checkpoint', {}).get('months', {})
-    resumable_checkpoint = any(
-        key.startswith(f'{symbol}:') and isinstance(entry, dict)
-        and entry.get('symbol') == symbol and entry.get('market') == market
-        and entry.get('validation_status') == 'PASS' and isinstance(entry.get('records'), list)
-        and any(str(row.get('trade_date', '')) <= trading_date for row in entry['records'])
-        for key, entry in checkpoint_months.items())
-    if len(persisted) < 180 and not resumable_checkpoint:
+    if not persisted or len(persisted) < 180:
         raise RuntimeError(f'ACCEPTED_ROLLING_STOCK_STORE_MISSING_OR_INCOMPLETE:{symbol}:{len(persisted)}')
-    if persisted_dates and persisted_dates[-1] == trading_date and len(persisted) >= 180:
+    if persisted_dates[-1] == trading_date and len(persisted) >= 180:
         LIVE_PROGRESS.setdefault('aligned_sessions_by_symbol', {})[symbol] = len(persisted)
         LIVE_PROGRESS.setdefault('raw_sessions_by_symbol', {})[symbol] = 0
         LIVE_PROGRESS.setdefault('months_completed_by_symbol', {})[symbol] = 0
@@ -242,7 +87,7 @@ def _history(adapter,symbol,trading_date,market='TWSE'):
         LIVE_PROGRESS['current_period'] = period
         cp_key = f'{symbol}:{period}'
         cached = BOOTSTRAP_CONTEXT.get('checkpoint', {}).get('months', {}).get(cp_key)
-        if market == 'TWSE' and isinstance(cached, dict) and cached.get('symbol') == symbol and cached.get('market') == market and cached.get('year_month') == period and cached.get('provider') == 'TWSE' and cached.get('dataset') == 'STOCK_DAY' and cached.get('validation_status') == 'PASS' and cached.get('content_hash') and isinstance(cached.get('records'), list) :
+        if market == 'TWSE' and isinstance(cached, dict) and cached.get('symbol') == symbol and cached.get('market') == market and cached.get('year_month') == period and cached.get('provider') == 'TWSE' and cached.get('dataset') == 'STOCK_DAY' and cached.get('validation_status') == 'PASS' and cached.get('content_hash') and isinstance(cached.get('records'), list) and (trading_date in {str(x.get('trade_date')) for x in cached.get('records', [])} or not persisted):
             period_records = cached['records']
             BOOTSTRAP_CONTEXT['periods_loaded_from_checkpoint'] = BOOTSTRAP_CONTEXT.get('periods_loaded_from_checkpoint', 0) + 1
         else:
@@ -381,11 +226,6 @@ def _t86_history(adapter, universe, stocks, trading_date):
     missing=[s for s,v in per.items() if len(v)<required_sessions]
     if missing: raise RuntimeError('DATA_INCOMPLETE:STAGE_LOOKBACK_T86_26_SESSIONS:'+','.join(missing))
     return per
-
-def _tpex_institutional_history(adapter, universe, stocks, trading_date):
-    """Compatibility guard for the retired snapshot route; CER072 daily sessions are authoritative."""
-    raise RuntimeError('STAGE_LOOKBACK_TPEX_26_SESSIONS:LEGACY_INSTITUTIONAL_ROUTE_DISABLED')
-
 
 def _institutional_histories(twse_adapter, tpex_adapter, universe, markets, stocks, trading_date):
     """Use accepted CER-072 daily-history functions for both markets."""
@@ -540,6 +380,51 @@ def _fundamental_history(universe, markets=None, as_of_date=None):
     _write('artifacts/RATE_CER073_FUNDAMENTAL_HISTORY_EVIDENCE.json',{'artifact':'RATE_CER073_FUNDAMENTAL_HISTORY_EVIDENCE','validation_status':'PASS','as_of_date':as_of_date,'symbols_complete':len(evidence_symbols),'symbols_required':len(universe),'fundamental_cross_section':'PASS','fundamental_determinism':'PASS','symbols':evidence_symbols,'fixture_used':False,'production_namespace_modified':False})
     return {s:{'Fundamental':scores[s],'revenue_yoy':[x['value'] for x in sorted(revenue_by[s],key=lambda x:x['period'],reverse=True)[:3]],'quarterly_eps':[x['value'] for x in sorted(eps_by[s],key=lambda x:(x['fiscal_year'],x['quarter']),reverse=True)[:8]],'revenue_periods':[x['period'] for x in sorted(revenue_by[s],key=lambda x:x['period'],reverse=True)[:3]],'eps_quarters':[{'fiscal_year':x['fiscal_year'],'quarter':x['quarter']} for x in sorted(eps_by[s],key=lambda x:(x['fiscal_year'],x['quarter']),reverse=True)[:8]],'revenue_source_lineage':[{'provider':x['provider'],'source':x['source'],'endpoint':x['endpoint'],'publication_timestamp':x['publication_timestamp'],'content_hash':x['content_hash']} for x in sorted(revenue_by[s],key=lambda x:x['period'],reverse=True)[:3]],'eps_source_lineage':[{'provider':x['provider'],'source':x['source'],'endpoint':x['endpoint'],'publication_timestamp':x['publication_timestamp'],'content_hash':x['content_hash']} for x in sorted(eps_by[s],key=lambda x:(x['fiscal_year'],x['quarter']),reverse=True)[:8]]} for s in universe}
 
+def _fundamental_history(universe, markets=None, as_of_date=None):
+    """CER-073 V2: official MOPS disclosures, revision-aware and as-of bound."""
+    markets=markets or {}; as_of_date=as_of_date or date.today().isoformat()
+    store=FundamentalHistoryStoreV2(os.getenv('RATE_STAGING_FUNDAMENTAL_STORE_ROOT','data/staging/fundamental'))
+    current=store.load(); selected=store.select_asof(current,universe,as_of_date)
+    missing=lambda: [str(s) for s in universe if len(selected[str(s)]['revenue'])<3 or len(selected[str(s)]['eps'])<8]
+    adapter=None
+    if missing():
+        adapter=MOPSHistoricalFundamentalAdapter(); revenue_events=[]; eps_events=[]
+        asof=date.fromisoformat(as_of_date); first_month=asof.replace(day=1)
+        months=[((first_month-timedelta(days=offset)).replace(day=1)).strftime('%Y-%m') for offset in range(1,7)]
+        fiscal_year=asof.year; latest_quarter=(asof.month-1)//3
+        if latest_quarter==0: fiscal_year-=1; latest_quarter=4
+        periods=[]
+        for offset in range(10):
+            ordinal=fiscal_year*4+latest_quarter-1-offset; periods.append((ordinal//4,ordinal%4+1))
+        for market in sorted({markets.get(str(s),'TWSE') for s in universe}):
+            for period in months: revenue_events.extend(adapter.fetch_revenue_period(market,period))
+            for year,quarter in periods: eps_events.extend(adapter.fetch_eps_period(market,year,quarter))
+        current=store.upsert(revenue_events,eps_events); selected=store.select_asof(current,universe,as_of_date)
+    normalized=[]; evidence_symbols=[]; absent=[]
+    for symbol in map(str,universe):
+        rev=sorted(selected[symbol]['revenue'].values(),key=lambda row:row['revenue_period'],reverse=True)[:3]
+        eps=sorted(selected[symbol]['eps'].values(),key=lambda row:(row['fiscal_year'],row['quarter']),reverse=True)[:8]
+        if len(rev)<3 or len(eps)<8:
+            absent.append({'symbol':symbol,'revenue_period_count':len(rev),'eps_quarter_count':len(eps)}); continue
+        normalized.append({'symbol':symbol,'revenue_yoy':[row['revenue_yoy'] for row in rev],'quarterly_eps':[row['single_quarter_eps'] for row in eps]})
+        ttm=sum(row['single_quarter_eps'] for row in eps[:4]); prior=sum(row['single_quarter_eps'] for row in eps[4:8])
+        evidence_symbols.append({'symbol':symbol,'revenue_periods':[row['revenue_period'] for row in rev], 'revenue_yoy':[row['revenue_yoy'] for row in rev],
+          'eps_quarters':[{'fiscal_year':row['fiscal_year'],'quarter':row['quarter']} for row in eps], 'eps_values':[row['single_quarter_eps'] for row in eps],
+          'latest_ttm_eps':ttm,'prior_ttm_eps':prior,'eps_delta':ttm-prior,
+          'source_lineage':{'revenue':[{'provider':row['provider'],'official_product':row['official_product'],'endpoint':row['endpoint'],'official_disclosure_date':row['official_disclosure_date'],'content_hash':row['content_hash']} for row in rev],
+            'eps':[{'provider':row['provider'],'official_product':row['official_product'],'endpoint':row['endpoint'],'official_disclosure_date':row['official_disclosure_date'],'content_hash':row['content_hash'],'source_semantics':row['source_semantics']} for row in eps]}})
+    evidence={'artifact':'RATE_CER073_FUNDAMENTAL_HISTORY_EVIDENCE','schema_version':FUNDAMENTAL_HISTORY_SCHEMA_VERSION,'validation_status':'BLOCKED' if absent else 'PASS','as_of_date':as_of_date,'symbols_complete':len(evidence_symbols),'symbols_required':len(universe),'missing_history':absent,'symbols':evidence_symbols,'fixture_used':False,'production_namespace_modified':False,'staging_store':str(store.path),'store_content_hash':current.get('content_hash'),'mops_requests':adapter.request_count if adapter else {'revenue':0,'eps':0},'mops_diagnostics':adapter.diagnostics if adapter else []}
+    _write('artifacts/RATE_CER073_FUNDAMENTAL_HISTORY_EVIDENCE.json',evidence)
+    if absent: raise RuntimeError('FUNDAMENTAL_HISTORICAL_BOOTSTRAP_INCOMPLETE:'+','.join(row['symbol'] for row in absent))
+    first=calculate_fundamental([dict(row) for row in normalized]); second=calculate_fundamental([dict(row) for row in normalized])
+    if [row['Fundamental'] for row in first] != [row['Fundamental'] for row in second]: raise RuntimeError('FUNDAMENTAL_NON_DETERMINISTIC')
+    scores={str(row['symbol']):row['Fundamental'] for row in first}
+    if set(scores)!=set(map(str,universe)): raise RuntimeError('FUNDAMENTAL_CROSS_SECTION_INCOMPLETE')
+    for row in evidence_symbols: row['fundamental_score']=scores[row['symbol']]
+    evidence.update({'validation_status':'PASS','fundamental_cross_section':'PASS','fundamental_determinism':'PASS','symbols':evidence_symbols})
+    _write('artifacts/RATE_CER073_FUNDAMENTAL_HISTORY_EVIDENCE.json',evidence)
+    return {symbol:{'Fundamental':scores[symbol],'revenue_yoy':[row['revenue_yoy'] for row in sorted(selected[symbol]['revenue'].values(),key=lambda r:r['revenue_period'],reverse=True)[:3]],'quarterly_eps':[row['single_quarter_eps'] for row in sorted(selected[symbol]['eps'].values(),key=lambda r:(r['fiscal_year'],r['quarter']),reverse=True)[:8]],'revenue_periods':[row['revenue_period'] for row in sorted(selected[symbol]['revenue'].values(),key=lambda r:r['revenue_period'],reverse=True)[:3]],'eps_quarters':[{'fiscal_year':row['fiscal_year'],'quarter':row['quarter']} for row in sorted(selected[symbol]['eps'].values(),key=lambda r:(r['fiscal_year'],r['quarter']),reverse=True)[:8]]} for symbol in map(str,universe)}
+
 def _verify_prior_stage_package(stage_evidence):
     expected='706eb813da43b112bfd9459d459f1892591371700140e9626e411ad8ad0bceef'
     path=Path(os.getenv('RATE_CER072_PRIOR_STAGE_PACKAGE','artifacts/accepted/prior-stage/RATE_FIRST_PRODUCTION_PRIOR_STAGE_PACKAGE_V1.json'))
@@ -684,8 +569,6 @@ def _write_cer073_completeness(bundle, trading_date, status, reason=None):
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--trading-date',required=True); ap.add_argument('--output',required=True); ap.add_argument('--source-bundle-input'); ap.add_argument('--evidence-output',default=EVIDENCE_DEFAULT); ap.add_argument('--bootstrap-evidence-output',default='artifacts/RATE_TWSE_HISTORY_BOOTSTRAP_EVIDENCE.json'); a=ap.parse_args(); output,evidence=Path(a.output),Path(a.evidence_output); bootstrap_evidence=Path(a.bootstrap_evidence_output)
     try:
-        if not a.source_bundle_input and not os.getenv('RATE_TWSE_SYMBOLS') and not os.getenv('RATE_UNIVERSE_FILE'):
-            raise RuntimeError('MISSING_REQUIRED_SOURCE_CONFIGURATION:RATE_TWSE_SYMBOLS_OR_RATE_UNIVERSE_FILE')
         if os.getenv('RATE_CER073_REQUIRE_PROBE') == '1':
             probe_path=Path('artifacts/RATE_CER073_SOURCE_PROBE_EVIDENCE.json')
             if not probe_path.is_file() or json.loads(probe_path.read_text(encoding='utf-8')).get('status') != 'PASS':

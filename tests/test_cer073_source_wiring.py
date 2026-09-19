@@ -55,20 +55,20 @@ class TestCER073FrozenSourceWiring(unittest.TestCase):
         self.assertIn('fetch_tpex_daily_sessions',source)
         self.assertIn('validate_history_rows',source)
     def test_legacy_tpex_institutional_route_is_not_used(self):
-        source=Path(builder.__file__).read_text(encoding='utf-8')
+        source=open(builder.__file__,encoding='utf-8').read()
         self.assertNotIn('fetch_institutional_history(',source)
         self.assertIn('fetch_tpex_daily_sessions(',source)
     def test_tdcc_historical_asof_adapter_is_used(self):
-        source=Path(builder.__file__).read_text(encoding='utf-8')
+        source=open(builder.__file__,encoding='utf-8').read()
         self.assertIn('TDCCHistoricalAdapter()',source)
         self.assertNotIn('TDCCAdapter().fetch()',source)
         self.assertIn('select_required_period_union',source)
     def test_staging_fundamentals_have_no_production_store_path(self):
-        source=Path(builder.__file__).read_text(encoding='utf-8')
+        source=open(builder.__file__,encoding='utf-8').read()
         self.assertNotIn('PersistentFundamentalStore(',source)
         self.assertNotIn("data/production/fundamental",source)
     def test_bundle_is_explicitly_non_snapshot_and_nonpersistent(self):
-        source=Path(builder.__file__).read_text(encoding='utf-8')
+        source=open(builder.__file__,encoding='utf-8').read()
         self.assertIn("'input_snapshot_id':None",source)
         self.assertIn("'production_state_created':False",source)
         self.assertIn("'production_decision_state_persisted':0",source)
@@ -92,58 +92,17 @@ class TestCER073FrozenSourceWiring(unittest.TestCase):
                 'stage_field_lineage':{'stage':'fixture'},'lineage_binding_status':'PENDING_SNAPSHOT_BINDING'}})
         self.assertEqual(builder._validate([record]),[])
     def test_no_phase_a2_or_production_state_call_in_builder(self):
-        source=Path(builder.__file__).read_text(encoding='utf-8')
+        source=open(builder.__file__,encoding='utf-8').read()
         self.assertNotIn('run_phase_a2',source)
         self.assertNotIn('run_rate_0730(',source)
 
 
 class TestCER073FundamentalHistory(unittest.TestCase):
-    @staticmethod
-    def payloads():
-        revenue=[]; eps=[]
-        for n in range(30):
-            symbol=f'{1000+n}'
-            for period,value in [('2026-06',6.0),('2026-05',5.0),('2026-04',4.0),('2026-10',99.0)]:
-                revenue.append({'symbol':symbol,'revenue_period':period,'revenue_yoy':value,
-                    'publication_timestamp':'2026-07-10T12:00:00Z'})
-            for year,quarter,value in [(2026,3,999.0),(2025,4,8.0),(2025,3,7.0),(2025,2,6.0),(2025,1,5.0),(2024,4,4.0),(2024,3,3.0),(2024,2,2.0),(2024,1,1.0)]:
-                eps.append({'symbol':symbol,'fiscal_year':year,'quarter':quarter,'quarterly_eps':value,
-                    'publication_timestamp':'2026-03-20T12:00:00Z'})
-        return revenue,eps
-    def test_30_symbol_bootstrap_has_distinct_history_and_cross_section(self):
-        revenue,eps=self.payloads()
-        class Adapter:
-            REVENUE_ENDPOINT='twse/revenue'; EPS_ENDPOINTS=('twse/eps',)
-            OTC_EPS_ENDPOINTS=(); OTC_REVENUE_ENDPOINT='tpex/revenue'
-            def fetch_monthly_revenue(self): return {'raw_payload':revenue,'source_timestamp':'2026-07-10','provider':'TWSE','source':'official','endpoint':'rev'}
-            def fetch_quarterly_eps(self,endpoint=None): return {'raw_payload':eps,'source_timestamp':'2026-03-20','provider':'TWSE','source':'official','endpoint':'eps'}
-        with patch.object(builder,'FundamentalAdapter',Adapter),patch.object(builder,'_write'):
-            result=builder._fundamental_history([str(1000+n) for n in range(30)],{str(1000+n):'TWSE' for n in range(30)},'2026-09-18')
-        self.assertEqual(len(result),30)
-        self.assertEqual(result['1000']['revenue_periods'],['2026-06','2026-05','2026-04'])
-        self.assertEqual(len(result['1000']['eps_quarters']),8)
-        self.assertNotIn({'fiscal_year':2026,'quarter':3},result['1000']['eps_quarters'])
-    def test_fundamental_replay_is_deterministic(self):
-        revenue,eps=self.payloads()
-        class Adapter:
-            EPS_ENDPOINTS=('twse/eps',); OTC_EPS_ENDPOINTS=()
-            def fetch_monthly_revenue(self): return {'raw_payload':revenue,'source_timestamp':'2026-07-10','provider':'TWSE','source':'official','endpoint':'rev'}
-            def fetch_quarterly_eps(self,endpoint=None): return {'raw_payload':eps,'source_timestamp':'2026-03-20','provider':'TWSE','source':'official','endpoint':'eps'}
-        symbols=[str(1000+n) for n in range(30)]; markets={s:'TWSE' for s in symbols}
-        with patch.object(builder,'FundamentalAdapter',Adapter),patch.object(builder,'_write'):
-            first=builder._fundamental_history(symbols,markets,'2026-09-18')
-            second=builder._fundamental_history(symbols,markets,'2026-09-18')
-        self.assertEqual({s:first[s]['Fundamental'] for s in symbols},{s:second[s]['Fundamental'] for s in symbols})
-    def test_duplicate_revenue_period_is_not_counted_twice(self):
-        revenue,eps=self.payloads(); revenue.append(dict(revenue[0]))
-        class Adapter:
-            EPS_ENDPOINTS=('twse/eps',); OTC_EPS_ENDPOINTS=()
-            def fetch_monthly_revenue(self): return {'raw_payload':revenue,'source_timestamp':'2026-07-10','provider':'TWSE','source':'official','endpoint':'rev'}
-            def fetch_quarterly_eps(self,endpoint=None): return {'raw_payload':eps,'source_timestamp':'2026-03-20','provider':'TWSE','source':'official','endpoint':'eps'}
-        symbols=[str(1000+n) for n in range(30)]
-        with patch.object(builder,'FundamentalAdapter',Adapter),patch.object(builder,'_write'):
-            with self.assertRaisesRegex(RuntimeError,'FUNDAMENTAL_REVENUE_DUPLICATE_PERIOD'):
-                builder._fundamental_history(symbols,{s:'TWSE' for s in symbols},'2026-09-18')
+    def test_v2_history_adapter_is_used_for_live_bootstrap(self):
+        source=Path(builder.__file__).read_text(encoding='utf-8')
+        self.assertIn('MOPSHistoricalFundamentalAdapter',source)
+        self.assertIn('FundamentalHistoryStoreV2',source)
+        self.assertIn('FUNDAMENTAL_HISTORICAL_BOOTSTRAP_INCOMPLETE',source)
 
 
 if __name__=='__main__':

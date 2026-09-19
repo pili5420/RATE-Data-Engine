@@ -70,6 +70,7 @@ jobs:
           path: |
             data/staging/history_bootstrap
             data/staging/history
+            data/staging/fundamental
           key: ${{ env.RATE_BOOTSTRAP_CACHE_KEY }}
           restore-keys: ${{ env.RATE_BOOTSTRAP_CACHE_PREFIX }}
 
@@ -173,6 +174,7 @@ jobs:
             data/staging/history_bootstrap
             data/staging/history
             data/staging/history_bootstrap/benchmarks
+            data/staging/fundamental
           key: ${{ env.RATE_BOOTSTRAP_CACHE_KEY }}
 
       - name: Verify production isolation and deferred snapshot
@@ -190,14 +192,31 @@ jobs:
           print('Production Namespace Modified = NO')
           PY
 
-      - name: Upload CER-073 validation artifacts
+      - name: Upload fundamental-history evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: RATE_CER073_SOURCE_COMPLETENESS_EVIDENCE
-          path: |
-            artifacts/RATE_CER073_SOURCE_PROBE_EVIDENCE.json
-            artifacts/RATE_CER073_FUNDAMENTAL_HISTORY_EVIDENCE.json
-            artifacts/RATE_CER073_0730_SOURCE_BUNDLE.json
-            artifacts/RATE_CER073_LIVE_SOURCE_COMPLETENESS_EVIDENCE.json
+          name: RATE_CER073_FUNDAMENTAL_HISTORY_EVIDENCE
+          path: artifacts/RATE_CER073_FUNDAMENTAL_HISTORY_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload source-completeness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER073_LIVE_SOURCE_COMPLETENESS_EVIDENCE
+          path: artifacts/RATE_CER073_LIVE_SOURCE_COMPLETENESS_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload 07-30 source bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER073_0730_SOURCE_BUNDLE
+          path: artifacts/RATE_CER073_0730_SOURCE_BUNDLE.json
+          if-no-files-found: error
+      - name: Upload source probe evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER073_SOURCE_PROBE_EVIDENCE
+          path: artifacts/RATE_CER073_SOURCE_PROBE_EVIDENCE.json
           if-no-files-found: error
