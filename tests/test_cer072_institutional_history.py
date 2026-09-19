@@ -50,6 +50,8 @@ class CER072InstitutionalHistoryTests(unittest.TestCase):
         day=_dates()[0]; symbols=['2330']
         result=normalize_t86_response(_t86(day,symbols),day,_stock_rows(symbols,[day]),symbols)
         self.assertEqual(result['2330']['trading_date'],day)
+        self.assertEqual(result['2330']['foreign_net_shares'],7)
+        self.assertEqual(result['2330']['investment_trust_net_shares'],5)
 
     def test_t86_response_date_mismatch_fails(self):
         days=_dates(); symbols=['2330']; payload=_t86(days[0],symbols)
