@@ -78,7 +78,7 @@ class CER057TPExTests(unittest.TestCase):
     def test_institutional_history_does_not_repeat_snapshot(self):
         class NoHistory:
             def fetch_institutional_history(self, *args): raise RuntimeError("unavailable")
-        with self.assertRaisesRegex(RuntimeError, "TPEX_INSTITUTIONAL_HISTORY"):
+        with self.assertRaisesRegex(RuntimeError, "STAGE_LOOKBACK_TPEX_26_SESSIONS"):
             live_builder._tpex_institutional_history(NoHistory(), ["6274"], {"6274": []}, "2026-09-16")
 
     def test_required_tpex_failure_propagates_overall_probe(self):

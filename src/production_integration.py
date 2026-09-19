@@ -18,12 +18,19 @@ def build_production_snapshot(bundle):
     identity_payload=json.loads(json.dumps(payload))
     for record in identity_payload['records']:
         evidence=record.get('Stage_evidence')
-        if isinstance(evidence,dict): evidence['input_snapshot_id']=None
+        if isinstance(evidence,dict):
+            evidence['input_snapshot_id']=None
+            lineage=evidence.get('stage_evidence_lineage')
+            if isinstance(lineage,dict): lineage['input_snapshot_id']=None
     raw=json.dumps(identity_payload,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()
     snapshot_hash=hashlib.sha256(raw).hexdigest(); snapshot_id='rate-snapshot-'+snapshot_hash[:24]
     for record in payload['records']:
         evidence=record.get('Stage_evidence')
-        if isinstance(evidence,dict): evidence['input_snapshot_id']=snapshot_id
+        if isinstance(evidence,dict):
+            evidence['input_snapshot_id']=snapshot_id
+            evidence['lineage_binding_status']='BOUND'
+            lineage=evidence.get('stage_evidence_lineage')
+            if isinstance(lineage,dict): lineage['input_snapshot_id']=snapshot_id
     return {'input_snapshot_id':snapshot_id,'snapshot_hash':snapshot_hash,**payload}
 def resolve_previous_state(model_version,data_contract_version,calculation_spec_version): return resolve_previous(model_version,data_contract_version,calculation_spec_version)
 def write_phase_a2_evidence(evidence, path='artifacts/RATE_PHASE_A2_VALIDATION_EVIDENCE.json'):

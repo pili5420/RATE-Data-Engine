@@ -1,0 +1,41 @@
+name: RATE CER-071 Stage Operational Validation
+
+on:
+  push:
+    branches:
+      - rate-v2-6-1r2-staging
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stage-validation:
+    runs-on: ubuntu-latest
+    env:
+      RATE_LIVE_E2E_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Confirm Production E2E is disabled
+        run: test "$RATE_LIVE_E2E_ENABLED" = "false"
+      - name: Run complete regression suite
+        run: python -m unittest discover -s tests -v
+      - name: Generate CER-071 operational evidence
+        run: python scripts/validate_cer071_stage.py --output-dir artifacts
+      - name: Upload CER-071 Stage Spec Evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER071_STAGE_SPEC_EVIDENCE
+          path: artifacts/RATE_CER071_STAGE_SPEC_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload Stage Operational Spec
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_STAGE_OPERATIONAL_SPEC
+          path: artifacts/RATE_STAGE_OPERATIONAL_SPEC_V1.json
+          if-no-files-found: error

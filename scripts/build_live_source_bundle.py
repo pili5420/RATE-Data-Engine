@@ -10,6 +10,7 @@ from src.fundamental import calculate_fundamental
 from src.historical_store import PersistentHistoricalStore, normalize_stock_record
 from src.institutional_features import calculate_institutional_rotation
 from src.rotation_history import build_rotation_feature_histories
+from src.stage_history import build_stage_feature_histories
 from src.stage_evidence import build_production_stage_evidence
 from src.live_decision_inputs import build_live_decision_records
 from src.rate_logic import calculate_m7, calculate_mhe
@@ -297,14 +298,36 @@ def _benchmark(adapter,trading_date,market='TWSE'):
     if len(records)<180: raise RuntimeError(f'DATA_INCOMPLETE:LIVE_{"TAIEX" if market=="TWSE" else "TPEX_INDEX"}_HISTORY:{len(records)}<180')
     return records[-220:]
 def _t86_history(adapter, universe, stocks, trading_date):
+    # 26 observations cover the t-6 reconstructed prior Stage M7/MHE/Rotation
+    # inputs plus each feature's frozen 20-session institutional window.
+    required_sessions=26
     target=date.fromisoformat(trading_date); per={s:[] for s in universe}; cursor=target
-    aliases={'symbol':('symbol','證券代號'),'foreign_buy':('foreign_buy','外陸資買進股數'),'foreign_sell':('foreign_sell','外陸資賣出股數'),'foreign_net':('foreign_net','外陸資買賣超股數'),'investment_trust_buy':('investment_trust_buy','投信買進股數'),'investment_trust_sell':('investment_trust_sell','投信賣出股數'),'investment_trust_net':('investment_trust_net','投信買賣超股數'),'dealer_buy':('dealer_buy','自營商買進股數'),'dealer_sell':('dealer_sell','自營商賣出股數'),'dealer_net':('dealer_net','自營商買賣超股數')}
+    aliases={'symbol':('symbol','證券代號'),
+      'foreign_buy':('foreign_buy','外陸資買進股數(不含外資自營商)','外陸資買進股數','外資買進股數'),
+      'foreign_sell':('foreign_sell','外陸資賣出股數(不含外資自營商)','外陸資賣出股數','外資賣出股數'),
+      'foreign_net':('foreign_net','外陸資買賣超股數(不含外資自營商)','外陸資買賣超股數','外資買賣超股數'),
+      'investment_trust_buy':('investment_trust_buy','投信買進股數'),
+      'investment_trust_sell':('investment_trust_sell','投信賣出股數'),
+      'investment_trust_net':('investment_trust_net','投信買賣超股數'),
+      'dealer_buy':('dealer_buy','自營商買進股數'),
+      'dealer_sell':('dealer_sell','自營商賣出股數'),
+      'dealer_net':('dealer_net','自營商買賣超股數')}
     for _ in range(70):
-        if all(len(v)>=20 for v in per.values()): break
+        if all(len(v)>=required_sessions for v in per.values()): break
         try: result=adapter.fetch_t86(cursor.isoformat())
         except Exception: cursor-=timedelta(days=1); continue
         for row in _rows(result.get('raw_payload')):
-            mapped={k:_pick(row,*v) for k,v in aliases.items()}; symbol=str(mapped.get('symbol') or '').strip()
+            mapped={k:_pick(row,*v) for k,v in aliases.items()}
+            if mapped['dealer_buy'] is None:
+                own=_pick(row,'自營商買進股數(自行買賣)'); hedge=_pick(row,'自營商買進股數(避險)')
+                if own is not None and hedge is not None: mapped['dealer_buy']=_number(own)+_number(hedge)
+            if mapped['dealer_sell'] is None:
+                own=_pick(row,'自營商賣出股數(自行買賣)'); hedge=_pick(row,'自營商賣出股數(避險)')
+                if own is not None and hedge is not None: mapped['dealer_sell']=_number(own)+_number(hedge)
+            if mapped['dealer_net'] is None:
+                own=_pick(row,'自營商買賣超股數(自行買賣)'); hedge=_pick(row,'自營商買賣超股數(避險)')
+                if own is not None and hedge is not None: mapped['dealer_net']=_number(own)+_number(hedge)
+            symbol=str(mapped.get('symbol') or '').strip()
             if symbol not in per or any(mapped[k] is None for k in aliases): continue
             close=next((x for x in stocks[symbol] if x['trade_date']==cursor.isoformat()),None)
             if close is None: continue
@@ -313,15 +336,16 @@ def _t86_history(adapter, universe, stocks, trading_date):
             except ValueError: continue
             per[symbol].append(item)
         cursor-=timedelta(days=1)
-    missing=[s for s,v in per.items() if len(v)<20]
-    if missing: raise RuntimeError('DATA_INCOMPLETE:LIVE_T86_HISTORY:'+','.join(missing))
+    missing=[s for s,v in per.items() if len(v)<required_sessions]
+    if missing: raise RuntimeError('DATA_INCOMPLETE:STAGE_LOOKBACK_T86_26_SESSIONS:'+','.join(missing))
     return per
 
 def _tpex_institutional_history(adapter, universe, stocks, trading_date):
+    required_sessions=26
     target=date.fromisoformat(trading_date); per={s:[] for s in universe}; cursor=target
     aliases={'symbol':('symbol','SecuritiesCompanyCode','證券代號'),'foreign_buy':('foreign_buy','ForeignBuy','外資及陸資買進股數'),'foreign_sell':('foreign_sell','ForeignSell','外資及陸資賣出股數'),'foreign_net':('foreign_net','ForeignNet','外資及陸資買賣超股數'),'investment_trust_buy':('investment_trust_buy','InvestmentTrustBuy','投信買進股數'),'investment_trust_sell':('investment_trust_sell','InvestmentTrustSell','投信賣出股數'),'investment_trust_net':('investment_trust_net','InvestmentTrustNet','投信買賣超股數')}
     for _ in range(70):
-        if all(len(v)>=20 for v in per.values()): break
+        if all(len(v)>=required_sessions for v in per.values()): break
         try: result=adapter.fetch_institutional_history('', cursor.strftime('%Y%m'))
         except Exception: cursor-=timedelta(days=1); continue
         for row in _rows(result.get('raw_payload')):
@@ -335,8 +359,8 @@ def _tpex_institutional_history(adapter, universe, stocks, trading_date):
             except ValueError: continue
             per[symbol].append(item)
         cursor-=timedelta(days=1)
-    missing=[s for s,v in per.items() if len(v)<20]
-    if missing: raise RuntimeError('DATA_INCOMPLETE:TPEX_INSTITUTIONAL_HISTORY:'+','.join(missing))
+    missing=[s for s,v in per.items() if len(v)<required_sessions]
+    if missing: raise RuntimeError('DATA_INCOMPLETE:STAGE_LOOKBACK_TPEX_26_SESSIONS:'+','.join(missing))
     return per
 def _tdcc_history(universe):
     raw=TDCCAdapter().fetch(); rows=_rows(raw.get('raw_payload')); out={}
@@ -420,8 +444,9 @@ def _live(trading_date):
     inst_hist={**t86,**tpex_inst}; tdcc=_tdcc_history(universe); fundamentals=_fundamental_history(universe,markets)
     technical=compute_scores(list(stocks.values()), benchmark_by_symbol=benchmark_by_symbol); tech_by={str(x['symbol']):x for x in technical}
     rotation_history = build_rotation_feature_histories(stocks, benchmark_by_symbol, as_of_date=trading_date, sessions=6)
-    inst_input=[{'symbol':s,'institutional_history':inst_hist[s],'tdcc_history':sorted(tdcc[s],key=lambda x:x['period_end']),**rotation_history[s]} for s in universe]
+    inst_input=[{'symbol':s,'institutional_history':sorted(inst_hist[s],key=lambda x:x['trading_date']),'tdcc_history':sorted(tdcc[s],key=lambda x:x['period_end']),**rotation_history[s]} for s in universe]
     institutional=calculate_institutional_rotation(inst_input); inst_by={str(x['symbol']):x for x in institutional}; sources={}
+    stage_histories=build_stage_feature_histories(stocks,benchmark_by_symbol,inst_hist,tdcc,as_of_date=trading_date,sessions=7)
     prior_state = _load_persistent_stage_state()
     for symbol in universe:
         tf=tech_by[symbol]['technical_features']; hist=stocks[symbol]; tr=technical_record(hist,benchmark_by_symbol[symbol]); ir=inst_by[symbol]
@@ -429,7 +454,7 @@ def _live(trading_date):
         stage_evidence = build_production_stage_evidence(symbol=symbol, stock_history=hist,
             technical_record=tr, technical_features=tf, m7_score=m7['m7_score'],
             mhe_score=mhe['mhe_score'], rotation_score=ir['Rotation'],
-            prior_state=prior_state, input_snapshot_id=None)
+            prior_state=prior_state, input_snapshot_id=None, feature_history=stage_histories[symbol])
         stage = stage_evidence['stage_inputs']
         sources[symbol]={'technical_features':tf,'FI':ir['FI'],'IT':ir['IT'],'LH':ir['LH'],'SmartMoney_inputs':ir['SmartMoney_inputs'],'Rotation_inputs':ir['Rotation_inputs'],'Stage_inputs':stage,'Stage_evidence':stage_evidence,'feature_lineage':ir['feature_lineage'],'Fundamental':fundamentals[symbol]['Fundamental']}
     built=build_live_decision_records(sources,trading_date,universe)
@@ -437,16 +462,27 @@ def _live(trading_date):
     return {'production_sources':sources,'universe':universe,'decision_records':built['decision_records'],'institutional_records':inst_hist[universe[0]],'source_provenance':{'source':'AUTHORIZED_LIVE','provider':'TWSE/TPEx/TDCC/MOPS','retrieval_timestamp':_now(),'stock_history_coverage':{s:len(v) for s,v in stocks.items()},'benchmark_records':{'TAIEX':len(twse_benchmark),'TPEX':len(tpex_benchmark)}},'short_term_top30':universe,'roy_portfolio':[],'required_benchmarks':['TAIEX','TPEX'],'explicit_production_watchlist':[],'validation_status':'PASS'}
 
 def _load_persistent_stage_state():
-    """Resolve only a persisted full decision state; never synthesize GENESIS."""
+    """Resolve a complete persisted Stage state or allow the authorized one-time bootstrap."""
     path = Path(os.getenv('RATE_DECISION_STATE_CHAIN', 'artifacts/RATE_DECISION_STATE_CHAIN.json'))
     if not path.is_file():
-        raise RuntimeError('MISSING_REQUIRED_DATA:PREVIOUS_STATE_CHAIN')
+        return None
     chain = json.loads(path.read_text(encoding='utf-8'))
-    if not isinstance(chain, list) or not chain:
-        raise RuntimeError('MISSING_REQUIRED_DATA:PREVIOUS_STATE_CHAIN')
+    if not isinstance(chain, list):
+        raise RuntimeError('INVALID_STATE:PREVIOUS_STATE_CHAIN')
+    if not chain:
+        return None
     latest = chain[-1]
     if not latest.get('current_state_id') or not isinstance(latest.get('symbols'), dict):
-        raise RuntimeError('MISSING_REQUIRED_DATA:PREVIOUS_STATE_SYMBOL_EVIDENCE')
+        raise RuntimeError('INVALID_STATE:PREVIOUS_STATE_SYMBOL_EVIDENCE')
+    symbols=latest['symbols']
+    required=('stage_current','M7_score','MHE_score','Rotation_score','Rotation_class')
+    persisted=latest.get('stage_state_schema_version')=='RATE-PERSISTED-STAGE-V1'
+    if not persisted:
+        # CER-071 authorizes one historical reconstruction before the first
+        # valid 30-symbol Stage state. The control ID is metadata only.
+        return None
+    if len(symbols)!=30 or any(not isinstance(v,dict) or any(v.get(k) is None for k in required) for v in symbols.values()):
+        raise RuntimeError('INVALID_STATE:PERSISTED_STAGE_STATE_INCOMPLETE')
     return {'state_id': latest['current_state_id'], 'symbols': latest['symbols']}
 def _validate(records):
     errors=[]
@@ -458,7 +494,7 @@ def _validate(records):
             elif r.get(key) is None and r.get('SmartMoney_inputs',{}).get(key) is None and r.get('Rotation_inputs',{}).get(key) is None: missing.append(key)
         stage = r.get('Stage_evidence')
         if not r.get('Stage_inputs'): missing.append('Stage_inputs')
-        if not isinstance(stage, dict) or stage.get('calculation_status') != 'PASS' or not stage.get('source_state_id') or not stage.get('input_snapshot_id'):
+        if not isinstance(stage, dict) or stage.get('calculation_status') != 'PASS' or not stage.get('source_state_id') or not stage.get('stage_field_lineage') or stage.get('lineage_binding_status') not in ('PENDING_SNAPSHOT_BINDING','BOUND'):
             missing.append('Stage_evidence_lineage')
         if missing: errors.append({'symbol':r.get('symbol'),'missing_components':sorted(set(missing))})
     return errors
