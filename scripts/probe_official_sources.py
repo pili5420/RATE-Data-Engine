@@ -64,7 +64,9 @@ def main():
       check('TPEX_FUNDAMENTAL_REVENUE','TPEx/MOPS Official','FundamentalAdapter.fetch_otc_monthly_revenue',lambda:fund.fetch_otc_monthly_revenue()),
       check('TPEX_FUNDAMENTAL_EPS','TPEx/MOPS Official','FundamentalAdapter.fetch_otc_quarterly_eps',lambda:fund.fetch_otc_quarterly_eps(fund.OTC_EPS_ENDPOINTS[0])),
     ]
+    tpex_checks=[x for x in probes if x['source'].startswith('TPEX_')]
     result={'artifact':'RATE_CER073_SOURCE_PROBE_EVIDENCE','status':'PASS' if all(x['status']=='PASS' for x in probes) else 'FAIL',
+      'tpex_source_capability':'PASS' if tpex_checks and all(x['status']=='PASS' for x in tpex_checks) else 'FAIL',
       'trading_date':td,'fixture_used':False,'probe_runtime_identity':'SAME_ADAPTER_METHODS_AS_LIVE_BUILDER',
       'probes':probes,'retrieval_timestamp':now()}
     Path(a.output).parent.mkdir(parents=True,exist_ok=True)
