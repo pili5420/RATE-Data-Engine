@@ -219,11 +219,12 @@ def _institutional_asof_history(history, symbol, session, minimum=20):
     return rows
 
 
-def _replay_and_evidence(data, institutional_by_symbol, tdcc_by_symbol, as_of_date):
+def _replay_and_evidence(data, institutional_by_symbol, tdcc_by_symbol, as_of_date, replay_sessions=None):
     stocks, benchmarks, symbols = data["stocks"], data["benchmarks"], data["symbols"]
     benchmark_by_symbol = {s: benchmarks["TAIEX" if data["markets"][s] == "TWSE" else "TPEX"] for s in symbols}
     feature_history = build_stage_feature_histories(stocks, benchmark_by_symbol, institutional_by_symbol,
-                                                    tdcc_by_symbol, as_of_date=as_of_date, sessions=7)
+                                                    tdcc_by_symbol, as_of_date=as_of_date, sessions=7,
+                                                    session_dates=replay_sessions)
     stage_evidence, prior_package_rows = {}, []
     replay_dates = [feature_history[s][-7]["trade_date"] for s in symbols[:1]] + [x["trade_date"] for x in feature_history[symbols[0]][-6:]]
     if len(replay_dates) != 7 or len(set(replay_dates)) != 7 or replay_dates[-1] != as_of_date:
@@ -439,7 +440,9 @@ def run(args):
             if insufficient:
                 symbol, count = insufficient[0]
                 raise RuntimeError(f"DATA_INCOMPLETE:INSTITUTIONAL_HISTORY:{symbol}:{day}:{count}<20")
-        feature_history,stages,package_rows,replay_status=_replay_and_evidence(data,institutional,tdcc,t)
+        evidence["stage_feature_replay_dates"] = stage_replay_sessions
+        feature_history,stages,package_rows,replay_status=_replay_and_evidence(
+            data,institutional,tdcc,t,replay_sessions=stage_replay_sessions)
         for day in stage_replay_sessions:
             for symbol in data["symbols"]:
                 rec=next(x for x in feature_history[symbol] if x["trade_date"]==day)

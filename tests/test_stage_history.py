@@ -38,6 +38,17 @@ class StageHistoryTests(unittest.TestCase):
             accepted+=complete and output['calculation_status']=='PASS'
         self.assertEqual(accepted,30)
 
+    def test_explicit_replay_calendar_must_be_common_and_is_used(self):
+        stocks,bench,inst,tdcc,dates=_fixture(); asof=dates[159]
+        selected=dates[-7:]
+        histories=build_stage_feature_histories(stocks,bench,inst,tdcc,as_of_date=asof,sessions=7,
+            session_dates=selected)
+        self.assertEqual([r['trade_date'] for r in histories['1000']],selected)
+        bench['1000']=[r for r in bench['1000'] if r['trade_date']!=selected[0]]
+        with self.assertRaisesRegex(ValueError,'STAGE_HISTORY_SESSION_DATE_NOT_COMMON'):
+            build_stage_feature_histories(stocks,bench,inst,tdcc,as_of_date=asof,sessions=7,
+                session_dates=selected)
+
     def test_reconstructed_prior_stage_has_no_lookahead(self):
         stocks,bench,inst,tdcc,dates=_fixture(); asof=dates[159]
         one=build_stage_feature_histories(stocks,bench,inst,tdcc,as_of_date=asof,sessions=7)

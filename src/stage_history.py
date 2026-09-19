@@ -8,14 +8,22 @@ from .technical_features import compute_scores, technical_record
 
 
 def build_stage_feature_histories(stock_histories, benchmark_by_symbol, institutional_histories,
-                                  tdcc_histories, *, as_of_date, sessions=7):
+                                  tdcc_histories, *, as_of_date, sessions=7, session_dates=None):
     symbols = sorted(str(s) for s in stock_histories)
     if len(symbols) < 20 or sessions < 7:
         raise ValueError("DATA_INCOMPLETE:STAGE_HISTORY_UNIVERSE_OR_SESSIONS")
     stock = {s: sorted((dict(r) for r in stock_histories[s] if r["trade_date"] <= as_of_date), key=lambda r:r["trade_date"]) for s in symbols}
     bench = {s: sorted((dict(r) for r in benchmark_by_symbol[s] if r["trade_date"] <= as_of_date), key=lambda r:r["trade_date"]) for s in symbols}
     common = set.intersection(*(set(r["trade_date"] for r in stock[s]) & set(r["trade_date"] for r in bench[s]) for s in symbols))
-    dates = sorted(common)[-sessions:]
+    if session_dates is None:
+        dates = sorted(common)[-sessions:]
+    else:
+        dates = [str(day) for day in session_dates]
+        if len(dates) != sessions or len(set(dates)) != sessions or dates != sorted(dates) or dates[-1] != as_of_date:
+            raise ValueError("STAGE_HISTORY_SESSION_CALENDAR_INVALID")
+        missing = [day for day in dates if day not in common]
+        if missing:
+            raise ValueError("STAGE_HISTORY_SESSION_DATE_NOT_COMMON:" + ",".join(missing))
     if len(dates) != sessions or dates[-1] != as_of_date:
         raise ValueError("DATA_INCOMPLETE:STAGE_HISTORY_DATES")
     output = {s: [] for s in symbols}
