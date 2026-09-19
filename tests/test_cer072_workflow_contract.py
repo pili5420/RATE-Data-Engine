@@ -21,6 +21,7 @@ class CER072WorkflowContractTests(unittest.TestCase):
             'RATE_CER072_INSTITUTIONAL_HISTORY_EVIDENCE',
             'RATE_FIRST_PRODUCTION_PRIOR_STAGE_PACKAGE_V1',
             'RATE_CER072_PRIOR_STAGE_RECONSTRUCTION_EVIDENCE',
+            'RATE_CER072_TDCC_HISTORICAL_ASOF_EVIDENCE',
         ):
             self.assertIn(f'name: {artifact}',text)
             self.assertIn('if: always()',text)

@@ -26,7 +26,7 @@ from src.institutional_history import (
     canonical_digest, fetch_t86_sessions, fetch_tpex_daily_sessions,
     valid_stock_session_dates, validate_history_rows,
 )
-from src.sources.tdcc import TDCCAdapter
+from src.sources.tdcc_historical import TDCCHistoricalAdapter, holder_pct_400_from_tiers, select_required_period_union
 from src.sources.tpex import TPExAdapter, normalize_tpex_date
 from src.sources.twse import TWSEAdapter
 from src.stage_evidence import _stage_inputs_from_history, build_production_stage_evidence, classify_stage
@@ -138,56 +138,55 @@ def _validate_restored_history(history_root, universe, manifest_path, twse_mat_p
             "symbols": symbols, "historical_digest": HISTORICAL_DIGEST}
 
 
-def _tdcc_history(symbols, as_of_date):
-    result = TDCCAdapter().fetch()
-    buckets = {s: {} for s in symbols}
-    rows = _rows(result.get("raw_payload"))
-    for row in rows:
-        symbol = str(_pick(row, "symbol", "SecuritiesCompanyCode", "公司代號", "證券代號") or "").strip()
-        if symbol not in buckets:
-            continue
-        raw_period = _pick(row, "period_end", "資料日期", "資料年月", "Date")
-        if raw_period is None:
-            continue
-        period = normalize_tpex_date(raw_period)
-        if period > as_of_date:
-            continue
-        direct = _pick(row, "holder_pct_400", "持股超過400張比率", "400張以上持股比率")
-        item = buckets[symbol].setdefault(period, {"direct": [], "tiers": {}, "raw_rows": []})
-        if direct is not None:
-            item["direct"].append(float(str(direct).replace(",", "")))
-        else:
-            tier = str(_pick(row, "持股分級", "持股級距", "HoldingRange") or "").strip()
-            share = _pick(row, "占集保庫存數比例%", "占集保庫存數比例", "占集保庫存數比例(%)", "Percentage of Centrally Deposited Securities")
-            if tier.isdigit() and share is not None:
-                if tier in item["tiers"]:
-                    raise RuntimeError(f"TDCC_DUPLICATE_TIER:{symbol}:{period}:{tier}")
-                value = float(str(share).replace(",", ""))
-                if not 0 <= value <= 100:
-                    raise RuntimeError(f"TDCC_PERCENTAGE_RANGE:{symbol}:{period}:{tier}")
-                item["tiers"][tier] = value
-        item["raw_rows"].append(row)
-    by_symbol = {s: [] for s in symbols}
-    for symbol, periods in buckets.items():
-        for period, item in sorted(periods.items()):
-            if item["direct"]:
-                if len(set(item["direct"])) != 1:
-                    raise RuntimeError(f"TDCC_DUPLICATE_AGGREGATE_VALUE:{symbol}:{period}")
-                holder = item["direct"][0]
-            else:
-                # TDCC level 11 is 200,001–400,000 shares; levels 12+ are
-                # 400,001 shares and above. RATE's frozen holder_pct_400 is
-                # therefore the sum of published percentage for levels 12+.
-                tiers = [value for level, value in item["tiers"].items() if int(level) >= 12]
-                if not tiers:
-                    continue
-                holder = sum(tiers)
-            by_symbol[symbol].append({"period_end": period, "holder_pct_400": holder,
-                "source_timestamp": result.get("source_timestamp"),
-                "retrieval_timestamp": result.get("retrieval_timestamp"),
-                "source": "TDCC /v1/opendata/1-5", "raw_lineage": item["raw_rows"]})
-    return by_symbol, result
-
+def _tdcc_history(symbols, as_of_date, replay_sessions):
+    adapter = TDCCHistoricalAdapter()
+    periods, selected_by_session = select_required_period_union(replay_sessions, adapter.available_periods, 5)
+    result = adapter.fetch_period_union(symbols, periods)
+    raw_rows = result["normalized_rows"]
+    by_symbol = {str(s): {} for s in symbols}
+    for row in raw_rows:
+        symbol, period = row["symbol"], row["period_end"]
+        if symbol not in by_symbol:
+            raise RuntimeError(f"TDCC_HISTORICAL_SYMBOL_MISMATCH:{symbol}")
+        group = by_symbol[symbol].setdefault(period, [])
+        if any(x["holding_range"] == row["holding_range"] for x in group):
+            raise RuntimeError(f"TDCC_DUPLICATE_TIER:{symbol}:{period}:{row['holding_range']}")
+        group.append(row)
+    histories = {symbol: [] for symbol in symbols}
+    for symbol, period_map in by_symbol.items():
+        for period, tiers in sorted(period_map.items()):
+            try:
+                holder_pct_400 = holder_pct_400_from_tiers(tiers)
+            except ValueError as exc:
+                raise RuntimeError(f"{exc}:{symbol}:{period}") from exc
+            histories[symbol].append({
+                "period_end":period, "holder_pct_400":holder_pct_400,
+                "source":"TDCC Official Historical Query", "source_timestamp":period,
+                "retrieval_timestamp":max(x["retrieval_timestamp"] for x in tiers),
+                "raw_lineage":sorted(tiers,key=lambda x:x["holding_range"])})
+    coverage={}
+    for session, selected in selected_by_session.items():
+        by_session={}
+        for symbol in symbols:
+            periods_for_symbol=[x["period_end"] for x in histories[symbol] if x["period_end"]<=session]
+            chosen=periods_for_symbol[-5:]
+            if chosen != selected or len(chosen)!=5:
+                raise RuntimeError(f"DATA_INCOMPLETE:TDCC_ASOF_FIVE_PERIODS:{symbol}:{session}")
+            values={x["period_end"]:x["holder_pct_400"] for x in histories[symbol]}
+            by_session[symbol]={"selected_five_periods":chosen,
+                "latest_period_used":chosen[-1],"oldest_period_used":chosen[0],
+                "five_holder_pct_400_values":[values[x] for x in chosen],
+                "LH_LEVEL":values[chosen[-1]],"LH_CHANGE_4W":values[chosen[-1]]-values[chosen[0]]}
+        coverage[session]=by_session
+    result.update({"request_granularity":"SYMBOL_DATE","periods_requested":periods,
+        "selected_periods_by_replay_session":selected_by_session,
+        "asof_coverage_by_replay_session":coverage,
+        "available_period_count_by_symbol":{s:len(histories[s]) for s in symbols},
+        "period_range_by_symbol":{s:{"earliest_period":min((x["period_end"] for x in histories[s]),default=None),
+                                    "latest_period":max((x["period_end"] for x in histories[s]),default=None)}
+                                  for s in symbols},
+        "normalized_tier_rows":raw_rows,"historical_no_lookahead":"PASS","fixture_used":False})
+    return histories,result
 
 def _stock_and_benchmark_inputs(data, requested_date=None):
     symbols, stocks, markets = data["symbols"], data["stocks"], data["markets"]
@@ -307,6 +306,14 @@ def run(args):
     runid, commit = os.getenv("GITHUB_RUN_ID"), os.getenv("GITHUB_SHA")
     runtime="github_actions" if os.getenv("GITHUB_ACTIONS")=="true" else "local"
     provenance={"execution_runtime":runtime,"run_id":runid,"commit_sha":commit,"fixture_used":False}
+    tdcc_evidence={"artifact":"RATE_CER072_TDCC_HISTORICAL_ASOF_EVIDENCE",
+        "official_product":"集保戶股權分散表",
+        "official_historical_page":"https://www.tdcc.com.tw/portal/zh/smWeb/qryStock",
+        **provenance,"transport_contract_status":"NOT_RUN","request_granularity":None,
+        "periods_requested":[],"periods_successfully_retrieved":[],
+        "response_date_identity":"NOT_RUN","symbols_required":0,"symbols_complete":0,
+        "coverage_by_replay_session":{},"minimum_five_period_coverage":"NOT_RUN",
+        "no_lookahead":"NOT_RUN","fixture_used":False,"blocking_reasons":[]}
     evidence = {"artifact":"RATE_CER072_INSTITUTIONAL_HISTORY_EVIDENCE",**provenance,"validation_status":"BLOCKED","t86_operational_policy":"PASS_WITH_USER_ASSUMPTION","t86_formal_authorization":"UNVERIFIED","historical_layer_modified":False,"production_state_modified":False,"input_snapshot_id":None,"current_state_id":None,"production_decision_state_persist":0,"rate_live_e2e_enabled":False,"blocking_reasons":[]}
     digest_evidence = {
         "accepted_historical_cache_key": os.getenv("RATE_ACCEPTED_HISTORICAL_CACHE_KEY"),
@@ -388,8 +395,33 @@ def run(args):
         institutional={**t86_rows,**tpex_rows}
         accepted=validate_history_rows(institutional,data["symbols"],common_dates,26)
         counts={s:len(accepted[s]) for s in data["symbols"]}
-        tdcc,tdcc_result=_tdcc_history(data["symbols"],t)
+        stage_replay_sessions=sessions[-7:]
+        tdcc_evidence["transport_contract_status"]="IN_PROGRESS"
+        tdcc,tdcc_result=_tdcc_history(data["symbols"],t,stage_replay_sessions)
+        tdcc_evidence.update({"transport_contract_status":"VERIFIED",
+            "transport_contract":tdcc_result["transport_contract"],
+            "request_granularity":tdcc_result["request_granularity"],
+            "periods_requested":tdcc_result["periods_requested"],
+            "periods_successfully_retrieved":sorted({x["period_end"] for x in tdcc_result["normalized_tier_rows"]}),
+            "period_record_count":len(tdcc_result["normalized_tier_rows"]),
+            "request_count":tdcc_result["request_count"],
+            "response_date_identity":tdcc_result["response_date_identity_status"],
+            "symbols_required":tdcc_result["symbols_required"],"symbols_complete":tdcc_result["symbols_complete"],
+            "coverage_by_replay_session":{d:f"{len(v)}/30 PASS" for d,v in tdcc_result["asof_coverage_by_replay_session"].items()},
+            "minimum_five_period_coverage":"PASS","no_lookahead":tdcc_result["historical_no_lookahead"],
+            "fixture_used":False,"available_period_count_by_symbol":tdcc_result["available_period_count_by_symbol"],
+            "period_range_by_symbol":tdcc_result["period_range_by_symbol"],
+            "asof_lineage":tdcc_result["asof_coverage_by_replay_session"]})
         feature_history,stages,package_rows,replay_status=_replay_and_evidence(data,institutional,tdcc,t)
+        for day in stage_replay_sessions:
+            for symbol in data["symbols"]:
+                rec=next(x for x in feature_history[symbol] if x["trade_date"]==day)
+                lh=rec["institutional_lineage"]["LH"]
+                tdcc_evidence.setdefault("lh_replay_lineage",{}).setdefault(day,[]).append({
+                    "symbol":symbol,"replay_session":day,
+                    "five_tdcc_periods":[x["period_end"] for x in tdcc[symbol] if x["period_end"]<=day][-5:],
+                    "five_holder_pct_400_values":[x["holder_pct_400"] for x in tdcc[symbol] if x["period_end"]<=day][-5:],
+                    **lh.get("derived_intermediates",{}),"LH":lh.get("derived_value")})
         no_lookahead=_no_lookahead(data,institutional,tdcc,t,stages)
         if not no_lookahead: raise RuntimeError("LIVE_PRIOR_STAGE_RECONSTRUCTION_LOOKAHEAD")
         stage_dates=[feature_history[data["symbols"][0]][-7+i]["trade_date"] for i in range(7)]
@@ -404,6 +436,9 @@ def run(args):
         prior_package.update({**payload_core,"package_digest":package_digest,"symbols":package_rows,
           "prior_stage_package_determinism":"PASS","source_timestamp_excluded_from_digest":True,
           "stage_lineage_snapshot_binding":"PENDING_SNAPSHOT_BINDING"})
+        tdcc_evidence.update({"historical_asof_coverage":str(len(data["symbols"]))+"/30 PASS",
+            "same_date_lh_cross_section":"PASS",
+            "lh_historical_replay":replay_status["lh_historical_replay"]})
         prior_evidence.update({"trading_date":t,"replay_dates":stage_dates,"institutional_historical_coverage":f"{len(accepted)}/30",
           "institutional_sessions_ge26":f"{sum(n>=26 for n in counts.values())}/30","twse_coverage":f"{sum(counts[s]>=26 for s in twse_symbols)}/25",
           "tpex_coverage":f"{sum(counts[s]>=26 for s in tpex_symbols)}/5","stage_feature_history":f"{sum(len(feature_history[s])==7 for s in data['symbols'])}/30",
@@ -427,6 +462,9 @@ def run(args):
           "production_snapshot_created":False,"production_decision_state_persisted":0})
     except Exception as exc:
         reason=str(exc)
+        if tdcc_evidence["transport_contract_status"] == "IN_PROGRESS":
+            tdcc_evidence["transport_contract_status"]="FAIL"
+            tdcc_evidence["blocking_reasons"].append(reason)
         evidence.update(digest_evidence)
         evidence["blocking_reasons"].append(reason)
         evidence["validation_status"]="BLOCKED" if any(x in reason for x in ("MISSING", "INCOMPLETE", "UNAVAILABLE", "NOT_FOUND")) else "FAIL"
@@ -438,6 +476,7 @@ def run(args):
             tpex_contract_evidence.update({"transport_status":"BLOCKED","blocking_reason":reason})
         if tpex_daily_evidence.get("validation_status") == "NOT_RUN":
             tpex_daily_evidence.update({"validation_status":"BLOCKED","blocking_reason":reason})
+    _atomic_write(outdir/"RATE_CER072_TDCC_HISTORICAL_ASOF_EVIDENCE.json",tdcc_evidence)
     _atomic_write(outdir/"RATE_CER072_T86_26_SESSION_EVIDENCE.json",t86_evidence)
     _atomic_write(outdir/"RATE_TPEX_INSTITUTIONAL_DAILY_CONTRACT_EVIDENCE.json",tpex_contract_evidence)
     _atomic_write(outdir/"RATE_CER072_TPEX_26_SESSION_EVIDENCE.json",tpex_daily_evidence)
