@@ -116,13 +116,14 @@ class CER072InstitutionalHistoryTests(unittest.TestCase):
             fetch_tpex_monthly_history(Adapter(),symbols,stocks,days[:26])
 
     def test_institutional_asof_window_accepts_20_rows_and_excludes_future(self):
-        rows=[{'trading_date':f'2026-08-{day:02d}','foreign_net_shares':1} for day in range(1,21)]
+        days=[day for day in _dates(100) if '2026-08-14' <= day <= '2026-09-10']
+        rows=[{'trading_date':day,'foreign_net_shares':1} for day in days]
         rows.append({'trading_date':'2026-09-11','foreign_net_shares':999})
         selected=_institutional_asof_history(rows,'2330','2026-09-10')
         self.assertEqual(len(selected),20)
-        self.assertEqual(selected[-1]['trading_date'],'2026-08-20')
+        self.assertEqual(selected[-1]['trading_date'],'2026-09-10')
         with self.assertRaisesRegex(RuntimeError,'STAGE_INSTITUTIONAL_WINDOW'):
-            _institutional_asof_history(rows[:19],'2330','2026-09-10')
+            _institutional_asof_history(rows[:-2],'2330','2026-09-10')
 
     def test_prior_stage_identity_hash_is_deterministic(self):
         value={'prior_session':'2026-09-17','symbols':[{'symbol':'2330','previous_stage':'BUILD'}]}
