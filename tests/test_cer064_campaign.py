@@ -26,7 +26,9 @@ class CER064CampaignTests(unittest.TestCase):
         workflow = Path('.github/workflows/rate_phase_a2_validation.yml').read_text(encoding='utf-8')
         self.assertIn('cancel-in-progress: false', workflow)
         self.assertIn('SOURCE_AUTHORIZATION_GATE', workflow)
-        self.assertIn('BLOCKED:T86_LICENSE_EVIDENCE', workflow)
+        self.assertIn('PASS_WITH_USER_ASSUMPTION', workflow)
+        self.assertIn('ALLOW:USER_DIRECTED_T86_ASSUMPTION', workflow)
+        self.assertNotIn('BLOCKED:T86_LICENSE_EVIDENCE', workflow)
 
     def test_checkpoint_lineage_is_explicit(self):
         root = Path('artifacts/test_cer064_lineage'); shutil.rmtree(root, ignore_errors=True); root.mkdir(parents=True)

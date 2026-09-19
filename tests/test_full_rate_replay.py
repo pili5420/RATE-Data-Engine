@@ -16,7 +16,8 @@ class FullRateReplayTests(unittest.TestCase):
         cls.result = replay(cls.technical, cls.institutional)
 
     def test_full_records_and_stage_lineage(self):
-        self.assertEqual(self.result['validation_status'], 'PASS')
+        self.assertEqual(self.result['validation_scope'], 'ENGINEERING_FIXTURE_ONLY')
+        self.assertEqual(self.result['validation_status'], 'PASS_FIXTURE_ONLY')
         self.assertEqual(len(self.result['records']), 30)
         required = ('M7_inputs', 'MHE_inputs', 'Rotation_inputs', 'SmartMoney_inputs', 'Stage_inputs', 'Fundamental', 'RelativeStrength', 'Liquidity')
         self.assertTrue(all(all(r.get(k) is not None for k in required) for r in self.result['records']))
@@ -25,11 +26,13 @@ class FullRateReplayTests(unittest.TestCase):
     def test_frozen_runtime_outputs_present(self):
         self.assertTrue(all(all(k in r for k in ('M7', 'MHE', 'SmartMoney', 'Stage', 'Rotation', 'rate_composite_score', 'short_score', 'long_score')) for r in self.result['records']))
 
-    def test_production_evidence_writer(self):
+    def test_fixture_evidence_writer_does_not_claim_production_pass(self):
         path = write_replay_evidence(self.result, path='artifacts/test_full_replay_evidence.json')
         obj = json.loads(Path(path).read_text(encoding='utf-8'))
-        self.assertEqual(obj['production_bundle_status'], 'PASS')
-        self.assertEqual(obj['input_snapshot_id'], self.result['input_snapshot_id'])
+        self.assertEqual(obj['validation_scope'], 'ENGINEERING_FIXTURE_ONLY')
+        self.assertEqual(obj['production_bundle_status'], 'NOT_RUN')
+        self.assertIsNone(obj['input_snapshot_id'])
+        self.assertEqual(obj['fixture_snapshot_id'], self.result['input_snapshot_id'])
         Path(path).unlink(missing_ok=True)
 
     def test_replay_determinism_and_ranking(self):

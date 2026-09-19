@@ -10,7 +10,7 @@ from scripts.build_phase_b_query_universe import build_query_universe
 
 def execute_phase_a2(source_bundle,trading_date,*,persist_state=True,write_evidence=True):
  validation=validate_pipeline(source_bundle['institutional_records'],trading_date=trading_date)
- base={'trading_date':trading_date,'execution_runtime':'github_actions' if os.getenv('GITHUB_ACTIONS')=='true' else 'fixture','commit_sha':os.getenv('GITHUB_SHA'),'authorization_status':'CONDITIONAL','model_freeze_integrity':'PASS','validation_gates':validation,'blocking_issues':[]}
+ base={'trading_date':trading_date,'execution_runtime':'github_actions' if os.getenv('GITHUB_ACTIONS')=='true' else 'fixture','commit_sha':os.getenv('GITHUB_SHA'),'authorization_status':'USER_ASSUMPTION','authorization_basis':'USER_DIRECTED_ASSUMPTION','formal_authorization_status':'UNVERIFIED','operation_policy_gate':'PASS_WITH_USER_ASSUMPTION','t86_operational_status':'ALLOWED_BY_USER_ASSUMPTION','model_freeze_integrity':'PASS','validation_gates':validation,'blocking_issues':[]}
  if not all(v=='PASS' for v in validation.values()): base.update({'validation_status':'FAIL','production_source_bundle':'BLOCKED','input_snapshot_id':None,'decision_state_id':None}); return base
  bundle=build_production_bundle(trading_date=trading_date,institutional_records=source_bundle['institutional_records'],decision_records=source_bundle['decision_records'],provenance=source_bundle['source_provenance'],validation=validation,universe_context={k:source_bundle[k] for k in ('short_term_top30','roy_portfolio','required_benchmarks','explicit_production_watchlist')})
  snapshot=build_production_snapshot(bundle)

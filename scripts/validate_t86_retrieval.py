@@ -4,18 +4,24 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
 
-BASE = "https://openapi.twse.com.tw/v1/exchangeReport/T86"
-FIELDS = ("證券代號", "外陸資買進股數", "外陸資賣出股數", "投信買進股數", "投信賣出股數")
+BASE = "https://www.twse.com.tw/rwd/zh/fund/T86"
+FIELDS = ("證券代號", "外陸資買進股數", "外陸資賣出股數", "外陸資買賣超股數",
+          "投信買進股數", "投信賣出股數", "投信買賣超股數",
+          "自營商買進股數", "自營商賣出股數", "自營商買賣超股數")
 
 def main() -> int:
     ap = argparse.ArgumentParser(); ap.add_argument("--date", required=True); args = ap.parse_args()
     out = {"execution_runtime":"github_actions" if os.getenv("GITHUB_ACTIONS")=="true" else "local",
            "workflow_run_id":os.getenv("GITHUB_RUN_ID"), "commit_sha":os.getenv("GITHUB_SHA"),
            "provider":"TWSE", "source":"TWSE_T86", "request_date":args.date,
-           "authorization_status":"CONDITIONAL", "response_received":"NO", "HTTP_status":None,
+           "authorization_status":"USER_ASSUMPTION", "authorization_basis":"USER_DIRECTED_ASSUMPTION",
+           "formal_authorization_status":"UNVERIFIED", "operational_status":"ALLOWED_BY_USER_ASSUMPTION",
+           "response_received":"NO", "HTTP_status":None,
            "record_count":0, "schema_detected":"FAIL", "institutional_fields":"FAIL"}
-    url = BASE + "?response=json&date=" + args.date.replace("-", "")
+    request_date = args.date.replace("-", "")
+    url = BASE + "?" + urlencode({"date": request_date, "selectType": "ALLBUT0999", "response": "json"})
     try:
         req = Request(url, headers={"Accept":"application/json"})
         with urlopen(req, timeout=30) as r:
@@ -26,13 +32,17 @@ def main() -> int:
         out["response_hash"] = hashlib.sha256(body).hexdigest()
         payload = json.loads(body.decode("utf-8"))
         rows = payload if isinstance(payload, list) else payload.get("data", [])
+        out["response_trading_date"] = payload.get("date") if isinstance(payload, dict) else None
+        out["requested_date_matches_response"] = ("PASS" if out["response_trading_date"] == request_date else "NOT_VERIFIABLE")
         out["record_count"] = len(rows) if isinstance(rows, list) else 0
         row = rows[0] if rows else {}
+        if isinstance(row, list) and isinstance(payload, dict) and isinstance(payload.get("fields"), list):
+            row = dict(zip(payload["fields"], row))
         keys = set(row.keys()) if isinstance(row, dict) else set()
-        out["schema_detected"] = "PASS" if out["record_count"] > 0 and "證券代號" in keys else "FAIL"
+        out["schema_detected"] = "PASS" if out["record_count"] > 0 and FIELDS[0] in keys else "FAIL"
         out["institutional_fields"] = "PASS" if all(k in keys for k in FIELDS[1:]) else "FAIL"
         out["trading_date"] = args.date
-        out["t86_retrieval_capability"] = "PASS" if out["HTTP_status"] == 200 and out["response_received"] == "YES" and out["record_count"] > 0 and out["schema_detected"] == "PASS" else "FAIL"
+        out["t86_retrieval_capability"] = "PASS" if out["HTTP_status"] == 200 and out["response_received"] == "YES" and out["record_count"] > 0 and out["schema_detected"] == "PASS" and out["institutional_fields"] == "PASS" else "FAIL"
         if out["t86_retrieval_capability"] == "FAIL": out["exact_blocking_reason"] = "T86_STRUCTURE_OR_CONTENT_INVALID"
     except HTTPError as e:
         out["HTTP_status"] = e.code; out["exact_blocking_reason"] = f"HTTP_{e.code}"

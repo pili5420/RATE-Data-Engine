@@ -106,7 +106,10 @@ def _campaign_status(path, context, status, reason=None):
         'twse_alignment_acceptance': 'NOT_RUN',
         'tpex_historical_acceptance': 'NOT_RUN',
         'full_historical_acceptance': 'HOLD',
-        'source_authorization_gate': 'BLOCKED:T86_LICENSE_EVIDENCE',
+        'source_authorization_gate': 'PASS_WITH_USER_ASSUMPTION',
+        't86_operational_status': 'ALLOWED_BY_USER_ASSUMPTION',
+        't86_authorization_basis': 'USER_DIRECTED_ASSUMPTION',
+        't86_formal_authorization_status': 'UNVERIFIED',
         'generated_at': bundle._now(),
     }
     bundle._atomic_write_json(Path(path), payload)

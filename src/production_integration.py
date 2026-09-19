@@ -12,8 +12,19 @@ def build_production_bundle(*, trading_date, records=None, provenance=None, vali
     return {'trading_date':trading_date,'institutional_records':institutional_records,'decision_records':decision_records,'records':decision_records,'provenance':provenance,'validation_gates':validation,**universe_context,'bundle_status':'PASS' if ok else 'BLOCKED','data_quality_status':'PASS' if ok else 'FAIL'}
 def build_production_snapshot(bundle):
     if bundle.get('bundle_status')!='PASS': return None
-    payload={'trading_date':bundle['trading_date'],'records':bundle['decision_records'],'short_term_top30':bundle.get('short_term_top30',[]),'roy_portfolio':bundle.get('roy_portfolio',[]),'required_benchmarks':bundle.get('required_benchmarks',[]),'explicit_production_watchlist':bundle.get('explicit_production_watchlist',[]),'provenance':bundle['provenance'],'validation_gates':bundle['validation_gates']}
-    raw=json.dumps(payload,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode(); return {'input_snapshot_id':'rate-snapshot-'+hashlib.sha256(raw).hexdigest()[:24],'snapshot_hash':hashlib.sha256(raw).hexdigest(),**payload}
+    payload={'trading_date':bundle['trading_date'],'records':json.loads(json.dumps(bundle['decision_records'])),'short_term_top30':bundle.get('short_term_top30',[]),'roy_portfolio':bundle.get('roy_portfolio',[]),'required_benchmarks':bundle.get('required_benchmarks',[]),'explicit_production_watchlist':bundle.get('explicit_production_watchlist',[]),'provenance':bundle['provenance'],'validation_gates':bundle['validation_gates']}
+    # Snapshot identity excludes the evidence's own back-reference to avoid a
+    # hash cycle. The immutable id is then bound into each Stage lineage record.
+    identity_payload=json.loads(json.dumps(payload))
+    for record in identity_payload['records']:
+        evidence=record.get('Stage_evidence')
+        if isinstance(evidence,dict): evidence['input_snapshot_id']=None
+    raw=json.dumps(identity_payload,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()
+    snapshot_hash=hashlib.sha256(raw).hexdigest(); snapshot_id='rate-snapshot-'+snapshot_hash[:24]
+    for record in payload['records']:
+        evidence=record.get('Stage_evidence')
+        if isinstance(evidence,dict): evidence['input_snapshot_id']=snapshot_id
+    return {'input_snapshot_id':snapshot_id,'snapshot_hash':snapshot_hash,**payload}
 def resolve_previous_state(model_version,data_contract_version,calculation_spec_version): return resolve_previous(model_version,data_contract_version,calculation_spec_version)
 def write_phase_a2_evidence(evidence, path='artifacts/RATE_PHASE_A2_VALIDATION_EVIDENCE.json'):
     p=Path(path); p.write_text(json.dumps(evidence,ensure_ascii=False,indent=2)+'\n',encoding='utf-8'); return str(p)

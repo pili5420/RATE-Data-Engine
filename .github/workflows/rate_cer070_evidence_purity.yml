@@ -1,0 +1,63 @@
+name: RATE CER-070 Evidence Purity
+
+on:
+  push:
+    branches:
+      - rate-v2-6-1r2-staging
+  workflow_dispatch:
+    inputs:
+      trading_date:
+        description: "Completed trading date YYYY-MM-DD for T86 transport/parse check"
+        required: true
+        default: "2026-09-18"
+
+permissions:
+  contents: read
+
+jobs:
+  evidence-purity:
+    runs-on: ubuntu-latest
+    env:
+      RATE_LIVE_E2E_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Confirm Phase A2 remains disabled
+        shell: bash
+        run: |
+          test "$RATE_LIVE_E2E_ENABLED" = "false"
+          echo "Phase A2 execution = SKIPPED_BY_CER070_GUARD"
+      - name: Run unit, integration, rotation and regression tests
+        id: tests
+        run: python -m unittest discover -s tests -v
+      - name: T86 connectivity and parse smoke test
+        id: t86
+        if: always()
+        continue-on-error: true
+        run: python scripts/validate_t86_retrieval.py --date "${{ inputs.trading_date }}"
+      - name: Generate CER-070 evidence purity artifact
+        id: purity
+        if: always()
+        run: python scripts/validate_cer070_purity.py --output artifacts/RATE_CER070_EVIDENCE_PURITY.json
+      - name: Upload evidence purity artifact
+        id: upload_purity
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER070_EVIDENCE_PURITY
+          path: artifacts/RATE_CER070_EVIDENCE_PURITY.json
+          if-no-files-found: error
+      - name: Upload T86 policy artifact
+        id: upload_policy
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_T86_USER_DIRECTED_OPERATION_POLICY
+          path: |
+            artifacts/RATE_T86_USER_DIRECTED_OPERATION_POLICY_V1.json
+            artifacts/RATE_TWSE_T86_AUTHORIZATION_EVIDENCE.json
+            artifacts/SOURCE_AUTHORIZATION_MATRIX_V1.json
+            config/SOURCE_REGISTRY.json
+          if-no-files-found: error

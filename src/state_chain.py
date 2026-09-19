@@ -4,10 +4,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT=Path('artifacts'); GENESIS=ROOT/'RATE_PRODUCTION_GENESIS_STATE.json'; CHAIN=ROOT/'RATE_DECISION_STATE_CHAIN.json'
-def resolve_previous(model_version, data_contract_version, calculation_spec_version):
+def resolve_previous(model_version, data_contract_version, calculation_spec_version, *, allow_genesis=False):
     if CHAIN.exists():
         chain=json.loads(CHAIN.read_text(encoding='utf-8'))
-        if chain and chain[-1].get('current_state_id'): return chain[-1]['current_state_id']
+        if not isinstance(chain,list) or not chain:
+            raise ValueError('MISSING_REQUIRED_DATA:PREVIOUS_STATE_CHAIN_INVALID_OR_EMPTY')
+        if chain[-1].get('current_state_id'): return chain[-1]['current_state_id']
+        raise ValueError('MISSING_REQUIRED_DATA:PREVIOUS_STATE_CURRENT_ID')
+    if not allow_genesis:
+        raise ValueError('MISSING_REQUIRED_DATA:PREVIOUS_STATE_CHAIN')
     return genesis(model_version,data_contract_version,calculation_spec_version)['state_id']
 def genesis(model_version, data_contract_version, calculation_spec_version):
     if GENESIS.exists(): return json.loads(GENESIS.read_text(encoding='utf-8'))

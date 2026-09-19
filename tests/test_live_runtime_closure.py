@@ -23,9 +23,9 @@ class LiveRuntimeClosureTests(unittest.TestCase):
 
     def test_production_runtime_processes_entire_universe(self):
         snap=build_production_snapshot(self._bundle()); a=run_rate_0730(snap,'2026-09-10','GENESIS_STATE_ID',False); b=run_rate_0730(snap,'2026-09-10','GENESIS_STATE_ID',False)
-        self.assertEqual(len(a['decision']['records']),30); self.assertEqual(len(a['top50']),30); self.assertEqual(len(a['short_top30']),30); self.assertEqual(len(a['long_top30']),30); self.assertEqual(a['decision_payload_hash'],b['decision_payload_hash'])
+        self.assertEqual(len(a['decision']['records']),30); self.assertEqual(len(a['top50']),30); self.assertEqual(len(a['short_top30']),30); self.assertEqual(len(a['long_top30']),30); self.assertEqual(a['decision_payload_hash'],b['decision_payload_hash']); self.assertEqual(a['07:30_e2e'],'PASS_FIXTURE_ONLY')
 
-    def test_live_builder_integration_seam(self):
+    def test_live_builder_rejects_unvalidated_stage_evidence(self):
         sources={}
         for r in self.replay['records']:
             tf={'PT':r['M7_inputs']['PT'],'PV':r['M7_inputs']['PV'],'MO':r['M7_inputs']['MO'],'RS':r['M7_inputs']['RS'],**r['MHE_inputs'],'RelativeStrength':r['RelativeStrength'],'Liquidity':r['Liquidity']}
@@ -33,7 +33,7 @@ class LiveRuntimeClosureTests(unittest.TestCase):
         obj={'production_sources':sources,'universe':sorted(sources),'source_provenance':{'source':'AUTHORIZED_TEST_SEAM'}}
         td=Path('artifacts/test_live_runtime'); td.mkdir(exist_ok=True); inp=td/'input.json'; out=td/'bundle.json'; inp.write_text(json.dumps(obj),encoding='utf-8')
         p=subprocess.run(['python','scripts/build_live_source_bundle.py','--trading-date','2026-09-10','--source-bundle-input',str(inp),'--output',str(out)],capture_output=True,text=True)
-        self.assertEqual(p.returncode,0,p.stdout+p.stderr); bundle=json.loads(out.read_text(encoding='utf-8')); self.assertEqual(len(bundle['decision_records']),30); inp.unlink(missing_ok=True); out.unlink(missing_ok=True)
+        self.assertNotEqual(p.returncode,0,p.stdout+p.stderr); bundle=json.loads(out.read_text(encoding='utf-8')); self.assertIn('BLOCKED',bundle['validation_status']); inp.unlink(missing_ok=True); out.unlink(missing_ok=True)
 
     def test_live_missing_inputs_fail_closed(self):
         td=Path('artifacts/test_live_runtime'); td.mkdir(exist_ok=True); out=td/'bundle.json'; p=subprocess.run(['python','scripts/build_live_source_bundle.py','--trading-date','2026-09-10','--output',str(out)],capture_output=True,text=True)

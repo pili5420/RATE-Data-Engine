@@ -13,3 +13,5 @@ class StateEngineTests(unittest.TestCase):
  def test_fail_closed_invalid_snapshot(self): self.assertFalse(Path('artifacts/does-not-exist.json').exists())
  def test_deterministic_double_run(self): p={'input_snapshot_id':'s','previous_state_id':'g','model_version':'m','calculation_spec_version':'c','x':1}; self.assertEqual(deterministic_hash(p),deterministic_hash(dict(p)))
  def test_query_universe_dedup_symbol_integrity(self): xs=['2330','2330','2317']; self.assertEqual(len(set(xs)),2); self.assertTrue(all(x.isdigit() for x in set(xs)))
+ def test_previous_state_resolver_does_not_silently_create_genesis(self): self.assertRaisesRegex(ValueError,'PREVIOUS_STATE_CHAIN',self.s.resolve_previous,'m','d','c')
+ def test_existing_empty_chain_fails_closed_without_genesis_fallback(self): self.s.CHAIN.write_text('[]',encoding='utf-8'); self.assertRaisesRegex(ValueError,'PREVIOUS_STATE_CHAIN_INVALID_OR_EMPTY',self.s.resolve_previous,'m','d','c')

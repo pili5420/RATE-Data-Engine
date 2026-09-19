@@ -44,7 +44,10 @@ jobs:
       MAX_NEW_PERIODS_PER_CHUNK: "${{ inputs.max_new_periods }}"
       MAX_CHUNK_RUNTIME_SECONDS: "${{ inputs.max_chunk_runtime_seconds }}"
       CHECKPOINT_FINALIZATION_RESERVE_SECONDS: "${{ inputs.finalization_reserve_seconds }}"
-      RATE_SOURCE_AUTHORIZATION_GATE: BLOCKED:T86_LICENSE_EVIDENCE
+      RATE_OPERATION_POLICY_GATE: PASS_WITH_USER_ASSUMPTION
+      RATE_T86_AUTHORIZATION_BASIS: USER_DIRECTED_ASSUMPTION
+      RATE_T86_FORMAL_AUTHORIZATION: UNVERIFIED
+      RATE_LIVE_E2E_ENABLED: "false"
     permissions:
       contents: read
     steps:
@@ -131,8 +134,28 @@ jobs:
         if: always()
         shell: bash
         run: |
-          echo "SOURCE_AUTHORIZATION_GATE=$RATE_SOURCE_AUTHORIZATION_GATE"
-          echo "authorized=false" >> "$GITHUB_OUTPUT"
+          python - <<'PY'
+          import json, os
+          matrix=json.load(open('artifacts/SOURCE_AUTHORIZATION_MATRIX_V1.json', encoding='utf-8'))
+          t86=next((x for x in matrix.get('entries',[]) if x.get('endpoint_or_product')=='T86 official daily report'), {})
+          allowed=(os.environ.get('RATE_OPERATION_POLICY_GATE')=='PASS_WITH_USER_ASSUMPTION'
+                   and t86.get('authorization_status')=='USER_ASSUMPTION'
+                   and t86.get('authorization_basis')=='USER_DIRECTED_ASSUMPTION'
+                   and t86.get('formal_license_verified') is False
+                   and t86.get('operational_use_allowed') is True
+                   and t86.get('redistribution') is False)
+          print('SOURCE_AUTHORIZATION_GATE='+os.environ.get('RATE_OPERATION_POLICY_GATE','UNSET'))
+          print('RATE_OPERATION_POLICY_GATE='+os.environ.get('RATE_OPERATION_POLICY_GATE','UNSET'))
+          print('T86_OPERATIONAL_STATUS='+('ALLOW:USER_DIRECTED_T86_ASSUMPTION' if allowed else 'BLOCKED:USER_ASSUMPTION_POLICY_MISMATCH'))
+          print('T86_FORMAL_AUTHORIZATION=UNVERIFIED')
+          with open(os.environ['GITHUB_OUTPUT'],'a') as out: out.write(f"operational_allowed={'true' if allowed else 'false'}\n")
+          if not allowed: raise SystemExit('T86_OPERATION_POLICY_GATE_INVALID')
+          PY
+      - name: Phase A2 execution guard
+        shell: bash
+        run: |
+          echo "RATE_LIVE_E2E_ENABLED=$RATE_LIVE_E2E_ENABLED"
+          if [ "$RATE_LIVE_E2E_ENABLED" != "true" ]; then echo "Phase A2 execution = SKIPPED_BY_CER070_GUARD"; fi
       - name: Materialize accepted TWSE historical store
         id: twse_materialization
         if: steps.bootstrap_gate.outputs.complete == 'true'
@@ -223,20 +246,20 @@ jobs:
             data/staging/history
           key: ${{ env.RATE_BOOTSTRAP_CACHE_KEY }}-materialized
       - name: Probe TWSE historical redirect transport
-        if: steps.bootstrap_gate.outputs.complete == 'true' && steps.source_authorization.outputs.authorized == 'true'
+        if: steps.bootstrap_gate.outputs.complete == 'true' && steps.source_authorization.outputs.operational_allowed == 'true' && env.RATE_LIVE_E2E_ENABLED == 'true'
         run: >
           python scripts/probe_twse_history_transport.py
           --trading-date "${{ inputs.trading_date }}"
           --output artifacts/RATE_TWSE_HISTORY_TRANSPORT_EVIDENCE.json
       - name: Probe official sources
-        if: steps.bootstrap_gate.outputs.complete == 'true' && steps.source_authorization.outputs.authorized == 'true'
+        if: steps.bootstrap_gate.outputs.complete == 'true' && steps.source_authorization.outputs.operational_allowed == 'true' && env.RATE_LIVE_E2E_ENABLED == 'true'
         run: >
           python scripts/probe_official_sources.py
           --trading-date "${{ inputs.trading_date }}"
           --output artifacts/RATE_OFFICIAL_SOURCE_PROBE_EVIDENCE.json
           --universe-file config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json
       - name: Build live production source bundle
-        if: steps.bootstrap_gate.outputs.complete == 'true' && steps.source_authorization.outputs.authorized == 'true'
+        if: steps.bootstrap_gate.outputs.complete == 'true' && steps.source_authorization.outputs.operational_allowed == 'true' && env.RATE_LIVE_E2E_ENABLED == 'true'
         run: >
           python scripts/build_live_source_bundle.py
           --trading-date "${{ inputs.trading_date }}"
@@ -244,17 +267,26 @@ jobs:
           --evidence-output artifacts/RATE_LIVE_SOURCE_ASSEMBLY_EVIDENCE.json
           --bootstrap-evidence-output artifacts/RATE_TWSE_HISTORY_BOOTSTRAP_EVIDENCE.json
       - name: Run Phase A2 production integration
-        if: steps.bootstrap_gate.outputs.complete == 'true' && steps.source_authorization.outputs.authorized == 'true'
+        if: steps.bootstrap_gate.outputs.complete == 'true' && steps.source_authorization.outputs.operational_allowed == 'true' && env.RATE_LIVE_E2E_ENABLED == 'true'
         run: >
           python scripts/run_phase_a2.py
           --trading-date "${{ inputs.trading_date }}"
           --source-bundle artifacts/live_source_bundle.json
       - name: Upload Phase A2 evidence
-        if: always()
+        if: always() && env.RATE_LIVE_E2E_ENABLED == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: RATE_PHASE_A2_VALIDATION_EVIDENCE
           path: artifacts/RATE_PHASE_A2_VALIDATION_EVIDENCE.json
+      - name: Upload T86 operational policy evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_T86_USER_DIRECTED_OPERATION_POLICY
+          path: |
+            artifacts/RATE_T86_USER_DIRECTED_OPERATION_POLICY_V1.json
+            artifacts/RATE_TWSE_T86_AUTHORIZATION_EVIDENCE.json
+            artifacts/SOURCE_AUTHORIZATION_MATRIX_V1.json
       - name: Upload LIVE source assembly evidence
         if: always()
         uses: actions/upload-artifact@v4

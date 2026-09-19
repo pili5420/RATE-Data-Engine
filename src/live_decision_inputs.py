@@ -18,7 +18,9 @@ def build_live_decision_records(production_sources,trading_date,universe):
                 'Fundamental':source.get('Fundamental'),
                 'Rotation_inputs':source.get('Rotation_inputs'),
                 'SmartMoney_inputs':source.get('SmartMoney_inputs'),
-                'Stage_inputs':source.get('Stage_inputs')}
+                'Stage_inputs':source.get('Stage_inputs'),
+                'Stage_evidence':source.get('Stage_evidence'),
+                'feature_lineage':source.get('feature_lineage')}
         for key in ('FI', 'IT', 'LH'):
             if key in source:
                 record['M7_inputs'][key] = source[key]

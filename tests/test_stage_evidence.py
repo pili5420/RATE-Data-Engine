@@ -1,5 +1,9 @@
 import unittest
 from src.stage_evidence import build_stage_evidence
+from src.stage_evidence import build_production_stage_evidence, STAGE_SPEC_GAP_FIELDS
+from src.technical_features import technical_record
+import json
+from pathlib import Path
 
 
 class StageEvidenceTests(unittest.TestCase):
@@ -30,3 +34,22 @@ class StageEvidenceTests(unittest.TestCase):
     def test_rotation_deterioration(self): self.assertEqual(self.stage({'price':100,'ma20':110,'m7_score':70,'prior_m7':90,'rotation_deteriorated':True})['stage_current'],'HIGH_ROTATION')
     def test_lineage(self):
         out=self.stage(); self.assertEqual(out['calculation_status'],'PASS'); self.assertEqual(out['source_state_id'],'s0'); self.assertIn('stage_inputs',out); self.assertIn('stage_normalized_score',out)
+
+    def test_production_stage_requires_persistent_symbol_state(self):
+        fixture=json.loads(Path('tests/fixtures/technical_replay_30x180.json').read_text(encoding='utf-8'))
+        hist=fixture['symbols']['1000']; tr=technical_record(hist,fixture['benchmarks']['TAIEX'])
+        with self.assertRaisesRegex(ValueError, 'PREVIOUS_STATE_EVIDENCE'):
+            build_production_stage_evidence(symbol='1000',stock_history=hist,technical_record=tr,
+                technical_features={'RelativeStrength':50},m7_score=50,mhe_score=50,
+                rotation_score=50,prior_state=None,input_snapshot_id='snapshot')
+
+    def test_production_stage_reports_undefined_fields_without_guessing(self):
+        fixture=json.loads(Path('tests/fixtures/technical_replay_30x180.json').read_text(encoding='utf-8'))
+        hist=fixture['symbols']['1000']; tr=technical_record(hist,fixture['benchmarks']['TAIEX'])
+        prior={'state_id':'previous-1','symbols':{'1000':{'stage_current':'BASE_BUILDING','m7_score':49,'mhe_score':48,'rotation_score':51}}}
+        with self.assertRaisesRegex(ValueError, 'SPEC_GAP:STAGE_EVIDENCE') as exc:
+            build_production_stage_evidence(symbol='1000',stock_history=hist,technical_record=tr,
+                technical_features={'RelativeStrength':50},m7_score=50,mhe_score=50,
+                rotation_score=50,prior_state=prior,input_snapshot_id='snapshot')
+        for field in STAGE_SPEC_GAP_FIELDS:
+            self.assertIn(field, str(exc.exception))

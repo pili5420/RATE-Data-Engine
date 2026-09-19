@@ -1,0 +1,59 @@
+{
+  "artifact": "RATE_T86_USER_DIRECTED_OPERATION_POLICY_V1",
+  "effective_date": "2026-09-19",
+  "provider": "TWSE",
+  "dataset": "三大法人買賣超日報 T86",
+  "product_file": "TWT86UC",
+  "operational_status": "ALLOWED_BY_USER_ASSUMPTION",
+  "authorization_basis": "USER_DIRECTED_ASSUMPTION",
+  "usage": "NON_DISPLAY_INTERNAL_ANALYTICS",
+  "automated_calculation_allowed": true,
+  "internal_derived_scores_allowed": true,
+  "raw_data_redistribution": false,
+  "public_raw_data_display": false,
+  "third_party_redistribution": false,
+  "formal_license_verified": false,
+  "formal_authorization_status": "UNVERIFIED",
+  "active_twt86uc_subscription": "NO_EVIDENCE",
+  "written_twse_confirmation": "NO_EVIDENCE",
+  "rate_operation_policy_gate": "PASS_WITH_USER_ASSUMPTION",
+  "state_preservation": {
+    "control_center_full_historical_acceptance": "VERIFIED",
+    "rate_full_historical_state_digest": "dddf63b85477aa7cd52ff284d3aba70cf449275406cb6e5e7091acc232d58e3a",
+    "historical_rebootstrap": false
+  },
+  "e2e": {
+    "0730": "NOT_RUN_CER070_E2E_DISABLED",
+    "1930": "NOT_IMPLEMENTED",
+    "0930": "BLOCKED:INTRADAY_SOURCE_UNAVAILABLE",
+    "1200": "BLOCKED:INTRADAY_SOURCE_UNAVAILABLE"
+  },
+  "live_validation_status": {
+    "0730": "NOT_RUN",
+    "1930": "NOT_IMPLEMENTED"
+  },
+  "historical_acceptance_status": "NOT_YET_VERIFIED",
+  "historical_requirement": {
+    "minimum_valid_sessions": 20,
+    "FI_history": "REQUIRED",
+    "IT_history": "REQUIRED",
+    "FC_latest_20_session_input": "REQUIRED",
+    "fixtures": false,
+    "silent_prior_day_fill": false,
+    "null_to_zero": false
+  },
+  "technical_validation_blockers": [
+    "STAGE_SPEC_GAP:price_near_ma20_ma60,recent_low_no_longer_deteriorating,structural_failure,evidence_state_mixed",
+    "PERSISTENT_PREVIOUS_STATE_SYMBOL_EVIDENCE_NOT_AVAILABLE",
+    "T86_HISTORICAL_20_SESSION_FI_IT_FC_NOT_YET_ACCEPTED",
+    "RATE_1930_INCREMENTAL_EXECUTOR_NOT_IMPLEMENTED"
+  ],
+  "cer070_execution_policy": {
+    "phase_a2_enabled": false,
+    "production_snapshot_created": false,
+    "production_decision_state_persisted": 0,
+    "historical_rebootstrap": false
+  },
+  "evidence_reference": "artifacts/RATE_TWSE_T86_AUTHORIZATION_EVIDENCE.json",
+  "t86_authorization_evidence": "USER_ASSUMPTION_UNVERIFIED"
+}

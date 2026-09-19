@@ -3,11 +3,12 @@ from __future__ import annotations
 import hashlib, json
 from .technical_features import compute_scores, technical_record
 from .institutional_features import calculate_institutional_rotation
+from .rotation_history import build_rotation_feature_histories
 from .fundamental import calculate_fundamental
 from .rate_logic import calculate_m7, calculate_mhe, calculate_smart_money, calculate_rotation, classify_stage, rank_composites, rank_candidates, ENGINE_VERSION, SPEC_VERSION, DATA_CONTRACT_VERSION
 from .production_integration import build_production_bundle, build_production_snapshot
 from .production_integration import write_phase_a2_evidence
-from .stage_evidence import build_stage_evidence
+from .stage_evidence import build_stage_evidence, REQUIRED_STAGE_INPUTS, STAGE_SPEC_GAP_FIELDS
 from .state_chain import append_state
 
 
@@ -15,7 +16,14 @@ def replay(technical_fixture, institutional_fixture, trading_date='2026-09-10', 
     tech_rows = list(technical_fixture['symbols'].values())
     benchmark = technical_fixture['benchmarks']['TAIEX']
     technical = compute_scores(tech_rows, benchmark)
-    institutional = calculate_institutional_rotation(json.loads(json.dumps(institutional_fixture['rows'])))
+    stocks = technical_fixture['symbols']
+    benchmark_by_symbol = {symbol: benchmark for symbol in stocks}
+    as_of = max(row['trade_date'] for rows in stocks.values() for row in rows)
+    rotation_histories = build_rotation_feature_histories(stocks, benchmark_by_symbol, as_of_date=as_of)
+    institutional_rows = json.loads(json.dumps(institutional_fixture['rows']))
+    for row in institutional_rows:
+        row.update(rotation_histories[row['symbol']])
+    institutional = calculate_institutional_rotation(institutional_rows)
     fundamentals = calculate_fundamental([{'symbol': str(1000+i), 'revenue_yoy':[i+1,i+2,i+3], 'quarterly_eps':[i+1]*8} for i in range(30)])
     fund_by = {str(x['symbol']): x['Fundamental'] for x in fundamentals}
     inst_by = {str(i): x for i, x in enumerate(institutional)}
@@ -27,7 +35,10 @@ def replay(technical_fixture, institutional_fixture, trading_date='2026-09-10', 
         m7=calculate_m7(m7_inputs); mhe=calculate_mhe(mhe_inputs); sm=calculate_smart_money(ir['SmartMoney_inputs']); rot=calculate_rotation(ir['Rotation_inputs'])
         hist=tech_rows[int(symbol)]; tr=technical_record(hist,benchmark)
         stage_inputs={'price':hist[-1]['close'],'ma20':tr['MA20'],'ma60':tr['MA60'],'ma120':tr['MA120'],'m7_score':m7['m7_score'],'mhe_score':mhe['mhe_score'],'relative_strength_strong':tf['RelativeStrength']>=50,'ma20_slope_positive':tr['MA20']>=sum(x['close'] for x in hist[-25:-5])/20,'ma60_trend_non_negative':True,'price_above_ma60':hist[-1]['close']>tr['MA60'],'price_near_ma20_ma60':False,'long_term_bullish':True,'short_swing_mhe_improving':True,'m7_rising':True,'mhe_rising':True,'recent_low_no_longer_deteriorating':True,'rotation_deteriorated':False,'structural_failure':False,'evidence_state_mixed':False}
-        stage=build_stage_evidence(symbol=symbol,stage_inputs=stage_inputs,previous_stage=(previous_stage_by_symbol or {}).get(symbol, 'GENESIS'),prior_m7=(prior_m7_by_symbol or {}).get(symbol, 0),source_state_id=previous_state_id,input_snapshot_id='pending')
+        previous_stage=(previous_stage_by_symbol or {}).get(symbol, 'GENESIS')
+        prior_m7=(prior_m7_by_symbol or {}).get(symbol, 0)
+        field_sources={key: ('DERIVED_FROM_PERSISTENT_PRIOR_STATE' if key in ('prior_m7','previous_stage','short_swing_mhe_improving','m7_rising','mhe_rising','rotation_deteriorated') else 'NOT_AVAILABLE' if key in STAGE_SPEC_GAP_FIELDS else 'DERIVED_FROM_FROZEN_RULE') for key in REQUIRED_STAGE_INPUTS}
+        stage=build_stage_evidence(symbol=symbol,stage_inputs=stage_inputs,previous_stage=previous_stage,prior_m7=prior_m7,source_state_id=previous_state_id,input_snapshot_id='pending',field_sources=field_sources)
         rec={'symbol':symbol,'M7_inputs':m7_inputs,'MHE_inputs':mhe_inputs,'Rotation_inputs':ir['Rotation_inputs'],'SmartMoney_inputs':ir['SmartMoney_inputs'],'Stage_inputs':stage_inputs,'Fundamental':fundamentals[int(symbol)]['Fundamental'],'RelativeStrength':tf['RelativeStrength'],'Liquidity':tf['Liquidity'],'feature_lineage':ir['feature_lineage'],'Stage_evidence':stage}
         comp=rank_composites({'M7':m7['m7_score'],'MHE':mhe['mhe_score'],'Stage':stage['stage_normalized_score'],'Rotation':rot['rotation_score'],'SmartMoney':sm['smart_money_score'],'Fundamental':fundamentals[int(symbol)]['Fundamental'],'RelativeStrength':tf['RelativeStrength']})
         rec.update({'M7':m7,'MHE':mhe,'SmartMoney':sm,'Rotation':rot,'Stage':stage,
@@ -39,7 +50,7 @@ def replay(technical_fixture, institutional_fixture, trading_date='2026-09-10', 
     payload=json.dumps(records,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode(); snapshot_id='rate-replay-'+hashlib.sha256(payload).hexdigest()[:24]
     for r in records: r['Stage_evidence']['input_snapshot_id']=snapshot_id
     top50=rank_candidates(records,'rate_composite_score',50); short=rank_candidates(records,'short_score',30); long=rank_candidates(records,'long_score',30)
-    return {'records':records,'top50':top50,'short_top30':short,'long_top30':long,'input_snapshot_id':snapshot_id,'snapshot_hash':hashlib.sha256(payload).hexdigest(),'validation_status':'PASS'}
+    return {'records':records,'top50':top50,'short_top30':short,'long_top30':long,'input_snapshot_id':snapshot_id,'snapshot_hash':hashlib.sha256(payload).hexdigest(),'validation_scope':'ENGINEERING_FIXTURE_ONLY','validation_status':'PASS_FIXTURE_ONLY'}
 
 
 def persist_decision_state(result, trading_date, previous_state_id='GENESIS_STATE_ID'):
@@ -53,11 +64,12 @@ def persist_decision_state(result, trading_date, previous_state_id='GENESIS_STAT
 
 
 def write_replay_evidence(result, *, previous_state_id='GENESIS_STATE_ID', current_state_id=None, path='artifacts/RATE_FULL_REPLAY_EVIDENCE.json'):
-    evidence = {'execution_runtime': 'fixture', 'input_snapshot_id': result['input_snapshot_id'],
+    evidence = {'execution_runtime': 'fixture', 'validation_scope': 'ENGINEERING_FIXTURE_ONLY',
+                'fixture_snapshot_id': result['input_snapshot_id'], 'input_snapshot_id': None,
                 'previous_state_id': previous_state_id, 'current_state_id': current_state_id,
                 'decision_payload_hash': result['snapshot_hash'],
-                'production_bundle_status': 'PASS', 'data_quality_status': 'PASS',
-                '07:30_e2e_status': 'PASS', 'deterministic_status': 'PASS',
+                'production_bundle_status': 'NOT_RUN', 'data_quality_status': 'NOT_RUN',
+                '07:30_e2e_status': 'NOT_RUN_FIXTURE_ENGINEERING_REPLAY', 'deterministic_status': 'PASS_FIXTURE_ONLY',
                 'query_universe_size': len(result['short_top30']), 'model_version': ENGINE_VERSION,
                 'data_contract_version': DATA_CONTRACT_VERSION, 'calculation_spec_version': SPEC_VERSION,
                 'model_freeze_integrity': 'PASS', 'blocking_reasons': []}

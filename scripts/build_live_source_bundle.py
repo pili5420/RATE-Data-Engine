@@ -9,6 +9,8 @@ from src.benchmark_history import normalize_twse_date
 from src.fundamental import calculate_fundamental
 from src.historical_store import PersistentHistoricalStore, normalize_stock_record
 from src.institutional_features import calculate_institutional_rotation
+from src.rotation_history import build_rotation_feature_histories
+from src.stage_evidence import build_production_stage_evidence
 from src.live_decision_inputs import build_live_decision_records
 from src.rate_logic import calculate_m7, calculate_mhe
 from src.sources.tdcc import TDCCAdapter
@@ -417,16 +419,35 @@ def _live(trading_date):
     tpex_inst=_tpex_institutional_history(tpex,tpex_universe,stocks,trading_date) if tpex_universe else {}
     inst_hist={**t86,**tpex_inst}; tdcc=_tdcc_history(universe); fundamentals=_fundamental_history(universe,markets)
     technical=compute_scores(list(stocks.values()), benchmark_by_symbol=benchmark_by_symbol); tech_by={str(x['symbol']):x for x in technical}
-    inst_input=[{'symbol':s,'institutional_history':inst_hist[s],'tdcc_history':sorted(tdcc[s],key=lambda x:x['period_end']),'rs_history':[x['close'] for x in stocks[s]][-26:],'volume_5_history':[1.0]*6,'mo_history':[x['close'] for x in stocks[s]][-26:]} for s in universe]
+    rotation_history = build_rotation_feature_histories(stocks, benchmark_by_symbol, as_of_date=trading_date, sessions=6)
+    inst_input=[{'symbol':s,'institutional_history':inst_hist[s],'tdcc_history':sorted(tdcc[s],key=lambda x:x['period_end']),**rotation_history[s]} for s in universe]
     institutional=calculate_institutional_rotation(inst_input); inst_by={str(x['symbol']):x for x in institutional}; sources={}
+    prior_state = _load_persistent_stage_state()
     for symbol in universe:
         tf=tech_by[symbol]['technical_features']; hist=stocks[symbol]; tr=technical_record(hist,benchmark_by_symbol[symbol]); ir=inst_by[symbol]
         m7=calculate_m7({'PT':tf['PT'],'PV':tf['PV'],'MO':tf['MO'],'FI':ir['FI'],'IT':ir['IT'],'LH':ir['LH'],'RS':tf['RS']}); mhe=calculate_mhe({k:tf[k] for k in ('H5','H20','H60','H120')})
-        stage={'price':hist[-1]['close'],'ma20':tr['MA20'],'ma60':tr['MA60'],'ma120':tr['MA120'],'price_above_all':hist[-1]['close']>max(tr['MA20'],tr['MA60'],tr['MA120']),'ma20_above_ma60':tr['MA20']>tr['MA60'],'ma20_slope_positive':tr['MA20']>=sum(x['close'] for x in hist[-25:-5])/20,'m7_score':m7['m7_score'],'mhe_score':mhe['mhe_score'],'relative_strength_strong':tf['RelativeStrength']>=50,'ma60_trend_non_negative':True,'price_above_ma60':hist[-1]['close']>tr['MA60'],'price_near_ma20_ma60':False,'long_term_bullish':hist[-1]['close']>=tr['MA120'],'short_swing_mhe_improving':True,'m7_rising':True,'mhe_rising':True,'recent_low_no_longer_deteriorating':True,'rotation_deteriorated':False,'structural_failure':False,'evidence_state_mixed':False}
-        sources[symbol]={'technical_features':tf,'FI':ir['FI'],'IT':ir['IT'],'LH':ir['LH'],'SmartMoney_inputs':ir['SmartMoney_inputs'],'Rotation_inputs':ir['Rotation_inputs'],'Stage_inputs':stage,'Fundamental':fundamentals[symbol]['Fundamental']}
+        stage_evidence = build_production_stage_evidence(symbol=symbol, stock_history=hist,
+            technical_record=tr, technical_features=tf, m7_score=m7['m7_score'],
+            mhe_score=mhe['mhe_score'], rotation_score=ir['Rotation'],
+            prior_state=prior_state, input_snapshot_id=None)
+        stage = stage_evidence['stage_inputs']
+        sources[symbol]={'technical_features':tf,'FI':ir['FI'],'IT':ir['IT'],'LH':ir['LH'],'SmartMoney_inputs':ir['SmartMoney_inputs'],'Rotation_inputs':ir['Rotation_inputs'],'Stage_inputs':stage,'Stage_evidence':stage_evidence,'feature_lineage':ir['feature_lineage'],'Fundamental':fundamentals[symbol]['Fundamental']}
     built=build_live_decision_records(sources,trading_date,universe)
     if built['feature_validation']['status']!='PASS' or len(built['decision_records'])!=len(universe): raise RuntimeError('DATA_INCOMPLETE:FULL_19_COMPONENTS')
     return {'production_sources':sources,'universe':universe,'decision_records':built['decision_records'],'institutional_records':inst_hist[universe[0]],'source_provenance':{'source':'AUTHORIZED_LIVE','provider':'TWSE/TPEx/TDCC/MOPS','retrieval_timestamp':_now(),'stock_history_coverage':{s:len(v) for s,v in stocks.items()},'benchmark_records':{'TAIEX':len(twse_benchmark),'TPEX':len(tpex_benchmark)}},'short_term_top30':universe,'roy_portfolio':[],'required_benchmarks':['TAIEX','TPEX'],'explicit_production_watchlist':[],'validation_status':'PASS'}
+
+def _load_persistent_stage_state():
+    """Resolve only a persisted full decision state; never synthesize GENESIS."""
+    path = Path(os.getenv('RATE_DECISION_STATE_CHAIN', 'artifacts/RATE_DECISION_STATE_CHAIN.json'))
+    if not path.is_file():
+        raise RuntimeError('MISSING_REQUIRED_DATA:PREVIOUS_STATE_CHAIN')
+    chain = json.loads(path.read_text(encoding='utf-8'))
+    if not isinstance(chain, list) or not chain:
+        raise RuntimeError('MISSING_REQUIRED_DATA:PREVIOUS_STATE_CHAIN')
+    latest = chain[-1]
+    if not latest.get('current_state_id') or not isinstance(latest.get('symbols'), dict):
+        raise RuntimeError('MISSING_REQUIRED_DATA:PREVIOUS_STATE_SYMBOL_EVIDENCE')
+    return {'state_id': latest['current_state_id'], 'symbols': latest['symbols']}
 def _validate(records):
     errors=[]
     for r in records:
@@ -435,7 +456,10 @@ def _validate(records):
             if key in ('PT','PV','MO','RS','H5','H20','H60','H120'):
                 if r.get('M7_inputs',{}).get(key) is None and r.get('MHE_inputs',{}).get(key) is None: missing.append(key)
             elif r.get(key) is None and r.get('SmartMoney_inputs',{}).get(key) is None and r.get('Rotation_inputs',{}).get(key) is None: missing.append(key)
+        stage = r.get('Stage_evidence')
         if not r.get('Stage_inputs'): missing.append('Stage_inputs')
+        if not isinstance(stage, dict) or stage.get('calculation_status') != 'PASS' or not stage.get('source_state_id') or not stage.get('input_snapshot_id'):
+            missing.append('Stage_evidence_lineage')
         if missing: errors.append({'symbol':r.get('symbol'),'missing_components':sorted(set(missing))})
     return errors
 def main():
