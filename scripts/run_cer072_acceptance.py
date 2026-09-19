@@ -287,7 +287,7 @@ def _replay_and_evidence(data, institutional_by_symbol, tdcc_by_symbol, as_of_da
     }
 
 
-def _no_lookahead(data, institutional, tdcc, as_of_date, stage_evidence):
+def _no_lookahead(data, institutional, tdcc, as_of_date, stage_evidence, replay_sessions=None):
     prior_date = sorted({r["trade_date"] for r in data["stocks"][data["symbols"][0]] if r["trade_date"] <= as_of_date})[-2]
     changed_stocks = {s: [dict(r, close=float(r["close"])*2, low=float(r["low"])*.5) if r["trade_date"] >= as_of_date else dict(r) for r in rows]
                       for s, rows in data["stocks"].items()}
@@ -297,22 +297,22 @@ def _no_lookahead(data, institutional, tdcc, as_of_date, stage_evidence):
                     for s, rows in tdcc.items()}
     benchmarks = {"TAIEX":data["benchmarks"]["TAIEX"],"TPEX":data["benchmarks"]["TPEX"]}
     bp = {s:benchmarks["TAIEX" if data["markets"][s]=="TWSE" else "TPEX"] for s in data["symbols"]}
-    replay = build_stage_feature_histories(changed_stocks,bp,changed_inst,changed_tdcc,as_of_date=prior_date,sessions=7)
+    replay = build_stage_feature_histories(changed_stocks,bp,changed_inst,changed_tdcc,
+        as_of_date=as_of_date,sessions=7,session_dates=replay_sessions)
     for symbol in data["symbols"]:
-        if replay[symbol][-1]["trade_date"] != prior_date:
-            return False
-        # Reconstruct Stage(t-1) using only the prefix ending on that date.
         f = replay[symbol]
-        prior_stock = [r for r in changed_stocks[symbol] if r["trade_date"] <= prior_date]
-        rebuilt = build_production_stage_evidence(symbol=symbol,stock_history=prior_stock,
-            technical_record=f[-1]["technical_record"],technical_features=f[-1]["technical_features"],
-            m7_score=f[-1]["M7"],mhe_score=f[-1]["MHE"],rotation_score=f[-1]["Rotation"],
-            prior_state=None,input_snapshot_id=None,feature_history=f)
-        if rebuilt["stage_current"] != stage_evidence[symbol]["previous_stage"]:
+        if len(f) != 7 or f[-1]["trade_date"] != as_of_date:
+            return False
+        # Reconstruct Stage(t-1) from the same accepted seven-session window.
+        # Mutating the current session must not affect features ending at t-1.
+        prior = f[-7]
+        prior_session_feature = f[-2]
+        prior_inputs, _ = _stage_inputs_from_history(
+            prior_session_feature, prior, "PRIOR_TRANSITION_NOT_RECONSTRUCTED")
+        reconstructed_prior = classify_stage(prior_inputs)
+        if reconstructed_prior["stage_current"] != stage_evidence[symbol]["previous_stage"]:
             return False
     return True
-
-
 def run(args):
     outdir = Path(args.output_dir); outdir.mkdir(parents=True, exist_ok=True)
     runid, commit = os.getenv("GITHUB_RUN_ID"), os.getenv("GITHUB_SHA")
@@ -452,7 +452,7 @@ def run(args):
                     "five_tdcc_periods":[x["period_end"] for x in tdcc[symbol] if x["period_end"]<=day][-5:],
                     "five_holder_pct_400_values":[x["holder_pct_400"] for x in tdcc[symbol] if x["period_end"]<=day][-5:],
                     **lh.get("derived_intermediates",{}),"LH":lh.get("derived_value")})
-        no_lookahead=_no_lookahead(data,institutional,tdcc,t,stages)
+        no_lookahead=_no_lookahead(data,institutional,tdcc,t,stages,replay_sessions=stage_replay_sessions)
         if not no_lookahead: raise RuntimeError("LIVE_PRIOR_STAGE_RECONSTRUCTION_LOOKAHEAD")
         stage_dates=[feature_history[data["symbols"][0]][-7+i]["trade_date"] for i in range(7)]
         for sym in data["symbols"]:
