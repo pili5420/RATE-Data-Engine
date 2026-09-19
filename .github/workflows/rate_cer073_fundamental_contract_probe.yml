@@ -2,6 +2,15 @@ name: RATE CER-073 Fundamental Contract Probe
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - rate-v2-6-1r2-staging
+    paths:
+      - .github/workflows/rate_cer073_fundamental_contract_probe.yml
+      - scripts/probe_fundamental_contracts.py
+      - src/sources/fundamental_history.py
+      - tests/test_cer073_fundamental_history_v2.py
+      - tests/test_cer073_source_wiring.py
 
 permissions:
   contents: read
