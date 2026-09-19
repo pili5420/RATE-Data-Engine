@@ -108,6 +108,7 @@ jobs:
       - name: Run live CER-072 institutional and prior-stage acceptance
         env:
           CER072_TRADING_DATE: ${{ inputs.trading_date }}
+          RATE_ACCEPTED_HISTORICAL_CACHE_KEY: ${{ steps.accepted-history.outputs.cache-matched-key }}
         shell: bash
         run: |
           args=(

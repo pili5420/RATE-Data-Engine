@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from scripts.build_live_source_bundle import _rows, _pick
+from src.benchmark_history import benchmark_digest
 from src.historical_store import PersistentHistoricalStore
 from src.institutional_features import calculate_institutional_rotation
 from src.institutional_history import (
@@ -33,6 +34,8 @@ from src.stage_history import build_stage_feature_histories
 
 HISTORICAL_DIGEST = "dddf63b85477aa7cd52ff284d3aba70cf449275406cb6e5e7091acc232d58e3a"
 UNIVERSE_DIGEST = "30276287608b87f7d9b606891514247da523dce9214e4b82bb34ba118a35af4c"
+ACCEPTED_TAIEX_DIGEST = "613f861d2bf51b8b8ac37725767f27e5a300ced2a5edaee119821378a0e796ed"
+ACCEPTED_TPEX_INDEX_DIGEST = "1e943f9474ea9506e44c3b47ace43574b13902d86407e4e5427cca07581dce77"
 TPEX_SYMBOLS = ("6274", "3081", "6187", "6510", "3227")
 FROZEN_FILE_SHA256 = {
     "src/rate_logic.py": "d8aedb3b190ba21649ebfc5763578426331943a68c4289fd5d0bc977157d87d8",
@@ -51,6 +54,13 @@ def _now():
 
 def _canonical_hash(value):
     return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+def _assert_benchmark_digest_binding(records, accepted_digest, label):
+    observed_digest = benchmark_digest(records)
+    if observed_digest != accepted_digest:
+        raise RuntimeError(f"RESTORED_{label}_HISTORY_DIGEST_MISMATCH")
+    return observed_digest
 
 
 def _stable_digest(value):
@@ -76,7 +86,7 @@ def _verify_model_freeze():
 
 
 def _validate_restored_history(history_root, universe, manifest_path, twse_mat_path, tpex_mat_path,
-                               taiex_evidence_path, tpex_index_evidence_path):
+                               taiex_evidence_path, tpex_index_evidence_path, digest_evidence=None):
     manifest = _load_json(manifest_path)
     if manifest.get("status") != "PASS" or manifest.get("full_historical_acceptance") != "PASS":
         raise RuntimeError("ACCEPTED_HISTORICAL_MANIFEST_NOT_PASS")
@@ -108,10 +118,22 @@ def _validate_restored_history(history_root, universe, manifest_path, twse_mat_p
             raise RuntimeError(f"RESTORED_STOCK_HISTORY_INVALID:{symbol}")
         stocks[symbol] = rows
     benchmarks = {"TAIEX": store.load_benchmark("TAIEX"), "TPEX": store.load_benchmark("TPEX")}
-    if _canonical_hash(benchmarks["TAIEX"]) != taiex_ev.get("benchmark_digest"):
-        raise RuntimeError("RESTORED_TAIEX_HISTORY_DIGEST_MISMATCH")
-    if _canonical_hash(benchmarks["TPEX"]) != tpex_index_ev.get("benchmark_digest"):
-        raise RuntimeError("RESTORED_TPEX_INDEX_HISTORY_DIGEST_MISMATCH")
+    taiex_observed = benchmark_digest(benchmarks["TAIEX"])
+    tpex_observed = benchmark_digest(benchmarks["TPEX"])
+    if digest_evidence is not None:
+        digest_evidence.update({
+            "benchmark_digest_contract": "benchmark_digest",
+            "restored_taiex_digest": taiex_observed,
+            "accepted_taiex_digest": taiex_ev.get("benchmark_digest"),
+            "restored_tpex_index_digest": tpex_observed,
+            "accepted_tpex_index_digest": tpex_index_ev.get("benchmark_digest"),
+        })
+    if taiex_ev.get("benchmark_digest") != ACCEPTED_TAIEX_DIGEST:
+        raise RuntimeError("ACCEPTED_TAIEX_BENCHMARK_DIGEST_UNEXPECTED")
+    if tpex_index_ev.get("benchmark_digest") != ACCEPTED_TPEX_INDEX_DIGEST:
+        raise RuntimeError("ACCEPTED_TPEX_INDEX_BENCHMARK_DIGEST_UNEXPECTED")
+    _assert_benchmark_digest_binding(benchmarks["TAIEX"], taiex_ev.get("benchmark_digest"), "TAIEX")
+    _assert_benchmark_digest_binding(benchmarks["TPEX"], tpex_index_ev.get("benchmark_digest"), "TPEX_INDEX")
     return {"store": store, "stocks": stocks, "benchmarks": benchmarks, "markets": markets,
             "symbols": symbols, "historical_digest": HISTORICAL_DIGEST}
 
@@ -286,6 +308,16 @@ def run(args):
     runtime="github_actions" if os.getenv("GITHUB_ACTIONS")=="true" else "local"
     provenance={"execution_runtime":runtime,"run_id":runid,"commit_sha":commit,"fixture_used":False}
     evidence = {"artifact":"RATE_CER072_INSTITUTIONAL_HISTORY_EVIDENCE",**provenance,"validation_status":"BLOCKED","t86_operational_policy":"PASS_WITH_USER_ASSUMPTION","t86_formal_authorization":"UNVERIFIED","historical_layer_modified":False,"production_state_modified":False,"input_snapshot_id":None,"current_state_id":None,"production_decision_state_persist":0,"rate_live_e2e_enabled":False,"blocking_reasons":[]}
+    digest_evidence = {
+        "accepted_historical_cache_key": os.getenv("RATE_ACCEPTED_HISTORICAL_CACHE_KEY"),
+        "accepted_historical_restore": "PASS" if os.getenv("RATE_ACCEPTED_HISTORICAL_CACHE_KEY") else "FAIL",
+        "benchmark_digest_contract": "benchmark_digest",
+        "restored_taiex_digest": None,
+        "accepted_taiex_digest": ACCEPTED_TAIEX_DIGEST,
+        "restored_tpex_index_digest": None,
+        "accepted_tpex_index_digest": ACCEPTED_TPEX_INDEX_DIGEST,
+    }
+    evidence.update(digest_evidence)
     freeze = _verify_model_freeze()
     evidence["model_freeze_integrity"] = freeze
     t86_evidence = {"artifact":"RATE_CER072_T86_26_SESSION_EVIDENCE",**provenance,"requested_end_date":None,"valid_session_dates":[],"request_count":0,"daily_request_deduplication":"NOT_RUN","valid_response_count":0,"empty_nontrading_dates":[],"response_date_identity_status":"NOT_RUN","symbols_required":25,"symbols_complete":0,"session_count_by_symbol":{},"minimum_sessions":0,"maximum_sessions":0,"FI_field_status":"NOT_RUN","IT_field_status":"NOT_RUN"}
@@ -302,9 +334,12 @@ def run(args):
         if len(twse_symbols)!=25 or set(tpex_symbols)!=set(TPEX_SYMBOLS):
             raise RuntimeError("APPROVED_INSTITUTIONAL_UNIVERSE_MISMATCH")
         data = _validate_restored_history(args.history_root, universe, args.accepted_manifest,
-            args.twse_materialization, args.tpex_materialization, args.taiex_evidence, args.tpex_index_evidence)
+            args.twse_materialization, args.tpex_materialization, args.taiex_evidence, args.tpex_index_evidence,
+            digest_evidence=digest_evidence)
+        evidence.update(digest_evidence)
         sessions, benchmark_by_symbol = _stock_and_benchmark_inputs(data,args.trading_date)
         t = sessions[-1]; t86_evidence["requested_end_date"]=t
+        evidence["resolved_trading_date"] = t
         candidate_dates=sessions[-60:]
         adapter=TWSEAdapter()
         throttle=float(os.getenv("RATE_T86_MIN_INTERVAL_SECONDS","1.2")); t_start=time.monotonic()
@@ -374,6 +409,7 @@ def run(args):
           "production_snapshot_created":False,"production_decision_state_persisted":0})
     except Exception as exc:
         reason=str(exc)
+        evidence.update(digest_evidence)
         evidence["blocking_reasons"].append(reason)
         evidence["validation_status"]="BLOCKED" if any(x in reason for x in ("MISSING", "INCOMPLETE", "UNAVAILABLE", "NOT_FOUND")) else "FAIL"
         t86_evidence.setdefault("blocking_reason",reason)
@@ -385,6 +421,12 @@ def run(args):
     _atomic_write(outdir/"RATE_FIRST_PRODUCTION_PRIOR_STAGE_PACKAGE_V1.json",prior_package)
     _atomic_write(outdir/"RATE_CER072_PRIOR_STAGE_RECONSTRUCTION_EVIDENCE.json",prior_evidence)
     print(json.dumps({"status":evidence["validation_status"],"trading_date":evidence.get("trading_date"),
+      "resolved_trading_date":evidence.get("resolved_trading_date"),
+      "accepted_historical_cache_key":evidence.get("accepted_historical_cache_key"),
+      "accepted_historical_restore":evidence.get("accepted_historical_restore"),
+      "restored_taiex_digest":evidence.get("restored_taiex_digest"),"accepted_taiex_digest":evidence.get("accepted_taiex_digest"),
+      "restored_tpex_index_digest":evidence.get("restored_tpex_index_digest"),"accepted_tpex_index_digest":evidence.get("accepted_tpex_index_digest"),
+      "benchmark_digest_contract":evidence.get("benchmark_digest_contract"),
       "t86_requests":t86_evidence.get("request_count"),"blocking_reasons":evidence["blocking_reasons"]},ensure_ascii=False))
     return 0 if evidence["validation_status"]=="PASS" else 1
 

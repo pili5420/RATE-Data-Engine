@@ -8,6 +8,7 @@ class CER072WorkflowContractTests(unittest.TestCase):
         self.assertIn('rate-v2-6-1r2-staging',text)
         self.assertIn('RATE_LIVE_E2E_ENABLED: "false"',text)
         self.assertNotIn('RATE_STAGING_REALTIME',text)
+        self.assertIn('RATE_ACCEPTED_HISTORICAL_CACHE_KEY: ${{ steps.accepted-history.outputs.cache-matched-key }}',text)
         self.assertNotIn('run_phase_a2.py',text)
         self.assertIn('scripts/run_cer072_acceptance.py',text)
 
