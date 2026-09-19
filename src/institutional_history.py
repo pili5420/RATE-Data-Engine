@@ -279,7 +279,9 @@ def _daily_field_mapping(fields):
         foreign = ("外資" in label or "外陸資" in label or "foreign" in label)
         trust = "投信" in label or "investmenttrust" in label.replace("_", "")
         excluded_dealer = ("不含外資自營商" in label or "不包括外資自營商" in label
-                           or "excludingforeigndealer" in label or "exforeigndealer" in label)
+                           or "不含自營商" in label or "不包括自營商" in label
+                           or "excludingforeigndealer" in label or "excludingdealer" in label
+                           or "exforeigndealer" in label)
         aggregate = ("合計" in label or "total" in label)
         if foreign and not trust and excluded_dealer and not aggregate:
             group = "foreign_ex_dealer"
@@ -376,15 +378,40 @@ def fetch_tpex_daily_sessions(adapter, symbols, stock_rows_by_symbol, candidate_
     try:
         for day in probe_dates:
             result = adapter.fetch_institutional_daily(day)
-            parsed = normalize_tpex_daily_response(result, day, stock_rows_by_symbol, symbols)
-            probe_results[day] = (result, parsed)
             diag = result.get("diagnostics", {})
-            probe_evidence.append({"requested_date": day, "response_date": parsed["response_date"],
-                "status": "PASS", "http_status": diag.get("http_status"), "content_type": diag.get("content_type"),
-                "response_bytes": diag.get("response_bytes"), "body_sha256": diag.get("body_sha256"),
-                "response_date_location": diag.get("response_date_location"), "record_count": parsed["record_count"],
+            fetched_probe = {"requested_date": day, "status": "FETCHED",
+                "http_status": diag.get("http_status"), "final_url": diag.get("final_url"),
+                "redirect_count": diag.get("redirect_count"), "content_type": diag.get("content_type"),
+                "content_length": diag.get("content_length"), "response_bytes": diag.get("response_bytes"),
+                "body_sha256": diag.get("body_sha256"), "body_prefix_class": diag.get("body_prefix_class"),
+                "json_decode_status": diag.get("json_decode_status"), "top_level_keys": diag.get("top_level_keys"),
+                "table_count": diag.get("table_count"), "response_field_names": diag.get("response_field_names"),
+                "response_date": diag.get("response_date"),
+                "response_date_location": diag.get("response_date_location"),
+                "table_title": diag.get("table_title"), "record_count": diag.get("record_count")}
+            probe_evidence.append(fetched_probe)
+            contract.update({"endpoint": result.get("endpoint"), "request_params": result.get("request_params"),
+                "http_statuses": [x.get("http_status") for x in probe_evidence],
+                "content_types": [x.get("content_type") for x in probe_evidence],
+                "response_schema": diag.get("response_field_names"), "probes": probe_evidence})
+            save()
+            try:
+                parsed = normalize_tpex_daily_response(result, day, stock_rows_by_symbol, symbols)
+            except Exception as parse_exc:
+                fetched_probe.update({"status": "FAIL", "contract_error": str(parse_exc)})
+                contract["blocking_reason"] = str(parse_exc)
+                if "RESPONSE_DATE" in str(parse_exc):
+                    contract["response_date_identity"] = "FAIL"
+                if "REQUIRED_FIELDS" in str(parse_exc) or "AMBIGUOUS_FIELD" in str(parse_exc):
+                    contract["FI_semantic_equivalence"] = "FAIL"
+                save()
+                raise
+            probe_results[day] = (result, parsed)
+            fetched_probe.update({"response_date": parsed["response_date"], "status": "PASS",
+                "record_count": parsed["record_count"],
                 "field_names": parsed["field_names"], "table_title": parsed["table_title"],
                 "sample_symbols": parsed["sample_symbols"], "field_mapping": parsed["field_mapping"]})
+            contract["probes"] = probe_evidence
             contract.update({"endpoint": result.get("endpoint"), "request_params": result.get("request_params"),
                 "http_statuses": [x.get("http_status") for x in probe_evidence],
                 "content_types": [x.get("content_type") for x in probe_evidence], "response_schema": parsed["field_names"],

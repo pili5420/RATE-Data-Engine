@@ -260,5 +260,31 @@ class CER072InstitutionalHistoryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'SYMBOLS_MISSING'):
             normalize_tpex_daily_response(payload,day,_stock_rows(symbols,[day]),symbols)
 
+    def test_contract_probe_preserves_safe_schema_diagnostics_on_mapping_failure(self):
+        days=['2026-08-14','2026-08-17','2026-08-18']
+        while len(days)<26:
+            from datetime import date, timedelta
+            d=date.fromisoformat(days[-1])+timedelta(days=1)
+            while d.weekday()>=5: d+=timedelta(days=1)
+            days.append(d.isoformat())
+        symbols=['6274']; stocks=_stock_rows(symbols,days); evidence=[]
+        invalid=self._tpex_daily(days[0],symbols)
+        invalid['raw_payload']['tables'][0]['fields']=['代號','無關欄位']
+        invalid['raw_payload']['tables'][0]['data']=[['6274','value']]
+        invalid['diagnostics'].update({'top_level_keys':['tables'],'table_count':1,
+            'response_field_names':['代號','無關欄位'],'response_date':'115/08/14',
+            'response_date_location':'tables[0].date','table_title':'日報表'})
+        class Adapter:
+            def fetch_institutional_daily(self,day):
+                return {'raw_payload':invalid['raw_payload'],'diagnostics':invalid['diagnostics'],
+                    'endpoint':'official','request_params':{'date':day}}
+        with self.assertRaisesRegex(ValueError,'REQUIRED_FIELDS_MISSING'):
+            fetch_tpex_daily_sessions(Adapter(),symbols,stocks,days,probe_dates=days[:3],
+                evidence_writer=lambda item,daily=False: evidence.append((item,daily)))
+        contract=[item for item,daily in evidence if not daily][-1]
+        self.assertEqual(contract['probes'][0]['response_field_names'],['代號','無關欄位'])
+        self.assertEqual(contract['probes'][0]['response_date_location'],'tables[0].date')
+        self.assertEqual(contract['transport_status'],'FAIL')
+
 
 if __name__=='__main__': unittest.main()
