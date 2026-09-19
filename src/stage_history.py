@@ -46,7 +46,14 @@ def build_stage_feature_histories(stock_histories, benchmark_by_symbol, institut
             if len(dh) < 5:
                 raise ValueError(f"DATA_INCOMPLETE:TDCC_ASOF_FIVE_PERIODS:{s}:{session}")
             institutional_rows.append({"symbol":s,"institutional_history":ih,"tdcc_history":dh,**rotation_history[s]})
-        inst = {str(r["symbol"]):r for r in calculate_institutional_rotation(institutional_rows)}
+        try:
+            calculated_institutional = calculate_institutional_rotation(institutional_rows)
+        except ValueError as exc:
+            input_counts = {str(row["symbol"]): len(row.get("institutional_history", [])) for row in institutional_rows}
+            raise ValueError(
+                f"{exc}:ASOF_SESSION={session}:INPUT_HISTORY_COUNTS={input_counts}"
+            ) from exc
+        inst = {str(r["symbol"]):r for r in calculated_institutional}
         for s in symbols:
             tf=tech_by[s]; ir=inst[s]
             m7=calculate_m7({k:tf[k] for k in ("PT","PV","MO","RS")} | {k:ir[k] for k in ("FI","IT","LH")})
