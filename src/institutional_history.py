@@ -137,7 +137,9 @@ def normalize_t86_response(result, requested_date, stock_rows_by_symbol, require
         stock = next((x for x in stock_rows_by_symbol[symbol] if x.get("trade_date") == requested_date), None)
         if stock is None:
             raise ValueError(f"INSTITUTIONAL_STOCK_DATE_MISMATCH:{symbol}:{requested_date}")
-        item.update({"symbol": symbol, "trading_date": requested_date,
+        item.update({"foreign_net_shares": item["foreign_net"],
+                     "investment_trust_net_shares": item["investment_trust_net"],
+                     "symbol": symbol, "trading_date": requested_date,
                      "close": _number(stock.get("close"), "close"),
                      "turnover": _number(stock.get("turnover"), "turnover"),
                      "source_timestamp": result.get("source_timestamp"),
