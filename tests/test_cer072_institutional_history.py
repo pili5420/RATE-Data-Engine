@@ -197,7 +197,7 @@ class CER072InstitutionalHistoryTests(unittest.TestCase):
         day='2026-09-18'; symbols=['6274']; payload=self._tpex_daily(day,symbols)
         fields=payload['raw_payload']['tables'][0]['fields']
         payload['raw_payload']['tables'][0]['fields']=[
-            f.replace('買進股數','買股數').replace('賣出股數','賣股數').replace('買賣超股數','淨買股數')
+            (f if f == '三大法人買賣超股數合計' else f.replace('買進股數','買股數').replace('賣出股數','賣股數').replace('買賣超股數','淨買股數'))
             for f in fields]
         payload['diagnostics']['semantic_field_names']=[
             f.rsplit('.',1)[0] + '.' + f.rsplit('.',1)[-1].replace('買進股數','買股數')
@@ -239,7 +239,11 @@ class CER072InstitutionalHistoryTests(unittest.TestCase):
         adapter=TPExAdapter()
         daily=self._tpex_daily('2026-09-18',['6274'])
         with patch('src.sources.tpex._resilient_tpex_daily_json',return_value={
-                'payload':daily['raw_payload'],'body_sha256':'digest','diagnostics':daily['diagnostics']}) as transport:
+                'payload':daily['raw_payload'],'body_sha256':'digest','diagnostics':daily['diagnostics']}) as transport, \
+             patch.object(adapter,'_fetch_institutional_daily_semantic_schema',return_value={
+                'semantic_schema_status':'PASS','semantic_schema_source':'fixture',
+                'semantic_schema_sha256':'fixture-hash',
+                'semantic_field_names':daily['diagnostics']['semantic_field_names']}):
             first=adapter.fetch_institutional_daily('2026-09-18')
             second=adapter.fetch_institutional_daily('2026-09-18')
         self.assertEqual(transport.call_count,1)
@@ -295,7 +299,7 @@ class CER072InstitutionalHistoryTests(unittest.TestCase):
 
     def test_daily_missing_required_value_never_becomes_zero(self):
         day='2026-09-18'; symbols=['6274']; payload=self._tpex_daily(day,symbols)
-        payload['raw_payload']['tables'][0]['data'][0][1]='-'
+        payload['raw_payload']['tables'][0]['data'][0][2]='-'
         with self.assertRaisesRegex(ValueError,'MISSING_REQUIRED_INSTITUTIONAL_FIELD'):
             normalize_tpex_daily_response(payload,day,_stock_rows(symbols,[day]),symbols)
 
@@ -316,7 +320,7 @@ class CER072InstitutionalHistoryTests(unittest.TestCase):
         invalid['raw_payload']['tables'][0]['fields']=['代號','無關欄位']
         invalid['raw_payload']['tables'][0]['data']=[['6274','value']]
         invalid['diagnostics'].update({'top_level_keys':['tables'],'table_count':1,
-            'response_field_names':['代號','無關欄位'],'response_date':'115/08/14',
+            'response_field_names':['代號','無關欄位'],'semantic_field_names':['代號','無關欄位'],'response_date':'115/08/14',
             'response_date_location':'tables[0].date','table_title':'日報表'})
         class Adapter:
             def fetch_institutional_daily(self,day):
