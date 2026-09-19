@@ -193,7 +193,13 @@ class MOPSHistoricalFundamentalAdapter:
             status=getattr(response,"status",response.getcode()); final_url=response.geturl()
             content_type=response.headers.get("Content-Type",""); body=response.read()
         except HTTPError as exc:
-            raise RuntimeError(f"MOPS_{domain.upper()}_HTTP_{exc.code}") from exc
+            if exc.code in (301,302,303,307,308) and exc.headers.get("Location"):
+                redirected=Request(exc.headers["Location"],headers=dict(request.header_items()))
+                response=self.opener(redirected,timeout=45)
+                status=getattr(response,"status",response.getcode()); final_url=response.geturl()
+                content_type=response.headers.get("Content-Type",""); body=response.read()
+            else:
+                raise RuntimeError(f"MOPS_{domain.upper()}_HTTP_{exc.code}") from exc
         except (URLError,TimeoutError,OSError) as exc:
             raise RuntimeError(f"MOPS_{domain.upper()}_TRANSPORT:{type(exc).__name__}") from exc
         classification=_classify_body(body,content_type)
