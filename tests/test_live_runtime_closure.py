@@ -36,7 +36,10 @@ class LiveRuntimeClosureTests(unittest.TestCase):
         self.assertNotEqual(p.returncode,0,p.stdout+p.stderr); bundle=json.loads(out.read_text(encoding='utf-8')); self.assertIn('BLOCKED',bundle['validation_status']); inp.unlink(missing_ok=True); out.unlink(missing_ok=True)
 
     def test_live_missing_inputs_fail_closed(self):
-        td=Path('artifacts/test_live_runtime'); td.mkdir(exist_ok=True); out=td/'bundle.json'; p=subprocess.run(['python','scripts/build_live_source_bundle.py','--trading-date','2026-09-10','--output',str(out)],capture_output=True,text=True)
+        td=Path('artifacts/test_live_runtime'); td.mkdir(exist_ok=True); out=td/'bundle.json'; env=os.environ.copy()
+        for key in ('RATE_CER073_REQUIRE_PROBE','RATE_UNIVERSE_FILE','RATE_TWSE_SYMBOLS'):
+            env.pop(key,None)
+        p=subprocess.run(['python','scripts/build_live_source_bundle.py','--trading-date','2026-09-10','--output',str(out)],capture_output=True,text=True,env=env)
         self.assertNotEqual(p.returncode,0); self.assertIn('MISSING_REQUIRED_SOURCE_CONFIGURATION',out.read_text(encoding='utf-8')); out.unlink(missing_ok=True)
         bad=self._bundle(); bad['records']=[]; self.assertIsNone(build_production_snapshot({**bad,'bundle_status':'BLOCKED'}))
 

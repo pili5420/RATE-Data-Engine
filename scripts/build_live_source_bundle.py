@@ -217,6 +217,15 @@ def _history(adapter,symbol,trading_date,market='TWSE'):
     # from the durable checkpoint when the accepted rolling window is incomplete.
     persisted = [row for row in persisted if str(row.get('trade_date', '')) <= trading_date]
     persisted_dates = [str(row.get('trade_date', '')) for row in persisted]
+    checkpoint_months = BOOTSTRAP_CONTEXT.get('checkpoint', {}).get('months', {})
+    resumable_checkpoint = any(
+        key.startswith(f'{symbol}:') and isinstance(entry, dict)
+        and entry.get('symbol') == symbol and entry.get('market') == market
+        and entry.get('validation_status') == 'PASS' and isinstance(entry.get('records'), list)
+        and any(str(row.get('trade_date', '')) <= trading_date for row in entry['records'])
+        for key, entry in checkpoint_months.items())
+    if len(persisted) < 180 and not resumable_checkpoint:
+        raise RuntimeError(f'ACCEPTED_ROLLING_STOCK_STORE_MISSING_OR_INCOMPLETE:{symbol}:{len(persisted)}')
     if persisted_dates and persisted_dates[-1] == trading_date and len(persisted) >= 180:
         LIVE_PROGRESS.setdefault('aligned_sessions_by_symbol', {})[symbol] = len(persisted)
         LIVE_PROGRESS.setdefault('raw_sessions_by_symbol', {})[symbol] = 0
@@ -233,7 +242,7 @@ def _history(adapter,symbol,trading_date,market='TWSE'):
         LIVE_PROGRESS['current_period'] = period
         cp_key = f'{symbol}:{period}'
         cached = BOOTSTRAP_CONTEXT.get('checkpoint', {}).get('months', {}).get(cp_key)
-        if market == 'TWSE' and isinstance(cached, dict) and cached.get('symbol') == symbol and cached.get('market') == market and cached.get('year_month') == period and cached.get('provider') == 'TWSE' and cached.get('dataset') == 'STOCK_DAY' and cached.get('validation_status') == 'PASS' and cached.get('content_hash') and isinstance(cached.get('records'), list) and (trading_date in {str(x.get('trade_date')) for x in cached.get('records', [])} or not persisted):
+        if market == 'TWSE' and isinstance(cached, dict) and cached.get('symbol') == symbol and cached.get('market') == market and cached.get('year_month') == period and cached.get('provider') == 'TWSE' and cached.get('dataset') == 'STOCK_DAY' and cached.get('validation_status') == 'PASS' and cached.get('content_hash') and isinstance(cached.get('records'), list) :
             period_records = cached['records']
             BOOTSTRAP_CONTEXT['periods_loaded_from_checkpoint'] = BOOTSTRAP_CONTEXT.get('periods_loaded_from_checkpoint', 0) + 1
         else:
