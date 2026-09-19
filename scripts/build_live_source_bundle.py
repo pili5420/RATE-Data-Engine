@@ -1,4 +1,148 @@
-INT_SCHEMA_VERSION:
+"""Build the LIVE RATE source bundle, fail-closed and without fixture fallback."""
+from __future__ import annotations
+import argparse, json, os, sys, tempfile, calendar
+import hashlib
+from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from src.benchmark_history import normalize_twse_date
+from src.fundamental import calculate_fundamental
+from src.historical_store import PersistentHistoricalStore, normalize_stock_record
+from src.institutional_features import calculate_institutional_rotation
+from src.institutional_history import valid_stock_session_dates, fetch_t86_sessions, fetch_tpex_daily_sessions, validate_history_rows
+from src.sources.tdcc_historical import TDCCHistoricalAdapter, holder_pct_400_from_tiers, select_required_period_union
+from src.rotation_history import build_rotation_feature_histories
+from src.stage_history import build_stage_feature_histories
+from src.stage_evidence import build_production_stage_evidence
+from src.live_decision_inputs import build_live_decision_records
+from src.rate_logic import calculate_m7, calculate_mhe
+from src.sources.fundamental import FundamentalAdapter
+from src.sources.fundamental_history import FundamentalHistoryStoreV2, MOPSHistoricalFundamentalAdapter, SCHEMA_VERSION as FUNDAMENTAL_HISTORY_SCHEMA_VERSION
+from src.sources.twse import TWSEAdapter, reset_transport_metrics, get_transport_metrics
+from src.sources.tpex import TPExAdapter
+from src.technical_features import compute_scores, technical_record
+
+FULL_COMPONENTS = ('PT','PV','MO','FI','IT','LH','RS','H5','H20','H60','H120','RS_CHANGE','VOL_CHANGE','SMART_MONEY','MOMENTUM_CHANGE','FC','Fundamental','RelativeStrength','Liquidity')
+REQUIRED_CONFIG = ('TDCC_OPENAPI_BASE',)
+EVIDENCE_DEFAULT = 'artifacts/RATE_LIVE_SOURCE_ASSEMBLY_EVIDENCE.json'
+UNIVERSE_CONTEXT = {}
+LIVE_PROGRESS = {}
+BOOTSTRAP_CONTEXT = {}
+CHECKPOINT_PATH = Path('data/staging/history_bootstrap/RATE_TWSE_HISTORY_BOOTSTRAP_CHECKPOINT_V1.json')
+CHECKPOINT_SCHEMA_VERSION = 'RATE-TWSE-HISTORY-CHECKPOINT-V1'
+NORMALIZATION_SCHEMA_VERSION = 'RATE-STOCK-NORMALIZED-V1'
+SOURCE_DATASET_VERSION = 'TWSE_STOCK_DAY_V1'
+
+def _now(): return datetime.now(timezone.utc).isoformat().replace('+00:00','Z')
+def _rows(payload):
+    if isinstance(payload,list): return [x for x in payload if isinstance(x,dict)]
+    if not isinstance(payload,dict): return []
+    data=payload.get('data') or payload.get('records') or payload.get('aaData') or []; fields=payload.get('fields') or []
+    if not data and isinstance(payload.get('tables'), list):
+        for table in payload['tables']:
+            if isinstance(table, dict):
+                table_data=table.get('data') or table.get('records') or table.get('aaData') or []
+                table_fields=table.get('fields') or fields
+                if table_data:
+                    data, fields = table_data, table_fields
+                    break
+    if fields and isinstance(data,list): return [dict(zip(fields,x)) if isinstance(x,list) else x for x in data if isinstance(x,(list,dict))]
+    return [x for x in data if isinstance(x,dict)] if isinstance(data,list) else []
+def _pick(row,*names):
+    for name in names:
+        if name in row and row[name] not in (None,'','-','--'): return row[name]
+    return None
+def _number(value):
+    text=str(value).strip().replace(',','')
+    if text in ('','-','--','None','null'): raise ValueError('MISSING_NUMERIC')
+    return float(text.replace('(','-').replace(')',''))
+def _month_cursor(end):
+    year,month=end.year,end.month
+    while True:
+        yield f'{year:04d}{month:02d}'
+        month-=1
+        if month==0: month,year=12,year-1
+def _parse_universe_payload(obj):
+    """Parse supported universe shapes without stringifying structured entries."""
+    if isinstance(obj, list):
+        entries = obj
+    elif isinstance(obj, dict) and isinstance(obj.get('symbols'), list):
+        entries = obj['symbols']
+    else:
+        entries = []
+    parsed=[]
+    for entry in entries:
+        if isinstance(entry, str):
+            parsed.append({'symbol': entry.strip()})
+        elif isinstance(entry, dict) and entry.get('symbol') is not None:
+            parsed.append({'symbol': str(entry['symbol']).strip(), 'market': entry.get('market'), **entry})
+    return parsed
+
+def _load_universe():
+    global UNIVERSE_CONTEXT
+    UNIVERSE_CONTEXT = {}
+    symbols=[x.strip() for x in os.getenv('RATE_TWSE_SYMBOLS','').split(',') if x.strip()]
+    path=os.getenv('RATE_UNIVERSE_FILE')
+    if not symbols and path:
+        obj=json.loads(Path(path).read_text(encoding='utf-8'))
+        if isinstance(obj, dict):
+            if obj.get('artifact') != 'CONTROL_CENTER_APPROVED_STAGING_VALIDATION_UNIVERSE_V1' or obj.get('schema_version') != 'RATE-UNIVERSE-V1.0' or obj.get('validation_scope') != 'STAGING_LIVE_ONLY' or obj.get('ranking_status') != 'NOT_A_VALIDATED_TOP30_RANKING':
+                raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY')
+            if obj.get('validation_status') != 'PASS': raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:VALIDATION_STATUS')
+            if obj.get('source_state_id') != 'RATE-V11.1-PS-20260913-V1-r000009' or obj.get('source_state_file_sha256') != 'f1cc9c5f005a07f081943e279cfab9624079d51ae7d3ef1f1e23ef74b638864b':
+                raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:STATE')
+            parsed = _parse_universe_payload(obj)
+            if any(not p.get('market') in ('TWSE','TPEX') for p in parsed): raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:MARKET')
+            if any(p['symbol'].upper() == 'TAIEX' for p in parsed): raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:BENCHMARK_IN_EQUITY_UNIVERSE')
+            symbols = [p['symbol'] for p in parsed]
+            if any(not x.isdigit() for x in symbols) or len(set(symbols)) != len(symbols): raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:SYMBOLS')
+            if len(parsed) != 30: raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:RECORD_COUNT')
+            digest_payload={'source_state_id':obj['source_state_id'],'symbols':symbols}
+            digest=hashlib.sha256(json.dumps(digest_payload,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+            if digest != obj.get('universe_symbol_digest') or digest != '30276287608b87f7d9b606891514247da523dce9214e4b82bb34ba118a35af4c': raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:DIGEST')
+            if obj.get('record_count') != 30 or obj.get('unique_count',30) != 30 or obj.get('duplicate_count',0) != 0: raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY:COUNTS')
+            UNIVERSE_CONTEXT={'universe_source':'CONTROL_CENTER_APPROVED_STAGING_VALIDATION_UNIVERSE_V1','universe_schema_version':obj['schema_version'],'universe_source_state_id':obj['source_state_id'],'universe_source_state_hash':obj['source_state_file_sha256'],'universe_digest':digest,'universe_record_count':30,'twse_count':sum(p['market']=='TWSE' for p in parsed),'tpex_count':sum(p['market']=='TPEX' for p in parsed),'unresolved_market_count':obj.get('unresolved_market_count',0),'fixture_universe_used':False,'universe_markets':{p['symbol']:p['market'] for p in parsed}}
+        else:
+            parsed = _parse_universe_payload(obj); symbols=[p['symbol'] for p in parsed]
+    result=sorted(set(x for x in symbols if x.isdigit()))
+    if not result: raise RuntimeError('MISSING_REQUIRED_SOURCE_CONFIGURATION:RATE_TWSE_SYMBOLS_OR_RATE_UNIVERSE_FILE')
+    return result
+def _atomic_write_json(path, value):
+    """Write JSON durably so cancellation cannot leave a partial artifact."""
+    path = Path(path); path.parent.mkdir(parents=True, exist_ok=True)
+    payload = (json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + '\n').encode('utf-8')
+    fd, tmp_name = tempfile.mkstemp(prefix=f'.{path.name}.', suffix='.tmp', dir=str(path.parent))
+    try:
+        with os.fdopen(fd, 'wb') as handle:
+            handle.write(payload); handle.flush(); os.fsync(handle.fileno())
+        os.replace(tmp_name, path)
+    finally:
+        try: os.unlink(tmp_name)
+        except FileNotFoundError: pass
+
+def _write(path,value):
+    _atomic_write_json(path, value)
+def _config_readiness(): return {key:('READY' if (os.getenv(key) or key=='TDCC_OPENAPI_BASE') else 'NOT_READY') for key in REQUIRED_CONFIG}
+
+def _checkpoint_digest(obj):
+    payload = {k: v for k, v in obj.items() if k not in ('content_hash', 'last_updated')}
+    return hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+def _load_checkpoint(path, universe_digest):
+    if not path.exists():
+        return {'schema_version': CHECKPOINT_SCHEMA_VERSION, 'checkpoint_schema_version': CHECKPOINT_SCHEMA_VERSION,
+                'normalization_schema_version': NORMALIZATION_SCHEMA_VERSION,
+                'source_dataset_version': SOURCE_DATASET_VERSION, 'universe_digest': universe_digest,
+                'staging_source_version': SOURCE_DATASET_VERSION, 'last_updated': None,
+                'symbols': {}, 'months': {}, 'record_count': 0, 'content_hash': None,
+                'validation_status': 'PASS'}
+    try: obj = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, json.JSONDecodeError): raise RuntimeError('TWSE_BOOTSTRAP_CHECKPOINT_CORRUPT')
+    if obj.get('universe_digest') != universe_digest:
+        raise RuntimeError('TWSE_BOOTSTRAP_CHECKPOINT_UNIVERSE_MISMATCH')
+    if obj.get('schema_version') != CHECKPOINT_SCHEMA_VERSION or obj.get('validation_status') != 'PASS':
+        raise RuntimeError('TWSE_BOOTSTRAP_CHECKPOINT_INVALID')
+    if obj.get('checkpoint_schema_version', CHECKPOINT_SCHEMA_VERSION) != CHECKPOINT_SCHEMA_VERSION:
         raise RuntimeError('TWSE_BOOTSTRAP_CHECKPOINT_VERSION_MISMATCH')
     if obj.get('normalization_schema_version', NORMALIZATION_SCHEMA_VERSION) != NORMALIZATION_SCHEMA_VERSION:
         raise RuntimeError('TWSE_BOOTSTRAP_CHECKPOINT_NORMALIZATION_MISMATCH')
