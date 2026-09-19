@@ -423,6 +423,22 @@ def run(args):
             "fixture_used":False,"available_period_count_by_symbol":tdcc_result["available_period_count_by_symbol"],
             "period_range_by_symbol":tdcc_result["period_range_by_symbol"],
             "asof_lineage":tdcc_result["asof_coverage_by_replay_session"]})
+        institutional_asof_input_counts = {
+            day: {
+                symbol: sum(
+                    1 for row in institutional.get(symbol, [])
+                    if str(row.get("trading_date", row.get("trade_date", ""))) <= day
+                )
+                for symbol in data["symbols"]
+            }
+            for day in stage_replay_sessions
+        }
+        evidence["institutional_asof_input_counts"] = institutional_asof_input_counts
+        for day, counts_by_symbol in institutional_asof_input_counts.items():
+            insufficient = [(symbol, count) for symbol, count in counts_by_symbol.items() if count < 20]
+            if insufficient:
+                symbol, count = insufficient[0]
+                raise RuntimeError(f"DATA_INCOMPLETE:INSTITUTIONAL_HISTORY:{symbol}:{day}:{count}<20")
         feature_history,stages,package_rows,replay_status=_replay_and_evidence(data,institutional,tdcc,t)
         for day in stage_replay_sessions:
             for symbol in data["symbols"]:
