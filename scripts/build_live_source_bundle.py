@@ -1,6 +1,6 @@
 """Build the LIVE RATE source bundle, fail-closed and without fixture fallback."""
 from __future__ import annotations
-import argparse, json, os, sys, tempfile
+import argparse, json, os, sys, tempfile, calendar
 import hashlib
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -9,14 +9,14 @@ from src.benchmark_history import normalize_twse_date
 from src.fundamental import calculate_fundamental
 from src.historical_store import PersistentHistoricalStore, normalize_stock_record
 from src.institutional_features import calculate_institutional_rotation
+from src.institutional_history import valid_stock_session_dates, fetch_t86_sessions, fetch_tpex_daily_sessions, validate_history_rows
+from src.sources.tdcc_historical import TDCCHistoricalAdapter, holder_pct_400_from_tiers, select_required_period_union
 from src.rotation_history import build_rotation_feature_histories
 from src.stage_history import build_stage_feature_histories
 from src.stage_evidence import build_production_stage_evidence
 from src.live_decision_inputs import build_live_decision_records
 from src.rate_logic import calculate_m7, calculate_mhe
-from src.sources.tdcc import TDCCAdapter
 from src.sources.fundamental import FundamentalAdapter
-from src.fundamental_history import PersistentFundamentalStore
 from src.sources.twse import TWSEAdapter, reset_transport_metrics, get_transport_metrics
 from src.sources.tpex import TPExAdapter
 from src.technical_features import compute_scores, technical_record
@@ -205,7 +205,23 @@ def _failure(path,trading_date,reason,coverage=None):
     metrics = get_transport_metrics()
     _write(path,{'status':'BLOCKED','blocking_reason':reason,'trading_date':trading_date,'staging_commit':os.getenv('GITHUB_SHA'),'execution_runtime':'github_actions' if os.getenv('GITHUB_ACTIONS')=='true' else 'local','universe_count':len(os.getenv('RATE_TWSE_SYMBOLS','').split(',')) if os.getenv('RATE_TWSE_SYMBOLS') else UNIVERSE_CONTEXT.get('universe_record_count',0),'source_readiness':_config_readiness(),'history_coverage_reached_before_failure':coverage or {},'benchmark_coverage':None,'timestamps':{'retrieval_timestamp':_now()},'historical_progress':LIVE_PROGRESS,'transport_request_metrics':metrics,'throttle_pattern_classification':('PATTERN_CONSISTENT_WITH_HOST_THROTTLING_OR_EDGE_POLICY' if metrics.get('bare_307_count') else 'NONE_OBSERVED'),**UNIVERSE_CONTEXT})
 def _history(adapter,symbol,trading_date,market='TWSE'):
-    records=[]; seen=set(); end=date.fromisoformat(trading_date)
+    end=date.fromisoformat(trading_date)
+    store_root = os.getenv('RATE_STAGING_HISTORY_STORE_ROOT', 'data/staging/history')
+    accepted_store = PersistentHistoricalStore(store_root)
+    persisted = accepted_store.load_stock(symbol)
+    persisted_dates = [str(row.get('trade_date', '')) for row in persisted]
+    if len(persisted_dates) != len(set(persisted_dates)) or any(row.get('symbol') != symbol or row.get('market') != market for row in persisted):
+        raise RuntimeError(f'PERSISTED_STOCK_HISTORY_INVALID:{symbol}')
+    if not persisted or len(persisted) < 180:
+        raise RuntimeError(f'ACCEPTED_ROLLING_STOCK_STORE_MISSING_OR_INCOMPLETE:{symbol}:{len(persisted)}')
+    if persisted_dates[-1] == trading_date and len(persisted) >= 180:
+        LIVE_PROGRESS.setdefault('aligned_sessions_by_symbol', {})[symbol] = len(persisted)
+        LIVE_PROGRESS.setdefault('raw_sessions_by_symbol', {})[symbol] = 0
+        LIVE_PROGRESS.setdefault('months_completed_by_symbol', {})[symbol] = 0
+        return persisted[-220:]
+    records=list(persisted); seen=set(persisted_dates)
+    LIVE_PROGRESS.setdefault('aligned_sessions_by_symbol', {}).setdefault(symbol, len(records))
+
     LIVE_PROGRESS.setdefault('months_completed_by_symbol', {}).setdefault(symbol, 0)
     LIVE_PROGRESS.setdefault('raw_sessions_by_symbol', {}).setdefault(symbol, 0)
     LIVE_PROGRESS.setdefault('aligned_sessions_by_symbol', {}).setdefault(symbol, 0)
@@ -214,11 +230,12 @@ def _history(adapter,symbol,trading_date,market='TWSE'):
         LIVE_PROGRESS['current_period'] = period
         cp_key = f'{symbol}:{period}'
         cached = BOOTSTRAP_CONTEXT.get('checkpoint', {}).get('months', {}).get(cp_key)
-        if market == 'TWSE' and isinstance(cached, dict) and cached.get('symbol') == symbol and cached.get('market') == market and cached.get('year_month') == period and cached.get('provider') == 'TWSE' and cached.get('dataset') == 'STOCK_DAY' and cached.get('validation_status') == 'PASS' and cached.get('content_hash') and isinstance(cached.get('records'), list):
+        if market == 'TWSE' and isinstance(cached, dict) and cached.get('symbol') == symbol and cached.get('market') == market and cached.get('year_month') == period and cached.get('provider') == 'TWSE' and cached.get('dataset') == 'STOCK_DAY' and cached.get('validation_status') == 'PASS' and cached.get('content_hash') and isinstance(cached.get('records'), list) and (trading_date in {str(x.get('trade_date')) for x in cached.get('records', [])} or not persisted):
             period_records = cached['records']
             BOOTSTRAP_CONTEXT['periods_loaded_from_checkpoint'] = BOOTSTRAP_CONTEXT.get('periods_loaded_from_checkpoint', 0) + 1
         else:
             try:
+                LIVE_PROGRESS['stock_historical_requests'] = LIVE_PROGRESS.get('stock_historical_requests',0)+1
                 result=adapter.fetch_historical_symbol(symbol,period)
             except Exception as exc:
                 LIVE_PROGRESS['failed_candidate_chain'] = getattr(exc, 'candidate_attempts', getattr(exc, 'diagnostics', []))
@@ -263,7 +280,18 @@ def _history(adapter,symbol,trading_date,market='TWSE'):
     if len(records)<180: raise RuntimeError(f'DATA_INCOMPLETE:LIVE_HISTORICAL_STOCK:{symbol}:{len(records)}<180')
     return records[-220:]
 def _benchmark(adapter,trading_date,market='TWSE'):
-    records=[]; seen=set(); end=date.fromisoformat(trading_date)
+    end=date.fromisoformat(trading_date)
+    store = PersistentHistoricalStore(os.getenv('RATE_STAGING_HISTORY_STORE_ROOT', 'data/staging/history'))
+    key = 'TAIEX' if market == 'TWSE' else 'TPEX'
+    persisted = store.load_benchmark(key)
+    dates = [str(row.get('trade_date', '')) for row in persisted]
+    if len(dates) != len(set(dates)) or any(row.get('benchmark_symbol') != key for row in persisted):
+        raise RuntimeError(f'PERSISTED_BENCHMARK_HISTORY_INVALID:{key}')
+    if not persisted or len(persisted) < 180:
+        raise RuntimeError(f'ACCEPTED_ROLLING_BENCHMARK_STORE_MISSING_OR_INCOMPLETE:{key}:{len(persisted)}')
+    if dates[-1] == trading_date and len(persisted) >= 180:
+        return persisted[-220:]
+    records=list(persisted); seen=set(dates)
     cache_root = Path(os.getenv('RATE_STAGING_BENCHMARK_CACHE_ROOT', 'data/staging/history_bootstrap/benchmarks'))
     cache_root.mkdir(parents=True, exist_ok=True)
     for period in _month_cursor(end):
@@ -273,12 +301,14 @@ def _benchmark(adapter,trading_date,market='TWSE'):
             try:
                 cached = json.loads(cache_path.read_text(encoding='utf-8'))
                 canonical = json.dumps(cached.get('records', []), ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()
-                if cached.get('validation_status') == 'PASS' and cached.get('content_hash') == hashlib.sha256(canonical).hexdigest():
+                cached_dates = {normalize_twse_date(_pick(x,'trade_date','Date','日期')) for x in cached.get('records',[]) if _pick(x,'trade_date','Date','日期') is not None}
+                if cached.get('validation_status') == 'PASS' and cached.get('content_hash') == hashlib.sha256(canonical).hexdigest() and trading_date in cached_dates:
                     result = {'raw_payload': {'data': cached.get('records', [])}, 'source_timestamp': cached.get('source_timestamp'), 'retrieval_timestamp': cached.get('retrieval_timestamp')}
             except (OSError, json.JSONDecodeError):
                 result = None
         if result is None:
             try:
+                LIVE_PROGRESS['benchmark_historical_requests'] = LIVE_PROGRESS.get('benchmark_historical_requests',0)+1
                 result=adapter.fetch_historical_benchmark(period)
             except Exception as exc:
                 raise RuntimeError(f"{market}_BENCHMARK_RETRIEVAL:{period}:{exc}") from exc
@@ -340,79 +370,181 @@ def _t86_history(adapter, universe, stocks, trading_date):
     if missing: raise RuntimeError('DATA_INCOMPLETE:STAGE_LOOKBACK_T86_26_SESSIONS:'+','.join(missing))
     return per
 
-def _tpex_institutional_history(adapter, universe, stocks, trading_date):
-    required_sessions=26
-    target=date.fromisoformat(trading_date); per={s:[] for s in universe}; cursor=target
-    aliases={'symbol':('symbol','SecuritiesCompanyCode','證券代號'),'foreign_buy':('foreign_buy','ForeignBuy','外資及陸資買進股數'),'foreign_sell':('foreign_sell','ForeignSell','外資及陸資賣出股數'),'foreign_net':('foreign_net','ForeignNet','外資及陸資買賣超股數'),'investment_trust_buy':('investment_trust_buy','InvestmentTrustBuy','投信買進股數'),'investment_trust_sell':('investment_trust_sell','InvestmentTrustSell','投信賣出股數'),'investment_trust_net':('investment_trust_net','InvestmentTrustNet','投信買賣超股數')}
-    for _ in range(70):
-        if all(len(v)>=required_sessions for v in per.values()): break
-        try: result=adapter.fetch_institutional_history('', cursor.strftime('%Y%m'))
-        except Exception: cursor-=timedelta(days=1); continue
-        for row in _rows(result.get('raw_payload')):
-            mapped={k:_pick(row,*v) for k,v in aliases.items()}; symbol=str(mapped.get('symbol') or '').strip()
-            if symbol not in per or any(mapped[k] is None for k in aliases): continue
-            td=normalize_twse_date(_pick(row,'trade_date','Date','日期') or cursor.isoformat())
-            if td>trading_date or any(x.get('trading_date')==td for x in per[symbol]): continue
-            close=next((x for x in stocks[symbol] if x['trade_date']==td),None)
-            if close is None: continue
-            try: item={'symbol':symbol,'trading_date':td,**{k:_number(mapped[k]) for k in aliases if k!='symbol'},'foreign_net_shares':_number(mapped['foreign_net']),'investment_trust_net_shares':_number(mapped['investment_trust_net']),'close':close['close'],'turnover':close['turnover'],'source_timestamp':result.get('source_timestamp')}
-            except ValueError: continue
-            per[symbol].append(item)
-        cursor-=timedelta(days=1)
-    missing=[s for s,v in per.items() if len(v)<required_sessions]
-    if missing: raise RuntimeError('DATA_INCOMPLETE:STAGE_LOOKBACK_TPEX_26_SESSIONS:'+','.join(missing))
-    return per
-def _tdcc_history(universe):
-    raw=TDCCAdapter().fetch(); rows=_rows(raw.get('raw_payload')); out={}
-    for row in rows:
-        symbol=str(_pick(row,'symbol','SecuritiesCompanyCode','公司代號') or '').strip(); period=_pick(row,'period_end','資料年月','資料日期'); holder=_pick(row,'holder_pct_400','持股超過400張比率')
-        if symbol in universe and period is not None and holder is not None:
-            try: out.setdefault(symbol,[]).append({'period_end':str(period),'holder_pct_400':_number(holder),'source_timestamp':raw.get('source_timestamp')})
-            except ValueError: pass
-    missing=[s for s in universe if len(out.get(s,[]))<5]
-    if missing: raise RuntimeError('DATA_INCOMPLETE:LIVE_TDCC_HISTORY:'+','.join(missing))
-    return out
-def _fundamental_history(universe, markets=None):
-    adapter=FundamentalAdapter(); markets=markets or {}; twse_symbols=[s for s in universe if markets.get(s,'TWSE')=='TWSE']; tpex_symbols=[s for s in universe if markets.get(s,'TWSE')=='TPEX']
-    revenue_rows=_rows(adapter.fetch_monthly_revenue()['raw_payload'])
+def _institutional_histories(twse_adapter, tpex_adapter, universe, markets, stocks, trading_date):
+    """Use accepted CER-072 daily-history functions for both markets."""
+    dates = valid_stock_session_dates(stocks, universe, end_date=trading_date, limit=26)
+    by_symbol = {}
+    twse_symbols = [s for s in universe if markets.get(s) == 'TWSE']
+    tpex_symbols = [s for s in universe if markets.get(s) == 'TPEX']
+    evidence = {'session_dates': dates, 'legacy_tpex_institutional_route_used': False}
+    if twse_symbols:
+        result = fetch_t86_sessions(twse_adapter, stocks, twse_symbols, dates)
+        validate_history_rows(result['records'], twse_symbols, dates, 26)
+        by_symbol.update(validate_history_rows(result['records'], twse_symbols, dates, 26))
+        evidence['twse'] = {'status': 'PASS', 'request_count': result['request_count'], 'session_dates': result['session_dates']}
     if tpex_symbols:
-        revenue_rows += _rows(adapter.fetch_otc_monthly_revenue()['raw_payload'])
-    by={str(_pick(r,'symbol','公司代號','公司代碼','SecuritiesCompanyCode') or ''):r for r in revenue_rows}
-    eps_rows=[]
+        result = fetch_tpex_daily_sessions(tpex_adapter, tpex_symbols, stocks, dates)
+        validate_history_rows(result['records'], tpex_symbols, dates, 26)
+        by_symbol.update(validate_history_rows(result['records'], tpex_symbols, dates, 26))
+        evidence['tpex'] = {'status': 'PASS', 'request_count': result['request_count'], 'session_dates': result['session_dates']}
+    if set(by_symbol) != set(universe):
+        raise RuntimeError('INSTITUTIONAL_HISTORY_SYMBOL_COVERAGE_MISMATCH')
+    return by_symbol, evidence
+
+def _tdcc_history(universe, stocks, trading_date):
+    """Reuse accepted historical TDCC queries and as-of selection semantics."""
+    replay_sessions = valid_stock_session_dates(stocks, universe, end_date=trading_date, limit=7)
+    adapter = TDCCHistoricalAdapter()
+    periods, selected_by_session = select_required_period_union(replay_sessions, adapter.available_periods, 5)
+    fetched = adapter.fetch_period_union(universe, periods)
+    grouped = {str(symbol): {} for symbol in universe}
+    for row in fetched['normalized_rows']:
+        symbol, period = str(row['symbol']), row['period_end']
+        if symbol not in grouped:
+            raise RuntimeError(f'TDCC_HISTORICAL_SYMBOL_MISMATCH:{symbol}')
+        tiers = grouped[symbol].setdefault(period, [])
+        if any(int(item['holding_range']) == int(row['holding_range']) for item in tiers):
+            raise RuntimeError(f'TDCC_DUPLICATE_TIER:{symbol}:{period}')
+        tiers.append(row)
+    histories = {str(symbol): [] for symbol in universe}
+    for symbol, periods_by_symbol in grouped.items():
+        for period, tiers in sorted(periods_by_symbol.items()):
+            histories[symbol].append({'period_end': period, 'holder_pct_400': holder_pct_400_from_tiers(tiers),
+                'source': 'TDCC Official Historical Query', 'source_timestamp': period,
+                'retrieval_timestamp': max(row['retrieval_timestamp'] for row in tiers),
+                'raw_lineage': sorted(tiers, key=lambda row: row['holding_range'])})
+    for session, selected in selected_by_session.items():
+        for symbol in universe:
+            eligible = [row['period_end'] for row in histories[str(symbol)] if row['period_end'] <= session]
+            if len(eligible) < 5 or eligible[-5:] != selected:
+                raise RuntimeError(f'TDCC_ASOF_FIVE_PERIOD_COVERAGE_FAILED:{symbol}:{session}')
+    return histories
+
+def _fundamental_history(universe, markets=None, as_of_date=None):
+    """Bootstrap distinct, officially disclosed periods into staging only."""
+    adapter=FundamentalAdapter(); markets=markets or {}; as_of_date=as_of_date or date.today().isoformat()
+    revenue_sources=[adapter.fetch_monthly_revenue()]
+    tpex_symbols=[s for s in universe if markets.get(s,'TWSE')=='TPEX']
+    if tpex_symbols: revenue_sources.append(adapter.fetch_otc_monthly_revenue())
+    eps_sources=[]
     endpoints=list(adapter.EPS_ENDPOINTS) + (list(adapter.OTC_EPS_ENDPOINTS) if tpex_symbols else [])
     for endpoint in endpoints:
-        try: eps_rows.extend(_rows(adapter.fetch_quarterly_eps(endpoint)['raw_payload']))
-        except Exception: continue
-    eps_by={str(_pick(r,'symbol','公司代號','公司代碼') or ''):r for r in eps_rows}
-    store=PersistentFundamentalStore(); normalized=[]
+        eps_sources.append(adapter.fetch_quarterly_eps(endpoint))
+    def symbol_of(row):
+        return str(_pick(row,'symbol','公司代號','公司代碼','SecuritiesCompanyCode') or '').strip()
+    def disclosure_time(row, fallback):
+        value=_pick(row,'publication_timestamp','disclosure_timestamp','公告日期','發布日期','資料發布日期','source_timestamp')
+        if value is None: value=fallback
+        text=str(value).strip().replace('/','-')
+        if len(text)==8 and text.isdigit(): text=f'{text[:4]}-{text[4:6]}-{text[6:8]}'
+        return text
+    def revenue_period(row):
+        raw=_pick(row,'revenue_period','資料年月','營業年月','年月','period')
+        if raw is None: return None
+        digits=''.join(x for x in str(raw) if x.isdigit())
+        if len(digits)==6:
+            year,month=int(digits[:4]),int(digits[4:])
+            if year < 1911: year+=1911
+            return f'{year:04d}-{month:02d}'
+        if len(digits)==5:
+            year,month=int(digits[:3])+1911,int(digits[3:])
+            return f'{year:04d}-{month:02d}'
+        return None
+    def eps_period(row):
+        fy=_pick(row,'fiscal_year','年度','會計年度')
+        q=_pick(row,'quarter','季別','季度','季')
+        if fy is None or q is None: return None
+        fd=''.join(x for x in str(fy) if x.isdigit())
+        qd=''.join(x for x in str(q) if x.isdigit())
+        if not fd or not qd: return None
+        year=int(fd); year=year+1911 if year < 1911 else year
+        quarter=int(qd[-1])
+        if quarter not in (1,2,3,4): return None
+        return (year,quarter)
+    revenue_by={str(s):[] for s in universe}; eps_by={str(s):[] for s in universe}
+    for result in revenue_sources:
+        for row in _rows(result.get('raw_payload')):
+            symbol=symbol_of(row)
+            if symbol not in revenue_by: continue
+            period=revenue_period(row); yoy=_pick(row,'revenue_yoy','去年同月增減(%)','去年同月增減','營業收入年增率(%)','YoY')
+            published=disclosure_time(row,result.get('source_timestamp'))
+            if period and period <= as_of_date[:7] and published[:10] <= as_of_date:
+                if yoy is None: raise RuntimeError(f'FUNDAMENTAL_REVENUE_YOY_MISSING:{symbol}:{period}')
+                revenue_by[symbol].append({'period':period,'value':_number(yoy),'publication_timestamp':published,
+                    'provider':result.get('provider'),'source':result.get('source'),'endpoint':result.get('endpoint'),
+                    'content_hash':result.get('content_hash')})
+    for result in eps_sources:
+        for row in _rows(result.get('raw_payload')):
+            symbol=symbol_of(row)
+            if symbol not in eps_by: continue
+            period=eps_period(row); value=_pick(row,'quarterly_eps','每股盈餘','基本每股盈餘','EPS')
+            published=disclosure_time(row,result.get('source_timestamp'))
+            quarter_end=date(period[0],period[1]*3,calendar.monthrange(period[0],period[1]*3)[1]).isoformat() if period else None
+            if period and quarter_end <= as_of_date and published[:10] <= as_of_date:
+                if value is None: raise RuntimeError(f'FUNDAMENTAL_EPS_VALUE_MISSING:{symbol}:{period}')
+                eps_by[symbol].append({'fiscal_year':period[0],'quarter':period[1],'value':_number(value),
+                    'publication_timestamp':published,'provider':result.get('provider'),'source':result.get('source'),
+                    'endpoint':result.get('endpoint'),'content_hash':result.get('content_hash')})
+    normalized=[]; evidence_symbols=[]; missing=[]
     for symbol in universe:
-        rev=by.get(symbol); eps=eps_by.get(symbol)
-        if rev is None: raise RuntimeError('DATA_INCOMPLETE:LIVE_FUNDAMENTAL_REVENUE:'+symbol)
-        if eps is None: raise RuntimeError('DATA_INCOMPLETE:FUNDAMENTAL_EPS_HISTORY:'+symbol)
-        prior=store.load(symbol)
-        revenue=rev.get('revenue_yoy')
-        if not isinstance(revenue,list):
-            scalar=_pick(rev,'去年同月增減(%)','去年同月增減','YoY','revenue_yoy')
-            revenue=[] if scalar is None else [ _number(scalar) ]
-        revenue=list(prior.get('revenue_yoy',[]))+revenue
-        quarters=eps.get('quarterly_eps')
-        if not isinstance(quarters,list):
-            scalar=_pick(eps,'基本每股盈餘','每股盈餘','EPS','quarterly_eps')
-            quarters=[] if scalar is None else [ _number(scalar) ]
-        quarters=list(prior.get('quarterly_eps',[]))+quarters
-        if len(revenue)<3: raise RuntimeError('DATA_INCOMPLETE:FUNDAMENTAL_REVENUE_HISTORY:'+symbol)
-        if len(quarters)<8: raise RuntimeError('DATA_INCOMPLETE:FUNDAMENTAL_EPS_HISTORY:'+symbol)
-        value=store.upsert(symbol,revenue_yoy=revenue,quarterly_eps=quarters)
-        normalized.append({'symbol':symbol,'revenue_yoy':value['revenue_yoy'],'quarterly_eps':value['quarterly_eps']})
-    result=calculate_fundamental(normalized); by={str(r['symbol']):r for r in result}
-    if any(s not in by for s in universe): raise RuntimeError('DATA_INCOMPLETE:LIVE_FUNDAMENTAL_HISTORY')
-    return by
+        rev_map={}
+        for row in revenue_by[symbol]:
+            if row['period'] in rev_map: raise RuntimeError('FUNDAMENTAL_REVENUE_DUPLICATE_PERIOD:'+symbol+':'+str(row['period']))
+            rev_map[row['period']]=row
+        eps_map={}
+        for row in eps_by[symbol]:
+            key=(row['fiscal_year'],row['quarter'])
+            if key in eps_map: raise RuntimeError(f'FUNDAMENTAL_EPS_DUPLICATE_QUARTER:{symbol}:{key}')
+            eps_map[key]=row
+        rev=sorted(rev_map.values(),key=lambda x:x['period'],reverse=True)[:3]
+        eps=sorted(eps_map.values(),key=lambda x:(x['fiscal_year'],x['quarter']),reverse=True)[:8]
+        if len(rev)<3 or len(eps)<8:
+            missing.append({'symbol':symbol,'revenue_period_count':len(rev),'eps_quarter_count':len(eps)})
+            continue
+        normalized.append({'symbol':symbol,'revenue_yoy':[x['value'] for x in rev],
+            'quarterly_eps':[x['value'] for x in eps]})
+        ttm=sum(x['value'] for x in eps[:4]); prior=sum(x['value'] for x in eps[4:8])
+        evidence_symbols.append({'symbol':symbol,'revenue_periods':[x['period'] for x in rev],
+            'revenue_yoy':[x['value'] for x in rev],
+            'eps_quarters':[{'fiscal_year':x['fiscal_year'],'quarter':x['quarter']} for x in eps],
+            'eps_values':[x['value'] for x in eps],'latest_ttm_eps':ttm,'prior_ttm_eps':prior,
+            'eps_delta':ttm-prior,'source_lineage':{'revenue':[{'provider':x['provider'],'source':x['source'],'endpoint':x['endpoint'],'publication_timestamp':x['publication_timestamp'],'content_hash':x['content_hash']} for x in rev],
+                'eps':[{'provider':x['provider'],'source':x['source'],'endpoint':x['endpoint'],'publication_timestamp':x['publication_timestamp'],'content_hash':x['content_hash']} for x in eps]}})
+    if missing:
+        _write('artifacts/RATE_CER073_FUNDAMENTAL_HISTORY_EVIDENCE.json',{'artifact':'RATE_CER073_FUNDAMENTAL_HISTORY_EVIDENCE','validation_status':'BLOCKED','as_of_date':as_of_date,'symbols_complete':len(evidence_symbols),'symbols_required':len(universe),'missing_history':missing,'fixture_used':False,'production_namespace_modified':False})
+        raise RuntimeError('FUNDAMENTAL_HISTORICAL_BOOTSTRAP_INCOMPLETE:'+','.join(x['symbol'] for x in missing))
+    first=calculate_fundamental([dict(x) for x in normalized])
+    second=calculate_fundamental([dict(x) for x in normalized])
+    if [x['Fundamental'] for x in first] != [x['Fundamental'] for x in second]:
+        raise RuntimeError('FUNDAMENTAL_NON_DETERMINISTIC')
+    scores={str(x['symbol']):x['Fundamental'] for x in first}
+    if set(scores)!=set(universe): raise RuntimeError('FUNDAMENTAL_CROSS_SECTION_INCOMPLETE')
+    for item in evidence_symbols: item['fundamental_score']=scores[item['symbol']]
+    _write('artifacts/RATE_CER073_FUNDAMENTAL_HISTORY_EVIDENCE.json',{'artifact':'RATE_CER073_FUNDAMENTAL_HISTORY_EVIDENCE','validation_status':'PASS','as_of_date':as_of_date,'symbols_complete':len(evidence_symbols),'symbols_required':len(universe),'fundamental_cross_section':'PASS','fundamental_determinism':'PASS','symbols':evidence_symbols,'fixture_used':False,'production_namespace_modified':False})
+    return {s:{'Fundamental':scores[s],'revenue_yoy':[x['value'] for x in sorted(revenue_by[s],key=lambda x:x['period'],reverse=True)[:3]],'quarterly_eps':[x['value'] for x in sorted(eps_by[s],key=lambda x:(x['fiscal_year'],x['quarter']),reverse=True)[:8]],'revenue_periods':[x['period'] for x in sorted(revenue_by[s],key=lambda x:x['period'],reverse=True)[:3]],'eps_quarters':[{'fiscal_year':x['fiscal_year'],'quarter':x['quarter']} for x in sorted(eps_by[s],key=lambda x:(x['fiscal_year'],x['quarter']),reverse=True)[:8]],'revenue_source_lineage':[{'provider':x['provider'],'source':x['source'],'endpoint':x['endpoint'],'publication_timestamp':x['publication_timestamp'],'content_hash':x['content_hash']} for x in sorted(revenue_by[s],key=lambda x:x['period'],reverse=True)[:3]],'eps_source_lineage':[{'provider':x['provider'],'source':x['source'],'endpoint':x['endpoint'],'publication_timestamp':x['publication_timestamp'],'content_hash':x['content_hash']} for x in sorted(eps_by[s],key=lambda x:(x['fiscal_year'],x['quarter']),reverse=True)[:8]]} for s in universe}
+
+def _verify_prior_stage_package(stage_evidence):
+    expected='706eb813da43b112bfd9459d459f1892591371700140e9626e411ad8ad0bceef'
+    path=Path(os.getenv('RATE_CER072_PRIOR_STAGE_PACKAGE','artifacts/accepted/prior-stage/RATE_FIRST_PRODUCTION_PRIOR_STAGE_PACKAGE_V1.json'))
+    if not path.is_file(): raise RuntimeError('PRIOR_STAGE_PACKAGE_MISSING')
+    package=json.loads(path.read_text(encoding='utf-8'))
+    keys=('schema_version','spec_version','source_historical_digest','trading_date','prior_session','source_scope','symbols')
+    core={key:package.get(key) for key in keys}
+    digest=hashlib.sha256(json.dumps(core,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+    if digest != expected or package.get('package_digest') != expected:
+        raise RuntimeError('PRIOR_STAGE_PACKAGE_DIGEST_MISMATCH')
+    prior={str(row.get('symbol')):row for row in package.get('symbols',[])}
+    if len(prior)!=30 or set(prior)!=set(stage_evidence): raise RuntimeError('PRIOR_STAGE_PACKAGE_SYMBOL_SET_MISMATCH')
+    mismatches=[symbol for symbol in stage_evidence if prior[symbol].get('previous_stage')!=stage_evidence[symbol].get('previous_stage')]
+    if mismatches: raise RuntimeError('PRIOR_STAGE_PACKAGE_BINDING_MISMATCH:'+','.join(sorted(mismatches)))
+    return {'status':'PASS','digest':digest,'symbols_bound':len(prior)}
+
 def _live(trading_date):
     global LIVE_PROGRESS
     LIVE_PROGRESS = {'current_symbol': None, 'current_period': None,
                      'months_completed_by_symbol': {}, 'raw_sessions_by_symbol': {},
                      'aligned_sessions_by_symbol': {}, 'last_successful_period': None,
-                     'failed_candidate_chain': []}
+                     'failed_candidate_chain': [], 'stock_historical_requests': 0, 'benchmark_historical_requests': 0}
     reset_transport_metrics()
     missing=[k for k,v in _config_readiness().items() if v!='READY']
     if missing: raise RuntimeError('MISSING_REQUIRED_SOURCE_CONFIGURATION:'+','.join(missing))
@@ -435,13 +567,17 @@ def _live(trading_date):
     # CER-061 bootstrap writes only to the staging namespace; production
     # history/state is never mutated by this validation workflow.
     store=PersistentHistoricalStore(os.getenv('RATE_STAGING_HISTORY_STORE_ROOT', 'data/staging/history'))
-    for s,rows in stocks.items(): store.upsert_stock(s,rows)
-    store.upsert_benchmark('TAIEX',twse_benchmark)
-    if tpex_benchmark: store.upsert_benchmark('TPEX',tpex_benchmark)
+    for s,rows in stocks.items():
+        known={x['trade_date'] for x in store.load_stock(s)}
+        store.upsert_stock(s,[x for x in rows if x['trade_date'] not in known])
+    known={x['trade_date'] for x in store.load_benchmark('TAIEX')}
+    store.upsert_benchmark('TAIEX',[x for x in twse_benchmark if x['trade_date'] not in known])
+    if tpex_benchmark:
+        known={x['trade_date'] for x in store.load_benchmark('TPEX')}
+        store.upsert_benchmark('TPEX',[x for x in tpex_benchmark if x['trade_date'] not in known])
     twse_universe=[s for s in universe if markets.get(s,'TWSE')=='TWSE']; tpex_universe=[s for s in universe if markets.get(s)=='TPEX']
-    t86=_t86_history(twse,twse_universe,stocks,trading_date) if twse_universe else {}
-    tpex_inst=_tpex_institutional_history(tpex,tpex_universe,stocks,trading_date) if tpex_universe else {}
-    inst_hist={**t86,**tpex_inst}; tdcc=_tdcc_history(universe); fundamentals=_fundamental_history(universe,markets)
+    inst_hist,institutional_evidence=_institutional_histories(twse,tpex,universe,markets,stocks,trading_date)
+    tdcc=_tdcc_history(universe,stocks,trading_date); fundamentals=_fundamental_history(universe,markets,trading_date)
     technical=compute_scores(list(stocks.values()), benchmark_by_symbol=benchmark_by_symbol); tech_by={str(x['symbol']):x for x in technical}
     rotation_history = build_rotation_feature_histories(stocks, benchmark_by_symbol, as_of_date=trading_date, sessions=6)
     inst_input=[{'symbol':s,'institutional_history':sorted(inst_hist[s],key=lambda x:x['trading_date']),'tdcc_history':sorted(tdcc[s],key=lambda x:x['period_end']),**rotation_history[s]} for s in universe]
@@ -456,10 +592,11 @@ def _live(trading_date):
             mhe_score=mhe['mhe_score'], rotation_score=ir['Rotation'],
             prior_state=prior_state, input_snapshot_id=None, feature_history=stage_histories[symbol])
         stage = stage_evidence['stage_inputs']
-        sources[symbol]={'technical_features':tf,'FI':ir['FI'],'IT':ir['IT'],'LH':ir['LH'],'SmartMoney_inputs':ir['SmartMoney_inputs'],'Rotation_inputs':ir['Rotation_inputs'],'Stage_inputs':stage,'Stage_evidence':stage_evidence,'feature_lineage':ir['feature_lineage'],'Fundamental':fundamentals[symbol]['Fundamental']}
+        sources[symbol]={'technical_features':tf,'FI':ir['FI'],'IT':ir['IT'],'LH':ir['LH'],'SmartMoney_inputs':ir['SmartMoney_inputs'],'Rotation_inputs':ir['Rotation_inputs'],'Stage_inputs':stage,'Stage_evidence':stage_evidence,'feature_lineage':ir['feature_lineage'],'Fundamental':fundamentals[symbol]['Fundamental'],'Fundamental_inputs':fundamentals[symbol], 'source_lineage':{'stock_history':{'source':f'{markets[symbol]}_STOCK_DAY','trade_dates':[x['trade_date'] for x in hist[-180:]],'source_timestamps':[x.get('source_timestamp') for x in hist[-180:]]},'benchmark':{'source':'TWSE_TAIEX' if markets[symbol]=='TWSE' else 'TPEX_INDEX','trade_dates':[x['trade_date'] for x in benchmark_by_symbol[symbol][-180:]],'source_timestamps':[x.get('source_timestamp') for x in benchmark_by_symbol[symbol][-180:]]},'institutional':{'source':'TWSE_T86' if markets[symbol]=='TWSE' else 'TPEX_INSTITUTIONAL_DAILY','trading_dates':[x['trading_date'] for x in inst_hist[symbol]],'source_timestamps':[x.get('source_timestamp') for x in inst_hist[symbol]]},'tdcc':{'source':'TDCC Official Historical Query','periods':[x['period_end'] for x in tdcc[symbol]],'source_timestamps':[x.get('source_timestamp') for x in tdcc[symbol]]},'fundamental':{'source':'Official TWSE/TPEx MOPS','revenue_periods':fundamentals[symbol]['revenue_periods'],'eps_quarters':fundamentals[symbol]['eps_quarters'],'revenue_source_lineage':fundamentals[symbol]['revenue_source_lineage'],'eps_source_lineage':fundamentals[symbol]['eps_source_lineage']},'technical_features':{'source':'RATE technical feature engine','feature_names':sorted(tf.keys()),'trade_date':tr['trade_date'] if 'trade_date' in tr else trading_date},'smart_money_rotation':ir['feature_lineage'],'stage':{'source_type':stage_evidence.get('source_type'),'source_state_id':stage_evidence.get('source_state_id'),'calculation_status':stage_evidence.get('calculation_status')}}}
+    stage_binding=_verify_prior_stage_package({s:sources[s]['Stage_evidence'] for s in universe})
     built=build_live_decision_records(sources,trading_date,universe)
     if built['feature_validation']['status']!='PASS' or len(built['decision_records'])!=len(universe): raise RuntimeError('DATA_INCOMPLETE:FULL_19_COMPONENTS')
-    return {'production_sources':sources,'universe':universe,'decision_records':built['decision_records'],'institutional_records':inst_hist[universe[0]],'source_provenance':{'source':'AUTHORIZED_LIVE','provider':'TWSE/TPEx/TDCC/MOPS','retrieval_timestamp':_now(),'stock_history_coverage':{s:len(v) for s,v in stocks.items()},'benchmark_records':{'TAIEX':len(twse_benchmark),'TPEX':len(tpex_benchmark)}},'short_term_top30':universe,'roy_portfolio':[],'required_benchmarks':['TAIEX','TPEX'],'explicit_production_watchlist':[],'validation_status':'PASS'}
+    return {'schema_version':'RATE-CER073-SOURCE-BUNDLE-V1','trading_date':trading_date,'input_snapshot_id':None,'production_state_created':False,'production_decision_state_persisted':0,'production_namespace_modified':False,'production_sources':sources,'universe':universe,'decision_records':built['decision_records'],'institutional_records':inst_hist[universe[0]],'institutional_evidence':institutional_evidence,'prior_stage_package_binding':stage_binding,'source_provenance':{'source':'AUTHORIZED_LIVE','provider':'TWSE/TPEx/TDCC/MOPS','retrieval_timestamp':_now(),'stock_history_coverage':{s:len(v) for s,v in stocks.items()},'benchmark_records':{'TAIEX':len(twse_benchmark),'TPEX':len(tpex_benchmark)},'institutional_history_coverage':{s:len(inst_hist[s]) for s in universe},'tdcc_period_coverage':{s:len(tdcc[s]) for s in universe},'fundamental_period_coverage':{s:{'revenue_months':len(fundamentals[s]['revenue_periods']),'eps_quarters':len(fundamentals[s]['eps_quarters'])} for s in universe},'rolling_store_mode':'RESTORE_AND_INCREMENT','daily_historical_rebootstrap':False,'daily_historical_rebootstrap_status':'NO','stock_historical_requests':LIVE_PROGRESS.get('stock_historical_requests',0),'benchmark_historical_requests':LIVE_PROGRESS.get('benchmark_historical_requests',0),'twse_rolling_maintenance':f"{sum(1 for s in universe if markets.get(s)=='TWSE' and len(stocks[s])>=180)}/25 PASS",'tpex_rolling_maintenance':f"{sum(1 for s in universe if markets.get(s)=='TPEX' and len(stocks[s])>=180)}/5 PASS",'benchmark_rolling_maintenance':'PASS' if len(twse_benchmark)>=180 and (not tpex_benchmark or len(tpex_benchmark)>=180) else 'FAIL','historical_digest':'dddf63b85477aa7cd52ff284d3aba70cf449275406cb6e5e7091acc232d58e3a'},'short_term_top30':universe,'roy_portfolio':[],'required_benchmarks':['TAIEX','TPEX'],'explicit_production_watchlist':[],'validation_status':'PASS'}
 
 def _load_persistent_stage_state():
     """Resolve a complete persisted Stage state or allow the authorized one-time bootstrap."""
@@ -498,9 +635,42 @@ def _validate(records):
             missing.append('Stage_evidence_lineage')
         if missing: errors.append({'symbol':r.get('symbol'),'missing_components':sorted(set(missing))})
     return errors
+def _write_cer073_completeness(bundle, trading_date, status, reason=None):
+    path='artifacts/RATE_CER073_LIVE_SOURCE_COMPLETENESS_EVIDENCE.json'
+    probe_path=Path('artifacts/RATE_CER073_SOURCE_PROBE_EVIDENCE.json')
+    probe=json.loads(probe_path.read_text(encoding='utf-8')) if probe_path.exists() else {'status':'NOT_RUN'}
+    provenance=bundle.get('source_provenance',{}) if isinstance(bundle,dict) else {}
+    evidence={'artifact':'RATE_CER073_LIVE_SOURCE_COMPLETENESS_EVIDENCE','status':status,
+        'trading_date':trading_date,'universe_digest':UNIVERSE_CONTEXT.get('universe_digest'),
+        'universe_count':len(bundle.get('universe',[])) if isinstance(bundle,dict) else 0,
+        'stock_rolling_coverage':provenance.get('stock_history_coverage',{}),
+        'benchmark_rolling_coverage':provenance.get('benchmark_records',{}),
+        'institutional_coverage':provenance.get('institutional_history_coverage',{}),
+        'tdcc_coverage':provenance.get('tdcc_period_coverage',{}),
+        'fundamental_coverage':provenance.get('fundamental_period_coverage',{}),
+        'full_19_component_completeness':f"{len(bundle.get('decision_records',[]))}/{len(bundle.get('universe',[]))}" if isinstance(bundle,dict) else '0/0','source_provenance_completeness':f"{sum(1 for row in (bundle.get('production_sources',{}) or {}).values() if all(row.get('source_lineage',{}).get(k) for k in ('stock_history','benchmark','institutional','tdcc','fundamental','technical_features','smart_money_rotation','stage')))}/{len(bundle.get('universe',[]))}" if isinstance(bundle,dict) else '0/0',
+        'prior_stage_package_binding':bundle.get('prior_stage_package_binding') if isinstance(bundle,dict) else None,
+        'source_probe_status':probe.get('status'),'fixture_used':False,
+        'production_namespace_modified':False,'rate_live_e2e_enabled':False,
+        'input_snapshot_id':None,'production_decision_state_persist':0,
+        'historical_digest':'dddf63b85477aa7cd52ff284d3aba70cf449275406cb6e5e7091acc232d58e3a',
+        'reason':reason,'retrieval_timestamp':_now()}
+    _write(path,evidence)
+    if isinstance(bundle,dict) and status=='PASS':
+        _write('artifacts/RATE_CER073_0730_SOURCE_BUNDLE.json',bundle)
+    elif status!='PASS':
+        _write('artifacts/RATE_CER073_0730_SOURCE_BUNDLE.json',{'artifact':'RATE_CER073_0730_SOURCE_BUNDLE',
+            'validation_status':status,'blocking_reason':reason,'input_snapshot_id':None,
+            'production_state_created':False,'production_decision_state_persisted':0})
+    return evidence
+
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--trading-date',required=True); ap.add_argument('--output',required=True); ap.add_argument('--source-bundle-input'); ap.add_argument('--evidence-output',default=EVIDENCE_DEFAULT); ap.add_argument('--bootstrap-evidence-output',default='artifacts/RATE_TWSE_HISTORY_BOOTSTRAP_EVIDENCE.json'); a=ap.parse_args(); output,evidence=Path(a.output),Path(a.evidence_output); bootstrap_evidence=Path(a.bootstrap_evidence_output)
     try:
+        if os.getenv('RATE_CER073_REQUIRE_PROBE') == '1':
+            probe_path=Path('artifacts/RATE_CER073_SOURCE_PROBE_EVIDENCE.json')
+            if not probe_path.is_file() or json.loads(probe_path.read_text(encoding='utf-8')).get('status') != 'PASS':
+                raise RuntimeError('SOURCE_CAPABILITY_PROBE_NOT_PASS')
         if a.source_bundle_input:
             source=json.loads(Path(a.source_bundle_input).read_text(encoding='utf-8'))
             if 'production_sources' in source:
@@ -510,7 +680,7 @@ def main():
             else: bundle=source
         else: bundle=_live(a.trading_date)
         if _validate(bundle.get('decision_records',[])): raise RuntimeError('DATA_INCOMPLETE:FULL_19_COMPONENTS')
-        _write(output,bundle); _write(evidence,{'status':'PASS','trading_date':a.trading_date,'staging_commit':os.getenv('GITHUB_SHA'),'universe_count':len(bundle.get('universe',[])),'source_readiness':_config_readiness(),'history_coverage_reached_before_failure':bundle.get('source_provenance',{}).get('stock_history_coverage',{}),'benchmark_coverage':bundle.get('source_provenance',{}).get('benchmark_records'),'timestamps':{'retrieval_timestamp':_now()},'transport_request_metrics':get_transport_metrics(),**UNIVERSE_CONTEXT}); _bootstrap_evidence(bootstrap_evidence, 'PASS'); return 0
+        _write(output,bundle); _write_cer073_completeness(bundle,a.trading_date,'PASS'); _write(evidence,{'status':'PASS','trading_date':a.trading_date,'staging_commit':os.getenv('GITHUB_SHA'),'universe_count':len(bundle.get('universe',[])),'source_readiness':_config_readiness(),'history_coverage_reached_before_failure':bundle.get('source_provenance',{}).get('stock_history_coverage',{}),'benchmark_coverage':bundle.get('source_provenance',{}).get('benchmark_records'),'timestamps':{'retrieval_timestamp':_now()},'transport_request_metrics':get_transport_metrics(),**UNIVERSE_CONTEXT}); _bootstrap_evidence(bootstrap_evidence, 'PASS'); return 0
     except Exception as exc:
-        _failure(evidence,a.trading_date,str(exc)); _bootstrap_evidence(bootstrap_evidence, 'BLOCKED', str(exc)); _write(output,{'validation_status':'BLOCKED','blocking_reason':str(exc)}); print(json.dumps({'validation_status':'BLOCKED','blocking_reason':str(exc)})); return 1
+        _failure(evidence,a.trading_date,str(exc)); _bootstrap_evidence(bootstrap_evidence, 'BLOCKED', str(exc)); _write(output,{'validation_status':'BLOCKED','blocking_reason':str(exc),'input_snapshot_id':None,'production_state_created':False,'production_decision_state_persisted':0}); _write_cer073_completeness(None,a.trading_date,'BLOCKED',str(exc)); print(json.dumps({'validation_status':'BLOCKED','blocking_reason':str(exc)})); return 1
 if __name__=='__main__': raise SystemExit(main())

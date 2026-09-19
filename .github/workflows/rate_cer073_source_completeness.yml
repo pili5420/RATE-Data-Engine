@@ -1,0 +1,203 @@
+name: RATE CER-073 07:30 Live Source Completeness
+
+on:
+  push:
+    branches:
+      - rate-v2-6-1r2-staging
+  workflow_dispatch:
+    inputs:
+      trading_date:
+        description: Completed trading date YYYY-MM-DD
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  cer073-source-completeness:
+    runs-on: ubuntu-latest
+    env:
+      RATE_LIVE_E2E_ENABLED: "false"
+      RATE_OPERATION_POLICY_GATE: PASS_WITH_USER_ASSUMPTION
+      RATE_T86_AUTHORIZATION_BASIS: USER_DIRECTED_ASSUMPTION
+      RATE_T86_FORMAL_AUTHORIZATION: UNVERIFIED
+      TDCC_OPENAPI_BASE: https://openapi.tdcc.com.tw
+      RATE_UNIVERSE_FILE: config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json
+      RATE_STAGING_HISTORY_STORE_ROOT: data/staging/history
+      RATE_STAGING_FUNDAMENTAL_STORE_ROOT: data/staging/fundamental
+      RATE_CER072_PRIOR_STAGE_PACKAGE: artifacts/accepted/prior-stage/RATE_FIRST_PRODUCTION_PRIOR_STAGE_PACKAGE_V1.json
+      RATE_CER073_REQUIRE_PROBE: "1"
+      RATE_CER073_TRADING_DATE: ${{ inputs.trading_date || '2026-09-18' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Initialize fail-closed CER-073 artifacts
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('artifacts'); p.mkdir(exist_ok=True)
+          rows={
+            'RATE_CER073_SOURCE_PROBE_EVIDENCE.json': {'artifact':'RATE_CER073_SOURCE_PROBE_EVIDENCE','status':'NOT_RUN','probes':[]},
+            'RATE_CER073_FUNDAMENTAL_HISTORY_EVIDENCE.json': {'artifact':'RATE_CER073_FUNDAMENTAL_HISTORY_EVIDENCE','validation_status':'NOT_RUN','symbols':[],'fixture_used':False,'production_namespace_modified':False},
+            'RATE_CER073_0730_SOURCE_BUNDLE.json': {'artifact':'RATE_CER073_0730_SOURCE_BUNDLE','validation_status':'NOT_RUN','input_snapshot_id':None,'production_state_created':False,'production_decision_state_persisted':0},
+            'RATE_CER073_LIVE_SOURCE_COMPLETENESS_EVIDENCE.json': {'artifact':'RATE_CER073_LIVE_SOURCE_COMPLETENESS_EVIDENCE','status':'NOT_RUN','fixture_used':False,'production_namespace_modified':False,'rate_live_e2e_enabled':False,'input_snapshot_id':None,'production_decision_state_persist':0},
+          }
+          for name,obj in rows.items(): (p/name).write_text(json.dumps(obj,sort_keys=True,indent=2)+'\n',encoding='utf-8')
+          PY
+
+      - name: Resolve accepted rolling-store cache identity
+        shell: bash
+        run: |
+          python - <<'PY' >> "$GITHUB_ENV"
+          import json
+          obj=json.load(open('config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json',encoding='utf-8'))
+          digest=obj['universe_symbol_digest']
+          prefix=f'rate-twse-bootstrap-v1-{digest}-RATE-STOCK-NORMALIZED-V1-TWSE_STOCK_DAY_V1-RATE-TWSE-HISTORY-CHECKPOINT-V1-'
+          print('RATE_BOOTSTRAP_CACHE_PREFIX='+prefix)
+          print('RATE_BOOTSTRAP_CACHE_KEY='+prefix+'cer073-${{ github.run_id }}-${{ github.run_attempt }}')
+          PY
+      - name: Restore accepted rolling historical store
+        id: accepted-history
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            data/staging/history_bootstrap
+            data/staging/history
+          key: ${{ env.RATE_BOOTSTRAP_CACHE_KEY }}
+          restore-keys: ${{ env.RATE_BOOTSTRAP_CACHE_PREFIX }}
+
+      - name: Download accepted historical manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: RATE_STAGING_HISTORICAL_STATE_MANIFEST_V1
+          run-id: 35420021665
+          github-token: ${{ github.token }}
+          path: artifacts/accepted/manifest
+      - name: Download accepted TWSE materialization evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: RATE_TWSE_HISTORY_MATERIALIZATION_EVIDENCE
+          run-id: 35420021665
+          github-token: ${{ github.token }}
+          path: artifacts/accepted/twse
+      - name: Download accepted TPEx materialization evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: RATE_TPEX_HISTORY_MATERIALIZATION_EVIDENCE
+          run-id: 35420021665
+          github-token: ${{ github.token }}
+          path: artifacts/accepted/tpex
+      - name: Download accepted TAIEX evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: RATE_TAIEX_HISTORY_EVIDENCE
+          run-id: 35420021665
+          github-token: ${{ github.token }}
+          path: artifacts/accepted/taiex
+      - name: Download accepted TPEx index evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: RATE_TPEX_INDEX_HISTORY_EVIDENCE
+          run-id: 35420021665
+          github-token: ${{ github.token }}
+          path: artifacts/accepted/tpex-index
+      - name: Download accepted CER-072 prior-stage package
+        uses: actions/download-artifact@v4
+        with:
+          name: RATE_FIRST_PRODUCTION_PRIOR_STAGE_PACKAGE_V1
+          run-id: 35440941418
+          github-token: ${{ github.token }}
+          path: artifacts/accepted/prior-stage
+
+      - name: Verify accepted historical identity and CER-072 package
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from scripts.run_cer072_acceptance import _validate_restored_history, HISTORICAL_DIGEST
+          universe=json.loads(Path('config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json').read_text(encoding='utf-8'))
+          data=_validate_restored_history('data/staging/history',universe,
+            'artifacts/accepted/manifest/RATE_STAGING_HISTORICAL_STATE_MANIFEST_V1.json',
+            'artifacts/accepted/twse/RATE_TWSE_HISTORY_MATERIALIZATION_EVIDENCE.json',
+            'artifacts/accepted/tpex/RATE_TPEX_HISTORY_MATERIALIZATION_EVIDENCE.json',
+            'artifacts/accepted/taiex/RATE_TAIEX_HISTORY_EVIDENCE.json',
+            'artifacts/accepted/tpex-index/RATE_TPEX_INDEX_HISTORY_EVIDENCE.json')
+          package=json.loads(Path('artifacts/accepted/prior-stage/RATE_FIRST_PRODUCTION_PRIOR_STAGE_PACKAGE_V1.json').read_text(encoding='utf-8'))
+          assert package.get('package_digest')=='706eb813da43b112bfd9459d459f1892591371700140e9626e411ad8ad0bceef'
+          assert package.get('source_historical_digest')==HISTORICAL_DIGEST
+          print(json.dumps({'historical_digest':HISTORICAL_DIGEST,'symbols':len(data['symbols']),'prior_stage_digest':package['package_digest']}))
+          PY
+
+      - name: Run full unit and regression suite
+        id: tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Verify frozen model integrity
+        if: steps.tests.outcome == 'success'
+        shell: bash
+        run: |
+          python - <<'PY'
+          from scripts.run_cer072_acceptance import _verify_model_freeze
+          result=_verify_model_freeze()
+          print(result)
+          if result.get('status')!='PASS':
+              raise SystemExit('MODEL_FREEZE_INTEGRITY_FAIL')
+          PY
+
+      - name: Probe official sources through production adapters
+        id: source-probe
+        continue-on-error: true
+        run: python scripts/probe_official_sources.py --trading-date "${{ env.RATE_CER073_TRADING_DATE }}" --universe-file "${{ env.RATE_UNIVERSE_FILE }}" --output artifacts/RATE_CER073_SOURCE_PROBE_EVIDENCE.json
+
+      - name: Assemble and validate 07:30 source bundle
+        id: source-bundle
+        if: always() && steps.tests.outcome == 'success'
+        env:
+          GITHUB_ACTIONS: "true"
+          GITHUB_SHA: ${{ github.sha }}
+        run: python scripts/build_live_source_bundle.py --trading-date "${{ env.RATE_CER073_TRADING_DATE }}" --output artifacts/RATE_CER073_0730_SOURCE_BUNDLE.json --evidence-output artifacts/RATE_LIVE_SOURCE_ASSEMBLY_EVIDENCE.json
+
+      - name: Persist validated staging rolling store
+        if: steps.source-bundle.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data/staging/history_bootstrap
+            data/staging/history
+            data/staging/history_bootstrap/benchmarks
+          key: ${{ env.RATE_BOOTSTRAP_CACHE_KEY }}
+
+      - name: Verify production isolation and deferred snapshot
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os, subprocess
+          assert os.environ.get('RATE_LIVE_E2E_ENABLED','').lower()=='false'
+          changed=subprocess.run(['git','status','--porcelain','--','data/production'],capture_output=True,text=True,check=True).stdout.splitlines()
+          if changed: raise SystemExit('PRODUCTION_NAMESPACE_MODIFIED:'+','.join(changed))
+          print('RATE LIVE E2E Enabled = NO')
+          print('input_snapshot_id = null')
+          print('Production Decision State Persist = 0')
+          print('Production Namespace Modified = NO')
+          PY
+
+      - name: Upload CER-073 validation artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER073_SOURCE_COMPLETENESS_EVIDENCE
+          path: |
+            artifacts/RATE_CER073_SOURCE_PROBE_EVIDENCE.json
+            artifacts/RATE_CER073_FUNDAMENTAL_HISTORY_EVIDENCE.json
+            artifacts/RATE_CER073_0730_SOURCE_BUNDLE.json
+            artifacts/RATE_CER073_LIVE_SOURCE_COMPLETENESS_EVIDENCE.json
+          if-no-files-found: error

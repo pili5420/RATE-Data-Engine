@@ -1,59 +1,63 @@
-"""Small, read-only probe of the official sources used by LIVE assembly."""
+"""Probe the same official adapter contracts used by live source assembly."""
 from __future__ import annotations
-import argparse, hashlib, json, sys, time
+import argparse, hashlib, json, sys
 from datetime import datetime, timezone
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from urllib.request import Request, urlopen
-from urllib.error import HTTPError, URLError
-from http.client import IncompleteRead
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from src.sources.fundamental import FundamentalAdapter
-from src.sources.tdcc import TDCCAdapter
+from src.sources.tdcc_historical import TDCCHistoricalAdapter
+from src.sources.tpex import TPExAdapter
 from src.sources.twse import TWSEAdapter
+from scripts.build_live_source_bundle import _rows
 
-def probe(source, endpoint, parser):
-    result={'source':source,'official_endpoint':endpoint,'retrieval_timestamp':datetime.now(timezone.utc).isoformat().replace('+00:00','Z')}
-    last = None
-    for attempt in range(3):
-        try:
-            req=Request(endpoint,headers={'User-Agent':'RATE-Data-Engine/1.0','Accept':'application/json'})
-            with urlopen(req,timeout=30) as response:
-                body=response.read(); result.update({'http_status':response.status,'content_type':response.headers.get('Content-Type',''),'response_received':bool(body),'response_bytes':len(body),'digest':hashlib.sha256(body).hexdigest(),'attempt':attempt+1})
-            payload=json.loads(body.decode('utf-8-sig')); result.update({'records':len(payload.get('data',[])) if isinstance(payload,dict) else len(payload) if isinstance(payload,list) else 0,'parse_status':parser(payload)})
-            return result
-        except HTTPError as exc:
-            last = exc; result.update({'http_status':exc.code,'parse_status':'FAIL:HTTP'})
-            if exc.code not in (408,429,500,502,503,504): break
-        except (IncompleteRead, URLError, TimeoutError, ConnectionError, json.JSONDecodeError) as exc:
-            last = exc; result.update({'http_status':result.get('http_status'),'parse_status':'FAIL:'+type(exc).__name__})
-        except Exception as exc:
-            last = exc; result.update({'http_status':result.get('http_status'),'parse_status':'FAIL:'+type(exc).__name__})
-        if attempt < 2:
-            time.sleep(2 ** attempt)
-    return result
-def ok(payload): return 'PASS' if payload else 'FAIL:EMPTY'
+def now():
+    return datetime.now(timezone.utc).isoformat().replace('+00:00','Z')
+
+def check(name, provider, method, call):
+    item={'source':name,'provider':provider,'adapter_method':method,'retrieval_timestamp':now(),'status':'NOT_RUN'}
+    try:
+        result=call()
+        payload=result.get('raw_payload') if isinstance(result,dict) else None
+        rows=_rows(payload) if payload is not None else (result.get('normalized_rows',[]) if isinstance(result,dict) else [])
+        diagnostics=result.get('diagnostics',{}) if isinstance(result,dict) else {}
+        item.update({'status':'PASS' if rows else 'FAIL:EMPTY','record_count':len(rows),
+            'source':result.get('source',name) if isinstance(result,dict) else name,
+            'endpoint':result.get('endpoint'),'source_timestamp':result.get('source_timestamp'),
+            'content_hash':result.get('content_hash') or diagnostics.get('body_sha256'),
+            'http_status':diagnostics.get('http_status'),'transport_identity':'PRODUCTION_ADAPTER'})
+        if not rows: item['blocking_reason']='EMPTY_OFFICIAL_RESPONSE'
+    except Exception as exc:
+        item.update({'status':'FAIL:'+type(exc).__name__,'blocking_reason':str(exc)[:500]})
+    return item
+
 def main():
-    ap=argparse.ArgumentParser(); ap.add_argument('--trading-date',required=True); ap.add_argument('--output',required=True); ap.add_argument('--universe-file'); a=ap.parse_args(); td=a.trading_date.replace('-',''); ym=td[:6]; twse=TWSEAdapter(); fund=FundamentalAdapter(); base='https://www.twse.com.tw/rwd/zh'
-    endpoints=[('TDCC_LARGE_HOLDER','https://openapi.tdcc.com.tw/v1/opendata/1-5',lambda p:ok(p)),('TWSE_MONTHLY_REVENUE',fund.REVENUE_ENDPOINT,lambda p:ok(p)),('TWSE_QUARTERLY_EPS',fund.EPS_ENDPOINTS[0],lambda p:ok(p)),('TWSE_HISTORICAL_STOCK',f'{base}/afterTrading/STOCK_DAY?date={ym}01&stockNo=2330&response=json',lambda p:'PASS' if isinstance(p,dict) and p.get('data') else 'FAIL:EMPTY'),('TAIEX_HISTORICAL',f'{base}/TAIEX/MI_5MINS_HIST?date={ym}01&response=json',lambda p:'PASS' if isinstance(p,dict) and p.get('data') else 'FAIL:EMPTY'),('TWSE_T86',f'{base}/fund/T86?date={td}&selectType=ALLBUT0999&response=json',lambda p:'PASS' if isinstance(p,dict) and p.get('data') else 'FAIL:EMPTY')]
-    results=[probe(*x) for x in endpoints]
-    tpex_required=False
-    if a.universe_file:
-        try:
-            universe=json.loads(Path(a.universe_file).read_text(encoding='utf-8-sig'))
-            tpex_required=any(x.get('market')=='TPEX' for x in universe.get('symbols',[]))
-        except Exception:
-            tpex_required=False
-    tpex=[]
-    if tpex_required:
-        # Daily/institutional transport probes are independent of the historical
-        # adapter configuration.  Missing configured historical/fundamental/
-        # benchmark products remain explicit capability blockers.
-        tpex_endpoints=[('TPEX_HISTORICAL_STOCK','https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes'),('TPEX_INSTITUTIONAL_HISTORY','https://www.tpex.org.tw/openapi/v1/tpex_3insti_daily_trading'),('TPEX_MONTHLY_REVENUE','https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap05_O'),('TPEX_QUARTERLY_EPS','https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap06_O_basi'),('TPEX_BENCHMARK_HISTORY','https://www.tpex.org.tw/openapi/v1/tpex_index')]
-        for item in tpex_endpoints:
-            if len(item)==2: name,url=item; parser=lambda p:'PASS' if p else 'FAIL:EMPTY'
-            else: name,url,parser=item
-            tpex.append(probe(name,url,parser) if url else {'source':name,'official_endpoint':None,'parse_status':'NOT_IMPLEMENTED','retrieval_timestamp':datetime.now(timezone.utc).isoformat().replace('+00:00','Z')})
-    tpex_status='PASS' if (not tpex_required or all(x.get('parse_status')=='PASS' for x in tpex)) else 'FAIL'
-    status='PASS' if all(x.get('parse_status')=='PASS' for x in results) and tpex_status=='PASS' else 'FAIL'
-    out={'status':status,'trading_date':a.trading_date,'sources':results,'tpex_required':tpex_required,'tpex_sources':tpex,'tpex_source_capability':tpex_status}; Path(a.output).parent.mkdir(parents=True,exist_ok=True); Path(a.output).write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8'); print(json.dumps(out,ensure_ascii=False)); return 0 if status=='PASS' else 1
+    ap=argparse.ArgumentParser()
+    ap.add_argument('--trading-date',required=True)
+    ap.add_argument('--output',required=True)
+    ap.add_argument('--universe-file',required=True)
+    a=ap.parse_args(); td=a.trading_date; ym=td[:7].replace('-','')
+    obj=json.loads(Path(a.universe_file).read_text(encoding='utf-8-sig'))
+    symbols=obj.get('symbols',[]); twse=next(str(x['symbol']) for x in symbols if x.get('market')=='TWSE')
+    tpex_symbol=next(str(x['symbol']) for x in symbols if x.get('market')=='TPEX')
+    twse_adapter=TWSEAdapter(); tpex_adapter=TPExAdapter(); fund=FundamentalAdapter(); tdcc=TDCCHistoricalAdapter()
+    probes=[
+      check('TWSE_HISTORICAL_STOCK','TWSE Official','TWSEAdapter.fetch_historical_symbol',lambda:twse_adapter.fetch_historical_symbol(twse,ym)),
+      check('TPEX_HISTORICAL_STOCK','TPEx Official','TPExAdapter.fetch_historical_symbol',lambda:tpex_adapter.fetch_historical_symbol(tpex_symbol,ym)),
+      check('TAIEX','TWSE Official','TWSEAdapter.fetch_historical_benchmark',lambda:twse_adapter.fetch_historical_benchmark(ym)),
+      check('TPEX_INDEX','TPEx Official','TPExAdapter.fetch_historical_benchmark',lambda:tpex_adapter.fetch_historical_benchmark(ym)),
+      check('TWSE_INSTITUTIONAL','TWSE T86','TWSEAdapter.fetch_t86',lambda:twse_adapter.fetch_t86(td)),
+      check('TPEX_INSTITUTIONAL','TPEx Official','TPExAdapter.fetch_institutional_daily',lambda:tpex_adapter.fetch_institutional_daily(td)),
+      check('TDCC_HISTORICAL','TDCC Official','TDCCHistoricalAdapter.fetch_period',lambda:tdcc.fetch_period(twse,sorted([p for p in tdcc.available_periods if p<=td])[-1])),
+      check('TWSE_FUNDAMENTAL_REVENUE','TWSE/MOPS Official','FundamentalAdapter.fetch_monthly_revenue',lambda:fund.fetch_monthly_revenue()),
+      check('TWSE_FUNDAMENTAL_EPS','TWSE/MOPS Official','FundamentalAdapter.fetch_quarterly_eps',lambda:fund.fetch_quarterly_eps(fund.EPS_ENDPOINTS[0])),
+      check('TPEX_FUNDAMENTAL_REVENUE','TPEx/MOPS Official','FundamentalAdapter.fetch_otc_monthly_revenue',lambda:fund.fetch_otc_monthly_revenue()),
+      check('TPEX_FUNDAMENTAL_EPS','TPEx/MOPS Official','FundamentalAdapter.fetch_otc_quarterly_eps',lambda:fund.fetch_otc_quarterly_eps(fund.OTC_EPS_ENDPOINTS[0])),
+    ]
+    result={'artifact':'RATE_CER073_SOURCE_PROBE_EVIDENCE','status':'PASS' if all(x['status']=='PASS' for x in probes) else 'FAIL',
+      'trading_date':td,'fixture_used':False,'probe_runtime_identity':'SAME_ADAPTER_METHODS_AS_LIVE_BUILDER',
+      'probes':probes,'retrieval_timestamp':now()}
+    Path(a.output).parent.mkdir(parents=True,exist_ok=True)
+    Path(a.output).write_text(json.dumps(result,ensure_ascii=False,sort_keys=True,indent=2)+'\n',encoding='utf-8')
+    print(json.dumps(result,ensure_ascii=False))
+    return 0 if result['status']=='PASS' else 1
 if __name__=='__main__': raise SystemExit(main())
