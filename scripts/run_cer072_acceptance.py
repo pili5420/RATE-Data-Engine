@@ -206,6 +206,19 @@ def _stock_and_benchmark_inputs(data, requested_date=None):
     return common, benchmark_for_symbol
 
 
+def _institutional_asof_history(history, symbol, session, minimum=20):
+    rows = sorted(
+        (dict(row) for row in history
+         if str(row.get("trading_date", row.get("trade_date", ""))) <= session),
+        key=lambda row: str(row.get("trading_date", row.get("trade_date", ""))),
+    )
+    if not rows or str(rows[-1].get("trading_date", rows[-1].get("trade_date", ""))) != session:
+        raise RuntimeError(f"STAGE_INSTITUTIONAL_DATE:{symbol}:{session}")
+    if len(rows) < minimum:
+        raise RuntimeError(f"DATA_INCOMPLETE:STAGE_INSTITUTIONAL_WINDOW:{symbol}:{session}:{len(rows)}<{minimum}")
+    return rows
+
+
 def _replay_and_evidence(data, institutional_by_symbol, tdcc_by_symbol, as_of_date):
     stocks, benchmarks, symbols = data["stocks"], data["benchmarks"], data["symbols"]
     benchmark_by_symbol = {s: benchmarks["TAIEX" if data["markets"][s] == "TWSE" else "TPEX"] for s in symbols}
@@ -226,9 +239,7 @@ def _replay_and_evidence(data, institutional_by_symbol, tdcc_by_symbol, as_of_da
             for key in ("FI", "IT", "FC", "LH"):
                 if lineage.get(key, {}).get("calculation_status") != "PASS":
                     raise RuntimeError(f"{key}_HISTORICAL_REPLAY_FAILED:{symbol}:{session}")
-            valid_inst = [x for x in institutional_by_symbol[symbol] if x["trading_date"] <= session]
-            if not valid_inst or valid_inst[-1]["trading_date"] != session or len(valid_inst) < 26:
-                raise RuntimeError(f"STAGE_INSTITUTIONAL_ASOF_ALIGNMENT_FAILED:{symbol}:{session}")
+            valid_inst = _institutional_asof_history(institutional_by_symbol[symbol], symbol, session, minimum=20)
             tdcc_prior = [x for x in tdcc_by_symbol[symbol] if x["period_end"] <= session]
             if len(tdcc_prior) < 5 or any(x["period_end"] > session for x in tdcc_prior[-5:]):
                 raise RuntimeError(f"TDCC_ASOF_COVERAGE_FAILED:{symbol}:{session}")
