@@ -451,7 +451,12 @@ def run(args):
       "restored_taiex_digest":evidence.get("restored_taiex_digest"),"accepted_taiex_digest":evidence.get("accepted_taiex_digest"),
       "restored_tpex_index_digest":evidence.get("restored_tpex_index_digest"),"accepted_tpex_index_digest":evidence.get("accepted_tpex_index_digest"),
       "benchmark_digest_contract":evidence.get("benchmark_digest_contract"),
-      "t86_requests":t86_evidence.get("request_count"),"blocking_reasons":evidence["blocking_reasons"]},ensure_ascii=False))
+      "t86_requests":t86_evidence.get("request_count"),
+      "tpex_transport_status":tpex_contract_evidence.get("transport_status"),
+      "tpex_probe_fields":(tpex_contract_evidence.get("probes") or [{}])[0].get("response_field_names"),
+      "tpex_probe_date_location":(tpex_contract_evidence.get("probes") or [{}])[0].get("response_date_location"),
+      "tpex_probe_blocking_reason":tpex_contract_evidence.get("blocking_reason"),
+      "blocking_reasons":evidence["blocking_reasons"]},ensure_ascii=False))
     return 0 if evidence["validation_status"]=="PASS" else 1
 
 
