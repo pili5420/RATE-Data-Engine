@@ -212,9 +212,12 @@ def _history(adapter,symbol,trading_date,market='TWSE'):
     persisted_dates = [str(row.get('trade_date', '')) for row in persisted]
     if len(persisted_dates) != len(set(persisted_dates)) or any(row.get('symbol') != symbol or row.get('market') != market for row in persisted):
         raise RuntimeError(f'PERSISTED_STOCK_HISTORY_INVALID:{symbol}')
-    if not persisted or len(persisted) < 180:
-        raise RuntimeError(f'ACCEPTED_ROLLING_STOCK_STORE_MISSING_OR_INCOMPLETE:{symbol}:{len(persisted)}')
-    if persisted_dates[-1] == trading_date and len(persisted) >= 180:
+    # A persisted cache can be ahead of a historical replay target. Never let
+    # future rows satisfy this as-of request; use only eligible rows and resume
+    # from the durable checkpoint when the accepted rolling window is incomplete.
+    persisted = [row for row in persisted if str(row.get('trade_date', '')) <= trading_date]
+    persisted_dates = [str(row.get('trade_date', '')) for row in persisted]
+    if persisted_dates and persisted_dates[-1] == trading_date and len(persisted) >= 180:
         LIVE_PROGRESS.setdefault('aligned_sessions_by_symbol', {})[symbol] = len(persisted)
         LIVE_PROGRESS.setdefault('raw_sessions_by_symbol', {})[symbol] = 0
         LIVE_PROGRESS.setdefault('months_completed_by_symbol', {})[symbol] = 0
@@ -369,6 +372,11 @@ def _t86_history(adapter, universe, stocks, trading_date):
     missing=[s for s,v in per.items() if len(v)<required_sessions]
     if missing: raise RuntimeError('DATA_INCOMPLETE:STAGE_LOOKBACK_T86_26_SESSIONS:'+','.join(missing))
     return per
+
+def _tpex_institutional_history(adapter, universe, stocks, trading_date):
+    """Compatibility guard for the retired snapshot route; CER072 daily sessions are authoritative."""
+    raise RuntimeError('STAGE_LOOKBACK_TPEX_26_SESSIONS:LEGACY_INSTITUTIONAL_ROUTE_DISABLED')
+
 
 def _institutional_histories(twse_adapter, tpex_adapter, universe, markets, stocks, trading_date):
     """Use accepted CER-072 daily-history functions for both markets."""
@@ -667,6 +675,8 @@ def _write_cer073_completeness(bundle, trading_date, status, reason=None):
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--trading-date',required=True); ap.add_argument('--output',required=True); ap.add_argument('--source-bundle-input'); ap.add_argument('--evidence-output',default=EVIDENCE_DEFAULT); ap.add_argument('--bootstrap-evidence-output',default='artifacts/RATE_TWSE_HISTORY_BOOTSTRAP_EVIDENCE.json'); a=ap.parse_args(); output,evidence=Path(a.output),Path(a.evidence_output); bootstrap_evidence=Path(a.bootstrap_evidence_output)
     try:
+        if not a.source_bundle_input and not os.getenv('RATE_TWSE_SYMBOLS') and not os.getenv('RATE_UNIVERSE_FILE'):
+            raise RuntimeError('MISSING_REQUIRED_SOURCE_CONFIGURATION:RATE_TWSE_SYMBOLS_OR_RATE_UNIVERSE_FILE')
         if os.getenv('RATE_CER073_REQUIRE_PROBE') == '1':
             probe_path=Path('artifacts/RATE_CER073_SOURCE_PROBE_EVIDENCE.json')
             if not probe_path.is_file() or json.loads(probe_path.read_text(encoding='utf-8')).get('status') != 'PASS':

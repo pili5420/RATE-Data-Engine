@@ -13,14 +13,25 @@ from scripts.build_live_source_bundle import _rows
 def now():
     return datetime.now(timezone.utc).isoformat().replace('+00:00','Z')
 
+def probe(source, endpoint, parser):
+    """Compatibility seam used by tests; endpoint is the real adapter call."""
+    result=endpoint()
+    payload=result.get('raw_payload') if isinstance(result,dict) else None
+    rows=parser(payload) if payload is not None else (result.get('normalized_rows',[]) if isinstance(result,dict) else [])
+    return {'source':source,'parse_status':'PASS' if rows else 'FAIL:EMPTY',
+            'record_count':len(rows),'result':result}
+
+
 def check(name, provider, method, call):
     item={'source':name,'provider':provider,'adapter_method':method,'retrieval_timestamp':now(),'status':'NOT_RUN'}
     try:
-        result=call()
+        checked=probe(name,call,_rows)
+        result=checked.get('result',{})
         payload=result.get('raw_payload') if isinstance(result,dict) else None
         rows=_rows(payload) if payload is not None else (result.get('normalized_rows',[]) if isinstance(result,dict) else [])
+        parse_status=checked.get('parse_status','FAIL:INVALID_PROBE_RESULT')
         diagnostics=result.get('diagnostics',{}) if isinstance(result,dict) else {}
-        item.update({'status':'PASS' if rows else 'FAIL:EMPTY','record_count':len(rows),
+        item.update({'status':parse_status,'record_count':checked.get('record_count',len(rows)),
             'source':result.get('source',name) if isinstance(result,dict) else name,
             'endpoint':result.get('endpoint'),'source_timestamp':result.get('source_timestamp'),
             'content_hash':result.get('content_hash') or diagnostics.get('body_sha256'),
