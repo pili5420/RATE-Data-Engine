@@ -1,5 +1,8 @@
 name: RATE CER-073 Fundamental 30-Symbol Bootstrap
 
+# Staging-only fundamental history gate. This workflow does not assemble source
+# bundles, run Phase A2, create production snapshots, or persist decision state.
+
 on:
   workflow_dispatch:
   push:

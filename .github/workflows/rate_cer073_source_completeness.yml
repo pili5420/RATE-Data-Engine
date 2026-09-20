@@ -11,6 +11,7 @@ on:
       - .github/workflows/rate_cer073_source_completeness.yml
       - .github/workflows/rate_cer073_representation_discovery.yml
       - .github/workflows/rate_cer073_fundamental_bootstrap.yml
+      - .github/workflows/rate_cer073_fundamental_contract_probe.yml
       - scripts/discover_fundamental_representations.py
       - scripts/bootstrap_cer073_fundamentals.py
       - src/sources/fundamental_history.py
