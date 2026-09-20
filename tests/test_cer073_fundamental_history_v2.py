@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 from io import BytesIO
 from pathlib import Path
+import shutil
 
 from src.sources.fundamental_history import (
     FundamentalHistoryStoreV2,
@@ -168,6 +169,32 @@ class TestCER073FundamentalHistoryV2(unittest.TestCase):
         bad_eps["source_semantics"] = "MIXED_CUMULATIVE_SINGLE"
         with self.assertRaisesRegex(RuntimeError, "FUNDAMENTAL_EPS_SOURCE_SEMANTICS_INVALID"):
             store.upsert([], [bad_eps])
+
+    def test_identical_refetch_deduplicates_without_retrieval_time_identity(self):
+        root = Path("artifacts/test-fundamental-idempotency")
+        shutil.rmtree(root, ignore_errors=True)
+        store = FundamentalHistoryStoreV2(root)
+        first = revenue("2330", "2026-08", "2026-09-10", 12.3)
+        second = dict(first, retrieval_timestamp="2026-09-18T01:00:00Z")
+        obj = store.upsert([first, second], [])
+        self.assertEqual(len(obj["revenue_events"]), 1)
+        self.assertEqual(obj["_last_upsert_summary"]["inserted_revenue_events"], 1)
+        again = store.upsert([dict(first, retrieval_timestamp="2026-09-18T02:00:00Z")], [])
+        self.assertEqual(len(again["revenue_events"]), 1)
+        self.assertEqual(again["_last_upsert_summary"]["inserted_revenue_events"], 0)
+        shutil.rmtree(root, ignore_errors=True)
+
+    def test_official_revision_preserves_separate_semantic_event(self):
+        root = Path("artifacts/test-fundamental-revision")
+        shutil.rmtree(root, ignore_errors=True)
+        store = FundamentalHistoryStoreV2(root)
+        original = eps("2330", 2025, 4, "2026-02-26", 19.51)
+        revised = dict(original, single_quarter_eps=19.75, official_disclosure_date="2026-03-01",
+                       correction_lineage=[{"official_correction_date": "2026-03-01"}])
+        obj = store.upsert([], [original, revised])
+        self.assertEqual(len(obj["eps_events"]), 2)
+        self.assertEqual(obj["_last_upsert_summary"]["inserted_eps_events"], 2)
+        shutil.rmtree(root, ignore_errors=True)
 
 
 if __name__ == "__main__":

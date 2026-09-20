@@ -307,13 +307,43 @@ class FundamentalHistoryStoreV2:
             self._validate_revenue_event(row)
         for row in eps_events:
             self._validate_eps_event(row)
+        before_counts={"revenue_events":len(obj.get("revenue_events",[])),"eps_events":len(obj.get("eps_events",[]))}
+        inserted_counts={"revenue_events":0,"eps_events":0}
         for key,new_rows in (("revenue_events",revenue_events),("eps_events",eps_events)):
-            seen={hashlib.sha256(_canonical(row).encode()).hexdigest() for row in obj[key]}
+            semantic_key = self._revenue_semantic_key if key == "revenue_events" else self._eps_semantic_key
+            seen={semantic_key(row) for row in obj[key]}
             for row in new_rows:
-                digest=hashlib.sha256(_canonical(row).encode()).hexdigest()
-                if digest not in seen: obj[key].append(row); seen.add(digest)
+                digest=semantic_key(row)
+                if digest not in seen:
+                    obj[key].append(row); seen.add(digest); inserted_counts[key]+=1
             obj[key].sort(key=lambda x:(str(x.get("symbol")),str(x.get("revenue_period",x.get("fiscal_year"))),str(x.get("quarter","")),str(x.get("official_disclosure_date"))))
+        obj["_last_upsert_summary"]={"before_counts":before_counts,
+                                     "inserted_revenue_events":inserted_counts["revenue_events"],
+                                     "inserted_eps_events":inserted_counts["eps_events"],
+                                     "after_counts":{"revenue_events":len(obj.get("revenue_events",[])),
+                                                     "eps_events":len(obj.get("eps_events",[]))}}
         self.save(obj); return obj
+    @staticmethod
+    def _revenue_semantic_key(row):
+        value={"domain":"revenue","symbol":str(row.get("symbol")),"market":row.get("market"),
+               "period":row.get("revenue_period"),"value":row.get("revenue_yoy"),
+               "official_disclosure_date":row.get("official_disclosure_date"),
+               "classification":row.get("classification"),
+               "provider":row.get("provider"),"official_product":row.get("official_product"),
+               "endpoint":row.get("endpoint"),"content_hash":row.get("content_hash")}
+        return hashlib.sha256(_canonical(value).encode()).hexdigest()
+    @staticmethod
+    def _eps_semantic_key(row):
+        value={"domain":"eps","symbol":str(row.get("symbol")),"market":row.get("market"),
+               "fiscal_year":row.get("fiscal_year"),"quarter":row.get("quarter"),
+               "value":row.get("single_quarter_eps"),
+               "official_disclosure_date":row.get("official_disclosure_date"),
+               "source_semantics":row.get("source_semantics"),
+               "filing_identity":row.get("filing_identity"),
+               "correction_dates":[r.get("official_correction_date") for r in row.get("correction_lineage",[])],
+               "provider":row.get("provider"),"official_product":row.get("official_product"),
+               "endpoint":row.get("endpoint"),"content_hash":row.get("content_hash")}
+        return hashlib.sha256(_canonical(value).encode()).hexdigest()
     @staticmethod
     def _validate_revenue_event(row):
         required=("symbol","market","revenue_period","revenue_yoy","official_disclosure_date",

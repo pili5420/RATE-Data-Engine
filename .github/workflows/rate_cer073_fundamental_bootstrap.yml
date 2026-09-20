@@ -1,0 +1,54 @@
+name: RATE CER-073 Fundamental 30-Symbol Bootstrap
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - rate-v2-6-1r2-staging
+    paths:
+      - .github/workflows/rate_cer073_fundamental_bootstrap.yml
+      - scripts/bootstrap_cer073_fundamentals.py
+      - src/sources/fundamental_history.py
+      - tests/test_cer073_fundamental_history_v2.py
+
+permissions:
+  contents: read
+
+jobs:
+  fundamental-bootstrap:
+    if: github.ref == 'refs/heads/rate-v2-6-1r2-staging'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RATE_LIVE_E2E_ENABLED: "false"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Focused fundamental bootstrap tests
+        run: python -m unittest tests.test_cer073_fundamental_history_v2 tests.test_cer073_representation_discovery
+      - name: Staging-only 30-symbol fundamental bootstrap
+        run: python scripts/bootstrap_cer073_fundamentals.py --as-of-date 2026-09-18 --store-root data/staging/fundamental --output-dir artifacts/fundamental-bootstrap --reset-store
+      - name: Upload bootstrap evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER073_FUNDAMENTAL_BOOTSTRAP_EVIDENCE
+          path: artifacts/fundamental-bootstrap/RATE_CER073_FUNDAMENTAL_BOOTSTRAP_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload cross-section
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER073_FUNDAMENTAL_CROSS_SECTION
+          path: artifacts/fundamental-bootstrap/RATE_CER073_FUNDAMENTAL_CROSS_SECTION.json
+          if-no-files-found: error
+      - name: Upload idempotency evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER073_FUNDAMENTAL_IDEMPOTENCY_EVIDENCE
+          path: artifacts/fundamental-bootstrap/RATE_CER073_FUNDAMENTAL_IDEMPOTENCY_EVIDENCE.json
+          if-no-files-found: error
