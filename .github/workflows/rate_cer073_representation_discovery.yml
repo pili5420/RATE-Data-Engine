@@ -28,7 +28,7 @@ jobs:
       - name: Focused representation tests
         run: python -m unittest tests.test_cer073_representation_discovery
       - name: Read-only bounded official representation discovery
-        run: python scripts/discover_fundamental_representations.py --as-of-date 2026-09-19
+        run: python scripts/discover_fundamental_representations.py --as-of-date 2026-09-18
       - name: Upload revenue representation evidence
         if: always()
         uses: actions/upload-artifact@v4

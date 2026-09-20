@@ -392,7 +392,7 @@ def probe_eps(as_of):
 
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('--as-of-date',default='2026-09-19')
+    parser=argparse.ArgumentParser();parser.add_argument('--as-of-date',default='2026-09-18')
     parser.add_argument('--output-dir',default='artifacts/representation-discovery')
     args=parser.parse_args()
     universe=json.loads((ROOT/'config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json').read_text(encoding='utf-8'))

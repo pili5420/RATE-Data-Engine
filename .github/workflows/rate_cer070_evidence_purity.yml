@@ -4,6 +4,15 @@ on:
   push:
     branches:
       - rate-v2-6-1r2-staging
+    paths-ignore:
+      - .github/workflows/rate_cer070_evidence_purity.yml
+      - .github/workflows/rate_cer071_stage_validation.yml
+      - .github/workflows/rate_cer072_validation.yml
+      - .github/workflows/rate_cer073_source_completeness.yml
+      - .github/workflows/rate_cer073_representation_discovery.yml
+      - scripts/discover_fundamental_representations.py
+      - tests/test_cer073_representation_discovery.py
+      - docs/CER073_REPRESENTATION_DISCOVERY.md
   workflow_dispatch:
     inputs:
       trading_date:

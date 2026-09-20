@@ -7,7 +7,7 @@ No production adapter, historical layer, model weights, scoring, percentile
 methodology, or ranking logic is changed.
 
 Baseline: `5ca982c7bffa86d38434fec2d08ac69cbd63e2f2`.
-As-of date: `2026-09-19` (the continued CER request date).
+As-of date: `2026-09-18` (the authoritative CER-073 cutoff date).
 
 ## Revenue
 
@@ -79,11 +79,11 @@ MOPSFin transport leaves XBRL fallback `NOT_RUN`.
 
 ```
 python -m unittest tests.test_cer073_representation_discovery
-python scripts/discover_fundamental_representations.py --as-of-date 2026-09-19
+python scripts/discover_fundamental_representations.py --as-of-date 2026-09-18
 ```
 
 The Actions workflow is `RATE CER-073 Fundamental Representation Discovery`.
-Publish its commit with `[skip ci]` to suppress the existing staging push
-workflows, then explicitly dispatch only this workflow. Keep main unchanged.
+Publish the cutoff repair without a skip-CI marker so the staging push triggers
+this representation workflow. Keep main unchanged.
 Both artifacts being verified makes discovery eligible for a separately
 authorized bootstrap follow-up; this workflow never launches that follow-up.

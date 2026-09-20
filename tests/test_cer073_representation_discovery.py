@@ -60,22 +60,22 @@ class RepresentationDiscoveryTests(unittest.TestCase):
         return value,d
 
     def test_exact_dual_source_join(self):
-        v,d=self.join_data();event=join_revenue(v,[d],'2026-09-19')
+        v,d=self.join_data();event=join_revenue(v,[d],'2026-09-18')
         self.assertEqual(event['classification'],'OFFICIAL_DUAL_SOURCE_LINEAGE')
         self.assertEqual(len(event['provider_lineage']),2)
         self.assertEqual(len(event['content_hash']),64)
 
     def test_wrong_period_never_joins(self):
         v,d=self.join_data();d['revenue_period']='2026-07'
-        self.assertIsNone(join_revenue(v,[d],'2026-09-19'))
+        self.assertIsNone(join_revenue(v,[d],'2026-09-18'))
 
     def test_post_asof_rejected(self):
-        v,d=self.join_data();d['official_disclosure_date']='2026-09-20'
-        self.assertIsNone(join_revenue(v,[d],'2026-09-19'))
+        v,d=self.join_data();d['official_disclosure_date']='2026-09-19'
+        self.assertIsNone(join_revenue(v,[d],'2026-09-18'))
 
     def test_multiple_revisions_fail_closed(self):
-        v,d=self.join_data();new=copy.deepcopy(d);new['official_disclosure_date']='2026-09-20'
-        self.assertIsNone(join_revenue(v,[d,new],'2026-09-19'))
+        v,d=self.join_data();new=copy.deepcopy(d);new['official_disclosure_date']='2026-09-19'
+        self.assertIsNone(join_revenue(v,[d,new],'2026-09-18'))
 
     def fin(self):
         return {'showNameList':['2330 台積電 (上市半導體業)'],'xaxisList':['2026Q1','2026Q2'],
