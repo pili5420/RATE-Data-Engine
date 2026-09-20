@@ -266,7 +266,8 @@ def fetch_eps_events(universe, as_of):
             params = {"compareItem": "EPS", "companyId": symbol, "quarter": quarter_flag,
                       "ylabel": "元", "ys": "0", "revenue": "false", "bcodeAvg": "false",
                       "companyAvg": "false", "qnumber": qnumber}
-            obj, evidence = official_json("https://mopsfin.twse.com.tw/compare/data", params, attempts=6, delay_seconds=2.0)
+            time.sleep(0.8)
+            obj, evidence = official_json("https://mopsfin.twse.com.tw/compare/data", params, attempts=8, delay_seconds=3.0)
             if obj is None:
                 blockers.append({"symbol": symbol, "mode": mode, "reason": "MOPSFIN_COMPARE_DATA_NON_JSON",
                                  "evidence": evidence})
@@ -435,6 +436,46 @@ def main():
     first_obj = store.upsert(revenue_events, eps_events)
     first_summary = first_obj["_last_upsert_summary"]
     selected_one = store.select_asof(first_obj, [row["symbol"] for row in universe], args.as_of_date)
+    rev_cov, rev_count, eps_cov, eps_count = selected_counts(selected_one, universe)
+    blockers = []
+    blockers.extend(revenue_evidence["blockers"])
+    blockers.extend(eps_evidence["blockers"])
+    if rev_cov != 30 or rev_count != 90:
+        blockers.append({"reason": "REVENUE_3M_COVERAGE_INCOMPLETE", "coverage": f"{rev_cov}/30",
+                         "selected_events": f"{rev_count}/90"})
+    if eps_cov != 30 or eps_count != 240:
+        blockers.append({"reason": "EPS_8Q_COVERAGE_INCOMPLETE", "coverage": f"{eps_cov}/30",
+                         "selected_events": f"{eps_count}/240"})
+    if blockers:
+        fail_common = {**common, "validation_status": "FAIL",
+                       "fundamental_store_schema": FUNDAMENTAL_HISTORY_SCHEMA_VERSION,
+                       "revenue_3m_coverage": f"{rev_cov}/30", "revenue_selected_events": f"{rev_count}/90",
+                       "revenue_no_lookahead": "PASS" if all(row["official_disclosure_date"] <= args.as_of_date for row in revenue_events) else "FAIL",
+                       "eps_8q_coverage": f"{eps_cov}/30", "eps_selected_events": f"{eps_count}/240",
+                       "eps_no_lookahead": "PASS" if all(row["official_disclosure_date"] <= args.as_of_date for row in eps_events) else "FAIL",
+                       "eps_revision_audit": "FAIL" if eps_evidence["blockers"] else "PASS",
+                       "fundamental_cross_section": f"0/30",
+                       "fundamental_formula_integrity": "NOT_RUN",
+                       "fundamental_percentile_universe_n": 0,
+                       "fundamental_determinism": "NOT_RUN",
+                       "analytical_output_hash_run_1": None,
+                       "analytical_output_hash_run_2": None,
+                       "first_upsert_summary": first_summary,
+                       "duplicate_semantic_revenue_events": None,
+                       "duplicate_semantic_eps_events": None,
+                       "remaining_blockers": blockers}
+        write(output / "RATE_CER073_FUNDAMENTAL_BOOTSTRAP_EVIDENCE.json",
+              {**fail_common, "artifact": "RATE_CER073_FUNDAMENTAL_BOOTSTRAP_EVIDENCE",
+               "revenue_request_evidence": revenue_evidence, "eps_request_evidence": eps_evidence})
+        write(output / "RATE_CER073_FUNDAMENTAL_CROSS_SECTION.json",
+              {**common, "artifact": "RATE_CER073_FUNDAMENTAL_CROSS_SECTION",
+               "validation_status": "FAIL", "rows": [], "remaining_blockers": blockers})
+        write(output / "RATE_CER073_FUNDAMENTAL_IDEMPOTENCY_EVIDENCE.json",
+              {**common, "artifact": "RATE_CER073_FUNDAMENTAL_IDEMPOTENCY_EVIDENCE",
+               "validation_status": "NOT_RUN", "fundamental_store_schema": FUNDAMENTAL_HISTORY_SCHEMA_VERSION,
+               "first_upsert_summary": first_summary, "remaining_blockers": blockers})
+        print(f"CER-073 Fundamental Bootstrap: FAIL {rev_count}/90 revenue {eps_count}/240 eps", flush=True)
+        raise SystemExit(1)
     cross_one = build_cross_section(selected_one, universe)
     hash_one = analytical_hash(cross_one)
     second_obj = store.upsert(revenue_events, eps_events)
