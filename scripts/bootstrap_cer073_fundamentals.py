@@ -71,6 +71,27 @@ def official_fetch(url, params=None, attempts=4, delay_seconds=2.5):
     return text, evidence
 
 
+def official_json(url, params=None, attempts=5, delay_seconds=2.5):
+    last_text = ""
+    last_evidence = {}
+    last_error = None
+    for attempt in range(1, attempts + 1):
+        if attempt > 1:
+            time.sleep(delay_seconds * attempt)
+        last_text, last_evidence = fetch(url, params)
+        try:
+            obj = json.loads(last_text)
+            last_evidence["attempt"] = attempt
+            return obj, last_evidence
+        except json.JSONDecodeError as exc:
+            last_error = f"{type(exc).__name__}: {exc}"
+    last_evidence["attempt"] = attempts
+    last_evidence["json_retry_exhausted"] = True
+    last_evidence["json_error"] = last_error
+    last_evidence["non_json_prefix"] = last_text[:256]
+    return None, last_evidence
+
+
 def pct(value, universe):
     xs = sorted(Decimal(str(x)) for x in universe)
     if len(xs) != 30:
@@ -245,8 +266,11 @@ def fetch_eps_events(universe, as_of):
             params = {"compareItem": "EPS", "companyId": symbol, "quarter": quarter_flag,
                       "ylabel": "元", "ys": "0", "revenue": "false", "bcodeAvg": "false",
                       "companyAvg": "false", "qnumber": qnumber}
-            text, evidence = official_fetch("https://mopsfin.twse.com.tw/compare/data", params, attempts=3, delay_seconds=1.0)
-            obj = json.loads(text)
+            obj, evidence = official_json("https://mopsfin.twse.com.tw/compare/data", params, attempts=6, delay_seconds=2.0)
+            if obj is None:
+                blockers.append({"symbol": symbol, "mode": mode, "reason": "MOPSFIN_COMPARE_DATA_NON_JSON",
+                                 "evidence": evidence})
+                obj = {}
             values = mopsfin_values(obj, symbol, EPS_QUARTERS)
             evidence.update({"symbol": symbol, "mode": mode, "selected_period_values": values,
                              "period_identity_location": "xaxisList[graphData[].data[][0]]",
