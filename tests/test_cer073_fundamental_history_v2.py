@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 from io import BytesIO
 from pathlib import Path
 import shutil
@@ -183,6 +184,25 @@ class TestCER073FundamentalHistoryV2(unittest.TestCase):
         self.assertEqual(len(again["revenue_events"]), 1)
         self.assertEqual(again["_last_upsert_summary"]["inserted_revenue_events"], 0)
         shutil.rmtree(root, ignore_errors=True)
+
+    def test_official_fetch_retries_transport_failures(self):
+        from scripts import bootstrap_cer073_fundamentals as bootstrap
+
+        calls = []
+
+        def fake_fetch(url, params=None):
+            calls.append((url, params))
+            if len(calls) == 1:
+                return "", {"http_status": None, "error": "URLError: refused"}
+            return "<html>ok</html>", {"http_status": 200, "response_bytes": 15}
+
+        with patch.object(bootstrap, "fetch", side_effect=fake_fetch), patch.object(bootstrap.time, "sleep"):
+            text, evidence = bootstrap.official_fetch("https://doc.twse.com.tw/server-java/t57sb01", attempts=3)
+
+        self.assertEqual(text, "<html>ok</html>")
+        self.assertEqual(evidence["attempt"], 2)
+        self.assertEqual(len(calls), 2)
+
 
     def test_official_revision_preserves_separate_semantic_event(self):
         root = Path("artifacts/test-fundamental-revision")

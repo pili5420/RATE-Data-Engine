@@ -63,11 +63,24 @@ def official_fetch(url, params=None, attempts=4, delay_seconds=2.5):
         if attempt > 1:
             time.sleep(delay_seconds * attempt)
         text, evidence = fetch(url, params)
-        if "查詢過頻" not in text and "請稍後" not in text and "�d�߹L�q" not in text and evidence.get("response_bytes") != 469:
+        transient_transport_failure = evidence.get("http_status") is None or bool(evidence.get("error"))
+        transient_rate_limit = (
+            "查詢過頻" in text
+            or "請稍後" in text
+            or "�d�߹L�q" in text
+            or evidence.get("response_bytes") == 469
+        )
+        if not transient_transport_failure and not transient_rate_limit:
             evidence["attempt"] = attempt
             return text, evidence
     evidence["attempt"] = attempts
-    evidence["rate_limit_retry_exhausted"] = True
+    evidence["transport_retry_exhausted"] = evidence.get("http_status") is None or bool(evidence.get("error"))
+    evidence["rate_limit_retry_exhausted"] = (
+        "查詢過頻" in text
+        or "請稍後" in text
+        or "�d�߹L�q" in text
+        or evidence.get("response_bytes") == 469
+    )
     return text, evidence
 
 
