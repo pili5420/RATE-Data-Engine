@@ -154,12 +154,19 @@ def fetch_revenue_events(universe, as_of):
         params = {"step": "00", "RADIO_CM": "2", "TYPEK": "sii" if row["market"] == "TWSE" else "otc",
                   "CO_MARKET": "", "CO_ID": row["symbol"], "PRO_ITEM": "F22", "SUBJECT": "",
                   "SDATE": "1150601", "EDATE": "1150918", "lang": "TW", "AN": ""}
-        text, evidence = official_fetch("https://mopsov.twse.com.tw/mops/web/ezsearch_query", params, attempts=3, delay_seconds=1.0)
-        obj = json.loads(text)
-        records = announcement_records(obj, row["symbol"])
+        time.sleep(0.5)
+        obj, evidence = official_json("https://mopsov.twse.com.tw/mops/web/ezsearch_query", params, attempts=6, delay_seconds=2.0)
+        if obj is None:
+            records = []
+        else:
+            records = announcement_records(obj, row["symbol"])
         evidence.update({"symbol": row["symbol"], "matched_record_count": len(records),
                          "disclosure_date_location": "data[].CDATE",
                          "period_identity_location": "data[].SUBJECT + HYPERLINK year/month"})
+        if obj is None:
+            evidence["matched_record_count"] = 0
+            date_evidence.append(evidence)
+            continue
         date_evidence.append(evidence)
         for record in records:
             date_records.append({**record, "date_source": {"provider": "MOPS", "official_endpoint": evidence["official_endpoint"],
@@ -426,12 +433,40 @@ def main():
               "input_snapshot_id": None, "production_decision_state_persist": 0,
               "production_namespace_modified": False, "historical_accepted_layer_modified": False,
               "main_modified": False, "bootstrap_scope": "STAGING_FUNDAMENTAL_ONLY"}
-    print("Fetching official revenue events", flush=True)
-    revenue_events, revenue_evidence = fetch_revenue_events(universe, args.as_of_date)
-    print(f"Revenue events: {len(revenue_events)}/90", flush=True)
-    print("Fetching official EPS events", flush=True)
-    eps_events, eps_evidence = fetch_eps_events(universe, args.as_of_date)
-    print(f"EPS events: {len(eps_events)}/240", flush=True)
+    try:
+        print("Fetching official revenue events", flush=True)
+        revenue_events, revenue_evidence = fetch_revenue_events(universe, args.as_of_date)
+        print(f"Revenue events: {len(revenue_events)}/90", flush=True)
+        print("Fetching official EPS events", flush=True)
+        eps_events, eps_evidence = fetch_eps_events(universe, args.as_of_date)
+        print(f"EPS events: {len(eps_events)}/240", flush=True)
+    except Exception as exc:
+        blocker = {"reason": "FUNDAMENTAL_BOOTSTRAP_UNEXPECTED_EXCEPTION",
+                   "error": f"{type(exc).__name__}: {exc}"}
+        fail_common = {**common, "validation_status": "FAIL",
+                       "fundamental_store_schema": FUNDAMENTAL_HISTORY_SCHEMA_VERSION,
+                       "revenue_3m_coverage": "0/30", "revenue_selected_events": "0/90",
+                       "revenue_no_lookahead": "FAIL", "eps_8q_coverage": "0/30",
+                       "eps_selected_events": "0/240", "eps_no_lookahead": "FAIL",
+                       "eps_revision_audit": "FAIL", "fundamental_cross_section": "0/30",
+                       "fundamental_formula_integrity": "NOT_RUN",
+                       "fundamental_percentile_universe_n": 0,
+                       "fundamental_determinism": "NOT_RUN",
+                       "analytical_output_hash_run_1": None,
+                       "analytical_output_hash_run_2": None,
+                       "duplicate_semantic_revenue_events": None,
+                       "duplicate_semantic_eps_events": None,
+                       "remaining_blockers": [blocker]}
+        write(output / "RATE_CER073_FUNDAMENTAL_BOOTSTRAP_EVIDENCE.json",
+              {**fail_common, "artifact": "RATE_CER073_FUNDAMENTAL_BOOTSTRAP_EVIDENCE"})
+        write(output / "RATE_CER073_FUNDAMENTAL_CROSS_SECTION.json",
+              {**common, "artifact": "RATE_CER073_FUNDAMENTAL_CROSS_SECTION",
+               "validation_status": "FAIL", "rows": [], "remaining_blockers": [blocker]})
+        write(output / "RATE_CER073_FUNDAMENTAL_IDEMPOTENCY_EVIDENCE.json",
+              {**common, "artifact": "RATE_CER073_FUNDAMENTAL_IDEMPOTENCY_EVIDENCE",
+               "validation_status": "NOT_RUN", "fundamental_store_schema": FUNDAMENTAL_HISTORY_SCHEMA_VERSION,
+               "remaining_blockers": [blocker]})
+        raise
     store = FundamentalHistoryStoreV2(store_root)
     first_obj = store.upsert(revenue_events, eps_events)
     first_summary = first_obj["_last_upsert_summary"]
