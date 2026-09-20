@@ -1,0 +1,45 @@
+name: RATE CER-073 Fundamental Representation Discovery
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [rate-v2-6-1r2-staging]
+    paths:
+      - .github/workflows/rate_cer073_representation_discovery.yml
+      - scripts/discover_fundamental_representations.py
+      - tests/test_cer073_representation_discovery.py
+
+permissions:
+  contents: read
+
+jobs:
+  representation-discovery:
+    if: github.ref == 'refs/heads/rate-v2-6-1r2-staging'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      RATE_LIVE_E2E_ENABLED: "false"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Focused representation tests
+        run: python -m unittest tests.test_cer073_representation_discovery
+      - name: Read-only bounded official representation discovery
+        run: python scripts/discover_fundamental_representations.py --as-of-date 2026-09-19
+      - name: Upload revenue representation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER073_REVENUE_REPRESENTATION_DISCOVERY
+          path: artifacts/representation-discovery/RATE_CER073_REVENUE_REPRESENTATION_DISCOVERY.json
+          if-no-files-found: error
+      - name: Upload EPS representation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER073_EPS_REPRESENTATION_DISCOVERY
+          path: artifacts/representation-discovery/RATE_CER073_EPS_REPRESENTATION_DISCOVERY.json
+          if-no-files-found: error
