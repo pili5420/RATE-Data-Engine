@@ -12,6 +12,10 @@ on:
       - .github/workflows/rate_cer073_representation_discovery.yml
       - .github/workflows/rate_cer073_fundamental_bootstrap.yml
       - .github/workflows/rate_cer073_fundamental_contract_probe.yml
+      - .github/workflows/rate_cer073_final_source_bundle_closure.yml
+      - scripts/close_cer073_final_source_bundle.py
+      - scripts/build_live_source_bundle.py
+      - tests/test_cer073_final_source_bundle_closure.py
       - scripts/discover_fundamental_representations.py
       - scripts/bootstrap_cer073_fundamentals.py
       - src/sources/fundamental_history.py

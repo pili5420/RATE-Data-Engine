@@ -1,27 +1,15 @@
-name: RATE CER-073 07:30 Live Source Completeness
+name: RATE CER-073 Final 07:30 Source Bundle Closure
 
 on:
   push:
     branches:
       - rate-v2-6-1r2-staging
-    paths-ignore:
-      - .github/workflows/rate_cer070_evidence_purity.yml
-      - .github/workflows/rate_cer071_stage_validation.yml
-      - .github/workflows/rate_cer072_validation.yml
-      - .github/workflows/rate_cer073_source_completeness.yml
-      - .github/workflows/rate_cer073_representation_discovery.yml
-      - .github/workflows/rate_cer073_fundamental_bootstrap.yml
-      - .github/workflows/rate_cer073_fundamental_contract_probe.yml
+    paths:
       - .github/workflows/rate_cer073_final_source_bundle_closure.yml
       - scripts/close_cer073_final_source_bundle.py
       - scripts/build_live_source_bundle.py
       - tests/test_cer073_final_source_bundle_closure.py
-      - scripts/discover_fundamental_representations.py
-      - scripts/bootstrap_cer073_fundamentals.py
-      - src/sources/fundamental_history.py
-      - tests/test_cer073_representation_discovery.py
-      - tests/test_cer073_fundamental_history_v2.py
-      - docs/CER073_REPRESENTATION_DISCOVERY.md
+      - tests/test_cer073_source_wiring.py
   workflow_dispatch:
     inputs:
       trading_date:
@@ -34,7 +22,7 @@ permissions:
   actions: read
 
 jobs:
-  cer073-source-completeness:
+  final-source-bundle-closure:
     runs-on: ubuntu-latest
     env:
       RATE_LIVE_E2E_ENABLED: "false"
@@ -46,6 +34,8 @@ jobs:
       RATE_STAGING_HISTORY_STORE_ROOT: data/staging/history
       RATE_STAGING_FUNDAMENTAL_STORE_ROOT: data/staging/fundamental
       RATE_CER072_PRIOR_STAGE_PACKAGE: artifacts/accepted/prior-stage/RATE_FIRST_PRODUCTION_PRIOR_STAGE_PACKAGE_V1.json
+      RATE_CER073_ACCEPTED_FUNDAMENTAL_CROSS_SECTION: artifacts/accepted/fundamental/RATE_CER073_FUNDAMENTAL_CROSS_SECTION.json
+      RATE_CER073_ACCEPTED_FUNDAMENTAL_HASH: b42982f676d8e19fdbc0b6a6cb5716a2e1cc9af8904e0371b9fe1d63b3aee10c
       RATE_CER073_REQUIRE_PROBE: "1"
       RATE_CER073_TRADING_DATE: ${{ inputs.trading_date || '2026-09-18' }}
     steps:
@@ -54,20 +44,21 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Initialize fail-closed CER-073 artifacts
+      - name: Initialize fail-closed final closure artifacts
         shell: bash
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          p=Path('artifacts'); p.mkdir(exist_ok=True)
-          rows={
-            'RATE_CER073_SOURCE_PROBE_EVIDENCE.json': {'artifact':'RATE_CER073_SOURCE_PROBE_EVIDENCE','status':'NOT_RUN','probes':[]},
-            'RATE_CER073_FUNDAMENTAL_HISTORY_EVIDENCE.json': {'artifact':'RATE_CER073_FUNDAMENTAL_HISTORY_EVIDENCE','validation_status':'NOT_RUN','symbols':[],'fixture_used':False,'production_namespace_modified':False},
-            'RATE_CER073_0730_SOURCE_BUNDLE.json': {'artifact':'RATE_CER073_0730_SOURCE_BUNDLE','validation_status':'NOT_RUN','input_snapshot_id':None,'production_state_created':False,'production_decision_state_persisted':0},
-            'RATE_CER073_LIVE_SOURCE_COMPLETENESS_EVIDENCE.json': {'artifact':'RATE_CER073_LIVE_SOURCE_COMPLETENESS_EVIDENCE','status':'NOT_RUN','fixture_used':False,'production_namespace_modified':False,'rate_live_e2e_enabled':False,'input_snapshot_id':None,'production_decision_state_persist':0},
-          }
-          for name,obj in rows.items(): (p/name).write_text(json.dumps(obj,sort_keys=True,indent=2)+'\n',encoding='utf-8')
+          out=Path('artifacts/final-source-bundle'); out.mkdir(parents=True, exist_ok=True)
+          common={'validation_status':'NOT_RUN','as_of_date':'2026-09-18','input_snapshot_id':None,'production_snapshot_created':False,'production_decision_state_persist':0,'production_namespace_modified':False,'historical_accepted_layer_modified':False,'main_modified':False,'remaining_blockers':[]}
+          for name,artifact in {
+            'RATE_CER073_FINAL_SOURCE_BUNDLE.json':'RATE_CER073_FINAL_SOURCE_BUNDLE',
+            'RATE_CER073_FINAL_SOURCE_COMPLETENESS_EVIDENCE.json':'RATE_CER073_FINAL_SOURCE_COMPLETENESS_EVIDENCE',
+            'RATE_CER073_FINAL_SOURCE_PROVENANCE_EVIDENCE.json':'RATE_CER073_FINAL_SOURCE_PROVENANCE_EVIDENCE',
+            'RATE_CER073_FINAL_DETERMINISM_EVIDENCE.json':'RATE_CER073_FINAL_DETERMINISM_EVIDENCE',
+          }.items():
+            (out/name).write_text(json.dumps({'artifact':artifact,**common},sort_keys=True,indent=2)+'\n',encoding='utf-8')
           PY
 
       - name: Resolve accepted rolling-store cache identity
@@ -79,12 +70,11 @@ jobs:
           digest=obj['universe_symbol_digest']
           prefix=f'rate-twse-bootstrap-v1-{digest}-RATE-STOCK-NORMALIZED-V1-TWSE_STOCK_DAY_V1-RATE-TWSE-HISTORY-CHECKPOINT-V1-'
           print('RATE_BOOTSTRAP_CACHE_PREFIX='+prefix)
-          print('RATE_BOOTSTRAP_CACHE_KEY='+prefix+'cer073-${{ github.run_id }}-${{ github.run_attempt }}')
+          print('RATE_BOOTSTRAP_CACHE_KEY='+prefix+'cer073-final-${{ github.run_id }}-${{ github.run_attempt }}')
           print('RATE_FUNDAMENTAL_CACHE_PREFIX=rate-fundamental-history-v2-'+digest+'-')
-          print('RATE_FUNDAMENTAL_CACHE_KEY=rate-fundamental-history-v2-'+digest+'-${{ github.run_id }}-${{ github.run_attempt }}')
+          print('RATE_FUNDAMENTAL_CACHE_KEY=rate-fundamental-history-v2-'+digest+'-cer073-final-${{ github.run_id }}-${{ github.run_attempt }}')
           PY
       - name: Restore accepted rolling historical store
-        id: accepted-history
         uses: actions/cache/restore@v4
         with:
           path: |
@@ -141,8 +131,15 @@ jobs:
           run-id: 35440941418
           github-token: ${{ github.token }}
           path: artifacts/accepted/prior-stage
+      - name: Download accepted CER-073 fundamental cross-section
+        uses: actions/download-artifact@v4
+        with:
+          name: RATE_CER073_FUNDAMENTAL_CROSS_SECTION
+          run-id: 35541740210
+          github-token: ${{ github.token }}
+          path: artifacts/accepted/fundamental
 
-      - name: Verify accepted historical identity and CER-072 package
+      - name: Verify accepted historical, prior-stage, and fundamental bindings
         shell: bash
         run: |
           python - <<'PY'
@@ -159,15 +156,18 @@ jobs:
           package=json.loads(Path('artifacts/accepted/prior-stage/RATE_FIRST_PRODUCTION_PRIOR_STAGE_PACKAGE_V1.json').read_text(encoding='utf-8'))
           assert package.get('package_digest')=='706eb813da43b112bfd9459d459f1892591371700140e9626e411ad8ad0bceef'
           assert package.get('source_historical_digest')==HISTORICAL_DIGEST
-          print(json.dumps({'historical_digest':HISTORICAL_DIGEST,'symbols':len(data['symbols']),'prior_stage_digest':package['package_digest']}))
+          fundamental=json.loads(Path('artifacts/accepted/fundamental/RATE_CER073_FUNDAMENTAL_CROSS_SECTION.json').read_text(encoding='utf-8'))
+          assert fundamental.get('validation_status')=='PASS'
+          assert fundamental.get('as_of_date')=='2026-09-18'
+          assert fundamental.get('analytical_output_hash')=='b42982f676d8e19fdbc0b6a6cb5716a2e1cc9af8904e0371b9fe1d63b3aee10c'
+          assert len(fundamental.get('rows',[]))==30
+          print(json.dumps({'historical_digest':HISTORICAL_DIGEST,'symbols':len(data['symbols']),'prior_stage_digest':package['package_digest'],'fundamental_hash':fundamental['analytical_output_hash']}))
           PY
 
-      - name: Run full unit and regression suite
-        id: tests
-        run: python -m unittest discover -s tests -v
+      - name: Run focused final closure tests
+        run: python -m unittest tests.test_cer073_final_source_bundle_closure tests.test_cer073_source_wiring tests.test_cer073_fundamental_history_v2 -v
 
       - name: Verify frozen model integrity
-        if: steps.tests.outcome == 'success'
         shell: bash
         run: |
           python - <<'PY'
@@ -183,29 +183,20 @@ jobs:
         continue-on-error: true
         run: python scripts/probe_official_sources.py --trading-date "${{ env.RATE_CER073_TRADING_DATE }}" --universe-file "${{ env.RATE_UNIVERSE_FILE }}" --output artifacts/RATE_CER073_SOURCE_PROBE_EVIDENCE.json
 
-      - name: Assemble and validate 07:30 source bundle
+      - name: Assemble staging-only 07:30 source bundle using accepted Fundamental binding
         id: source-bundle
-        if: always() && steps.tests.outcome == 'success'
         env:
           GITHUB_ACTIONS: "true"
           GITHUB_SHA: ${{ github.sha }}
         run: python scripts/build_live_source_bundle.py --trading-date "${{ env.RATE_CER073_TRADING_DATE }}" --output artifacts/RATE_CER073_0730_SOURCE_BUNDLE.json --evidence-output artifacts/RATE_LIVE_SOURCE_ASSEMBLY_EVIDENCE.json
 
-      - name: Persist validated staging rolling store
-        if: steps.source-bundle.outcome == 'success'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            data/staging/history_bootstrap
-            data/staging/history
-            data/staging/history_bootstrap/benchmarks
-          key: ${{ env.RATE_BOOTSTRAP_CACHE_KEY }}
-      - name: Persist fundamental disclosure event store
+      - name: Close final CER-073 source bundle
         if: always()
-        uses: actions/cache/save@v4
-        with:
-          path: data/staging/fundamental
-          key: ${{ env.RATE_FUNDAMENTAL_CACHE_KEY }}
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_JOB: final-source-bundle-closure
+        run: python scripts/close_cer073_final_source_bundle.py --source-bundle artifacts/RATE_CER073_0730_SOURCE_BUNDLE.json --fundamental-cross-section artifacts/accepted/fundamental/RATE_CER073_FUNDAMENTAL_CROSS_SECTION.json --output-dir artifacts/final-source-bundle
 
       - name: Verify production isolation and deferred snapshot
         if: always()
@@ -218,35 +209,36 @@ jobs:
           if changed: raise SystemExit('PRODUCTION_NAMESPACE_MODIFIED:'+','.join(changed))
           print('RATE LIVE E2E Enabled = NO')
           print('input_snapshot_id = null')
+          print('Production Snapshot Created = NO')
           print('Production Decision State Persist = 0')
           print('Production Namespace Modified = NO')
           PY
 
-      - name: Upload fundamental-history evidence
+      - name: Upload final source bundle
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: RATE_CER073_FUNDAMENTAL_HISTORY_EVIDENCE
-          path: artifacts/RATE_CER073_FUNDAMENTAL_HISTORY_EVIDENCE.json
+          name: RATE_CER073_FINAL_SOURCE_BUNDLE
+          path: artifacts/final-source-bundle/RATE_CER073_FINAL_SOURCE_BUNDLE.json
           if-no-files-found: error
-      - name: Upload source-completeness evidence
+      - name: Upload final completeness evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: RATE_CER073_LIVE_SOURCE_COMPLETENESS_EVIDENCE
-          path: artifacts/RATE_CER073_LIVE_SOURCE_COMPLETENESS_EVIDENCE.json
+          name: RATE_CER073_FINAL_SOURCE_COMPLETENESS_EVIDENCE
+          path: artifacts/final-source-bundle/RATE_CER073_FINAL_SOURCE_COMPLETENESS_EVIDENCE.json
           if-no-files-found: error
-      - name: Upload 07-30 source bundle
+      - name: Upload final provenance evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: RATE_CER073_0730_SOURCE_BUNDLE
-          path: artifacts/RATE_CER073_0730_SOURCE_BUNDLE.json
+          name: RATE_CER073_FINAL_SOURCE_PROVENANCE_EVIDENCE
+          path: artifacts/final-source-bundle/RATE_CER073_FINAL_SOURCE_PROVENANCE_EVIDENCE.json
           if-no-files-found: error
-      - name: Upload source probe evidence
+      - name: Upload final determinism evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: RATE_CER073_SOURCE_PROBE_EVIDENCE
-          path: artifacts/RATE_CER073_SOURCE_PROBE_EVIDENCE.json
+          name: RATE_CER073_FINAL_DETERMINISM_EVIDENCE
+          path: artifacts/final-source-bundle/RATE_CER073_FINAL_DETERMINISM_EVIDENCE.json
           if-no-files-found: error

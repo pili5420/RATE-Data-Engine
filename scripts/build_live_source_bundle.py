@@ -541,9 +541,60 @@ def _fundamental_history(universe, markets=None, as_of_date=None):
     _write('artifacts/RATE_CER073_FUNDAMENTAL_HISTORY_EVIDENCE.json',{'artifact':'RATE_CER073_FUNDAMENTAL_HISTORY_EVIDENCE','validation_status':'PASS','as_of_date':as_of_date,'symbols_complete':len(evidence_symbols),'symbols_required':len(universe),'fundamental_cross_section':'PASS','fundamental_determinism':'PASS','symbols':evidence_symbols,'fixture_used':False,'production_namespace_modified':False})
     return {s:{'Fundamental':scores[s],'revenue_yoy':[x['value'] for x in sorted(revenue_by[s],key=lambda x:x['period'],reverse=True)[:3]],'quarterly_eps':[x['value'] for x in sorted(eps_by[s],key=lambda x:(x['fiscal_year'],x['quarter']),reverse=True)[:8]],'revenue_periods':[x['period'] for x in sorted(revenue_by[s],key=lambda x:x['period'],reverse=True)[:3]],'eps_quarters':[{'fiscal_year':x['fiscal_year'],'quarter':x['quarter']} for x in sorted(eps_by[s],key=lambda x:(x['fiscal_year'],x['quarter']),reverse=True)[:8]],'revenue_source_lineage':[{'provider':x['provider'],'source':x['source'],'endpoint':x['endpoint'],'publication_timestamp':x['publication_timestamp'],'content_hash':x['content_hash']} for x in sorted(revenue_by[s],key=lambda x:x['period'],reverse=True)[:3]],'eps_source_lineage':[{'provider':x['provider'],'source':x['source'],'endpoint':x['endpoint'],'publication_timestamp':x['publication_timestamp'],'content_hash':x['content_hash']} for x in sorted(eps_by[s],key=lambda x:(x['fiscal_year'],x['quarter']),reverse=True)[:8]]} for s in universe}
 
+def _accepted_fundamental_history(universe, as_of_date):
+    path = os.getenv('RATE_CER073_ACCEPTED_FUNDAMENTAL_CROSS_SECTION')
+    if not path:
+        return None
+    expected_hash = os.getenv('RATE_CER073_ACCEPTED_FUNDAMENTAL_HASH', 'b42982f676d8e19fdbc0b6a6cb5716a2e1cc9af8904e0371b9fe1d63b3aee10c')
+    obj = json.loads(Path(path).read_text(encoding='utf-8'))
+    if obj.get('validation_status') != 'PASS':
+        raise RuntimeError('ACCEPTED_FUNDAMENTAL_CROSS_SECTION_NOT_PASS')
+    if obj.get('as_of_date') != as_of_date:
+        raise RuntimeError('ACCEPTED_FUNDAMENTAL_ASOF_MISMATCH')
+    if obj.get('analytical_output_hash') != expected_hash:
+        raise RuntimeError('ACCEPTED_FUNDAMENTAL_HASH_MISMATCH')
+    rows = obj.get('rows') or []
+    by_symbol = {str(row.get('symbol')): row for row in rows}
+    if len(by_symbol) != 30 or set(by_symbol) != set(map(str, universe)):
+        raise RuntimeError('ACCEPTED_FUNDAMENTAL_SYMBOL_SET_MISMATCH')
+    evidence_symbols = []
+    result = {}
+    for symbol in map(str, universe):
+        row = by_symbol[symbol]
+        revenue_events = row.get('revenue_events') or []
+        eps_events = row.get('eps_events') or []
+        if len(revenue_events) != 3 or len(eps_events) != 8 or row.get('fundamental_score') is None:
+            raise RuntimeError('ACCEPTED_FUNDAMENTAL_COMPONENT_COVERAGE_MISMATCH:' + symbol)
+        evidence_symbols.append({'symbol': symbol, 'fundamental_score': row['fundamental_score'],
+            'revenue_periods': row.get('revenue_periods'), 'eps_quarters': row.get('eps_quarters'),
+            'source_binding': 'ACCEPTED_CER073_FUNDAMENTAL_BOOTSTRAP',
+            'analytical_output_hash': expected_hash})
+        result[symbol] = {'Fundamental': row['fundamental_score'],
+            'revenue_yoy': [event.get('revenue_yoy') for event in revenue_events],
+            'quarterly_eps': [event.get('single_quarter_eps') for event in eps_events],
+            'revenue_periods': row.get('revenue_periods'),
+            'eps_quarters': [{'fiscal_year': event.get('fiscal_year'), 'quarter': event.get('quarter')} for event in eps_events],
+            'revenue_source_lineage': [{'provider': event.get('provider'), 'source': event.get('official_product'),
+                'endpoint': event.get('endpoint'), 'publication_timestamp': event.get('official_disclosure_date'),
+                'content_hash': event.get('content_hash')} for event in revenue_events],
+            'eps_source_lineage': [{'provider': event.get('provider'), 'source': event.get('official_product'),
+                'endpoint': event.get('endpoint'), 'publication_timestamp': event.get('official_disclosure_date'),
+                'content_hash': event.get('content_hash'), 'source_semantics': event.get('source_semantics')} for event in eps_events],
+            'accepted_fundamental_hash': expected_hash}
+    _write('artifacts/RATE_CER073_FUNDAMENTAL_HISTORY_EVIDENCE.json', {'artifact': 'RATE_CER073_FUNDAMENTAL_HISTORY_EVIDENCE',
+        'validation_status': 'PASS', 'as_of_date': as_of_date, 'symbols_complete': len(evidence_symbols),
+        'symbols_required': len(universe), 'fundamental_cross_section': 'PASS', 'fundamental_determinism': 'PASS',
+        'fundamental_binding': 'ACCEPTED_CER073_FUNDAMENTAL_BOOTSTRAP', 'analytical_output_hash': expected_hash,
+        'symbols': evidence_symbols, 'fixture_used': False, 'production_namespace_modified': False})
+    return result
+
+
 def _fundamental_history(universe, markets=None, as_of_date=None):
     """CER-073 V2: official MOPS disclosures, revision-aware and as-of bound."""
     markets=markets or {}; as_of_date=as_of_date or date.today().isoformat()
+    accepted = _accepted_fundamental_history(universe, as_of_date)
+    if accepted is not None:
+        return accepted
     store=FundamentalHistoryStoreV2(os.getenv('RATE_STAGING_FUNDAMENTAL_STORE_ROOT','data/staging/fundamental'))
     current=store.load(); selected=store.select_asof(current,universe,as_of_date)
     missing=lambda: [str(s) for s in universe if len(selected[str(s)]['revenue'])<3 or len(selected[str(s)]['eps'])<8]
