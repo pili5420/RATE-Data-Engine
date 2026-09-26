@@ -15,6 +15,8 @@ on:
       - .github/workflows/rate_cer073_final_source_bundle_closure.yml
       - scripts/close_cer073_final_source_bundle.py
       - scripts/build_live_source_bundle.py
+      - src/sources/tdcc_historical.py
+      - tests/test_cer072_tdcc_historical.py
       - tests/test_cer073_final_source_bundle_closure.py
       - scripts/discover_fundamental_representations.py
       - scripts/bootstrap_cer073_fundamentals.py

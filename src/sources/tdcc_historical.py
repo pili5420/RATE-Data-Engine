@@ -12,6 +12,7 @@ import re
 import time
 from datetime import datetime, timezone
 from html import unescape
+from http.client import IncompleteRead
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import HTTPCookieProcessor, Request, build_opener
@@ -157,23 +158,33 @@ class TDCCHistoricalAdapter:
         self._available = None
 
     def _open(self, request):
-        if self._last_request is not None and self.min_interval_seconds > 0:
-            time.sleep(max(0.0, self.min_interval_seconds - (time.monotonic() - self._last_request)))
-        self._last_request = time.monotonic()
-        try:
-            response = self.opener.open(request, timeout=40)
-        except HTTPError as exc:
-            raise RuntimeError(f"TDCC_HISTORICAL_HTTP_{exc.code}") from exc
-        except (URLError, TimeoutError, OSError) as exc:
-            raise RuntimeError(f"TDCC_HISTORICAL_TRANSPORT_ERROR:{type(exc).__name__}") from exc
-        self.request_count += 1
-        status = getattr(response, "status", response.getcode())
-        if status != 200:
-            raise RuntimeError(f"TDCC_HISTORICAL_HTTP_{status}")
-        body = response.read()
-        if not body:
-            raise RuntimeError("TDCC_HISTORICAL_EMPTY_RESPONSE")
-        return body
+        last_transport_error = None
+        for attempt in range(1, 4):
+            if self._last_request is not None and self.min_interval_seconds > 0:
+                time.sleep(max(0.0, self.min_interval_seconds - (time.monotonic() - self._last_request)))
+            if attempt > 1:
+                time.sleep(min(2.0 * (attempt - 1), 4.0))
+            self._last_request = time.monotonic()
+            try:
+                response = self.opener.open(request, timeout=40)
+            except HTTPError as exc:
+                raise RuntimeError(f"TDCC_HISTORICAL_HTTP_{exc.code}") from exc
+            except (IncompleteRead, URLError, TimeoutError, OSError) as exc:
+                last_transport_error = exc
+                continue
+            self.request_count += 1
+            status = getattr(response, "status", response.getcode())
+            if status != 200:
+                raise RuntimeError(f"TDCC_HISTORICAL_HTTP_{status}")
+            try:
+                body = response.read()
+            except (IncompleteRead, TimeoutError, OSError) as exc:
+                last_transport_error = exc
+                continue
+            if not body:
+                raise RuntimeError("TDCC_HISTORICAL_EMPTY_RESPONSE")
+            return body
+        raise RuntimeError(f"TDCC_HISTORICAL_TRANSPORT_ERROR:{type(last_transport_error).__name__}") from last_transport_error
 
     def _initialize(self):
         if self._available is not None:

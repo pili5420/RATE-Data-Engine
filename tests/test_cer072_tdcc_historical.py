@@ -1,5 +1,6 @@
 import json
 import unittest
+from http.client import IncompleteRead
 from pathlib import Path
 from urllib.parse import parse_qs
 from unittest.mock import patch
@@ -56,6 +57,48 @@ class TDCCHistoricalContractTests(unittest.TestCase):
         self.assertEqual(fields["sqlMethod"],["StockNo"])
         self.assertEqual(fields["method"],["submit"])
         self.assertEqual(fields["SYNCHRONIZER_URI"],["/portal/zh/smWeb/qryStock"])
+
+    def test_transport_incomplete_read_retries_same_official_request(self):
+        class Response:
+            status = 200
+            def read(self): return b"ok"
+            def getcode(self): return 200
+        class Opener:
+            def __init__(self): self.requests = []
+            def open(self, req, timeout):
+                self.requests.append(req)
+                if len(self.requests) == 1:
+                    raise IncompleteRead(b"partial")
+                return Response()
+        opener = Opener()
+        adapter = TDCCHistoricalAdapter(opener=opener, min_interval_seconds=0)
+        with patch("src.sources.tdcc_historical.time.sleep"):
+            body = adapter._open(object())
+        self.assertEqual(body, b"ok")
+        self.assertEqual(len(opener.requests), 2)
+        self.assertEqual(adapter.request_count, 1)
+
+    def test_transport_incomplete_response_read_retries_same_official_request(self):
+        class BrokenResponse:
+            status = 200
+            def read(self): raise IncompleteRead(b"partial")
+            def getcode(self): return 200
+        class Response:
+            status = 200
+            def read(self): return b"ok"
+            def getcode(self): return 200
+        class Opener:
+            def __init__(self): self.requests = []
+            def open(self, req, timeout):
+                self.requests.append(req)
+                return BrokenResponse() if len(self.requests) == 1 else Response()
+        opener = Opener()
+        adapter = TDCCHistoricalAdapter(opener=opener, min_interval_seconds=0)
+        with patch("src.sources.tdcc_historical.time.sleep"):
+            body = adapter._open(object())
+        self.assertEqual(body, b"ok")
+        self.assertEqual(len(opener.requests), 2)
+        self.assertEqual(adapter.request_count, 2)
 
     def test_roc_date_normalizes_to_gregorian(self):
         self.assertEqual(normalize_period("115年09月04日"), "2026-09-04")

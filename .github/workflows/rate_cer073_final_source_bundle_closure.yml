@@ -8,6 +8,8 @@ on:
       - .github/workflows/rate_cer073_final_source_bundle_closure.yml
       - scripts/close_cer073_final_source_bundle.py
       - scripts/build_live_source_bundle.py
+      - src/sources/tdcc_historical.py
+      - tests/test_cer072_tdcc_historical.py
       - tests/test_cer073_final_source_bundle_closure.py
       - tests/test_cer073_source_wiring.py
   workflow_dispatch:
@@ -165,7 +167,7 @@ jobs:
           PY
 
       - name: Run focused final closure tests
-        run: python -m unittest tests.test_cer073_final_source_bundle_closure tests.test_cer073_source_wiring tests.test_cer073_fundamental_history_v2 -v
+        run: python -m unittest tests.test_cer072_tdcc_historical tests.test_cer073_final_source_bundle_closure tests.test_cer073_source_wiring tests.test_cer073_fundamental_history_v2 -v
 
       - name: Verify frozen model integrity
         shell: bash
