@@ -31,6 +31,16 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Resolve numeric Actions job ID
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          job_id=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" --jq '.jobs[] | select(.name=="first-production-0730-acceptance") | .id' | head -n 1)
+          test -n "$job_id"
+          echo "ACTIONS_JOB_ID=$job_id" >> "$GITHUB_ENV"
+          echo "actions_job_id=$job_id"
+
       - name: Initialize fail-closed CER-074 artifacts
         shell: bash
         run: python scripts/run_cer074_acceptance.py --source-bundle /tmp/nonexistent.json --output-dir artifacts/cer074 --state-root data/production/cer074_acceptance --reset-state-root || true
@@ -87,6 +97,7 @@ jobs:
           --output-dir artifacts/cer074
           --state-root data/production/cer074_acceptance
           --reset-state-root
+          --actions-job-id "$ACTIONS_JOB_ID"
 
       - name: Verify production namespace safety and scheduler disabled
         if: always()
