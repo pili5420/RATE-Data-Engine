@@ -19,6 +19,10 @@ on:
       - .github/workflows/rate_cer077_1200_incremental_acceptance.yml
       - .github/workflows/rate_cer078_1930_evening_acceptance.yml
       - .github/workflows/rate_cer079_full_day_chain_acceptance.yml
+      - .github/workflows/rate_cer080_multi_day_continuity_acceptance.yml
+      - src/cer080_multi_day_continuity.py
+      - scripts/run_cer080_multi_day_continuity_acceptance.py
+      - tests/test_cer080_multi_day_continuity.py
       - src/cer079_full_day_chain.py
       - scripts/run_cer079_full_day_chain_acceptance.py
       - tests/test_cer079_full_day_chain.py
