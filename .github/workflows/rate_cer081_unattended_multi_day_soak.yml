@@ -1,0 +1,390 @@
+name: RATE CER-081 Unattended Multi-Day Production Soak Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - rate-v2-6-1r2-staging
+    paths:
+      - .github/workflows/rate_cer081_unattended_multi_day_soak.yml
+      - .github/workflows/rate_production_0930_scheduler.yml
+      - .github/workflows/rate_production_1200_scheduler.yml
+      - .github/workflows/rate_production_1930_scheduler.yml
+      - src/cer081_unattended_soak.py
+      - scripts/run_cer081_unattended_soak_acceptance.py
+      - tests/test_cer081_unattended_soak.py
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: rate-cer081-unattended-soak-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  unattended-soak:
+    runs-on: ubuntu-latest
+    env:
+      RATE_LIVE_E2E_ENABLED: PRODUCTION_UNATTENDED_SOAK_ACCEPTANCE
+      RATE_SOURCE_URL: "https://openapi.twse.com.tw/v1;https://www.tpex.org.tw/openapi/v1;https://www.tdcc.com.tw/portal/zh/smWeb/qryStock;https://mops.twse.com.tw/mops/web/ajax_t05st10_ifrs"
+      RATE_CER080_PERSIST_RESULT_ARTIFACT_ID: "10928378816"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Resolve numeric Actions job ID
+        shell: bash
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          job_id=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" --jq '.jobs[] | select(.name=="unattended-soak") | .id' | head -n 1)
+          test -n "$job_id"
+          echo "ACTIONS_JOB_ID=$job_id" >> "$GITHUB_ENV"
+      - name: Initialize fail-closed CER-081 artifacts
+        shell: bash
+        run: python scripts/run_cer081_unattended_soak_acceptance.py --cer080-persisted-evidence /tmp/missing.json --output-dir artifacts/cer081 || true
+      - name: Download accepted CER-080 predecessor evidence
+        shell: bash
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          mkdir -p artifacts/accepted/cer080
+          gh api "repos/${{ github.repository }}/actions/artifacts/${{ env.RATE_CER080_PERSIST_RESULT_ARTIFACT_ID }}/zip" > artifacts/accepted/cer080/persist_result.zip
+          unzip -o artifacts/accepted/cer080/persist_result.zip -d artifacts/accepted/cer080/persist_result
+          test -f artifacts/accepted/cer080/persist_result/RATE_CER080_PERSIST_RESULT_EVIDENCE.json
+      - name: Run focused CER-081 tests
+        run: python -m unittest tests.test_cer081_unattended_soak -v
+      - name: Collect true scheduled production run evidence
+        shell: bash
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          python - <<'PY'
+          import json, os, subprocess
+          workflows = {
+              '07:30': 'RATE Production 07:30 Recurring Scheduler',
+              '09:30': 'RATE Production 09:30 Recurring Scheduler',
+              '12:00': 'RATE Production 12:00 Recurring Scheduler',
+              '19:30': 'RATE Production 19:30 Recurring Scheduler',
+          }
+          runs=[]
+          for cadence, workflow in workflows.items():
+              cmd=['gh','run','list','--repo',os.environ['GITHUB_REPOSITORY'],'--workflow',workflow,'--event','schedule','--status','success','--json','databaseId,headSha,event,createdAt,conclusion','--limit','100']
+              data=json.loads(subprocess.run(cmd,check=True,capture_output=True,text=True).stdout or '[]')
+              for row in data:
+                  runs.append({'event_name':'schedule','workflow_run_id':str(row.get('databaseId')),'job_id':None,'run_head_sha':row.get('headSha'),'created_at':row.get('createdAt'),'cadence':cadence,'trading_date':None,'validation_status':'PASS' if row.get('conclusion')=='success' else 'FAIL','publish_result':'PASS' if row.get('conclusion')=='success' else 'FAIL'})
+          os.makedirs('artifacts/cer081', exist_ok=True)
+          with open('artifacts/cer081/scheduled_runs.json','w',encoding='utf-8') as f:
+              json.dump({'runs': runs}, f, ensure_ascii=False, indent=2, sort_keys=True)
+          print(json.dumps({'observed_schedule_runs': len(runs)}))
+          PY
+      - name: Verify main remains untouched before soak acceptance
+        shell: bash
+        run: |
+          main_head=$(git ls-remote origin refs/heads/main | awk '{print $1}')
+          echo "main_head=$main_head"
+          test "$main_head" = "beae3ed542888cc647d64bbcecab7d907a7744aa"
+      - name: Execute unattended multi-day soak acceptance
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: >
+          python scripts/run_cer081_unattended_soak_acceptance.py
+          --cer080-persisted-evidence artifacts/accepted/cer080/persist_result/RATE_CER080_PERSIST_RESULT_EVIDENCE.json
+          --scheduled-runs-json artifacts/cer081/scheduled_runs.json
+          --rate-source-url "$RATE_SOURCE_URL"
+          --output-dir artifacts/cer081
+          --actions-job-id "$ACTIONS_JOB_ID"
+      - name: Verify main remains untouched after soak acceptance
+        if: always()
+        shell: bash
+        run: |
+          main_head=$(git ls-remote origin refs/heads/main | awk '{print $1}')
+          echo "main_head=$main_head"
+          test "$main_head" = "beae3ed542888cc647d64bbcecab7d907a7744aa"
+      - name: Upload RATE_CER081_PRODUCTION_SOURCE_SSOT_EVIDENCE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_PRODUCTION_SOURCE_SSOT_EVIDENCE
+          path: artifacts/cer081/RATE_CER081_PRODUCTION_SOURCE_SSOT_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_PRODUCTION_SOURCE_ACCESS_EVIDENCE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_PRODUCTION_SOURCE_ACCESS_EVIDENCE
+          path: artifacts/cer081/RATE_CER081_PRODUCTION_SOURCE_ACCESS_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_SOURCE_FAILURE_GATE_EVIDENCE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_SOURCE_FAILURE_GATE_EVIDENCE
+          path: artifacts/cer081/RATE_CER081_SOURCE_FAILURE_GATE_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_SCHEDULED_RUN_EVIDENCE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_SCHEDULED_RUN_EVIDENCE
+          path: artifacts/cer081/RATE_CER081_SCHEDULED_RUN_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260921_SCHEDULER_TRIGGER_EVIDENCE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260921_SCHEDULER_TRIGGER_EVIDENCE
+          path: artifacts/cer081/RATE_CER081_20260921_SCHEDULER_TRIGGER_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260921_FOUR_CADENCE_STATE_LINEAGE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260921_FOUR_CADENCE_STATE_LINEAGE
+          path: artifacts/cer081/RATE_CER081_20260921_FOUR_CADENCE_STATE_LINEAGE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260921_PORTFOLIO_CONTINUITY
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260921_PORTFOLIO_CONTINUITY
+          path: artifacts/cer081/RATE_CER081_20260921_PORTFOLIO_CONTINUITY.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260921_LEDGER_CONTINUITY
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260921_LEDGER_CONTINUITY
+          path: artifacts/cer081/RATE_CER081_20260921_LEDGER_CONTINUITY.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260921_EOD_CLOSURE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260921_EOD_CLOSURE
+          path: artifacts/cer081/RATE_CER081_20260921_EOD_CLOSURE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260921_NEXT_DAY_HANDOFF
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260921_NEXT_DAY_HANDOFF
+          path: artifacts/cer081/RATE_CER081_20260921_NEXT_DAY_HANDOFF.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260922_SCHEDULER_TRIGGER_EVIDENCE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260922_SCHEDULER_TRIGGER_EVIDENCE
+          path: artifacts/cer081/RATE_CER081_20260922_SCHEDULER_TRIGGER_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260922_FOUR_CADENCE_STATE_LINEAGE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260922_FOUR_CADENCE_STATE_LINEAGE
+          path: artifacts/cer081/RATE_CER081_20260922_FOUR_CADENCE_STATE_LINEAGE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260922_PORTFOLIO_CONTINUITY
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260922_PORTFOLIO_CONTINUITY
+          path: artifacts/cer081/RATE_CER081_20260922_PORTFOLIO_CONTINUITY.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260922_LEDGER_CONTINUITY
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260922_LEDGER_CONTINUITY
+          path: artifacts/cer081/RATE_CER081_20260922_LEDGER_CONTINUITY.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260922_EOD_CLOSURE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260922_EOD_CLOSURE
+          path: artifacts/cer081/RATE_CER081_20260922_EOD_CLOSURE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260922_NEXT_DAY_HANDOFF
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260922_NEXT_DAY_HANDOFF
+          path: artifacts/cer081/RATE_CER081_20260922_NEXT_DAY_HANDOFF.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260923_SCHEDULER_TRIGGER_EVIDENCE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260923_SCHEDULER_TRIGGER_EVIDENCE
+          path: artifacts/cer081/RATE_CER081_20260923_SCHEDULER_TRIGGER_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260923_FOUR_CADENCE_STATE_LINEAGE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260923_FOUR_CADENCE_STATE_LINEAGE
+          path: artifacts/cer081/RATE_CER081_20260923_FOUR_CADENCE_STATE_LINEAGE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260923_PORTFOLIO_CONTINUITY
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260923_PORTFOLIO_CONTINUITY
+          path: artifacts/cer081/RATE_CER081_20260923_PORTFOLIO_CONTINUITY.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260923_LEDGER_CONTINUITY
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260923_LEDGER_CONTINUITY
+          path: artifacts/cer081/RATE_CER081_20260923_LEDGER_CONTINUITY.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260923_EOD_CLOSURE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260923_EOD_CLOSURE
+          path: artifacts/cer081/RATE_CER081_20260923_EOD_CLOSURE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260923_NEXT_DAY_HANDOFF
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260923_NEXT_DAY_HANDOFF
+          path: artifacts/cer081/RATE_CER081_20260923_NEXT_DAY_HANDOFF.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260924_SCHEDULER_TRIGGER_EVIDENCE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260924_SCHEDULER_TRIGGER_EVIDENCE
+          path: artifacts/cer081/RATE_CER081_20260924_SCHEDULER_TRIGGER_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260924_FOUR_CADENCE_STATE_LINEAGE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260924_FOUR_CADENCE_STATE_LINEAGE
+          path: artifacts/cer081/RATE_CER081_20260924_FOUR_CADENCE_STATE_LINEAGE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260924_PORTFOLIO_CONTINUITY
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260924_PORTFOLIO_CONTINUITY
+          path: artifacts/cer081/RATE_CER081_20260924_PORTFOLIO_CONTINUITY.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260924_LEDGER_CONTINUITY
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260924_LEDGER_CONTINUITY
+          path: artifacts/cer081/RATE_CER081_20260924_LEDGER_CONTINUITY.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260924_EOD_CLOSURE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260924_EOD_CLOSURE
+          path: artifacts/cer081/RATE_CER081_20260924_EOD_CLOSURE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260924_NEXT_DAY_HANDOFF
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260924_NEXT_DAY_HANDOFF
+          path: artifacts/cer081/RATE_CER081_20260924_NEXT_DAY_HANDOFF.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260925_SCHEDULER_TRIGGER_EVIDENCE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260925_SCHEDULER_TRIGGER_EVIDENCE
+          path: artifacts/cer081/RATE_CER081_20260925_SCHEDULER_TRIGGER_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260925_FOUR_CADENCE_STATE_LINEAGE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260925_FOUR_CADENCE_STATE_LINEAGE
+          path: artifacts/cer081/RATE_CER081_20260925_FOUR_CADENCE_STATE_LINEAGE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260925_PORTFOLIO_CONTINUITY
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260925_PORTFOLIO_CONTINUITY
+          path: artifacts/cer081/RATE_CER081_20260925_PORTFOLIO_CONTINUITY.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260925_LEDGER_CONTINUITY
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260925_LEDGER_CONTINUITY
+          path: artifacts/cer081/RATE_CER081_20260925_LEDGER_CONTINUITY.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260925_EOD_CLOSURE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260925_EOD_CLOSURE
+          path: artifacts/cer081/RATE_CER081_20260925_EOD_CLOSURE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_20260925_NEXT_DAY_HANDOFF
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_20260925_NEXT_DAY_HANDOFF
+          path: artifacts/cer081/RATE_CER081_20260925_NEXT_DAY_HANDOFF.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_SOAK_SUMMARY
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_SOAK_SUMMARY
+          path: artifacts/cer081/RATE_CER081_SOAK_SUMMARY.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_SCHEDULER_RELIABILITY_SUMMARY
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_SCHEDULER_RELIABILITY_SUMMARY
+          path: artifacts/cer081/RATE_CER081_SCHEDULER_RELIABILITY_SUMMARY.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_IDEMPOTENCY_SUMMARY
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_IDEMPOTENCY_SUMMARY
+          path: artifacts/cer081/RATE_CER081_IDEMPOTENCY_SUMMARY.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_FAILURE_RECOVERY_SUMMARY
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_FAILURE_RECOVERY_SUMMARY
+          path: artifacts/cer081/RATE_CER081_FAILURE_RECOVERY_SUMMARY.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_LATENCY_SUMMARY
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_LATENCY_SUMMARY
+          path: artifacts/cer081/RATE_CER081_LATENCY_SUMMARY.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_DETERMINISTIC_REPLAY_SUMMARY
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_DETERMINISTIC_REPLAY_SUMMARY
+          path: artifacts/cer081/RATE_CER081_DETERMINISTIC_REPLAY_SUMMARY.json
+          if-no-files-found: error
+      - name: Upload RATE_CER081_MODEL_FREEZE_SUMMARY
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_MODEL_FREEZE_SUMMARY
+          path: artifacts/cer081/RATE_CER081_MODEL_FREEZE_SUMMARY.json
+          if-no-files-found: error

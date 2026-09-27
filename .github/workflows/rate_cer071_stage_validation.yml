@@ -20,6 +20,13 @@ on:
       - .github/workflows/rate_cer078_1930_evening_acceptance.yml
       - .github/workflows/rate_cer079_full_day_chain_acceptance.yml
       - .github/workflows/rate_cer080_multi_day_continuity_acceptance.yml
+      - .github/workflows/rate_cer081_unattended_multi_day_soak.yml
+      - .github/workflows/rate_production_0930_scheduler.yml
+      - .github/workflows/rate_production_1200_scheduler.yml
+      - .github/workflows/rate_production_1930_scheduler.yml
+      - src/cer081_unattended_soak.py
+      - scripts/run_cer081_unattended_soak_acceptance.py
+      - tests/test_cer081_unattended_soak.py
       - src/cer080_multi_day_continuity.py
       - scripts/run_cer080_multi_day_continuity_acceptance.py
       - tests/test_cer080_multi_day_continuity.py

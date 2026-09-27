@@ -1,0 +1,81 @@
+name: RATE Production 19:30 Recurring Scheduler
+
+on:
+  schedule:
+    # GitHub cron is UTC. 30 11 * * 1-5 maps to 19:30 Asia/Taipei Monday-Friday.
+    - cron: "30 11 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      trading_date:
+        description: Trading date YYYY-MM-DD
+        required: false
+        default: "2026-09-18"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: rate-production-1930-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  production-1930:
+    runs-on: ubuntu-latest
+    env:
+      RATE_LIVE_E2E_ENABLED: PRODUCTION_SCHEDULER
+      RATE_SOURCE_URL: "https://openapi.twse.com.tw/v1;https://www.tpex.org.tw/openapi/v1;https://www.tdcc.com.tw/portal/zh/smWeb/qryStock;https://mops.twse.com.tw/mops/web/ajax_t05st10_ifrs"
+      RATE_PRODUCTION_CADENCE: "19:30"
+      GITHUB_EVENT_SCHEDULE: ${{ github.event.schedule }}
+      RATE_CER073_FINAL_SOURCE_BUNDLE_ARTIFACT_ID: "10919292036"
+      RATE_CER074_PERSISTED_DECISION_STATE_ARTIFACT_ID: "10920115463"
+      RATE_CER075_PERSIST_RESULT_ARTIFACT_ID: "10926721309"
+      RATE_CER076_PERSIST_RESULT_ARTIFACT_ID: "10926463840"
+      RATE_CER077_PERSIST_RESULT_ARTIFACT_ID: "10926728094"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Resolve numeric Actions job ID
+        shell: bash
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          job_id=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" --jq '.jobs[] | select(.name=="production-1930") | .id' | head -n 1)
+          test -n "$job_id"
+          echo "ACTIONS_JOB_ID=$job_id" >> "$GITHUB_ENV"
+      - name: Download accepted predecessor evidence
+        shell: bash
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          mkdir -p artifacts/accepted/cer073 artifacts/accepted/cer074 artifacts/accepted/cer075 artifacts/accepted/cer076 artifacts/accepted/cer077
+          gh api "repos/${{ github.repository }}/actions/artifacts/${{ env.RATE_CER073_FINAL_SOURCE_BUNDLE_ARTIFACT_ID }}/zip" > artifacts/accepted/cer073/source_bundle.zip
+          unzip -o artifacts/accepted/cer073/source_bundle.zip -d artifacts/accepted/cer073/source_bundle
+          gh api "repos/${{ github.repository }}/actions/artifacts/${{ env.RATE_CER074_PERSISTED_DECISION_STATE_ARTIFACT_ID }}/zip" > artifacts/accepted/cer074/persisted_state.zip
+          unzip -o artifacts/accepted/cer074/persisted_state.zip -d artifacts/accepted/cer074/persisted_state
+          gh api "repos/${{ github.repository }}/actions/artifacts/${{ env.RATE_CER075_PERSIST_RESULT_ARTIFACT_ID }}/zip" > artifacts/accepted/cer075/persist_result.zip
+          unzip -o artifacts/accepted/cer075/persist_result.zip -d artifacts/accepted/cer075/persist_result
+          gh api "repos/${{ github.repository }}/actions/artifacts/${{ env.RATE_CER076_PERSIST_RESULT_ARTIFACT_ID }}/zip" > artifacts/accepted/cer076/persist_result.zip
+          unzip -o artifacts/accepted/cer076/persist_result.zip -d artifacts/accepted/cer076/persist_result
+          gh api "repos/${{ github.repository }}/actions/artifacts/${{ env.RATE_CER077_PERSIST_RESULT_ARTIFACT_ID }}/zip" > artifacts/accepted/cer077/persist_result.zip
+          unzip -o artifacts/accepted/cer077/persist_result.zip -d artifacts/accepted/cer077/persist_result
+      - name: Run production runtime guard tests
+        run: python -m unittest tests.test_cer078_evening_1930 -v
+      - name: Execute production-safe 19:30 runtime path
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: >
+          python scripts/run_cer078_evening_1930_acceptance.py
+          --source-bundle artifacts/accepted/cer073/source_bundle/RATE_CER073_FINAL_SOURCE_BUNDLE.json --cer074-persisted-evidence artifacts/accepted/cer074/persisted_state/RATE_CER074_PERSISTED_DECISION_STATE_EVIDENCE.json --cer075-persisted-evidence artifacts/accepted/cer075/persist_result/RATE_CER075_PERSIST_RESULT_EVIDENCE.json --cer076-persisted-evidence artifacts/accepted/cer076/persist_result/RATE_CER076_PERSIST_RESULT_EVIDENCE.json --cer077-persisted-evidence artifacts/accepted/cer077/persist_result/RATE_CER077_PERSIST_RESULT_EVIDENCE.json
+          --output-dir artifacts/production_1930
+          --state-root data/production/scheduler_1930
+          --reset-state-root
+          --actions-job-id "$ACTIONS_JOB_ID"
+      - name: Upload production cadence artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_PRODUCTION_1930_SCHEDULER_ARTIFACTS
+          path: artifacts/production_1930/*.json
+          if-no-files-found: warn
