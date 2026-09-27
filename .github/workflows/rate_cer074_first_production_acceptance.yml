@@ -96,7 +96,7 @@ jobs:
           import json, subprocess
           from pathlib import Path
           allowed_prefix='data/production/cer074_acceptance/'
-          changed=subprocess.run(['git','status','--porcelain','--','data/production'],capture_output=True,text=True,check=True).stdout.splitlines()
+          changed=subprocess.run(['git','status','--porcelain','--untracked-files=all','--','data/production'],capture_output=True,text=True,check=True).stdout.splitlines()
           bad=[line for line in changed if allowed_prefix not in line.replace('\\','/')]
           if bad:
               raise SystemExit('PRODUCTION_NAMESPACE_GUARD:'+repr(bad))
@@ -156,3 +156,4 @@ jobs:
           name: RATE_CER074_LINEAGE_ACCEPTANCE_EVIDENCE
           path: artifacts/cer074/RATE_CER074_LINEAGE_ACCEPTANCE_EVIDENCE.json
           if-no-files-found: error
+
