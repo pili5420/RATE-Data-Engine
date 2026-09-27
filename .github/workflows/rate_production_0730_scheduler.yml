@@ -1,0 +1,176 @@
+name: RATE Production 07:30 Recurring Scheduler
+
+on:
+  schedule:
+    # GitHub cron is UTC. 23:30 UTC Sunday-Thursday = 07:30 Asia/Taipei Monday-Friday.
+    - cron: "30 23 * * 0-4"
+  workflow_dispatch:
+    inputs:
+      trading_date:
+        description: Completed trading date YYYY-MM-DD
+        required: false
+        default: "2026-09-18"
+  push:
+    branches:
+      - rate-v2-6-1r2-staging
+    paths:
+      - .github/workflows/rate_production_0730_scheduler.yml
+      - src/cer075_scheduler.py
+      - scripts/run_cer075_scheduler_acceptance.py
+      - tests/test_cer075_scheduler.py
+      - src/cer074_acceptance.py
+      - scripts/run_cer074_acceptance.py
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: rate-production-0730-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  production-0730:
+    runs-on: ubuntu-latest
+    env:
+      RATE_LIVE_E2E_ENABLED: PRODUCTION_SCHEDULER
+      RATE_CER075_TRADING_DATE: ${{ inputs.trading_date || '2026-09-18' }}
+      RATE_CER073_FINAL_SOURCE_BUNDLE_ARTIFACT_ID: "10919292036"
+      RATE_CER074_PERSISTED_DECISION_STATE_ARTIFACT_ID: "10920115463"
+      GITHUB_EVENT_SCHEDULE: ${{ github.event.schedule }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Resolve numeric Actions job ID
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          job_id=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" --jq '.jobs[] | select(.name=="production-0730") | .id' | head -n 1)
+          test -n "$job_id"
+          echo "ACTIONS_JOB_ID=$job_id" >> "$GITHUB_ENV"
+          echo "actions_job_id=$job_id"
+
+      - name: Initialize fail-closed CER-075 artifacts
+        shell: bash
+        run: python scripts/run_cer075_scheduler_acceptance.py --source-bundle /tmp/missing.json --cer074-persisted-evidence /tmp/missing.json --workflow-path .github/workflows/rate_production_0730_scheduler.yml --output-dir artifacts/cer075 --state-root data/production/cer075_scheduler_acceptance --reset-state-root || true
+
+      - name: Download accepted CER-073 source bundle and CER-074 previous state
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p artifacts/accepted/cer073 artifacts/accepted/cer074
+          gh api "repos/${{ github.repository }}/actions/artifacts/${RATE_CER073_FINAL_SOURCE_BUNDLE_ARTIFACT_ID}/zip" > artifacts/accepted/cer073/source_bundle.zip
+          unzip -o artifacts/accepted/cer073/source_bundle.zip -d artifacts/accepted/cer073/source_bundle
+          gh api "repos/${{ github.repository }}/actions/artifacts/${RATE_CER074_PERSISTED_DECISION_STATE_ARTIFACT_ID}/zip" > artifacts/accepted/cer074/persisted_state.zip
+          unzip -o artifacts/accepted/cer074/persisted_state.zip -d artifacts/accepted/cer074/persisted_state
+          test -f artifacts/accepted/cer073/source_bundle/RATE_CER073_FINAL_SOURCE_BUNDLE.json
+          test -f artifacts/accepted/cer074/persisted_state/RATE_CER074_PERSISTED_DECISION_STATE_EVIDENCE.json
+
+      - name: Run focused CER-075 tests
+        run: python -m unittest tests.test_cer075_scheduler -v
+
+      - name: Verify main remains untouched before scheduler run
+        shell: bash
+        run: |
+          main_head=$(git ls-remote origin refs/heads/main | awk '{print $1}')
+          echo "main_head=$main_head"
+          test "$main_head" = "beae3ed542888cc647d64bbcecab7d907a7744aa"
+
+      - name: Execute recurring 07:30 production scheduler acceptance
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: >
+          python scripts/run_cer075_scheduler_acceptance.py
+          --source-bundle artifacts/accepted/cer073/source_bundle/RATE_CER073_FINAL_SOURCE_BUNDLE.json
+          --cer074-persisted-evidence artifacts/accepted/cer074/persisted_state/RATE_CER074_PERSISTED_DECISION_STATE_EVIDENCE.json
+          --workflow-path .github/workflows/rate_production_0730_scheduler.yml
+          --output-dir artifacts/cer075
+          --state-root data/production/cer075_scheduler_acceptance
+          --reset-state-root
+          --actions-job-id "$ACTIONS_JOB_ID"
+
+      - name: Verify production namespace and no later cadence activation
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, subprocess
+          allowed_prefix='data/production/cer075_scheduler_acceptance/'
+          changed=subprocess.run(['git','status','--porcelain','--untracked-files=all','--','data/production'],capture_output=True,text=True,check=True).stdout.splitlines()
+          bad=[line for line in changed if allowed_prefix not in line.replace('\\','/')]
+          if bad:
+              raise SystemExit('PRODUCTION_NAMESPACE_GUARD:'+repr(bad))
+          print(json.dumps({'production_namespace_guard':'PASS','later_cadence_activation':'NO'}))
+          PY
+
+      - name: Verify main remains untouched after scheduler run
+        if: always()
+        shell: bash
+        run: |
+          main_head=$(git ls-remote origin refs/heads/main | awk '{print $1}')
+          echo "main_head=$main_head"
+          test "$main_head" = "beae3ed542888cc647d64bbcecab7d907a7744aa"
+
+      - name: Upload scheduler definition evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER075_SCHEDULER_DEFINITION_EVIDENCE
+          path: artifacts/cer075/RATE_CER075_SCHEDULER_DEFINITION_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload trigger evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER075_TRIGGER_EVIDENCE
+          path: artifacts/cer075/RATE_CER075_TRIGGER_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload production snapshot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER075_PRODUCTION_SNAPSHOT_EVIDENCE
+          path: artifacts/cer075/RATE_CER075_PRODUCTION_SNAPSHOT_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload state lineage evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER075_STATE_LINEAGE_EVIDENCE
+          path: artifacts/cer075/RATE_CER075_STATE_LINEAGE_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload persist result evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER075_PERSIST_RESULT_EVIDENCE
+          path: artifacts/cer075/RATE_CER075_PERSIST_RESULT_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload replay idempotency evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER075_REPLAY_IDEMPOTENCY_EVIDENCE
+          path: artifacts/cer075/RATE_CER075_REPLAY_IDEMPOTENCY_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload concurrency evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER075_CONCURRENCY_EVIDENCE
+          path: artifacts/cer075/RATE_CER075_CONCURRENCY_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload failure gate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER075_FAILURE_GATE_EVIDENCE
+          path: artifacts/cer075/RATE_CER075_FAILURE_GATE_EVIDENCE.json
+          if-no-files-found: error

@@ -14,6 +14,10 @@ on:
       - .github/workflows/rate_cer073_fundamental_contract_probe.yml
       - .github/workflows/rate_cer073_final_source_bundle_closure.yml
       - .github/workflows/rate_cer074_first_production_acceptance.yml
+      - .github/workflows/rate_production_0730_scheduler.yml
+      - src/cer075_scheduler.py
+      - scripts/run_cer075_scheduler_acceptance.py
+      - tests/test_cer075_scheduler.py
       - src/cer074_acceptance.py
       - scripts/run_cer074_acceptance.py
       - tests/test_cer074_acceptance.py
