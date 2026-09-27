@@ -1,0 +1,173 @@
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import tempfile
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Mapping
+
+LATEST_RELATIVE = Path("artifacts/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json")
+SNAPSHOT_ROOT_RELATIVE = Path("artifacts/production_source_snapshots")
+REQUIRED_LATEST_FIELDS = ("snapshot_id", "trading_date", "cadence", "retrieval_timestamp", "workflow_run_id", "previous_snapshot_id", "validation_status")
+
+
+def canonical(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def sha256(value: Any) -> str:
+    return hashlib.sha256(canonical(value).encode("utf-8")).hexdigest()
+
+
+def atomic_write_json(path: Path, value: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = (json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8")
+    fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, path)
+    finally:
+        try:
+            os.unlink(tmp)
+        except FileNotFoundError:
+            pass
+
+
+def load_json(path: str | Path) -> Any:
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def validate_production_source_bundle(bundle: Mapping[str, Any], *, trading_date: str, cadence: str) -> dict:
+    source_provenance = bundle.get("source_provenance") or {}
+    retrieval_timestamp = source_provenance.get("retrieval_timestamp") or bundle.get("retrieval_timestamp")
+    records = bundle.get("decision_records") or bundle.get("records") or []
+    checks = {
+        "validation_status": bundle.get("validation_status") == "PASS",
+        "source_bundle_validation": bundle.get("source_bundle_validation", "PASS") == "PASS",
+        "official_source": source_provenance.get("source") in ("AUTHORIZED_LIVE", "RATE_OFFICIAL_TW_MARKET_DATA_SSOT"),
+        "schema_version": bool(bundle.get("schema_version") or bundle.get("bundle_version")),
+        "freshness": bool(retrieval_timestamp),
+        "provenance": isinstance(source_provenance, dict) and bool(source_provenance),
+        "completeness": isinstance(records, list) and len(records) > 0,
+        "trading_date": bool(trading_date),
+        "cadence": cadence in {"07:30", "09:30", "12:00", "19:30"},
+    }
+    status = "PASS" if all(checks.values()) else "FAIL"
+    return {"validation_status": status, "checks": checks, "retrieval_timestamp": retrieval_timestamp, "record_count": len(records) if isinstance(records, list) else 0}
+
+
+def latest_snapshot_id(latest_path: Path) -> str | None:
+    if not latest_path.exists():
+        return None
+    try:
+        latest = load_json(latest_path)
+    except Exception:
+        return None
+    if latest.get("validation_status") != "PASS":
+        return None
+    return latest.get("snapshot_id")
+
+
+def build_snapshot(bundle: Mapping[str, Any], *, trading_date: str, cadence: str, workflow_run_id: str, workflow_job_id: str | None, previous_snapshot_id: str | None, retrieval_timestamp: str) -> dict:
+    bundle_hash = sha256(bundle)
+    seed = {"bundle_hash": bundle_hash, "trading_date": trading_date, "cadence": cadence, "workflow_run_id": workflow_run_id, "retrieval_timestamp": retrieval_timestamp}
+    snapshot_id = "rate-source-snapshot-" + sha256(seed)[:24]
+    return {
+        "artifact": "RATE_PRODUCTION_SOURCE_BUNDLE_SNAPSHOT",
+        "snapshot_id": snapshot_id,
+        "trading_date": trading_date,
+        "cadence": cadence,
+        "retrieval_timestamp": retrieval_timestamp,
+        "workflow_run_id": workflow_run_id,
+        "workflow_job_id": workflow_job_id,
+        "previous_snapshot_id": previous_snapshot_id,
+        "validation_status": "PASS",
+        "source_bundle_hash": bundle_hash,
+        "immutable": True,
+        "bundle": bundle,
+    }
+
+
+def publish_latest(*, source_bundle_path: str | Path, trading_date: str, cadence: str, artifacts_root: str | Path = "artifacts", workflow_run_id: str | None = None, workflow_job_id: str | None = None, evidence_output: str | Path | None = None) -> dict:
+    root = Path(artifacts_root)
+    latest_path = root / "RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json"
+    snapshot_root = root / "production_source_snapshots"
+    workflow_run_id = workflow_run_id or os.getenv("GITHUB_RUN_ID") or "local"
+    workflow_job_id = workflow_job_id or os.getenv("ACTIONS_JOB_ID") or os.getenv("GITHUB_JOB")
+    bundle = load_json(source_bundle_path)
+    validation = validate_production_source_bundle(bundle, trading_date=trading_date, cadence=cadence)
+    previous_snapshot_id = latest_snapshot_id(latest_path)
+    evidence = {
+        "artifact": "RATE_PRODUCTION_SOURCE_BUNDLE_LATEST_UPDATE_EVIDENCE",
+        "trading_date": trading_date,
+        "cadence": cadence,
+        "workflow_run_id": workflow_run_id,
+        "workflow_job_id": workflow_job_id,
+        "previous_snapshot_id": previous_snapshot_id,
+        "source_bundle_path": str(source_bundle_path),
+        "validation": validation,
+        "latest_updated": False,
+        "publish_result": "BLOCKED",
+    }
+    if validation["validation_status"] != "PASS":
+        evidence["blocking_reason"] = "SOURCE_BUNDLE_VALIDATION_NOT_PASS"
+        if evidence_output:
+            atomic_write_json(Path(evidence_output), evidence)
+        return evidence
+    retrieval_timestamp = validation["retrieval_timestamp"] or utc_now()
+    snapshot = build_snapshot(bundle, trading_date=trading_date, cadence=cadence, workflow_run_id=workflow_run_id, workflow_job_id=workflow_job_id, previous_snapshot_id=previous_snapshot_id, retrieval_timestamp=retrieval_timestamp)
+    snapshot_dir = snapshot_root / trading_date / cadence.replace(":", "")
+    snapshot_path = snapshot_dir / f"{snapshot['snapshot_id']}.json"
+    latest = {k: snapshot[k] for k in REQUIRED_LATEST_FIELDS}
+    latest.update({
+        "artifact": "RATE_PRODUCTION_SOURCE_BUNDLE_LATEST",
+        "workflow_job_id": workflow_job_id,
+        "source_bundle_hash": snapshot["source_bundle_hash"],
+        "immutable_snapshot_path": str(snapshot_path).replace("\\", "/"),
+        "schema_version": "RATE-PRODUCTION-SOURCE-LATEST-V1",
+    })
+    atomic_write_json(snapshot_path, snapshot)
+    atomic_write_json(latest_path, latest)
+    evidence.update({
+        "validation_status": "PASS",
+        "snapshot_id": snapshot["snapshot_id"],
+        "current_snapshot_id": snapshot["snapshot_id"],
+        "current_snapshot_hash": snapshot["source_bundle_hash"],
+        "immutable_snapshot_path": latest["immutable_snapshot_path"],
+        "latest_path": str(latest_path).replace("\\", "/"),
+        "latest_updated": True,
+        "publish_result": "PASS",
+    })
+    if evidence_output:
+        atomic_write_json(Path(evidence_output), evidence)
+    return evidence
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Publish immutable RATE production source bundle snapshot and atomically update LATEST after PASS validation.")
+    parser.add_argument("--source-bundle", required=True)
+    parser.add_argument("--trading-date", required=True)
+    parser.add_argument("--cadence", required=True, choices=["07:30", "09:30", "12:00", "19:30"])
+    parser.add_argument("--artifacts-root", default="artifacts")
+    parser.add_argument("--workflow-run-id", default=os.getenv("GITHUB_RUN_ID"))
+    parser.add_argument("--workflow-job-id", default=os.getenv("ACTIONS_JOB_ID") or os.getenv("GITHUB_JOB"))
+    parser.add_argument("--evidence-output", default="artifacts/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST_UPDATE_EVIDENCE.json")
+    args = parser.parse_args()
+    evidence = publish_latest(source_bundle_path=args.source_bundle, trading_date=args.trading_date, cadence=args.cadence, artifacts_root=args.artifacts_root, workflow_run_id=args.workflow_run_id, workflow_job_id=args.workflow_job_id, evidence_output=args.evidence_output)
+    print(json.dumps(evidence, ensure_ascii=False, sort_keys=True))
+    return 0 if evidence.get("publish_result") == "PASS" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

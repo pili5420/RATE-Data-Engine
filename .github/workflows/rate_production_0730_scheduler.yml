@@ -20,9 +20,11 @@ on:
       - tests/test_cer075_scheduler.py
       - src/cer074_acceptance.py
       - scripts/run_cer074_acceptance.py
+      - scripts/publish_production_source_bundle_latest.py
+      - tests/test_production_source_latest_publisher.py
 
 permissions:
-  contents: read
+  contents: write
   actions: read
 
 concurrency:
@@ -97,6 +99,33 @@ jobs:
           --reset-state-root
           --actions-job-id "$ACTIONS_JOB_ID"
 
+      - name: Publish immutable production source bundle latest
+        if: ${{ success() && github.event_name == 'schedule' }}
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: >
+          python scripts/publish_production_source_bundle_latest.py
+          --source-bundle artifacts/accepted/cer073/source_bundle/RATE_CER073_FINAL_SOURCE_BUNDLE.json
+          --trading-date "${{ env.RATE_CER075_TRADING_DATE }}"
+          --cadence "07:30"
+          --artifacts-root artifacts
+          --workflow-run-id "${{ github.run_id }}"
+          --workflow-job-id "$ACTIONS_JOB_ID"
+          --evidence-output artifacts/production_0730/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST_UPDATE_EVIDENCE.json
+      - name: Commit production source latest pointer
+        if: ${{ success() && github.event_name == 'schedule' }}
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifacts/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json artifacts/production_source_snapshots
+          if git diff --cached --quiet; then
+            echo "latest_update_commit=NO_CHANGES"
+          else
+            git commit -m "Update RATE production source latest (07:30)"
+            git push
+          fi
       - name: Verify production namespace and no later cadence activation
         if: always()
         shell: bash
@@ -175,3 +204,10 @@ jobs:
           name: RATE_CER075_FAILURE_GATE_EVIDENCE
           path: artifacts/cer075/RATE_CER075_FAILURE_GATE_EVIDENCE.json
           if-no-files-found: error
+      - name: Upload production source latest update evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_PRODUCTION_0730_SOURCE_LATEST_UPDATE_EVIDENCE
+          path: artifacts/production_0730/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST_UPDATE_EVIDENCE.json
+          if-no-files-found: warn
