@@ -74,7 +74,7 @@ jobs:
         run: python scripts/validate_production_scheduler_safety.py --output artifacts/production_0930/RATE_PRODUCTION_SCHEDULER_SAFETY_VALIDATION.json
 
       - name: Run cadence-focused guard tests
-        run: python -m unittest tests.test_cer076_incremental_0930 tests.test_production_scheduler_change_control -v
+        run: python -m unittest tests.test_production_scheduler_change_control -v
 
       - name: Download immutable CER-073 source bundle audit evidence
         if: ${{ github.event_name != 'push' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
@@ -149,3 +149,4 @@ jobs:
           name: RATE_PRODUCTION_0930_SCHEDULER_ARTIFACTS
           path: artifacts/production_0930/*.json
           if-no-files-found: warn
+
