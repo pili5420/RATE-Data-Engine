@@ -639,14 +639,18 @@ def _fundamental_history(universe, markets=None, as_of_date=None):
 
 
 
+def _prior_stage_package_digest(package):
+    keys=('schema_version','spec_version','source_historical_digest','trading_date','prior_session','source_scope')
+    core={key:package.get(key) for key in keys}
+    core['symbols']=sorted(package.get('symbols',[]), key=lambda row: str(row.get('symbol')))
+    return hashlib.sha256(json.dumps(core,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+
 def _verify_prior_stage_package(stage_evidence):
     expected='706eb813da43b112bfd9459d459f1892591371700140e9626e411ad8ad0bceef'
     path=Path(os.getenv('RATE_CER072_PRIOR_STAGE_PACKAGE','artifacts/accepted/prior-stage/RATE_FIRST_PRODUCTION_PRIOR_STAGE_PACKAGE_V1.json'))
     if not path.is_file(): raise RuntimeError('PRIOR_STAGE_PACKAGE_MISSING')
     package=json.loads(path.read_text(encoding='utf-8'))
-    keys=('schema_version','spec_version','source_historical_digest','trading_date','prior_session','source_scope','symbols')
-    core={key:package.get(key) for key in keys}
-    digest=hashlib.sha256(json.dumps(core,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+    digest=_prior_stage_package_digest(package)
     if digest != expected or package.get('package_digest') != expected:
         raise RuntimeError('PRIOR_STAGE_PACKAGE_DIGEST_MISMATCH')
     prior={str(row.get('symbol')):row for row in package.get('symbols',[])}

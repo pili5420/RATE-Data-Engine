@@ -88,6 +88,25 @@ class FinalSourceBundleClosureTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "ACCEPTED_FUNDAMENTAL_HASH_MISMATCH"):
             closure.build_closure(Args)
 
+    def test_prior_stage_package_digest_uses_sorted_symbol_core(self):
+        ordered = [
+            {"symbol": "1000", "previous_stage": "BUILD"},
+            {"symbol": "1001", "previous_stage": "WATCH"},
+        ]
+        shuffled = list(reversed(ordered))
+        package = {
+            "schema_version": "RATE-FIRST-PRODUCTION-PRIOR-STAGE-V1",
+            "spec_version": "RATE-SPEC-20260919-004",
+            "source_historical_digest": closure.HISTORICAL_STATE_DIGEST,
+            "trading_date": closure.AS_OF_DATE,
+            "prior_session": "2026-09-17",
+            "source_scope": "AUTHORIZED_LIVE_HISTORICAL_REPLAY",
+            "symbols": shuffled,
+        }
+        expected = dict(package, symbols=ordered)
+        self.assertEqual(builder._prior_stage_package_digest(package), builder._prior_stage_package_digest(expected))
+
+
     def test_build_live_source_bundle_loads_accepted_fundamental_without_fetch(self):
         accepted = {"validation_status": "PASS", "as_of_date": closure.AS_OF_DATE, "analytical_output_hash": closure.FUNDAMENTAL_HASH,
             "rows": [{"symbol": s, "fundamental_score": 17, "revenue_periods": ["2026-08", "2026-07", "2026-06"],
