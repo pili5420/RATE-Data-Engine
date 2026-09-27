@@ -15,6 +15,10 @@ on:
       - .github/workflows/rate_cer073_final_source_bundle_closure.yml
       - .github/workflows/rate_cer074_first_production_acceptance.yml
       - .github/workflows/rate_production_0730_scheduler.yml
+      - .github/workflows/rate_cer076_0930_incremental_acceptance.yml
+      - src/cer076_incremental_0930.py
+      - scripts/run_cer076_incremental_0930_acceptance.py
+      - tests/test_cer076_incremental_0930.py
       - src/cer075_scheduler.py
       - scripts/run_cer075_scheduler_acceptance.py
       - tests/test_cer075_scheduler.py

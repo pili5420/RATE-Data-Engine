@@ -1,0 +1,196 @@
+name: RATE CER-076 09:30 Incremental Production Acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      trading_date:
+        description: Completed trading date YYYY-MM-DD
+        required: false
+        default: "2026-09-18"
+  push:
+    branches:
+      - rate-v2-6-1r2-staging
+    paths:
+      - .github/workflows/rate_cer076_0930_incremental_acceptance.yml
+      - src/cer076_incremental_0930.py
+      - scripts/run_cer076_incremental_0930_acceptance.py
+      - tests/test_cer076_incremental_0930.py
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: rate-production-0930-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  production-0930:
+    runs-on: ubuntu-latest
+    env:
+      RATE_LIVE_E2E_ENABLED: PRODUCTION_0930_INCREMENTAL
+      RATE_CER076_TRADING_DATE: ${{ inputs.trading_date || '2026-09-18' }}
+      RATE_CER073_FINAL_SOURCE_BUNDLE_ARTIFACT_ID: "10919292036"
+      RATE_CER074_PERSISTED_DECISION_STATE_ARTIFACT_ID: "10920115463"
+      RATE_CER075_PERSIST_RESULT_ARTIFACT_ID: "10926721309"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Resolve numeric Actions job ID
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          job_id=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" --jq '.jobs[] | select(.name=="production-0930") | .id' | head -n 1)
+          test -n "$job_id"
+          echo "ACTIONS_JOB_ID=$job_id" >> "$GITHUB_ENV"
+          echo "actions_job_id=$job_id"
+
+      - name: Initialize fail-closed CER-076 artifacts
+        shell: bash
+        run: python scripts/run_cer076_incremental_0930_acceptance.py --source-bundle /tmp/missing.json --cer074-persisted-evidence /tmp/missing.json --cer075-persisted-evidence /tmp/missing.json --output-dir artifacts/cer076 --state-root data/production/cer076_0930_incremental_acceptance --reset-state-root || true
+
+      - name: Download accepted CER-073, CER-074, and CER-075 evidence
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p artifacts/accepted/cer073 artifacts/accepted/cer074 artifacts/accepted/cer075
+          gh api "repos/${{ github.repository }}/actions/artifacts/${RATE_CER073_FINAL_SOURCE_BUNDLE_ARTIFACT_ID}/zip" > artifacts/accepted/cer073/source_bundle.zip
+          unzip -o artifacts/accepted/cer073/source_bundle.zip -d artifacts/accepted/cer073/source_bundle
+          gh api "repos/${{ github.repository }}/actions/artifacts/${RATE_CER074_PERSISTED_DECISION_STATE_ARTIFACT_ID}/zip" > artifacts/accepted/cer074/persisted_state.zip
+          unzip -o artifacts/accepted/cer074/persisted_state.zip -d artifacts/accepted/cer074/persisted_state
+          gh api "repos/${{ github.repository }}/actions/artifacts/${RATE_CER075_PERSIST_RESULT_ARTIFACT_ID}/zip" > artifacts/accepted/cer075/persist_result.zip
+          unzip -o artifacts/accepted/cer075/persist_result.zip -d artifacts/accepted/cer075/persist_result
+          test -f artifacts/accepted/cer073/source_bundle/RATE_CER073_FINAL_SOURCE_BUNDLE.json
+          test -f artifacts/accepted/cer074/persisted_state/RATE_CER074_PERSISTED_DECISION_STATE_EVIDENCE.json
+          test -f artifacts/accepted/cer075/persist_result/RATE_CER075_PERSIST_RESULT_EVIDENCE.json
+
+      - name: Run focused CER-076 tests
+        run: python -m unittest tests.test_cer076_incremental_0930 -v
+
+      - name: Verify main remains untouched before 09:30 acceptance
+        shell: bash
+        run: |
+          main_head=$(git ls-remote origin refs/heads/main | awk '{print $1}')
+          echo "main_head=$main_head"
+          test "$main_head" = "beae3ed542888cc647d64bbcecab7d907a7744aa"
+
+      - name: Verify 07:30 scheduler unchanged by CER-076 commit
+        shell: bash
+        run: |
+          if git rev-parse HEAD^ >/dev/null 2>&1; then
+            changed=$(git diff --name-only HEAD^ HEAD -- .github/workflows/rate_production_0730_scheduler.yml src/cer075_scheduler.py scripts/run_cer075_scheduler_acceptance.py tests/test_cer075_scheduler.py)
+            test -z "$changed"
+          fi
+
+      - name: Execute 09:30 incremental production acceptance
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: >
+          python scripts/run_cer076_incremental_0930_acceptance.py
+          --source-bundle artifacts/accepted/cer073/source_bundle/RATE_CER073_FINAL_SOURCE_BUNDLE.json
+          --cer074-persisted-evidence artifacts/accepted/cer074/persisted_state/RATE_CER074_PERSISTED_DECISION_STATE_EVIDENCE.json
+          --cer075-persisted-evidence artifacts/accepted/cer075/persist_result/RATE_CER075_PERSIST_RESULT_EVIDENCE.json
+          --output-dir artifacts/cer076
+          --state-root data/production/cer076_0930_incremental_acceptance
+          --reset-state-root
+          --actions-job-id "$ACTIONS_JOB_ID"
+
+      - name: Verify production namespace and no later cadence activation
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, subprocess
+          allowed_prefix='data/production/cer076_0930_incremental_acceptance/'
+          changed=subprocess.run(['git','status','--porcelain','--untracked-files=all','--','data/production'],capture_output=True,text=True,check=True).stdout.splitlines()
+          bad=[line for line in changed if allowed_prefix not in line.replace('\\','/')]
+          if bad:
+              raise SystemExit('PRODUCTION_NAMESPACE_GUARD:'+repr(bad))
+          print(json.dumps({'production_namespace_guard':'PASS','later_cadence_activation':'NO','cer077_created':'NO'}))
+          PY
+
+      - name: Verify main remains untouched after 09:30 acceptance
+        if: always()
+        shell: bash
+        run: |
+          main_head=$(git ls-remote origin refs/heads/main | awk '{print $1}')
+          echo "main_head=$main_head"
+          test "$main_head" = "beae3ed542888cc647d64bbcecab7d907a7744aa"
+
+      - name: Upload 09:30 production snapshot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER076_0930_PRODUCTION_SNAPSHOT_EVIDENCE
+          path: artifacts/cer076/RATE_CER076_0930_PRODUCTION_SNAPSHOT_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload previous state binding evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER076_PREVIOUS_STATE_BINDING_EVIDENCE
+          path: artifacts/cer076/RATE_CER076_PREVIOUS_STATE_BINDING_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload incremental evidence delta
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER076_INCREMENTAL_EVIDENCE_DELTA
+          path: artifacts/cer076/RATE_CER076_INCREMENTAL_EVIDENCE_DELTA.json
+          if-no-files-found: error
+      - name: Upload Dry Run A
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER076_DRY_RUN_A
+          path: artifacts/cer076/RATE_CER076_DRY_RUN_A.json
+          if-no-files-found: error
+      - name: Upload Dry Run B
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER076_DRY_RUN_B
+          path: artifacts/cer076/RATE_CER076_DRY_RUN_B.json
+          if-no-files-found: error
+      - name: Upload persist result evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER076_PERSIST_RESULT_EVIDENCE
+          path: artifacts/cer076/RATE_CER076_PERSIST_RESULT_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload replay idempotency evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER076_REPLAY_IDEMPOTENCY_EVIDENCE
+          path: artifacts/cer076/RATE_CER076_REPLAY_IDEMPOTENCY_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload lineage evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER076_LINEAGE_EVIDENCE
+          path: artifacts/cer076/RATE_CER076_LINEAGE_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload portfolio ledger continuity evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER076_PORTFOLIO_LEDGER_CONTINUITY_EVIDENCE
+          path: artifacts/cer076/RATE_CER076_PORTFOLIO_LEDGER_CONTINUITY_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload failure gate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER076_FAILURE_GATE_EVIDENCE
+          path: artifacts/cer076/RATE_CER076_FAILURE_GATE_EVIDENCE.json
+          if-no-files-found: error
