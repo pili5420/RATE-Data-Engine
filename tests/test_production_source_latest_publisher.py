@@ -2,6 +2,7 @@
 import json
 import shutil
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 from scripts.publish_production_source_bundle_latest import load_json, publish_latest
@@ -24,7 +25,7 @@ class ProductionSourceLatestPublisherTests(unittest.TestCase):
             "validation_status": status,
             "source_bundle_validation": status,
             "trading_date": "2026-09-21",
-            "source_provenance": {"source": "AUTHORIZED_LIVE", "retrieval_timestamp": "2026-09-21T00:00:00Z"},
+            "source_provenance": {"source": "AUTHORIZED_LIVE", "retrieval_timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")},
             "decision_records": [{"symbol": "2330"}],
         }
 

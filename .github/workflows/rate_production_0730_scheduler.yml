@@ -17,6 +17,8 @@ on:
       - scripts/resolve_production_runtime_context.py
       - scripts/publish_production_state_latest.py
       - scripts/publish_production_source_bundle_latest.py
+      - scripts/build_production_source_bundle_from_official.py
+      - scripts/seed_live_production_state.py
       - scripts/validate_production_scheduler_safety.py
       - tests/test_production_scheduler_change_control.py
       - src/cer075_scheduler.py
@@ -39,7 +41,7 @@ jobs:
       RATE_SOURCE_URL: "https://openapi.twse.com.tw/v1;https://www.tpex.org.tw/openapi/v1;https://www.tdcc.com.tw/portal/zh/smWeb/qryStock;https://mops.twse.com.tw/mops/web/ajax_t05st10_ifrs"
       RATE_PRODUCTION_CADENCE: "07:30"
       GITHUB_EVENT_SCHEDULE: ${{ github.event.schedule }}
-      RATE_CER073_FINAL_SOURCE_BUNDLE_ARTIFACT_ID: "10919292036"
+      RATE_CER079_EOD_CLOSURE_ARTIFACT_ID: "10928396442"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -54,6 +56,20 @@ jobs:
           job_id=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" --jq '.jobs[] | select(.name=="production-0730") | .id' | head -n 1)
           test -n "$job_id"
           echo "ACTIONS_JOB_ID=$job_id" >> "$GITHUB_ENV"
+
+      - name: Seed live production state from accepted CER-079 EOD state
+        if: ${{ github.event_name == 'schedule' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p artifacts/accepted/cer079/eod artifacts/production_state
+          gh api "repos/${{ github.repository }}/actions/artifacts/${RATE_CER079_EOD_CLOSURE_ARTIFACT_ID}/zip" > artifacts/accepted/cer079/eod.zip
+          unzip -o artifacts/accepted/cer079/eod.zip -d artifacts/accepted/cer079/eod
+          python scripts/seed_live_production_state.py \
+            --source-evidence artifacts/accepted/cer079/eod/RATE_CER079_END_OF_DAY_CLOSURE_EVIDENCE.json \
+            --artifacts-root artifacts \
+            --evidence-output artifacts/production_state/RATE_PRODUCTION_LIVE_BOOTSTRAP_SEED_EVIDENCE.json
 
       - name: Resolve dynamic production runtime context
         shell: bash
@@ -76,16 +92,15 @@ jobs:
       - name: Run cadence-focused guard tests
         run: python -m unittest tests.test_production_scheduler_change_control -v
 
-      - name: Download immutable CER-073 source bundle audit evidence
+      - name: Build official production source bundle
         if: ${{ github.event_name != 'push' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          mkdir -p artifacts/accepted/cer073
-          gh api "repos/${{ github.repository }}/actions/artifacts/${RATE_CER073_FINAL_SOURCE_BUNDLE_ARTIFACT_ID}/zip" > artifacts/accepted/cer073/source_bundle.zip
-          unzip -o artifacts/accepted/cer073/source_bundle.zip -d artifacts/accepted/cer073/source_bundle
-          test -f artifacts/accepted/cer073/source_bundle/RATE_CER073_FINAL_SOURCE_BUNDLE.json
+        run: >
+          python scripts/build_production_source_bundle_from_official.py
+          --trading-date "${{ env.RATE_PRODUCTION_TRADING_DATE }}"
+          --cadence "${{ env.RATE_PRODUCTION_CADENCE }}"
+          --rate-source-url "$RATE_SOURCE_URL"
+          --output artifacts/cer075/RATE_PRODUCTION_SOURCE_BUNDLE.json
+          --evidence-output artifacts/cer075/RATE_PRODUCTION_OFFICIAL_SOURCE_INGESTION_EVIDENCE.json
 
       - name: Execute production-safe 07:30 runtime path
         if: ${{ github.event_name != 'push' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
@@ -95,7 +110,7 @@ jobs:
           GITHUB_EVENT_NAME: ${{ github.event_name }}
         run: >
           python scripts/run_cer075_scheduler_acceptance.py
-          --source-bundle artifacts/accepted/cer073/source_bundle/RATE_CER073_FINAL_SOURCE_BUNDLE.json
+          --source-bundle artifacts/cer075/RATE_PRODUCTION_SOURCE_BUNDLE.json
           --cer074-persisted-evidence "$RATE_PREVIOUS_STATE_EVIDENCE_PATH" --workflow-path .github/workflows/rate_production_0730_scheduler.yml
           --output-dir artifacts/cer075
           --state-root data/production/scheduler_0730
@@ -120,7 +135,7 @@ jobs:
           GITHUB_RUN_ID: ${{ github.run_id }}
         run: >
           python scripts/publish_production_source_bundle_latest.py
-          --source-bundle artifacts/accepted/cer073/source_bundle/RATE_CER073_FINAL_SOURCE_BUNDLE.json
+          --source-bundle artifacts/cer075/RATE_PRODUCTION_SOURCE_BUNDLE.json
           --trading-date "${{ env.RATE_PRODUCTION_TRADING_DATE }}"
           --cadence "07:30"
           --artifacts-root artifacts

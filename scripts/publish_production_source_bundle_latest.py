@@ -13,6 +13,7 @@ from typing import Any, Mapping
 LATEST_RELATIVE = Path("artifacts/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json")
 SNAPSHOT_ROOT_RELATIVE = Path("artifacts/production_source_snapshots")
 REQUIRED_LATEST_FIELDS = ("snapshot_id", "trading_date", "cadence", "retrieval_timestamp", "workflow_run_id", "previous_snapshot_id", "validation_status")
+CADENCE_FRESHNESS_MINUTES = {"07:30": 180, "09:30": 45, "12:00": 90, "19:30": 180}
 
 
 def canonical(value: Any) -> str:
@@ -47,24 +48,59 @@ def load_json(path: str | Path) -> Any:
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
+def parse_utc(value: str) -> datetime | None:
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    except Exception:
+        return None
+
+
+def validate_freshness(bundle: Mapping[str, Any], *, trading_date: str, cadence: str, now: datetime | None = None) -> dict:
+    source_provenance = bundle.get("source_provenance") or {}
+    retrieval_timestamp = source_provenance.get("retrieval_timestamp") or bundle.get("retrieval_timestamp")
+    parsed = parse_utc(retrieval_timestamp) if retrieval_timestamp else None
+    now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    source_trading_date = bundle.get("trading_date") or source_provenance.get("trading_date")
+    age_minutes = None if parsed is None else (now - parsed).total_seconds() / 60
+    max_age = CADENCE_FRESHNESS_MINUTES.get(cadence)
+    checks = {
+        "retrieval_timestamp_parseable": parsed is not None,
+        "not_future_dated": parsed is not None and parsed <= now,
+        "source_trading_date_matches": source_trading_date in (None, trading_date),
+        "cadence_freshness_window": parsed is not None and max_age is not None and 0 <= age_minutes <= max_age,
+        "stale_previous_day_rejected": source_trading_date in (None, trading_date),
+    }
+    return {
+        "status": "PASS" if all(checks.values()) else "FAIL",
+        "checks": checks,
+        "retrieval_timestamp": retrieval_timestamp,
+        "source_trading_date": source_trading_date,
+        "age_minutes": age_minutes,
+        "max_age_minutes": max_age,
+    }
+
 
 def validate_production_source_bundle(bundle: Mapping[str, Any], *, trading_date: str, cadence: str) -> dict:
     source_provenance = bundle.get("source_provenance") or {}
     retrieval_timestamp = source_provenance.get("retrieval_timestamp") or bundle.get("retrieval_timestamp")
     records = bundle.get("decision_records") or bundle.get("records") or []
+    freshness = validate_freshness(bundle, trading_date=trading_date, cadence=cadence)
     checks = {
         "validation_status": bundle.get("validation_status") == "PASS",
         "source_bundle_validation": bundle.get("source_bundle_validation", "PASS") == "PASS",
         "official_source": source_provenance.get("source") in ("AUTHORIZED_LIVE", "RATE_OFFICIAL_TW_MARKET_DATA_SSOT"),
         "schema_version": bool(bundle.get("schema_version") or bundle.get("bundle_version")),
-        "freshness": bool(retrieval_timestamp),
+        "freshness": freshness["status"] == "PASS",
         "provenance": isinstance(source_provenance, dict) and bool(source_provenance),
         "completeness": isinstance(records, list) and len(records) > 0,
-        "trading_date": bool(trading_date),
+        "trading_date": bool(trading_date) and freshness["checks"]["source_trading_date_matches"],
         "cadence": cadence in {"07:30", "09:30", "12:00", "19:30"},
     }
     status = "PASS" if all(checks.values()) else "FAIL"
-    return {"validation_status": status, "checks": checks, "retrieval_timestamp": retrieval_timestamp, "record_count": len(records) if isinstance(records, list) else 0}
+    return {"validation_status": status, "checks": checks, "freshness": freshness, "retrieval_timestamp": retrieval_timestamp, "record_count": len(records) if isinstance(records, list) else 0}
 
 
 def latest_snapshot_id(latest_path: Path) -> str | None:

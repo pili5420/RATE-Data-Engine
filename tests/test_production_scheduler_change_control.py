@@ -3,11 +3,14 @@ from __future__ import annotations
 import json
 import shutil
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from scripts.resolve_production_runtime_context import resolve_context
 from scripts.validate_production_scheduler_safety import validate
 from scripts.publish_production_state_latest import publish_state
+from scripts.seed_live_production_state import seed
+from scripts.publish_production_source_bundle_latest import validate_production_source_bundle
 
 WORKFLOWS = [
     Path('.github/workflows/rate_production_0730_scheduler.yml'),
@@ -25,6 +28,9 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
         self.assertEqual(result['persistent_state_no_reset'], 'PASS')
         self.assertEqual(result['production_persistent_state_reset_count'], 0)
         self.assertEqual(result['cer081_read_only'], 'PASS')
+        self.assertEqual(result['controlled_live_state_bootstrap_seed'], 'PASS')
+        self.assertEqual(result['official_source_ingestion'], 'PASS')
+        self.assertEqual(result['cer073_role'], 'AUDIT_ONLY_NOT_RECURRING_SOURCE')
         self.assertEqual(result['push_workflow_dispatch_not_soak_evidence'], 'PASS')
 
     def test_no_historical_acceptance_date_fallback_or_fixed_main_guard(self):
@@ -35,6 +41,8 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
             self.assertNotIn('beae3ed542888cc647d64bbcecab7d907a7744aa', text)
             self.assertNotIn('--reset-state-root', text)
             self.assertNotRegex(text, r'RATE_CER07[45678].*ARTIFACT_ID')
+            self.assertNotIn('artifacts/accepted/cer073/source_bundle', text)
+            self.assertIn('build_production_source_bundle_from_official.py', text)
 
     def test_schedule_resolves_dynamic_taiwan_trading_date_and_blocks_missing_live_predecessor(self):
         root = Path("artifacts/test-production-scheduler-change-control")
@@ -50,6 +58,72 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
                 self.assertEqual(context['blocking_reason'], 'LIVE_PREVIOUS_PRODUCTION_STATE_MISSING')
         finally:
             shutil.rmtree(root, ignore_errors=True)
+
+    def test_seed_live_state_from_cer079_eod_is_idempotent_and_unblocks_next_0730_resolver(self):
+        root = Path("artifacts/test-production-scheduler-change-control")
+        try:
+            shutil.rmtree(root, ignore_errors=True)
+            root.mkdir(parents=True, exist_ok=True)
+            src = root / "cer079_eod.json"
+            src.write_text(json.dumps({
+                "artifact": "RATE_CER079_END_OF_DAY_CLOSURE_EVIDENCE",
+                "validation_status": "PASS",
+                "trading_date": "2026-09-18",
+                "final_cadence_for_trading_date": "19:30",
+                "final_state_id": "rate-state-656e460995324fb4a3eb7b30",
+                "final_state_hash": "656e460995324fb4a3eb7b3033b754752997c8cb761d414083a2148eb150b5c7",
+                "state_ids": {"12:00": "rate-state-c227b116309d50b2967ed12b"},
+            }), encoding="utf-8")
+            first = seed(source_evidence_path=src, artifacts_root=root)
+            second = seed(source_evidence_path=src, artifacts_root=root)
+            self.assertEqual(first["validation_status"], "PASS")
+            self.assertEqual(second["idempotency_result"], "IDEMPOTENT_NOOP")
+            context = resolve_context(cadence="07:30", event_name="workflow_dispatch", dispatch_trading_date="2026-09-21", state_root=root / "production_state")
+            self.assertEqual(context["previous_state_resolution"], "LIVE_PRODUCTION_STATE_STORE")
+            self.assertEqual(context["validation_status"], "PASS")
+            self.assertNotEqual(context.get("blocking_reason"), "LIVE_PREVIOUS_PRODUCTION_STATE_MISSING")
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+    def test_seed_incompatible_live_state_fails_closed(self):
+        root = Path("artifacts/test-production-scheduler-change-control")
+        try:
+            shutil.rmtree(root, ignore_errors=True)
+            dest = root / "production_state/live/2026-09-18/1930"
+            dest.mkdir(parents=True, exist_ok=True)
+            (dest / "RATE_PRODUCTION_PERSIST_RESULT_EVIDENCE.json").write_text(json.dumps({"current_state_id": "other", "current_state_hash": "other"}), encoding="utf-8")
+            src = root / "cer079_eod.json"
+            src.write_text(json.dumps({
+                "artifact": "RATE_CER079_END_OF_DAY_CLOSURE_EVIDENCE",
+                "validation_status": "PASS",
+                "trading_date": "2026-09-18",
+                "final_cadence_for_trading_date": "19:30",
+                "final_state_id": "rate-state-656e460995324fb4a3eb7b30",
+                "final_state_hash": "656e460995324fb4a3eb7b3033b754752997c8cb761d414083a2148eb150b5c7",
+            }), encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "INCOMPATIBLE_LIVE_SEED_ALREADY_EXISTS"):
+                seed(source_evidence_path=src, artifacts_root=root)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+    def _fresh_bundle(self, retrieval_timestamp: str, trading_date: str = "2026-09-21") -> dict:
+        return {
+            "validation_status": "PASS",
+            "source_bundle_validation": "PASS",
+            "schema_version": "RATE-PRODUCTION-SOURCE-BUNDLE-V1",
+            "trading_date": trading_date,
+            "source_provenance": {"source": "RATE_OFFICIAL_TW_MARKET_DATA_SSOT", "retrieval_timestamp": retrieval_timestamp},
+            "decision_records": [{"symbol": "2330"}],
+        }
+
+    def test_stale_future_and_trading_date_mismatch_source_data_rejected(self):
+        now = datetime.now(timezone.utc)
+        stale = self._fresh_bundle((now - timedelta(days=1)).isoformat().replace("+00:00", "Z"))
+        future = self._fresh_bundle((now + timedelta(minutes=5)).isoformat().replace("+00:00", "Z"))
+        mismatch = self._fresh_bundle(now.isoformat().replace("+00:00", "Z"), trading_date="2026-09-20")
+        self.assertEqual(validate_production_source_bundle(stale, trading_date="2026-09-21", cadence="09:30")["validation_status"], "FAIL")
+        self.assertEqual(validate_production_source_bundle(future, trading_date="2026-09-21", cadence="09:30")["validation_status"], "FAIL")
+        self.assertEqual(validate_production_source_bundle(mismatch, trading_date="2026-09-21", cadence="09:30")["validation_status"], "FAIL")
 
     def test_non_trading_day_noop_does_not_require_predecessor(self):
         root = Path("artifacts/test-production-scheduler-change-control")
