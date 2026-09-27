@@ -1,0 +1,158 @@
+name: RATE CER-074 First 07:30 Production Snapshot and Decision State Acceptance
+
+on:
+  push:
+    branches:
+      - rate-v2-6-1r2-staging
+    paths:
+      - .github/workflows/rate_cer074_first_production_acceptance.yml
+      - src/cer074_acceptance.py
+      - scripts/run_cer074_acceptance.py
+      - tests/test_cer074_acceptance.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  first-production-0730-acceptance:
+    runs-on: ubuntu-latest
+    env:
+      RATE_LIVE_E2E_ENABLED: YES_FOR_CER074_ACCEPTANCE_ONLY
+      RATE_CER074_TRADING_DATE: "2026-09-18"
+      RATE_CER073_FINAL_SOURCE_BUNDLE_ARTIFACT_ID: "10919292036"
+      RATE_CER073_FINAL_COMPLETENESS_ARTIFACT_ID: "10919078825"
+      RATE_CER073_FINAL_PROVENANCE_ARTIFACT_ID: "10918908880"
+      RATE_CER073_FINAL_DETERMINISM_ARTIFACT_ID: "10919182305"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Initialize fail-closed CER-074 artifacts
+        shell: bash
+        run: python scripts/run_cer074_acceptance.py --source-bundle /tmp/nonexistent.json --output-dir artifacts/cer074 --state-root data/production/cer074_acceptance --reset-state-root || true
+
+      - name: Download accepted CER-073 final source bundle by artifact ID
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p artifacts/accepted/cer073
+          gh api "repos/${{ github.repository }}/actions/artifacts/${RATE_CER073_FINAL_SOURCE_BUNDLE_ARTIFACT_ID}/zip" > artifacts/accepted/cer073/source_bundle.zip
+          unzip -o artifacts/accepted/cer073/source_bundle.zip -d artifacts/accepted/cer073/source_bundle
+          test -f artifacts/accepted/cer073/source_bundle/RATE_CER073_FINAL_SOURCE_BUNDLE.json
+
+      - name: Verify CER-073 accepted artifact IDs remain addressable
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json, os, subprocess
+          expected={
+            '10919292036':'RATE_CER073_FINAL_SOURCE_BUNDLE',
+            '10919078825':'RATE_CER073_FINAL_SOURCE_COMPLETENESS_EVIDENCE',
+            '10918908880':'RATE_CER073_FINAL_SOURCE_PROVENANCE_EVIDENCE',
+            '10919182305':'RATE_CER073_FINAL_DETERMINISM_EVIDENCE',
+          }
+          for artifact_id,name in expected.items():
+              raw=subprocess.check_output(['gh','api',f"repos/{os.environ['GITHUB_REPOSITORY']}/actions/artifacts/{artifact_id}"])
+              obj=json.loads(raw)
+              assert obj['name']==name, (artifact_id,obj.get('name'))
+              assert obj.get('expired') is False
+          print(json.dumps({'accepted_cer073_artifacts':'PASS','artifact_ids':expected},sort_keys=True))
+          PY
+
+      - name: Run focused CER-074 tests
+        run: python -m unittest tests.test_cer074_acceptance -v
+
+      - name: Verify main remains untouched before production acceptance
+        shell: bash
+        run: |
+          main_head=$(git ls-remote origin refs/heads/main | awk '{print $1}')
+          echo "main_head=$main_head"
+          test "$main_head" = "beae3ed542888cc647d64bbcecab7d907a7744aa"
+
+      - name: Execute CER-074 first-production acceptance
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_JOB: first-production-0730-acceptance
+        run: >
+          python scripts/run_cer074_acceptance.py
+          --source-bundle artifacts/accepted/cer073/source_bundle/RATE_CER073_FINAL_SOURCE_BUNDLE.json
+          --output-dir artifacts/cer074
+          --state-root data/production/cer074_acceptance
+          --reset-state-root
+
+      - name: Verify production namespace safety and scheduler disabled
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          allowed_prefix='data/production/cer074_acceptance/'
+          changed=subprocess.run(['git','status','--porcelain','--','data/production'],capture_output=True,text=True,check=True).stdout.splitlines()
+          bad=[line for line in changed if allowed_prefix not in line.replace('\\','/')]
+          if bad:
+              raise SystemExit('PRODUCTION_NAMESPACE_GUARD:'+repr(bad))
+          workflow_text='\n'.join(p.read_text(encoding='utf-8') for p in Path('.github/workflows').glob('*.yml'))
+          if 'schedule:' in Path('.github/workflows/rate_cer074_first_production_acceptance.yml').read_text(encoding='utf-8'):
+              raise SystemExit('CER074_SCHEDULER_ENABLED')
+          print(json.dumps({'production_namespace_guard':'PASS','recurring_production_scheduler_enabled':'NO'}))
+          PY
+
+      - name: Verify main remains untouched after production acceptance
+        if: always()
+        shell: bash
+        run: |
+          main_head=$(git ls-remote origin refs/heads/main | awk '{print $1}')
+          echo "main_head=$main_head"
+          test "$main_head" = "beae3ed542888cc647d64bbcecab7d907a7744aa"
+
+      - name: Upload production input snapshot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER074_PRODUCTION_INPUT_SNAPSHOT_EVIDENCE
+          path: artifacts/cer074/RATE_CER074_PRODUCTION_INPUT_SNAPSHOT_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload decision state dry run A
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER074_DECISION_STATE_DRYRUN_A
+          path: artifacts/cer074/RATE_CER074_DECISION_STATE_DRYRUN_A.json
+          if-no-files-found: error
+      - name: Upload decision state dry run B
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER074_DECISION_STATE_DRYRUN_B
+          path: artifacts/cer074/RATE_CER074_DECISION_STATE_DRYRUN_B.json
+          if-no-files-found: error
+      - name: Upload persisted decision state evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER074_PERSISTED_DECISION_STATE_EVIDENCE
+          path: artifacts/cer074/RATE_CER074_PERSISTED_DECISION_STATE_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload persistence idempotency evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER074_PERSISTENCE_IDEMPOTENCY_EVIDENCE
+          path: artifacts/cer074/RATE_CER074_PERSISTENCE_IDEMPOTENCY_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload lineage acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER074_LINEAGE_ACCEPTANCE_EVIDENCE
+          path: artifacts/cer074/RATE_CER074_LINEAGE_ACCEPTANCE_EVIDENCE.json
+          if-no-files-found: error

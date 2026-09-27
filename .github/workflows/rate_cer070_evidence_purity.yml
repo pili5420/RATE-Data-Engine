@@ -13,6 +13,10 @@ on:
       - .github/workflows/rate_cer073_fundamental_bootstrap.yml
       - .github/workflows/rate_cer073_fundamental_contract_probe.yml
       - .github/workflows/rate_cer073_final_source_bundle_closure.yml
+      - .github/workflows/rate_cer074_first_production_acceptance.yml
+      - src/cer074_acceptance.py
+      - scripts/run_cer074_acceptance.py
+      - tests/test_cer074_acceptance.py
       - scripts/close_cer073_final_source_bundle.py
       - scripts/build_live_source_bundle.py
       - src/sources/tdcc_historical.py
