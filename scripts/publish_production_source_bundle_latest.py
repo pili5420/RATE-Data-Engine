@@ -14,6 +14,7 @@ LATEST_RELATIVE = Path("artifacts/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json")
 SNAPSHOT_ROOT_RELATIVE = Path("artifacts/production_source_snapshots")
 REQUIRED_LATEST_FIELDS = ("snapshot_id", "trading_date", "cadence", "retrieval_timestamp", "workflow_run_id", "previous_snapshot_id", "validation_status")
 CADENCE_FRESHNESS_MINUTES = {"07:30": 180, "09:30": 45, "12:00": 90, "19:30": 180}
+REQUIRED_DECISION_RECORD_COUNT = 30
 
 
 def canonical(value: Any) -> str:
@@ -86,8 +87,10 @@ def validate_freshness(bundle: Mapping[str, Any], *, trading_date: str, cadence:
 def validate_production_source_bundle(bundle: Mapping[str, Any], *, trading_date: str, cadence: str) -> dict:
     source_provenance = bundle.get("source_provenance") or {}
     retrieval_timestamp = source_provenance.get("retrieval_timestamp") or bundle.get("retrieval_timestamp")
-    records = bundle.get("decision_records") or bundle.get("records") or []
+    records = bundle.get("decision_records") if "decision_records" in bundle else (bundle.get("records") or [])
     freshness = validate_freshness(bundle, trading_date=trading_date, cadence=cadence)
+    coverage = bundle.get("coverage") or (bundle.get("decision_record_coverage") or {}).get("coverage")
+    record_count = len(records) if isinstance(records, list) else 0
     checks = {
         "validation_status": bundle.get("validation_status") == "PASS",
         "source_bundle_validation": bundle.get("source_bundle_validation", "PASS") == "PASS",
@@ -95,12 +98,12 @@ def validate_production_source_bundle(bundle: Mapping[str, Any], *, trading_date
         "schema_version": bool(bundle.get("schema_version") or bundle.get("bundle_version")),
         "freshness": freshness["status"] == "PASS",
         "provenance": isinstance(source_provenance, dict) and bool(source_provenance),
-        "completeness": isinstance(records, list) and len(records) > 0,
+        "completeness": isinstance(records, list) and record_count == REQUIRED_DECISION_RECORD_COUNT and coverage in (None, f"{REQUIRED_DECISION_RECORD_COUNT}/{REQUIRED_DECISION_RECORD_COUNT}"),
         "trading_date": bool(trading_date) and freshness["checks"]["source_trading_date_matches"],
         "cadence": cadence in {"07:30", "09:30", "12:00", "19:30"},
     }
     status = "PASS" if all(checks.values()) else "FAIL"
-    return {"validation_status": status, "checks": checks, "freshness": freshness, "retrieval_timestamp": retrieval_timestamp, "record_count": len(records) if isinstance(records, list) else 0}
+    return {"validation_status": status, "checks": checks, "freshness": freshness, "retrieval_timestamp": retrieval_timestamp, "record_count": record_count, "required_record_count": REQUIRED_DECISION_RECORD_COUNT, "coverage": coverage}
 
 
 def latest_snapshot_id(latest_path: Path) -> str | None:

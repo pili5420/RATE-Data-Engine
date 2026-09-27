@@ -20,13 +20,16 @@ class ProductionSourceLatestPublisherTests(unittest.TestCase):
         shutil.rmtree(self.root, ignore_errors=True)
 
     def bundle(self, status="PASS"):
+        records = [{"symbol": f"{1000 + idx}"} for idx in range(30)]
         return {
             "schema_version": "RATE-CER073-SOURCE-BUNDLE-V1",
             "validation_status": status,
             "source_bundle_validation": status,
             "trading_date": "2026-09-21",
             "source_provenance": {"source": "AUTHORIZED_LIVE", "retrieval_timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")},
-            "decision_records": [{"symbol": "2330"}],
+            "coverage": "30/30",
+            "decision_records": records,
+            "records": records,
         }
 
     def write_bundle(self, obj):

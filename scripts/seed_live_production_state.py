@@ -27,6 +27,36 @@ def seed(*, source_evidence_path: str | Path, artifacts_root: str | Path = "arti
         raise RuntimeError("UNSUPPORTED_SEED_SOURCE_CER")
     if cadence != "19:30":
         raise RuntimeError("SEED_SOURCE_NOT_END_OF_DAY_1930")
+    root = Path(artifacts_root)
+    latest_path = root / "RATE_PRODUCTION_STATE_LATEST.json"
+    dest = root / "production_state" / "live" / trading_date / "1930" / "RATE_PRODUCTION_PERSIST_RESULT_EVIDENCE.json"
+    if latest_path.exists():
+        existing_latest = load_json(latest_path)
+        if existing_latest.get("validation_status") == "PASS" and existing_latest.get("current_state_id") and existing_latest.get("current_state_hash"):
+            evidence = {
+                "artifact": "RATE_PRODUCTION_LIVE_BOOTSTRAP_SEED_EVIDENCE",
+                "validation_status": "PASS",
+                "source_cer": source_cer,
+                "source_state_id": state_id,
+                "source_state_hash": state_hash,
+                "source_trading_date": trading_date,
+                "source_cadence": cadence,
+                "destination_live_state_path": str(dest).replace("\\", "/"),
+                "latest_path": str(latest_path).replace("\\", "/"),
+                "idempotency_result": "BOOTSTRAP_NOT_REQUIRED_EXISTING_LIVE_STATE",
+                "bootstrap_mode": False,
+                "existing_live_state_preserved": True,
+                "existing_latest_state_id": existing_latest.get("current_state_id"),
+                "existing_latest_state_hash": existing_latest.get("current_state_hash"),
+                "existing_latest_trading_date": existing_latest.get("trading_date"),
+                "existing_latest_cadence": existing_latest.get("cadence"),
+                "first_production_bootstrap_used": False,
+                "persistent_state_reset": False,
+            }
+            if evidence_output:
+                atomic_write_json(Path(evidence_output), evidence)
+            return evidence
+        raise RuntimeError("INVALID_LIVE_LATEST_ALREADY_EXISTS")
     payload = {
         "artifact": "RATE_PRODUCTION_LIVE_BOOTSTRAP_SEED_PERSIST_RESULT",
         "validation_status": "PASS",
@@ -54,8 +84,6 @@ def seed(*, source_evidence_path: str | Path, artifacts_root: str | Path = "arti
             },
         },
     }
-    root = Path(artifacts_root)
-    dest = root / "production_state" / "live" / trading_date / "1930" / "RATE_PRODUCTION_PERSIST_RESULT_EVIDENCE.json"
     idempotency = "SEEDED_NEW_RECORD"
     if dest.exists():
         existing = load_json(dest)
@@ -64,7 +92,6 @@ def seed(*, source_evidence_path: str | Path, artifacts_root: str | Path = "arti
         idempotency = "IDEMPOTENT_NOOP"
     else:
         atomic_write_json(dest, payload)
-    latest_path = root / "RATE_PRODUCTION_STATE_LATEST.json"
     latest = {
         "artifact": "RATE_PRODUCTION_STATE_LATEST",
         "validation_status": "PASS",
@@ -92,6 +119,8 @@ def seed(*, source_evidence_path: str | Path, artifacts_root: str | Path = "arti
         "destination_live_state_path": str(dest).replace("\\", "/"),
         "latest_path": str(latest_path).replace("\\", "/"),
         "idempotency_result": idempotency,
+        "bootstrap_mode": True,
+        "existing_live_state_preserved": False,
         "first_production_bootstrap_used": False,
         "persistent_state_reset": False,
     }
