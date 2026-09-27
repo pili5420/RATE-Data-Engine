@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -10,6 +11,8 @@ try:
     from zoneinfo import ZoneInfo
 except ImportError:  # pragma: no cover
     ZoneInfo = None
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.cer074_acceptance import atomic_write_json, load_json
 from src.cer080_multi_day_continuity import EXCHANGE_HOLIDAYS, TRADING_CALENDAR_SOURCE, is_trading_day, resolve_next_trading_day
