@@ -60,21 +60,25 @@ jobs:
           python - <<'PY'
           import json, os, subprocess
           workflows = {
-              '07:30': 'RATE Production 07:30 Recurring Scheduler',
-              '09:30': 'RATE Production 09:30 Recurring Scheduler',
-              '12:00': 'RATE Production 12:00 Recurring Scheduler',
-              '19:30': 'RATE Production 19:30 Recurring Scheduler',
+              '07:30': 'rate_production_0730_scheduler.yml',
+              '09:30': 'rate_production_0930_scheduler.yml',
+              '12:00': 'rate_production_1200_scheduler.yml',
+              '19:30': 'rate_production_1930_scheduler.yml',
           }
-          runs=[]
+          runs=[]; warnings=[]
           for cadence, workflow in workflows.items():
               cmd=['gh','run','list','--repo',os.environ['GITHUB_REPOSITORY'],'--workflow',workflow,'--event','schedule','--status','success','--json','databaseId,headSha,event,createdAt,conclusion','--limit','100']
-              data=json.loads(subprocess.run(cmd,check=True,capture_output=True,text=True).stdout or '[]')
+              result=subprocess.run(cmd,capture_output=True,text=True)
+              if result.returncode != 0:
+                  warnings.append({'cadence': cadence, 'workflow': workflow, 'stderr': result.stderr.strip()})
+                  continue
+              data=json.loads(result.stdout or '[]')
               for row in data:
                   runs.append({'event_name':'schedule','workflow_run_id':str(row.get('databaseId')),'job_id':None,'run_head_sha':row.get('headSha'),'created_at':row.get('createdAt'),'cadence':cadence,'trading_date':None,'validation_status':'PASS' if row.get('conclusion')=='success' else 'FAIL','publish_result':'PASS' if row.get('conclusion')=='success' else 'FAIL'})
           os.makedirs('artifacts/cer081', exist_ok=True)
           with open('artifacts/cer081/scheduled_runs.json','w',encoding='utf-8') as f:
-              json.dump({'runs': runs}, f, ensure_ascii=False, indent=2, sort_keys=True)
-          print(json.dumps({'observed_schedule_runs': len(runs)}))
+              json.dump({'runs': runs, 'collector_warnings': warnings}, f, ensure_ascii=False, indent=2, sort_keys=True)
+          print(json.dumps({'observed_schedule_runs': len(runs), 'collector_warnings': len(warnings)}))
           PY
       - name: Verify main remains untouched before soak acceptance
         shell: bash
