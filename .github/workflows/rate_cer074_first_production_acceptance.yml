@@ -101,7 +101,8 @@ jobs:
           if bad:
               raise SystemExit('PRODUCTION_NAMESPACE_GUARD:'+repr(bad))
           workflow_text='\n'.join(p.read_text(encoding='utf-8') for p in Path('.github/workflows').glob('*.yml'))
-          if 'schedule:' in Path('.github/workflows/rate_cer074_first_production_acceptance.yml').read_text(encoding='utf-8'):
+          text=Path('.github/workflows/rate_cer074_first_production_acceptance.yml').read_text(encoding='utf-8')
+          if any(line.strip().startswith('schedule:') for line in text.splitlines()):
               raise SystemExit('CER074_SCHEDULER_ENABLED')
           print(json.dumps({'production_namespace_guard':'PASS','recurring_production_scheduler_enabled':'NO'}))
           PY
@@ -156,4 +157,5 @@ jobs:
           name: RATE_CER074_LINEAGE_ACCEPTANCE_EVIDENCE
           path: artifacts/cer074/RATE_CER074_LINEAGE_ACCEPTANCE_EVIDENCE.json
           if-no-files-found: error
+
 
