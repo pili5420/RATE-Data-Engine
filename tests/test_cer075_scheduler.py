@@ -3,15 +3,62 @@ from pathlib import Path
 from unittest.mock import patch
 
 import src.cer075_scheduler as cer075
+from tests.test_cer074_acceptance import fixture_bundle
 
 SRC = Path('artifacts/remote-36283374552')
+SOURCE_BUNDLE = Path('artifacts/remote-36281974051/RATE_CER073_FINAL_SOURCE_BUNDLE/RATE_CER073_FINAL_SOURCE_BUNDLE.json')
+PERSISTED_CER074 = SRC/'RATE_CER074_PERSISTED_DECISION_STATE_EVIDENCE'/'RATE_CER074_PERSISTED_DECISION_STATE_EVIDENCE.json'
+
+
+def cer075_fixture_bundle():
+    if SOURCE_BUNDLE.exists():
+        return json.loads(SOURCE_BUNDLE.read_text(encoding='utf-8'))
+    return fixture_bundle()
+
+
+def cer075_previous_state_fixture(bundle):
+    if PERSISTED_CER074.exists():
+        return json.loads(PERSISTED_CER074.read_text(encoding='utf-8'))
+    symbols = {}
+    for row in bundle['decision_records']:
+        stage = row['Stage_evidence']
+        symbols[row['symbol']] = {
+            'M7_score': row.get('M7_score', 80),
+            'MHE_score': row.get('MHE_score', 70),
+            'Rotation_class': row.get('Rotation_class', 'FLAT'),
+            'Rotation_score': row.get('Rotation_score', 70),
+            'stage_current': stage['stage_current'],
+        }
+    state_entry = {
+        'current_state_id': cer075.PREVIOUS_STATE_ID,
+        'decision_payload_hash': cer075.PREVIOUS_STATE_HASH,
+        'decision_time': cer075.TIME_SLOT,
+        'execution_scope': cer075.EXECUTION_SCOPE,
+        'fundamental_analytical_hash': cer075.FUNDAMENTAL_HASH,
+        'historical_state_digest': cer075.HISTORICAL_STATE_DIGEST,
+        'input_snapshot_hash': '94830351492c4a1b186112810932a92b99b66ff071a21ec52a020c692e79142d',
+        'input_snapshot_id': 'rate-prod-snapshot-94830351492c4a1b18611281',
+        'previous_state_id': None,
+        'previous_state_resolution': 'FIRST_PRODUCTION_BOOTSTRAP',
+        'prior_stage_package_digest': cer075.PRIOR_STAGE_DIGEST,
+        'source_bundle_hash': cer075.CER073_SOURCE_BUNDLE_HASH,
+        'stage_state_schema_version': 'RATE-PERSISTED-STAGE-V1',
+        'trading_date': cer075.AS_OF_DATE,
+        'symbols': symbols,
+    }
+    return {
+        'validation_status': 'PASS',
+        'persisted_decision_state_id': cer075.PREVIOUS_STATE_ID,
+        'persisted_decision_state_hash': cer075.PREVIOUS_STATE_HASH,
+        'persistence_result': {'state_entry': state_entry},
+    }
 
 class CER075SchedulerTests(unittest.TestCase):
     def setUp(self):
         self.state=Path('data/production/test-cer075')
         shutil.rmtree(self.state, ignore_errors=True)
-        self.bundle=json.loads(Path('artifacts/remote-36281974051/RATE_CER073_FINAL_SOURCE_BUNDLE/RATE_CER073_FINAL_SOURCE_BUNDLE.json').read_text(encoding='utf-8'))
-        self.prev=json.loads((SRC/'RATE_CER074_PERSISTED_DECISION_STATE_EVIDENCE'/'RATE_CER074_PERSISTED_DECISION_STATE_EVIDENCE.json').read_text(encoding='utf-8'))
+        self.bundle=cer075_fixture_bundle()
+        self.prev=cer075_previous_state_fixture(self.bundle)
         self.workflow=Path('artifacts/test-cer075-workflow.yml')
         self.workflow.parent.mkdir(exist_ok=True)
         self.workflow.write_text('''name: RATE Production 07:30 Recurring Scheduler\non:\n  schedule:\n    - cron: "30 23 * * 0-4"\n  workflow_dispatch:\nconcurrency:\n  group: rate-production-0730-${{ github.ref }}\n  cancel-in-progress: false\njobs:\n  production-0730:\n    env:\n      RATE_LIVE_E2E_ENABLED: PRODUCTION_SCHEDULER\n    steps: []\n# CER075\n''', encoding='utf-8')
