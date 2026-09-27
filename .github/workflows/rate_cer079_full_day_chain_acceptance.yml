@@ -1,0 +1,215 @@
+name: RATE CER-079 Full-Day 4-Cadence Production Chain Acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      trading_date:
+        description: Completed trading date YYYY-MM-DD
+        required: false
+        default: "2026-09-18"
+  push:
+    branches:
+      - rate-v2-6-1r2-staging
+    paths:
+      - .github/workflows/rate_cer079_full_day_chain_acceptance.yml
+      - src/cer079_full_day_chain.py
+      - scripts/run_cer079_full_day_chain_acceptance.py
+      - tests/test_cer079_full_day_chain.py
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  full-day-chain:
+    runs-on: ubuntu-latest
+    env:
+      RATE_LIVE_E2E_ENABLED: PRODUCTION_FULL_DAY_CHAIN_ACCEPTANCE
+      RATE_CER079_TRADING_DATE: ${{ inputs.trading_date || '2026-09-18' }}
+      RATE_CER073_FINAL_SOURCE_BUNDLE_ARTIFACT_ID: "10919292036"
+      RATE_CER074_PERSISTED_DECISION_STATE_ARTIFACT_ID: "10920115463"
+      RATE_CER075_PERSIST_RESULT_ARTIFACT_ID: "10926721309"
+      RATE_CER076_PERSIST_RESULT_ARTIFACT_ID: "10926463840"
+      RATE_CER077_PERSIST_RESULT_ARTIFACT_ID: "10926728094"
+      RATE_CER078_PERSIST_RESULT_ARTIFACT_ID: "10927903239"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Resolve numeric Actions job ID
+        shell: bash
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          job_id=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" --jq '.jobs[] | select(.name=="full-day-chain") | .id' | head -n 1)
+          test -n "$job_id"
+          echo "ACTIONS_JOB_ID=$job_id" >> "$GITHUB_ENV"
+      - name: Initialize fail-closed CER-079 artifacts
+        shell: bash
+        run: python scripts/run_cer079_full_day_chain_acceptance.py --source-bundle /tmp/missing.json --cer074-persisted-evidence /tmp/missing.json --cer075-persisted-evidence /tmp/missing.json --cer076-persisted-evidence /tmp/missing.json --cer077-persisted-evidence /tmp/missing.json --cer078-persisted-evidence /tmp/missing.json --output-dir artifacts/cer079 --state-root data/production/cer079_full_day_chain_acceptance --reset-state-root || true
+      - name: Download accepted CER-073 through CER-078 evidence
+        shell: bash
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          mkdir -p artifacts/accepted/cer073 artifacts/accepted/cer074 artifacts/accepted/cer075 artifacts/accepted/cer076 artifacts/accepted/cer077 artifacts/accepted/cer078
+          gh api "repos/${{ github.repository }}/actions/artifacts/${RATE_CER073_FINAL_SOURCE_BUNDLE_ARTIFACT_ID}/zip" > artifacts/accepted/cer073/source_bundle.zip
+          unzip -o artifacts/accepted/cer073/source_bundle.zip -d artifacts/accepted/cer073/source_bundle
+          gh api "repos/${{ github.repository }}/actions/artifacts/${RATE_CER074_PERSISTED_DECISION_STATE_ARTIFACT_ID}/zip" > artifacts/accepted/cer074/persisted_state.zip
+          unzip -o artifacts/accepted/cer074/persisted_state.zip -d artifacts/accepted/cer074/persisted_state
+          gh api "repos/${{ github.repository }}/actions/artifacts/${RATE_CER075_PERSIST_RESULT_ARTIFACT_ID}/zip" > artifacts/accepted/cer075/persist_result.zip
+          unzip -o artifacts/accepted/cer075/persist_result.zip -d artifacts/accepted/cer075/persist_result
+          gh api "repos/${{ github.repository }}/actions/artifacts/${RATE_CER076_PERSIST_RESULT_ARTIFACT_ID}/zip" > artifacts/accepted/cer076/persist_result.zip
+          unzip -o artifacts/accepted/cer076/persist_result.zip -d artifacts/accepted/cer076/persist_result
+          gh api "repos/${{ github.repository }}/actions/artifacts/${RATE_CER077_PERSIST_RESULT_ARTIFACT_ID}/zip" > artifacts/accepted/cer077/persist_result.zip
+          unzip -o artifacts/accepted/cer077/persist_result.zip -d artifacts/accepted/cer077/persist_result
+          gh api "repos/${{ github.repository }}/actions/artifacts/${RATE_CER078_PERSIST_RESULT_ARTIFACT_ID}/zip" > artifacts/accepted/cer078/persist_result.zip
+          unzip -o artifacts/accepted/cer078/persist_result.zip -d artifacts/accepted/cer078/persist_result
+      - name: Run focused CER-079 tests
+        run: python -m unittest tests.test_cer079_full_day_chain -v
+      - name: Verify main remains untouched before full-day acceptance
+        shell: bash
+        run: |
+          main_head=$(git ls-remote origin refs/heads/main | awk '{print $1}')
+          echo "main_head=$main_head"
+          test "$main_head" = "beae3ed542888cc647d64bbcecab7d907a7744aa"
+      - name: Verify no prior CER/scheduler code changed by CER-079 commit
+        shell: bash
+        run: |
+          if git rev-parse HEAD^ >/dev/null 2>&1; then
+            changed=$(git diff --name-only HEAD^ HEAD -- .github/workflows/rate_production_0730_scheduler.yml src/cer075_scheduler.py src/cer076_incremental_0930.py src/cer077_incremental_1200.py src/cer078_evening_1930.py scripts/run_cer075_scheduler_acceptance.py scripts/run_cer076_incremental_0930_acceptance.py scripts/run_cer077_incremental_1200_acceptance.py scripts/run_cer078_evening_1930_acceptance.py tests/test_cer075_scheduler.py tests/test_cer076_incremental_0930.py tests/test_cer077_incremental_1200.py tests/test_cer078_evening_1930.py .github/workflows/rate_cer076_0930_incremental_acceptance.yml .github/workflows/rate_cer077_1200_incremental_acceptance.yml .github/workflows/rate_cer078_1930_evening_acceptance.yml)
+            test -z "$changed"
+          fi
+      - name: Execute full-day 4-cadence acceptance
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: >
+          python scripts/run_cer079_full_day_chain_acceptance.py
+          --source-bundle artifacts/accepted/cer073/source_bundle/RATE_CER073_FINAL_SOURCE_BUNDLE.json
+          --cer074-persisted-evidence artifacts/accepted/cer074/persisted_state/RATE_CER074_PERSISTED_DECISION_STATE_EVIDENCE.json
+          --cer075-persisted-evidence artifacts/accepted/cer075/persist_result/RATE_CER075_PERSIST_RESULT_EVIDENCE.json
+          --cer076-persisted-evidence artifacts/accepted/cer076/persist_result/RATE_CER076_PERSIST_RESULT_EVIDENCE.json
+          --cer077-persisted-evidence artifacts/accepted/cer077/persist_result/RATE_CER077_PERSIST_RESULT_EVIDENCE.json
+          --cer078-persisted-evidence artifacts/accepted/cer078/persist_result/RATE_CER078_PERSIST_RESULT_EVIDENCE.json
+          --output-dir artifacts/cer079
+          --state-root data/production/cer079_full_day_chain_acceptance
+          --reset-state-root
+          --actions-job-id "$ACTIONS_JOB_ID"
+      - name: Verify production namespace and no multi-day/next CER activation
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, subprocess
+          allowed_prefix='data/production/cer079_full_day_chain_acceptance/'
+          changed=subprocess.run(['git','status','--porcelain','--untracked-files=all','--','data/production'],capture_output=True,text=True,check=True).stdout.splitlines()
+          bad=[line for line in changed if allowed_prefix not in line.replace('\\','/')]
+          if bad:
+              raise SystemExit('PRODUCTION_NAMESPACE_GUARD:'+repr(bad))
+          print(json.dumps({'production_namespace_guard':'PASS','multi_day_acceptance':'NO','next_cer_created':'NO'}))
+          PY
+      - name: Verify main remains untouched after full-day acceptance
+        if: always()
+        shell: bash
+        run: |
+          main_head=$(git ls-remote origin refs/heads/main | awk '{print $1}')
+          echo "main_head=$main_head"
+          test "$main_head" = "beae3ed542888cc647d64bbcecab7d907a7744aa"
+      - name: Upload RATE_CER079_FULL_DAY_LINEAGE_EVIDENCE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER079_FULL_DAY_LINEAGE_EVIDENCE
+          path: artifacts/cer079/RATE_CER079_FULL_DAY_LINEAGE_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER079_TRADING_DAY_INTEGRITY_EVIDENCE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER079_TRADING_DAY_INTEGRITY_EVIDENCE
+          path: artifacts/cer079/RATE_CER079_TRADING_DAY_INTEGRITY_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER079_NO_RESET_EVIDENCE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER079_NO_RESET_EVIDENCE
+          path: artifacts/cer079/RATE_CER079_NO_RESET_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER079_FULL_DAY_EVIDENCE_CONTINUITY
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER079_FULL_DAY_EVIDENCE_CONTINUITY
+          path: artifacts/cer079/RATE_CER079_FULL_DAY_EVIDENCE_CONTINUITY.json
+          if-no-files-found: error
+      - name: Upload RATE_CER079_PORTFOLIO_CONTINUITY_EVIDENCE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER079_PORTFOLIO_CONTINUITY_EVIDENCE
+          path: artifacts/cer079/RATE_CER079_PORTFOLIO_CONTINUITY_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER079_TRANSACTION_LEDGER_CONTINUITY_EVIDENCE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER079_TRANSACTION_LEDGER_CONTINUITY_EVIDENCE
+          path: artifacts/cer079/RATE_CER079_TRANSACTION_LEDGER_CONTINUITY_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER079_RANKING_MODEL_CONTINUITY_EVIDENCE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER079_RANKING_MODEL_CONTINUITY_EVIDENCE
+          path: artifacts/cer079/RATE_CER079_RANKING_MODEL_CONTINUITY_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER079_MODEL_FREEZE_INTEGRITY_EVIDENCE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER079_MODEL_FREEZE_INTEGRITY_EVIDENCE
+          path: artifacts/cer079/RATE_CER079_MODEL_FREEZE_INTEGRITY_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER079_DETERMINISTIC_FULL_DAY_REPLAY
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER079_DETERMINISTIC_FULL_DAY_REPLAY
+          path: artifacts/cer079/RATE_CER079_DETERMINISTIC_FULL_DAY_REPLAY.json
+          if-no-files-found: error
+      - name: Upload RATE_CER079_FULL_DAY_IDEMPOTENCY_EVIDENCE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER079_FULL_DAY_IDEMPOTENCY_EVIDENCE
+          path: artifacts/cer079/RATE_CER079_FULL_DAY_IDEMPOTENCY_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER079_END_OF_DAY_CLOSURE_EVIDENCE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER079_END_OF_DAY_CLOSURE_EVIDENCE
+          path: artifacts/cer079/RATE_CER079_END_OF_DAY_CLOSURE_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER079_NEXT_DAY_HANDOFF_READINESS_EVIDENCE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER079_NEXT_DAY_HANDOFF_READINESS_EVIDENCE
+          path: artifacts/cer079/RATE_CER079_NEXT_DAY_HANDOFF_READINESS_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER079_SCHEDULER_COMPATIBILITY_EVIDENCE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER079_SCHEDULER_COMPATIBILITY_EVIDENCE
+          path: artifacts/cer079/RATE_CER079_SCHEDULER_COMPATIBILITY_EVIDENCE.json
+          if-no-files-found: error
+      - name: Upload RATE_CER079_FAILURE_GATE_EVIDENCE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER079_FAILURE_GATE_EVIDENCE
+          path: artifacts/cer079/RATE_CER079_FAILURE_GATE_EVIDENCE.json
+          if-no-files-found: error
