@@ -17,6 +17,10 @@ on:
       - .github/workflows/rate_production_0730_scheduler.yml
       - .github/workflows/rate_cer076_0930_incremental_acceptance.yml
       - .github/workflows/rate_cer077_1200_incremental_acceptance.yml
+      - .github/workflows/rate_cer078_1930_evening_acceptance.yml
+      - src/cer078_evening_1930.py
+      - scripts/run_cer078_evening_1930_acceptance.py
+      - tests/test_cer078_evening_1930.py
       - src/cer077_incremental_1200.py
       - scripts/run_cer077_incremental_1200_acceptance.py
       - tests/test_cer077_incremental_1200.py
