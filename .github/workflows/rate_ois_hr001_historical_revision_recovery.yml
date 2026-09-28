@@ -1,0 +1,40 @@
+name: CER-OIS-HR-001 Historical Source Revision Controlled Recovery
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - rate-v2-6-1r2-staging
+    paths:
+      - 'src/ois_historical_revision.py'
+      - 'scripts/run_ois_historical_revision_recovery.py'
+      - 'tests/test_ois_historical_revision_recovery.py'
+      - '.github/workflows/rate_ois_hr001_historical_revision_recovery.yml'
+
+permissions:
+  contents: read
+
+env:
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  ois-hr001:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run OIS historical revision tests
+        run: python -m unittest tests.test_ois_historical_revision_recovery
+      - name: Run CER-OIS-HR-001 acceptance
+        run: python scripts/run_ois_historical_revision_recovery.py --output-dir artifacts/ois_hr_001 --commit-sha "$GITHUB_SHA" --workflow-run-id "$GITHUB_RUN_ID" --workflow-job-id "ois-hr001"
+      - name: Upload CER-OIS-HR-001 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CER-OIS-HR-001-EVIDENCE
+          path: artifacts/ois_hr_001/*.json
+          if-no-files-found: error
