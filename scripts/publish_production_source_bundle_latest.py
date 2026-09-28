@@ -91,6 +91,21 @@ def validate_production_source_bundle(bundle: Mapping[str, Any], *, trading_date
     freshness = validate_freshness(bundle, trading_date=trading_date, cadence=cadence)
     coverage = bundle.get("coverage") or (bundle.get("decision_record_coverage") or {}).get("coverage")
     record_count = len(records) if isinstance(records, list) else 0
+    calendar_gate = bundle.get("trading_calendar_gate") or {}
+    holiday_snapshot = bundle.get("holiday_snapshot") is True or bundle.get("snapshot_type") == "HOLIDAY"
+    holiday_checks = {
+        "validation_status": bundle.get("validation_status") == "PASS",
+        "source_bundle_validation": bundle.get("source_bundle_validation", "PASS") == "PASS",
+        "official_source": source_provenance.get("source") in ("AUTHORIZED_LIVE", "RATE_OFFICIAL_TW_MARKET_DATA_SSOT"),
+        "schema_version": bool(bundle.get("schema_version") or bundle.get("bundle_version")),
+        "freshness": freshness["status"] == "PASS",
+        "provenance": isinstance(source_provenance, dict) and bool(source_provenance),
+        "trading_date": bool(trading_date) and freshness["checks"]["source_trading_date_matches"],
+        "cadence": cadence in {"07:30", "09:30", "12:00", "19:30"},
+        "input_snapshot_id": bool(bundle.get("input_snapshot_id")),
+        "holiday_snapshot": holiday_snapshot,
+        "calendar_gate": calendar_gate.get("status") == "PASS" and calendar_gate.get("is_trading_day") is False,
+    }
     checks = {
         "validation_status": bundle.get("validation_status") == "PASS",
         "source_bundle_validation": bundle.get("source_bundle_validation", "PASS") == "PASS",
@@ -101,9 +116,11 @@ def validate_production_source_bundle(bundle: Mapping[str, Any], *, trading_date
         "completeness": isinstance(records, list) and record_count == REQUIRED_DECISION_RECORD_COUNT and coverage in (None, f"{REQUIRED_DECISION_RECORD_COUNT}/{REQUIRED_DECISION_RECORD_COUNT}"),
         "trading_date": bool(trading_date) and freshness["checks"]["source_trading_date_matches"],
         "cadence": cadence in {"07:30", "09:30", "12:00", "19:30"},
+        "input_snapshot_id": bool(bundle.get("input_snapshot_id")),
     }
-    status = "PASS" if all(checks.values()) else "FAIL"
-    return {"validation_status": status, "checks": checks, "freshness": freshness, "retrieval_timestamp": retrieval_timestamp, "record_count": record_count, "required_record_count": REQUIRED_DECISION_RECORD_COUNT, "coverage": coverage}
+    active_checks = holiday_checks if holiday_snapshot else checks
+    status = "PASS" if all(active_checks.values()) else "FAIL"
+    return {"validation_status": status, "checks": active_checks, "freshness": freshness, "retrieval_timestamp": retrieval_timestamp, "record_count": record_count, "required_record_count": 0 if holiday_snapshot else REQUIRED_DECISION_RECORD_COUNT, "coverage": coverage, "snapshot_type": "HOLIDAY" if holiday_snapshot else "TRADING_DAY"}
 
 
 def latest_snapshot_id(latest_path: Path) -> str | None:
@@ -132,6 +149,8 @@ def build_snapshot(bundle: Mapping[str, Any], *, trading_date: str, cadence: str
         "workflow_job_id": workflow_job_id,
         "previous_snapshot_id": previous_snapshot_id,
         "validation_status": "PASS",
+        "input_snapshot_id": bundle.get("input_snapshot_id"),
+        "snapshot_type": "HOLIDAY" if bundle.get("holiday_snapshot") is True or bundle.get("snapshot_type") == "HOLIDAY" else "TRADING_DAY",
         "source_bundle_hash": bundle_hash,
         "immutable": True,
         "bundle": bundle,
@@ -172,6 +191,8 @@ def publish_latest(*, source_bundle_path: str | Path, trading_date: str, cadence
     latest.update({
         "artifact": "RATE_PRODUCTION_SOURCE_BUNDLE_LATEST",
         "workflow_job_id": workflow_job_id,
+        "input_snapshot_id": snapshot.get("input_snapshot_id"),
+        "snapshot_type": snapshot.get("snapshot_type"),
         "source_bundle_hash": snapshot["source_bundle_hash"],
         "immutable_snapshot_path": str(snapshot_path).replace("\\", "/"),
         "schema_version": "RATE-PRODUCTION-SOURCE-LATEST-V1",

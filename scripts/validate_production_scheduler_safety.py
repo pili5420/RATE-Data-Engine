@@ -50,11 +50,14 @@ def validate() -> dict[str, Any]:
             "official_source_ingestion": "build_production_source_bundle_from_official.py" in text and "RATE_PRODUCTION_SOURCE_BUNDLE.json" in text,
             "cer073_audit_only_not_recurring_source": "10919292036" not in text and "artifacts/accepted/cer073/source_bundle" not in text,
             "source_latest_schedule_only": "github.event_name == 'schedule'" in text and "publish_production_source_bundle_latest.py" in text,
+            "holiday_source_snapshot_enabled": "RATE_PRODUCTION_RUNTIME_MODE != 'BLOCKED'" in text and "publish_production_source_bundle_latest.py" in text,
+            "decision_state_runtime_trading_day_only": "RATE_PRODUCTION_RUNTIME_MODE == 'RUN'" in text and "publish_production_state_latest.py" in text,
         }
     scheduler_definitions = all(v["scheduler_defined"] for v in per.values())
     dynamic = all(v["dynamic_trading_date_resolution"] and v["scheduled_historical_acceptance_date_forbidden"] for v in per.values())
     live = all(v["fixed_predecessor_artifact_ids_removed"] and v["reset_state_root_removed"] and v["production_state_publish"] for v in per.values())
     official_source = all(v["official_source_ingestion"] and v["cer073_audit_only_not_recurring_source"] for v in per.values())
+    holiday_source = all(v["holiday_source_snapshot_enabled"] and v["decision_state_runtime_trading_day_only"] for v in per.values())
     seed = "seed_live_production_state.py" in workflows["07:30"] and "RATE_CER079_EOD_CLOSURE_ARTIFACT_ID" in workflows["07:30"]
     seed_script = Path("scripts/seed_live_production_state.py").read_text(encoding="utf-8")
     one_time_seed = seed and "BOOTSTRAP_NOT_REQUIRED_EXISTING_LIVE_STATE" in seed_script
@@ -62,13 +65,14 @@ def validate() -> dict[str, Any]:
     cer081_read_only = "contents: read" in cer081 and "contents: write" not in cer081
     result = {
         "artifact": "RATE_PRODUCTION_SCHEDULER_SAFETY_VALIDATION",
-        "validation_status": "PASS" if all([scheduler_definitions, dynamic, live, official_source, one_time_seed, main_guard, cer081_read_only]) else "FAIL",
+        "validation_status": "PASS" if all([scheduler_definitions, dynamic, live, official_source, holiday_source, one_time_seed, main_guard, cer081_read_only]) else "FAIL",
         "scheduler_definitions": "PASS" if scheduler_definitions else "FAIL",
         "dynamic_trading_date_resolution": "PASS" if dynamic else "FAIL",
         "live_previous_state_resolver": "PASS" if live else "FAIL",
         "controlled_live_state_bootstrap_seed": "PASS" if seed else "FAIL",
         "one_time_live_state_bootstrap_seed": "PASS" if one_time_seed else "FAIL",
         "official_source_ingestion": "PASS" if official_source else "FAIL",
+        "holiday_source_snapshot": "PASS" if holiday_source else "FAIL",
         "cer073_role": "AUDIT_ONLY_NOT_RECURRING_SOURCE" if official_source else "FAIL",
         "persistent_state_no_reset": "PASS" if all(v["reset_state_root_removed"] for v in per.values()) else "FAIL",
         "production_persistent_state_reset_count": 0 if all(v["reset_state_root_removed"] for v in per.values()) else "UNKNOWN",

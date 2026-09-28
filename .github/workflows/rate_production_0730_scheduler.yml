@@ -93,7 +93,7 @@ jobs:
         run: python -m unittest tests.test_production_scheduler_change_control -v
 
       - name: Build official production source bundle
-        if: ${{ github.event_name != 'push' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
+        if: ${{ github.event_name != 'push' && env.RATE_PRODUCTION_RUNTIME_MODE != 'BLOCKED' }}
         run: >
           python scripts/build_production_source_bundle_from_official.py
           --trading-date "${{ env.RATE_PRODUCTION_TRADING_DATE }}"
@@ -129,7 +129,7 @@ jobs:
           --evidence-output artifacts/cer075/RATE_PRODUCTION_STATE_LIVE_UPDATE_EVIDENCE.json
 
       - name: Publish immutable production source bundle latest
-        if: ${{ success() && github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
+        if: ${{ success() && github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE != 'BLOCKED' }}
         env:
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_RUN_ID: ${{ github.run_id }}
@@ -144,7 +144,7 @@ jobs:
           --evidence-output artifacts/cer075/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST_UPDATE_EVIDENCE.json
 
       - name: Commit authorized production pointers
-        if: ${{ success() && github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
+        if: ${{ success() && github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE != 'BLOCKED' }}
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
@@ -164,4 +164,5 @@ jobs:
           name: RATE_PRODUCTION_0730_SCHEDULER_ARTIFACTS
           path: artifacts/cer075/*.json
           if-no-files-found: warn
+
 

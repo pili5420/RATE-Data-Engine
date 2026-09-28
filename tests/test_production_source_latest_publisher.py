@@ -27,6 +27,7 @@ class ProductionSourceLatestPublisherTests(unittest.TestCase):
             "source_bundle_validation": status,
             "trading_date": "2026-09-21",
             "source_provenance": {"source": "AUTHORIZED_LIVE", "retrieval_timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")},
+            "input_snapshot_id": "rate-prod-source-snapshot-test",
             "coverage": "30/30",
             "decision_records": records,
             "records": records,

@@ -10,7 +10,7 @@ from scripts.resolve_production_runtime_context import resolve_context
 from scripts.validate_production_scheduler_safety import validate
 from scripts.publish_production_state_latest import publish_state
 from scripts.seed_live_production_state import seed
-from scripts.publish_production_source_bundle_latest import validate_production_source_bundle
+from scripts.publish_production_source_bundle_latest import load_json, publish_latest, validate_production_source_bundle
 from scripts.build_production_source_bundle_from_official import build_bundle
 
 WORKFLOWS = [
@@ -40,11 +40,21 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
         production_sources = {symbol: self._technical_source(idx + 1) for idx, symbol in enumerate(symbols)}
         if malformed_join and symbols:
             production_sources.pop(symbols[-1])
+        dataset_rows = [{"symbol": symbol, "validation_status": "PASS", "record_count": 1, "LH": 50.0, "fundamental_score": 60.0} for symbol in symbols]
         return {
             "schema_version": "RATE-OFFICIAL-NORMALIZED-SOURCE-V1",
             "trading_date": trading_date,
             "universe": symbols,
             "production_sources": production_sources,
+            "datasets": {
+                "market_daily": {"validation_status": "PASS", "record_count": count, "rows": [{"symbol": symbol} for symbol in symbols]},
+                "market_intraday": {"validation_status": "PASS", "record_count": count, "rows": [{"symbol": symbol} for symbol in symbols]},
+                "institutional": {"validation_status": "PASS", "record_count": count, "rows": [{"symbol": symbol} for symbol in symbols]},
+                "large_holder": {"validation_status": "PASS", "record_count": count, "rows": dataset_rows},
+                "fundamental": {"validation_status": "PASS", "record_count": count, "rows": dataset_rows},
+                "benchmark": {"validation_status": "PASS", "record_count": 1, "rows": [{"symbol": "TAIEX"}]},
+                "trading_metadata": {"validation_status": "PASS", "trading_date": trading_date, "record_count": 1},
+            },
         }
 
     def _write_official_dataset(self, root: Path, dataset: dict) -> str:
@@ -84,6 +94,7 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
         self.assertEqual(result['controlled_live_state_bootstrap_seed'], 'PASS')
         self.assertEqual(result['one_time_live_state_bootstrap_seed'], 'PASS')
         self.assertEqual(result['official_source_ingestion'], 'PASS')
+        self.assertEqual(result['holiday_source_snapshot'], 'PASS')
         self.assertEqual(result['cer073_role'], 'AUDIT_ONLY_NOT_RECURRING_SOURCE')
         self.assertEqual(result['push_workflow_dispatch_not_soak_evidence'], 'PASS')
 
@@ -112,6 +123,7 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
             self.assertEqual(bundle["validation_status"], "PASS")
             self.assertEqual(bundle["source_bundle_validation"], "PASS")
             self.assertEqual(bundle["coverage"], "30/30")
+            self.assertTrue(bundle["input_snapshot_id"])
             self.assertEqual(len(bundle["records"]), 30)
             self.assertEqual(len(bundle["decision_records"]), 30)
             self.assertEqual(bundle["trading_date"], "2026-09-21")
@@ -127,6 +139,9 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
             self.assertEqual(transform["normalization"], "PASS")
             self.assertEqual(transform["symbol_mapping"], "PASS")
             self.assertEqual(transform["required_dataset_joins"], "PASS")
+            self.assertEqual(bundle["required_dataset_gate"]["required_datasets"]["large_holder"], "PASS")
+            self.assertEqual(bundle["required_dataset_gate"]["required_datasets"]["fundamental"], "PASS")
+            self.assertEqual(bundle["required_dataset_gate"]["required_datasets"]["trading_metadata"], "PASS")
             self.assertEqual(transform["decision_record_construction"], "PASS")
             self.assertEqual(transform["decision_record_coverage"], "30/30")
         finally:
@@ -141,6 +156,7 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
                 "missing": {},
                 "malformed_join": self._official_dataset(malformed_join=True),
                 "insufficient_coverage": self._official_dataset(count=29),
+                "missing_large_holder": {**self._official_dataset(), "datasets": {k: v for k, v in self._official_dataset()["datasets"].items() if k != "large_holder"}},
             }
             for name, dataset in cases.items():
                 case_root = root / name
@@ -155,6 +171,30 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
                 self.assertEqual(bundle["source_bundle_validation"], "BLOCKED", name)
                 self.assertEqual(bundle["decision_record_coverage"]["status"], "FAIL", name)
                 self.assertEqual(len(bundle["decision_records"]), 0, name)
+                self.assertIsNone(bundle["input_snapshot_id"], name)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+    def test_holiday_calendar_gate_builds_legal_snapshot_and_latest(self):
+        root = Path("artifacts/test-production-scheduler-change-control")
+        try:
+            shutil.rmtree(root, ignore_errors=True)
+            root.mkdir(parents=True, exist_ok=True)
+            output = root / "holiday_bundle.json"
+            evidence = root / "holiday_evidence.json"
+            result = build_bundle(rate_source_url="", trading_date="2026-09-28", cadence="07:30", output=output, evidence_output=evidence)
+            bundle = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(result["validation_status"], "PASS")
+            self.assertEqual(bundle["snapshot_type"], "HOLIDAY")
+            self.assertTrue(bundle["input_snapshot_id"])
+            self.assertEqual(bundle["trading_calendar_gate"]["status"], "PASS")
+            self.assertFalse(bundle["trading_calendar_gate"]["is_trading_day"])
+            self.assertEqual(bundle["required_dataset_gate"]["required_datasets"]["trading_metadata"], "PASS")
+            published = publish_latest(source_bundle_path=output, trading_date="2026-09-28", cadence="07:30", artifacts_root=root, workflow_run_id="run-holiday", workflow_job_id="job-holiday")
+            self.assertEqual(published["publish_result"], "PASS")
+            latest = load_json(root / "RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json")
+            self.assertEqual(latest["snapshot_type"], "HOLIDAY")
+            self.assertEqual(latest["input_snapshot_id"], bundle["input_snapshot_id"])
         finally:
             shutil.rmtree(root, ignore_errors=True)
 
