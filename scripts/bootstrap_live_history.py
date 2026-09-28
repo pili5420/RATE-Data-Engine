@@ -1,0 +1,266 @@
+"""Bounded, resumable TWSE historical bootstrap.
+
+This command owns only historical source acquisition.  It deliberately does
+not import or execute any RATE feature/model calculation.
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import sys
+import time
+from datetime import date
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from scripts import build_live_source_bundle as bundle
+from src.historical_store import normalize_stock_record
+from src.benchmark_history import normalize_twse_date
+from src.sources.twse import TWSEAdapter, reset_transport_metrics, get_transport_metrics
+from src.sources.twse import ChunkDeadlineReached, _deadline_remaining
+
+TARGET_RAW_SESSIONS = 190
+DEFAULT_MAX_PERIODS = 12
+DEFAULT_MAX_RUNTIME_SECONDS = 600
+DEFAULT_FINALIZATION_RESERVE_SECONDS = 15
+
+
+def _periods(end: date):
+    cursor = bundle._month_cursor(end)
+    # A 24-month bounded window is sufficient for the 190-session target and
+    # keeps period planning finite before the network/deadline loop starts.
+    return [next(cursor) for _ in range(24)]
+
+
+def _normalized_period(adapter, symbol: str, period: str, deadline=None):
+    result = adapter.fetch_historical_symbol(symbol, period, deadline=deadline)
+    rows = bundle._rows(result.get('raw_payload'))
+    records, seen = [], set()
+    for row in rows:
+        raw_date = bundle._pick(row, 'trade_date', 'Date', '日期')
+        if raw_date is None:
+            continue
+        trade_date = normalize_twse_date(raw_date)
+        if trade_date in seen:
+            continue
+        try:
+            record = normalize_stock_record({
+                'symbol': symbol, 'market': 'TWSE', 'trade_date': trade_date,
+                'open': bundle._pick(row, 'open', 'OpeningPrice', '開盤價', 'Open'),
+                'high': bundle._pick(row, 'high', 'HighestPrice', '最高價', 'High'),
+                'low': bundle._pick(row, 'low', 'LowestPrice', '最低價', 'Low'),
+                'close': bundle._pick(row, 'close', 'ClosingPrice', '收盤價', 'Close'),
+                'volume': bundle._pick(row, 'volume', 'TradeVolume', '成交股數', 'TradingShares'),
+                'turnover': bundle._pick(row, 'turnover', 'TradeValue', '成交金額', 'TransactionAmount'),
+            }, source='TWSE_STOCK_DAY', source_timestamp=result.get('source_timestamp'),
+               ingested_at=result.get('retrieval_timestamp'))
+        except (ValueError, TypeError):
+            continue
+        records.append(record); seen.add(trade_date)
+    records.sort(key=lambda row: row['trade_date'])
+    return records
+
+
+def _entry_key(symbol, period):
+    return f'{symbol}:{period}'
+
+
+def _records_for_symbol(checkpoint, symbol):
+    rows = {}
+    for entry in checkpoint.get('months', {}).values():
+        if isinstance(entry, dict) and entry.get('symbol') == symbol:
+            for row in entry.get('records', []):
+                rows[row.get('trade_date')] = row
+    return sorted((x for x in rows.values() if x.get('trade_date')), key=lambda row: row['trade_date'])
+
+
+def _campaign_status(path, context, status, reason=None):
+    checkpoint = context['checkpoint']
+    details = {}
+    for symbol in context['universe']:
+        rows = _records_for_symbol(checkpoint, symbol)
+        details[symbol] = {
+            'symbol': symbol, 'months_cached': sum(1 for x in checkpoint.get('months', {}).values() if x.get('symbol') == symbol),
+            'raw_sessions': len(rows), 'earliest_trade_date': rows[0]['trade_date'] if rows else None,
+            'latest_trade_date': rows[-1]['trade_date'] if rows else None,
+            'checkpoint_content_hash': next((x.get('content_hash') for x in checkpoint.get('months', {}).values() if x.get('symbol') == symbol), None),
+            'completion_status': 'COMPLETE' if len(rows) >= TARGET_RAW_SESSIONS else 'INCOMPLETE',
+        }
+    completed = sorted([s for s, d in details.items() if d['completion_status'] == 'COMPLETE'])
+    incomplete = sorted([s for s, d in details.items() if d['completion_status'] != 'COMPLETE'])
+    payload = {
+        'artifact': 'RATE_TWSE_BOOTSTRAP_CAMPAIGN_STATUS', 'universe_digest': context['universe_digest'],
+        'current_checkpoint_digest': checkpoint.get('content_hash'),
+        'source_cache_key': os.getenv('RATE_BOOTSTRAP_CACHE_KEY'), 'completed_symbols': completed,
+        'incomplete_symbols': incomplete, 'raw_sessions_by_symbol': {s: details[s]['raw_sessions'] for s in details},
+        'cached_period_count': len(checkpoint.get('months', {})), 'last_completed_run_id': os.getenv('GITHUB_RUN_ID'),
+        'last_completed_period': context['progress'].get('last_successful_period'),
+        'campaign_status': status, 'blocking_reason': reason, 'symbol_details': details,
+        'workflow_execution_status': 'SUCCESS' if status in ('IN_PROGRESS', 'COMPLETE', 'TEMPORARILY_PAUSED') else 'FAILURE',
+        'bootstrap_status': context.get('bootstrap_status', status),
+        'historical_acceptance_status': 'HOLD',
+        'twse_stock_bootstrap_acceptance': 'PASS' if status == 'COMPLETE' else 'HOLD',
+        'taiex_benchmark_acceptance': 'NOT_RUN',
+        'twse_alignment_acceptance': 'NOT_RUN',
+        'tpex_historical_acceptance': 'NOT_RUN',
+        'full_historical_acceptance': 'HOLD',
+        'source_authorization_gate': 'PASS_WITH_USER_ASSUMPTION',
+        't86_operational_status': 'ALLOWED_BY_USER_ASSUMPTION',
+        't86_authorization_basis': 'USER_DIRECTED_ASSUMPTION',
+        't86_formal_authorization_status': 'UNVERIFIED',
+        'generated_at': bundle._now(),
+    }
+    bundle._atomic_write_json(Path(path), payload)
+    return payload
+
+def _evidence(path, context, status, reason=None):
+    progress = context['progress']
+    checkpoint = context['checkpoint']
+    completed = [s for s, n in progress['raw_sessions_by_symbol'].items() if n >= TARGET_RAW_SESSIONS]
+    payload = {
+        'artifact': 'RATE_TWSE_HISTORY_BOOTSTRAP_EVIDENCE', 'status': status, 'blocking_reason': reason,
+        'chunk_sequence': context['chunk_sequence'],
+        'checkpoint_digest_before': context['checkpoint_digest_before'],
+        'checkpoint_digest_after': checkpoint.get('content_hash'),
+        'periods_loaded_from_checkpoint': context['loaded'],
+        'periods_retrieved_this_chunk': context['retrieved'],
+        'periods_newly_validated': context['validated'],
+        'loaded_checkpoint_periods': list(context.get('loaded_periods', [])),
+        'retrieved_periods': list(context.get('retrieved_periods', [])),
+        'previously_completed_period_redownloaded': False,
+        'periods_remaining_to_target': sum(1 for sessions in progress['raw_sessions_by_symbol'].values() if sessions < TARGET_RAW_SESSIONS),
+        'optional_unscanned_older_periods': max(0, context['required_periods'] - context['loaded'] - context['retrieved']),
+        'completed_symbols': sorted(completed),
+        'current_symbol': progress.get('current_symbol'), 'current_period': progress.get('current_period'),
+        'last_successful_period': progress.get('last_successful_period'),
+        'raw_sessions_by_symbol': progress['raw_sessions_by_symbol'],
+        'aligned_sessions_by_symbol': progress['aligned_sessions_by_symbol'],
+        'transport_request_metrics': get_transport_metrics(),
+        'chunk_runtime_budget_seconds': context.get('max_runtime_seconds'),
+        'finalization_reserve_seconds': context.get('finalization_reserve_seconds', DEFAULT_FINALIZATION_RESERVE_SECONDS),
+        'network_runtime_budget_seconds': max(0.0, (context.get('max_runtime_seconds') or 0) - context.get('finalization_reserve_seconds', DEFAULT_FINALIZATION_RESERVE_SECONDS)),
+        'actual_elapsed_seconds': round(time.monotonic() - context.get('started_monotonic', time.monotonic()), 3),
+        'deadline_exit_triggered': context.get('deadline_exit_triggered', False),
+        'deadline_remaining_at_exit': context.get('deadline_remaining_at_exit'),
+        'run_id': os.getenv('GITHUB_RUN_ID'), 'run_attempt': os.getenv('GITHUB_RUN_ATTEMPT'),
+        'head_sha': os.getenv('GITHUB_SHA'), 'retrieval_timestamp': bundle._now(),
+        'checkpoint_namespace': str(context['checkpoint_path']), 'production_state_modified': 'NO',
+    }
+    bundle._atomic_write_json(Path(path), payload)
+    campaign_path = context.get('campaign_status_path')
+    if campaign_path:
+        context['bootstrap_status'] = status
+        _campaign_status(campaign_path, context, 'COMPLETE' if status == 'BOOTSTRAP_COMPLETE' else ('TEMPORARILY_PAUSED' if status == 'TEMPORARY_SOURCE_UNAVAILABLE' else ('FATAL' if status == 'FATAL_DATA_INTEGRITY_FAILURE' else 'IN_PROGRESS')), reason)
+    return payload
+
+
+def validate_checkpoint(path, universe_digest):
+    return bundle.validate_checkpoint(Path(path), universe_digest)
+
+
+def run(*, trading_date: str, universe_file: Path, checkpoint_path: Path, evidence_path: Path,
+        max_new_periods: int = DEFAULT_MAX_PERIODS, max_runtime_seconds: int = DEFAULT_MAX_RUNTIME_SECONDS,
+        chunk_sequence: int = 1, campaign_status_path: Path | None = None):
+    reset_transport_metrics()
+    universe_obj = json.loads(Path(universe_file).read_text(encoding='utf-8'))
+    universe = [x['symbol'] for x in universe_obj.get('symbols', []) if x.get('market') == 'TWSE']
+    universe_digest = universe_obj.get('universe_symbol_digest')
+    if not universe or not universe_digest:
+        raise RuntimeError('INVALID_PRODUCTION_UNIVERSE_AUTHORITY')
+    checkpoint = bundle._load_checkpoint(Path(checkpoint_path), universe_digest)
+    context = {
+        'checkpoint_path': Path(checkpoint_path), 'checkpoint': checkpoint,
+        'checkpoint_digest_before': checkpoint.get('content_hash'), 'chunk_sequence': chunk_sequence,
+        'loaded': 0, 'retrieved': 0, 'validated': 0, 'loaded_periods': [], 'retrieved_periods': [],
+        'started_monotonic': time.monotonic(), 'deadline': None,
+        'max_runtime_seconds': max_runtime_seconds,
+        'finalization_reserve_seconds': float(os.getenv('CHECKPOINT_FINALIZATION_RESERVE_SECONDS', str(DEFAULT_FINALIZATION_RESERVE_SECONDS))),
+        'deadline_exit_triggered': False, 'deadline_remaining_at_exit': None,
+        'required_periods': max(1, len(universe) * len(_periods(date.fromisoformat(trading_date)))),
+        'universe': universe, 'universe_digest': universe_digest, 'campaign_status_path': campaign_status_path,
+        'progress': {'current_symbol': None, 'current_period': None, 'last_successful_period': None,
+                     'raw_sessions_by_symbol': {}, 'aligned_sessions_by_symbol': {}},
+    }
+    context['deadline'] = context['started_monotonic'] + max_runtime_seconds
+    # Evidence exists before the first network request and is atomically updated.
+    _evidence(evidence_path, context, 'CHUNK_COMPLETE_MORE_WORK')
+    adapter = TWSEAdapter(); started = time.monotonic()
+    periods = _periods(date.fromisoformat(trading_date))
+    try:
+        for symbol in sorted(universe):
+            existing = _records_for_symbol(checkpoint, symbol)
+            context['progress']['raw_sessions_by_symbol'][symbol] = len(existing)
+            context['progress']['aligned_sessions_by_symbol'][symbol] = len(existing)
+            for period in periods:
+                context['progress']['current_symbol'] = symbol; context['progress']['current_period'] = period
+                key = _entry_key(symbol, period)
+                cached = checkpoint.get('months', {}).get(key)
+                if isinstance(cached, dict) and cached.get('validation_status') == 'PASS':
+                    context['loaded'] += 1
+                    context['loaded_periods'].append(key)
+                    context['progress']['last_successful_period'] = period
+                    if len(_records_for_symbol(checkpoint, symbol)) >= TARGET_RAW_SESSIONS:
+                        break
+                    continue
+                if context['retrieved'] >= max_new_periods or _deadline_remaining(context['deadline']) <= 0:
+                    context['deadline_exit_triggered'] = True
+                    context['deadline_remaining_at_exit'] = _deadline_remaining(context['deadline'])
+                    _evidence(evidence_path, context, 'CHUNK_COMPLETE_MORE_WORK'); return context | {'status': 'CHUNK_COMPLETE_MORE_WORK'}
+                records = _normalized_period(adapter, symbol, period, deadline=context['deadline'])
+                canonical = json.dumps(records, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()
+                checkpoint.setdefault('months', {})[key] = {
+                    'symbol': symbol, 'market': 'TWSE', 'year_month': period, 'provider': 'TWSE',
+                    'dataset': 'STOCK_DAY', 'records': records,
+                    'content_hash': hashlib.sha256(canonical).hexdigest(), 'validation_status': 'PASS',
+                }
+                bundle._save_checkpoint(checkpoint_path, checkpoint)
+                context['retrieved'] += 1; context['validated'] += 1; context['retrieved_periods'].append(key)
+                context['progress']['last_successful_period'] = period
+                context['progress']['raw_sessions_by_symbol'][symbol] = len(_records_for_symbol(checkpoint, symbol))
+                context['progress']['aligned_sessions_by_symbol'][symbol] = context['progress']['raw_sessions_by_symbol'][symbol]
+                _evidence(evidence_path, context, 'CHUNK_COMPLETE_MORE_WORK')
+                if context['retrieved'] >= max_new_periods or _deadline_remaining(context['deadline']) <= 0:
+                    context['deadline_exit_triggered'] = _deadline_remaining(context['deadline']) <= 0
+                    context['deadline_remaining_at_exit'] = _deadline_remaining(context['deadline'])
+                    _evidence(evidence_path, context, 'CHUNK_COMPLETE_MORE_WORK'); return context | {'status': 'CHUNK_COMPLETE_MORE_WORK'}
+                if all(context['progress']['raw_sessions_by_symbol'].get(s, 0) >= TARGET_RAW_SESSIONS for s in universe):
+                    _evidence(evidence_path, context, 'BOOTSTRAP_COMPLETE'); return context | {'status': 'BOOTSTRAP_COMPLETE'}
+        status = 'BOOTSTRAP_COMPLETE' if all(context['progress']['raw_sessions_by_symbol'].get(s, 0) >= TARGET_RAW_SESSIONS for s in universe) else 'CHUNK_COMPLETE_MORE_WORK'
+        _evidence(evidence_path, context, status); return context | {'status': status}
+    except ChunkDeadlineReached:
+        bundle._save_checkpoint(checkpoint_path, checkpoint)
+        context['deadline_exit_triggered'] = True; context['deadline_remaining_at_exit'] = _deadline_remaining(context['deadline'])
+        _evidence(evidence_path, context, 'CHUNK_COMPLETE_MORE_WORK', 'TWSE_CHUNK_DEADLINE_REACHED')
+        return context | {'status': 'CHUNK_COMPLETE_MORE_WORK', 'blocking_reason': None}
+    except Exception as exc:
+        bundle._save_checkpoint(checkpoint_path, checkpoint)
+        status = 'TEMPORARY_SOURCE_UNAVAILABLE' if 'TWSE_HOST_TEMPORARILY_UNAVAILABLE' in str(exc) else 'FATAL_DATA_INTEGRITY_FAILURE'
+        _evidence(evidence_path, context, status, str(exc))
+        if status == 'TEMPORARY_SOURCE_UNAVAILABLE':
+            return context | {'status': status, 'blocking_reason': str(exc)}
+        raise
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--trading-date', required=True); ap.add_argument('--universe-file', required=True)
+    ap.add_argument('--checkpoint', default=os.getenv('RATE_TWSE_BOOTSTRAP_CHECKPOINT', 'data/staging/history_bootstrap/RATE_TWSE_HISTORY_BOOTSTRAP_CHECKPOINT_V1.json'))
+    ap.add_argument('--evidence-output', default='artifacts/RATE_TWSE_HISTORY_BOOTSTRAP_EVIDENCE.json')
+    ap.add_argument('--max-new-periods', type=int, default=int(os.getenv('MAX_NEW_PERIODS_PER_CHUNK', DEFAULT_MAX_PERIODS)))
+    ap.add_argument('--max-runtime-seconds', type=int, default=int(os.getenv('MAX_CHUNK_RUNTIME_SECONDS', DEFAULT_MAX_RUNTIME_SECONDS)))
+    ap.add_argument('--chunk-sequence', type=int, default=int(os.getenv('BOOTSTRAP_CHUNK_SEQUENCE', '1')))
+    ap.add_argument('--campaign-status-output', default='artifacts/RATE_TWSE_BOOTSTRAP_CAMPAIGN_STATUS.json')
+    args = ap.parse_args()
+    try:
+        result = run(trading_date=args.trading_date, universe_file=Path(args.universe_file), checkpoint_path=Path(args.checkpoint), evidence_path=Path(args.evidence_output), max_new_periods=args.max_new_periods, max_runtime_seconds=args.max_runtime_seconds, chunk_sequence=args.chunk_sequence, campaign_status_path=Path(args.campaign_status_output))
+        status = result.get('status', 'FATAL_DATA_INTEGRITY_FAILURE')
+        print(json.dumps({'status': status, 'periods_retrieved': result['retrieved'], 'periods_loaded': result['loaded']}))
+        return 0
+    except Exception as exc:
+        print(json.dumps({'status': 'FATAL_DATA_INTEGRITY_FAILURE', 'reason': str(exc)})); return 1
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

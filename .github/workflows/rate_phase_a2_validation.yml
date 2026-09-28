@@ -6,19 +6,380 @@ on:
         description: "Completed trading date YYYY-MM-DD"
         required: true
         default: "2025-09-12"
+      max_new_periods:
+        description: "Bounded historical periods per invocation"
+        required: false
+        default: "12"
+      max_chunk_runtime_seconds:
+        description: "Bounded bootstrap runtime per invocation"
+        required: false
+        default: "600"
+      finalization_reserve_seconds:
+        description: "Reserved time for checkpoint validation and cache save"
+        required: false
+        default: "30"
 jobs:
   phase-a2:
     runs-on: ubuntu-latest
-    permissions: {contents: read}
+    concurrency:
+      group: rate-twse-bootstrap-${{ github.ref }}-${{ inputs.trading_date }}
+      cancel-in-progress: false
+    env:
+      TDCC_OPENAPI_BASE: https://openapi.tdcc.com.tw
+      RATE_TWSE_SYMBOLS: ""
+      RATE_UNIVERSE_FILE: config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json
+      RATE_STAGING_REALTIME: "1"
+      TWSE_HISTORY_MIN_INTERVAL_SECONDS: "1.5"
+      TWSE_HISTORY_HTTP_TIMEOUT_SECONDS: "10"
+      TWSE_STAGING_FAIL_FAST_HOST: "1"
+      TWSE_HISTORY_CIRCUIT_COOLDOWN_SECONDS: "5"
+      RATE_TWSE_BOOTSTRAP_CHECKPOINT: data/staging/history_bootstrap/RATE_TWSE_HISTORY_BOOTSTRAP_CHECKPOINT_V1.json
+      RATE_TAIEX_HISTORY_CHECKPOINT: data/staging/history_bootstrap/RATE_TAIEX_HISTORY_CHECKPOINT_V1.json
+      RATE_TPEX_HISTORY_CHECKPOINT: data/staging/history_bootstrap/RATE_TPEX_HISTORY_CHECKPOINT_V2.json
+      RATE_TPEX_INDEX_HISTORY_CHECKPOINT: data/staging/history_bootstrap/RATE_TPEX_INDEX_HISTORY_CHECKPOINT_V1.json
+      RATE_STAGING_HISTORY_STORE_ROOT: data/staging/history
+      RATE_NORMALIZATION_SCHEMA_VERSION: RATE-STOCK-NORMALIZED-V1
+      RATE_SOURCE_DATASET_VERSION: TWSE_STOCK_DAY_V1
+      RATE_CHECKPOINT_SCHEMA_VERSION: RATE-TWSE-HISTORY-CHECKPOINT-V1
+      MAX_NEW_PERIODS_PER_CHUNK: "${{ inputs.max_new_periods }}"
+      MAX_CHUNK_RUNTIME_SECONDS: "${{ inputs.max_chunk_runtime_seconds }}"
+      CHECKPOINT_FINALIZATION_RESERVE_SECONDS: "${{ inputs.finalization_reserve_seconds }}"
+      RATE_OPERATION_POLICY_GATE: PASS_WITH_USER_ASSUMPTION
+      RATE_T86_AUTHORIZATION_BASIS: USER_DIRECTED_ASSUMPTION
+      RATE_T86_FORMAL_AUTHORIZATION: UNVERIFIED
+      RATE_LIVE_E2E_ENABLED: "false"
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: {python-version: "3.12"}
-      - name: Phase A2 production integration
-        run: python scripts/run_phase_a2.py --trading-date "${{ inputs.trading_date }}"
-      - name: Upload Phase A2 evidence
+        with:
+          python-version: "3.12"
+      - name: Resolve approved staging universe
+        run: >
+          python scripts/resolve_staging_universe.py
+          --approval config/staging/RATE_STAGING_UNIVERSE_APPROVAL_V1.json
+          --output config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json
+      - name: Resolve bootstrap cache identity
+        shell: bash
+        run: |
+          python - <<'PY' >> "$GITHUB_ENV"
+          import json
+          p = 'config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json'
+          obj = json.load(open(p, encoding='utf-8'))
+          print('RATE_UNIVERSE_DIGEST=' + obj['universe_symbol_digest'])
+          print('RATE_BOOTSTRAP_CACHE_PREFIX=rate-twse-bootstrap-v1-' + obj['universe_symbol_digest'] + '-RATE-STOCK-NORMALIZED-V1-TWSE_STOCK_DAY_V1-RATE-TWSE-HISTORY-CHECKPOINT-V1-')
+          print('RATE_BOOTSTRAP_CACHE_KEY=rate-twse-bootstrap-v1-' + obj['universe_symbol_digest'] + '-RATE-STOCK-NORMALIZED-V1-TWSE_STOCK_DAY_V1-RATE-TWSE-HISTORY-CHECKPOINT-V1-${{ github.run_id }}-${{ github.run_attempt }}')
+          PY
+      - name: Restore newest compatible TWSE bootstrap checkpoint
+        id: checkpoint_restore
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            data/staging/history_bootstrap
+            data/staging/history
+          key: ${{ env.RATE_BOOTSTRAP_CACHE_KEY }}
+          restore-keys: ${{ env.RATE_BOOTSTRAP_CACHE_PREFIX }}
+      - name: Bootstrap bounded TWSE historical state
+        id: bootstrap
+        run: >
+          python scripts/bootstrap_live_history.py
+          --trading-date "${{ inputs.trading_date }}"
+          --universe-file config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json
+          --checkpoint "$RATE_TWSE_BOOTSTRAP_CHECKPOINT"
+          --evidence-output artifacts/RATE_TWSE_HISTORY_BOOTSTRAP_EVIDENCE.json
+          --max-new-periods "$MAX_NEW_PERIODS_PER_CHUNK"
+          --max-runtime-seconds "$MAX_CHUNK_RUNTIME_SECONDS"
+          --chunk-sequence "${{ github.run_attempt }}"
+          --campaign-status-output artifacts/RATE_TWSE_BOOTSTRAP_CAMPAIGN_STATUS.json
+      - name: Validate checkpoint before cache save
+        id: checkpoint_validate
         if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from scripts.build_live_source_bundle import validate_checkpoint
+          out = Path(os.environ['GITHUB_OUTPUT'])
+          try:
+              result = validate_checkpoint(os.environ['RATE_TWSE_BOOTSTRAP_CHECKPOINT'], os.environ['RATE_UNIVERSE_DIGEST'])
+              print('checkpoint_validation=PASS')
+              with out.open('a', encoding='utf-8') as f: f.write('valid=true\n')
+          except Exception as exc:
+              print('checkpoint_validation=FAIL:' + str(exc))
+              with out.open('a', encoding='utf-8') as f: f.write('valid=false\n')
+      - name: Save TWSE bootstrap checkpoint generation
+        if: always() && steps.checkpoint_validate.outputs.valid == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data/staging/history_bootstrap
+            data/staging/history
+          key: ${{ env.RATE_BOOTSTRAP_CACHE_KEY }}
+      - name: Gate full bundle on historical completion
+        id: bootstrap_gate
+        if: always()
+        shell: bash
+        run: |
+          if [ -f artifacts/RATE_TWSE_HISTORY_BOOTSTRAP_EVIDENCE.json ]; then
+            status=$(python -c "import json; print(json.load(open('artifacts/RATE_TWSE_HISTORY_BOOTSTRAP_EVIDENCE.json', encoding='utf-8')).get('status','FATAL_DATA_INTEGRITY_FAILURE'))")
+          else
+            status=FATAL_DATA_INTEGRITY_FAILURE
+          fi
+          echo "bootstrap_status=$status"
+          if [ "$status" = "BOOTSTRAP_COMPLETE" ]; then echo "complete=true" >> "$GITHUB_OUTPUT"; else echo "complete=false" >> "$GITHUB_OUTPUT"; fi
+      - name: Source authorization gate
+        id: source_authorization
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          matrix=json.load(open('artifacts/SOURCE_AUTHORIZATION_MATRIX_V1.json', encoding='utf-8'))
+          t86=next((x for x in matrix.get('entries',[]) if x.get('endpoint_or_product')=='T86 official daily report'), {})
+          allowed=(os.environ.get('RATE_OPERATION_POLICY_GATE')=='PASS_WITH_USER_ASSUMPTION'
+                   and t86.get('authorization_status')=='USER_ASSUMPTION'
+                   and t86.get('authorization_basis')=='USER_DIRECTED_ASSUMPTION'
+                   and t86.get('formal_license_verified') is False
+                   and t86.get('operational_use_allowed') is True
+                   and t86.get('redistribution') is False)
+          print('SOURCE_AUTHORIZATION_GATE='+os.environ.get('RATE_OPERATION_POLICY_GATE','UNSET'))
+          print('RATE_OPERATION_POLICY_GATE='+os.environ.get('RATE_OPERATION_POLICY_GATE','UNSET'))
+          print('T86_OPERATIONAL_STATUS='+('ALLOW:USER_DIRECTED_T86_ASSUMPTION' if allowed else 'BLOCKED:USER_ASSUMPTION_POLICY_MISMATCH'))
+          print('T86_FORMAL_AUTHORIZATION=UNVERIFIED')
+          with open(os.environ['GITHUB_OUTPUT'],'a') as out: out.write(f"operational_allowed={'true' if allowed else 'false'}\n")
+          if not allowed: raise SystemExit('T86_OPERATION_POLICY_GATE_INVALID')
+          PY
+      - name: Phase A2 execution guard
+        shell: bash
+        run: |
+          echo "RATE_LIVE_E2E_ENABLED=$RATE_LIVE_E2E_ENABLED"
+          if [ "$RATE_LIVE_E2E_ENABLED" != "true" ]; then echo "Phase A2 execution = SKIPPED_BY_CER070_GUARD"; fi
+      - name: Materialize accepted TWSE historical store
+        id: twse_materialization
+        if: steps.bootstrap_gate.outputs.complete == 'true'
+        run: >
+          python scripts/materialize_twse_history.py
+          --checkpoint "$RATE_TWSE_BOOTSTRAP_CHECKPOINT"
+          --universe-file config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json
+          --history-root data/staging/history
+          --output artifacts/RATE_TWSE_HISTORY_MATERIALIZATION_EVIDENCE.json
+      - name: Bootstrap official TAIEX historical benchmark
+        id: taiex_bootstrap
+        if: steps.bootstrap_gate.outputs.complete == 'true'
+        run: >
+          python scripts/bootstrap_taiex_history.py
+          --trading-date "${{ inputs.trading_date }}"
+          --checkpoint "$RATE_TAIEX_HISTORY_CHECKPOINT"
+          --history-root data/staging/history
+          --output artifacts/RATE_TAIEX_HISTORY_EVIDENCE.json
+      - name: Align TWSE histories to TAIEX exact dates
+        id: taiex_alignment
+        if: steps.bootstrap_gate.outputs.complete == 'true'
+        run: >
+          python scripts/align_twse_taiex_history.py
+          --universe-file config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json
+          --history-root data/staging/history
+          --output artifacts/RATE_TWSE_TAIEX_ALIGNMENT_EVIDENCE.json
+      - name: Probe TPEx individual-stock historical contract
+        id: tpex_contract
+        if: steps.bootstrap_gate.outputs.complete == 'true'
+        continue-on-error: true
+        run: >
+          python scripts/probe_tpex_individual_history_contract.py
+          --period "${{ inputs.trading_date }}"
+          --output artifacts/RATE_TPEX_INDIVIDUAL_HISTORY_CONTRACT_EVIDENCE.json
+      - name: Bootstrap TPEx historical stock tables
+        id: tpex_bootstrap
+        if: steps.bootstrap_gate.outputs.complete == 'true'
+        continue-on-error: true
+        run: >
+          python scripts/bootstrap_tpex_history.py
+          --trading-date "${{ inputs.trading_date }}"
+          --checkpoint "$RATE_TPEX_HISTORY_CHECKPOINT"
+          --output artifacts/RATE_TPEX_HISTORY_BOOTSTRAP_EVIDENCE.json
+      - name: Materialize TPEx historical store
+        id: tpex_materialization
+        if: always() && steps.bootstrap_gate.outputs.complete == 'true'
+        continue-on-error: true
+        run: >
+          python scripts/materialize_tpex_history.py
+          --checkpoint "$RATE_TPEX_HISTORY_CHECKPOINT"
+          --history-root data/staging/history
+          --output artifacts/RATE_TPEX_HISTORY_MATERIALIZATION_EVIDENCE.json
+      - name: Bootstrap TPEx Index historical benchmark
+        id: tpex_index_bootstrap
+        if: steps.bootstrap_gate.outputs.complete == 'true'
+        continue-on-error: true
+        run: >
+          python scripts/bootstrap_tpex_index.py
+          --trading-date "${{ inputs.trading_date }}"
+          --checkpoint "$RATE_TPEX_INDEX_HISTORY_CHECKPOINT"
+          --history-root data/staging/history
+          --output artifacts/RATE_TPEX_INDEX_HISTORY_EVIDENCE.json
+      - name: Align TPEx histories to TPEx Index exact dates
+        id: tpex_alignment
+        if: always() && steps.bootstrap_gate.outputs.complete == 'true'
+        continue-on-error: true
+        run: >
+          python scripts/align_tpex_index_history.py
+          --history-root data/staging/history
+          --output artifacts/RATE_TPEX_INDEX_ALIGNMENT_EVIDENCE.json
+      - name: Build historical state manifest
+        id: historical_manifest
+        if: always() && steps.bootstrap_gate.outputs.complete == 'true'
+        continue-on-error: true
+        run: >
+          python scripts/build_historical_state_manifest.py
+          --universe-file config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json
+          --checkpoint "$RATE_TWSE_BOOTSTRAP_CHECKPOINT"
+          --history-root data/staging/history
+          --tpex-benchmark-file data/staging/history/benchmark/TPEX.json
+          --output artifacts/RATE_STAGING_HISTORICAL_STATE_MANIFEST_V1.json
+      - name: Save canonical historical materialization
+        if: steps.historical_manifest.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data/staging/history_bootstrap
+            data/staging/history
+          key: ${{ env.RATE_BOOTSTRAP_CACHE_KEY }}-materialized
+      - name: Probe TWSE historical redirect transport
+        if: steps.bootstrap_gate.outputs.complete == 'true' && steps.source_authorization.outputs.operational_allowed == 'true' && env.RATE_LIVE_E2E_ENABLED == 'true'
+        run: >
+          python scripts/probe_twse_history_transport.py
+          --trading-date "${{ inputs.trading_date }}"
+          --output artifacts/RATE_TWSE_HISTORY_TRANSPORT_EVIDENCE.json
+      - name: Probe official sources
+        if: steps.bootstrap_gate.outputs.complete == 'true' && steps.source_authorization.outputs.operational_allowed == 'true' && env.RATE_LIVE_E2E_ENABLED == 'true'
+        run: >
+          python scripts/probe_official_sources.py
+          --trading-date "${{ inputs.trading_date }}"
+          --output artifacts/RATE_OFFICIAL_SOURCE_PROBE_EVIDENCE.json
+          --universe-file config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json
+      - name: Build live production source bundle
+        if: steps.bootstrap_gate.outputs.complete == 'true' && steps.source_authorization.outputs.operational_allowed == 'true' && env.RATE_LIVE_E2E_ENABLED == 'true'
+        run: >
+          python scripts/build_live_source_bundle.py
+          --trading-date "${{ inputs.trading_date }}"
+          --output artifacts/live_source_bundle.json
+          --evidence-output artifacts/RATE_LIVE_SOURCE_ASSEMBLY_EVIDENCE.json
+          --bootstrap-evidence-output artifacts/RATE_TWSE_HISTORY_BOOTSTRAP_EVIDENCE.json
+      - name: Run Phase A2 production integration
+        if: steps.bootstrap_gate.outputs.complete == 'true' && steps.source_authorization.outputs.operational_allowed == 'true' && env.RATE_LIVE_E2E_ENABLED == 'true'
+        run: >
+          python scripts/run_phase_a2.py
+          --trading-date "${{ inputs.trading_date }}"
+          --source-bundle artifacts/live_source_bundle.json
+      - name: Upload Phase A2 evidence
+        if: always() && env.RATE_LIVE_E2E_ENABLED == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: RATE_PHASE_A2_VALIDATION_EVIDENCE
           path: artifacts/RATE_PHASE_A2_VALIDATION_EVIDENCE.json
+      - name: Upload T86 operational policy evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_T86_USER_DIRECTED_OPERATION_POLICY
+          path: |
+            artifacts/RATE_T86_USER_DIRECTED_OPERATION_POLICY_V1.json
+            artifacts/RATE_TWSE_T86_AUTHORIZATION_EVIDENCE.json
+            artifacts/SOURCE_AUTHORIZATION_MATRIX_V1.json
+      - name: Upload LIVE source assembly evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_LIVE_SOURCE_ASSEMBLY_EVIDENCE
+          path: artifacts/RATE_LIVE_SOURCE_ASSEMBLY_EVIDENCE.json
+      - name: Upload official source probe evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_OFFICIAL_SOURCE_PROBE_EVIDENCE
+          path: artifacts/RATE_OFFICIAL_SOURCE_PROBE_EVIDENCE.json
+      - name: Upload TWSE history transport evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_TWSE_HISTORY_TRANSPORT_EVIDENCE
+          path: artifacts/RATE_TWSE_HISTORY_TRANSPORT_EVIDENCE.json
+      - name: Upload TWSE bootstrap evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_TWSE_HISTORY_BOOTSTRAP_EVIDENCE
+          path: artifacts/RATE_TWSE_HISTORY_BOOTSTRAP_EVIDENCE.json
+      - name: Upload TWSE bootstrap checkpoint
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_TWSE_HISTORY_BOOTSTRAP_CHECKPOINT
+          path: data/staging/history_bootstrap/RATE_TWSE_HISTORY_BOOTSTRAP_CHECKPOINT_V1.json
+      - name: Upload TWSE bootstrap campaign status
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_TWSE_BOOTSTRAP_CAMPAIGN_STATUS
+          path: artifacts/RATE_TWSE_BOOTSTRAP_CAMPAIGN_STATUS.json
+      - name: Upload TWSE materialization evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_TWSE_HISTORY_MATERIALIZATION_EVIDENCE
+          path: artifacts/RATE_TWSE_HISTORY_MATERIALIZATION_EVIDENCE.json
+      - name: Upload TAIEX history evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_TAIEX_HISTORY_EVIDENCE
+          path: artifacts/RATE_TAIEX_HISTORY_EVIDENCE.json
+      - name: Upload TWSE TAIEX alignment evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_TWSE_TAIEX_ALIGNMENT_EVIDENCE
+          path: artifacts/RATE_TWSE_TAIEX_ALIGNMENT_EVIDENCE.json
+      - name: Upload TPEx individual history contract evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_TPEX_INDIVIDUAL_HISTORY_CONTRACT_EVIDENCE
+          path: artifacts/RATE_TPEX_INDIVIDUAL_HISTORY_CONTRACT_EVIDENCE.json
+      - name: Upload TPEx bootstrap evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_TPEX_HISTORY_BOOTSTRAP_EVIDENCE
+          path: artifacts/RATE_TPEX_HISTORY_BOOTSTRAP_EVIDENCE.json
+      - name: Upload TPEx bootstrap checkpoint
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_TPEX_HISTORY_BOOTSTRAP_CHECKPOINT
+          path: data/staging/history_bootstrap/RATE_TPEX_HISTORY_CHECKPOINT_V2.json
+      - name: Upload TPEx materialization evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_TPEX_HISTORY_MATERIALIZATION_EVIDENCE
+          path: artifacts/RATE_TPEX_HISTORY_MATERIALIZATION_EVIDENCE.json
+      - name: Upload TPEx Index evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_TPEX_INDEX_HISTORY_EVIDENCE
+          path: artifacts/RATE_TPEX_INDEX_HISTORY_EVIDENCE.json
+      - name: Upload TPEx alignment evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_TPEX_INDEX_ALIGNMENT_EVIDENCE
+          path: artifacts/RATE_TPEX_INDEX_ALIGNMENT_EVIDENCE.json
+      - name: Upload historical state manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_STAGING_HISTORICAL_STATE_MANIFEST_V1
+          path: artifacts/RATE_STAGING_HISTORICAL_STATE_MANIFEST_V1.json

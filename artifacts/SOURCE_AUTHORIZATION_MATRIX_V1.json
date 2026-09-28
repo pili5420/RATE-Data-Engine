@@ -234,17 +234,27 @@
       "data_domain": "institutional_listed",
       "access_method": "official source",
       "official_source": true,
-      "public_or_subscription": "official source; license evidence pending",
+      "public_or_subscription": "official source; formal license/subscription evidence not verified",
       "license": null,
-      "intended_use": "internal RATE production analytics",
+      "intended_use": "NON_DISPLAY_INTERNAL_ANALYTICS; internal RATE automated analytics only",
       "redistribution": false,
       "attribution_required": true,
       "raw_storage_required": true,
       "derived_calculation_allowed": true,
       "terms_reference": "https://www.twse.com.tw/",
-      "authorization_evidence": "Official source confirmed by Control Center; dataset-level license evidence not yet preserved.",
-      "authorization_status": "BLOCKED",
-      "blocking_reason": "PENDING_DATASET_LICENSE_EVIDENCE"
+      "authorization_evidence": "Official source confirmed. Operational use is permitted solely by explicit user-directed assumption; this is not formal TWSE license or subscription evidence.",
+      "authorization_status": "USER_ASSUMPTION",
+      "blocking_reason": null,
+      "authorization_basis": "USER_DIRECTED_ASSUMPTION",
+      "formal_license_verified": false,
+      "operational_use_allowed": true,
+      "formal_authorization_status": "UNVERIFIED",
+      "subscription_evidence": "NO_EVIDENCE",
+      "written_confirmation": "NO_EVIDENCE",
+      "raw_data_redistribution": "NO",
+      "public_raw_data_display": "NO",
+      "third_party_redistribution": "NO",
+      "t86_authorization_evidence": "USER_ASSUMPTION_UNVERIFIED"
     },
     {
       "provider": "TWSE",
@@ -281,9 +291,7 @@
     "上市公司綜合損益表",
     "上市公司基本資料 / 公開發行公司基本資料"
   ],
-  "blocked_datasets": [
-    "三大法人買賣超日報 T86"
-  ],
+  "blocked_datasets": [],
   "authorized_domain_coverage": [
     "market_daily",
     "market_daily_close",
@@ -296,8 +304,31 @@
     "trading_symbol_master",
     "trading_metadata"
   ],
-  "additional_subscription_required": "NO_FOR_DATASETS_WITH_EXPLICIT_OPEN_GOVERNMENT_LICENSE; YES_OR_WRITTEN_CONFIRMATION_FOR_UNLICENSED_PRODUCTS",
-  "required_user_action": "Preserve attribution/license evidence for every PASS dataset; obtain T86 license evidence and trading-status dataset mapping.",
-  "gate_status": "PARTIAL",
-  "authorization_gate": "USER_DIRECTED_ASSUMPTION — engineering validation may proceed; formal Production release remains conditional pending verified authorization evidence."
+  "additional_subscription_required": "NO_FOR_OPERATIONAL_GATE_UNDER_USER_ASSUMPTION; FORMAL_AUTHORIZATION_UNVERIFIED",
+  "required_user_action": "No additional action required for internal engineering and production validation under the user-directed assumption; formal license, active TWT86UC subscription, and written TWSE confirmation remain unverified.",
+  "gate_status": "PASS_WITH_USER_ASSUMPTION",
+  "authorization_gate": "PASS_WITH_USER_ASSUMPTION",
+  "user_assumption_datasets": [
+    "三大法人買賣超日報 T86"
+  ],
+  "formal_authorization_unverified_datasets": [
+    "三大法人買賣超日報 T86"
+  ],
+  "operation_policy_gate": "PASS_WITH_USER_ASSUMPTION",
+  "formal_authorization_status": "UNVERIFIED",
+  "historical_institutional_requirement": {
+    "minimum_valid_sessions": 20,
+    "FI_history": "REQUIRED",
+    "IT_history": "REQUIRED",
+    "FC_latest_20_session_input": "REQUIRED",
+    "fixtures_allowed": false,
+    "silent_prior_day_fill_allowed": false,
+    "null_to_zero_allowed": false,
+    "historical_rebootstrap": "PROHIBITED"
+  },
+  "historical_acceptance_status": "NOT_YET_VERIFIED",
+  "intraday_status": {
+    "0930": "BLOCKED:INTRADAY_SOURCE_UNAVAILABLE",
+    "1200": "BLOCKED:INTRADAY_SOURCE_UNAVAILABLE"
+  }
 }

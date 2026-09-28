@@ -1,0 +1,359 @@
+import unittest
+from datetime import date, timedelta
+from unittest.mock import patch
+
+from src.institutional_history import (
+    INSTITUTIONAL_HISTORY_MINIMUM, canonical_digest, fetch_t86_sessions,
+    fetch_tpex_monthly_history, fetch_tpex_daily_sessions, normalize_tpex_daily_response,
+    normalize_t86_response, valid_stock_session_dates,
+)
+from src.sources.tpex import (TPExAdapter, TPExDailyTransportError,
+                              _body_prefix_class, _resilient_tpex_daily_json)
+from scripts.run_cer072_acceptance import (_institutional_asof_history, _stable_digest, _tdcc_history, _verify_model_freeze)
+
+
+def _dates(count=26):
+    out=[]; day=date(2026,8,1)
+    while len(out)<count:
+        if day.weekday()<5: out.append(day.isoformat())
+        day += timedelta(days=1)
+    return out
+
+
+def _stock_rows(symbols, days):
+    return {s:[{'trade_date':d,'close':100.0,'turnover':100000.0} for d in days] for s in symbols}
+
+
+def _t86(day, symbols):
+    fields=['證券代號','外陸資買進股數(不含外資自營商)','外陸資賣出股數(不含外資自營商)',
+            '外陸資買賣超股數(不含外資自營商)','投信買進股數','投信賣出股數','投信買賣超股數']
+    return {'diagnostics':{'http_status':200},'raw_payload':{'date':day.replace('-',''),
+      'fields':fields,'data':[[s,'12','5','7','9','4','5'] for s in symbols]},'source_timestamp':'2026-09-18T09:00:00Z','content_hash':'abc'}
+
+
+class CER072InstitutionalHistoryTests(unittest.TestCase):
+    def test_minimum_is_26_sessions(self):
+        self.assertEqual(INSTITUTIONAL_HISTORY_MINIMUM,26)
+
+    def test_common_session_calendar_excludes_weekends_and_is_unique(self):
+        days=_dates(); symbols=['2330','2317']
+        rows=_stock_rows(symbols,days)
+        self.assertEqual(valid_stock_session_dates(rows,symbols,limit=26),days)
+        self.assertTrue(all(date.fromisoformat(d).weekday()<5 for d in days))
+
+    def test_duplicate_stock_session_is_rejected(self):
+        days=_dates(); rows=_stock_rows(['2330'],days); rows['2330'].append(dict(rows['2330'][0]))
+        with self.assertRaisesRegex(ValueError,'DUPLICATE_OR_INVALID'):
+            valid_stock_session_dates(rows,['2330'],limit=26)
+
+    def test_t86_explicit_response_date_matches_requested_date(self):
+        day=_dates()[0]; symbols=['2330']
+        result=normalize_t86_response(_t86(day,symbols),day,_stock_rows(symbols,[day]),symbols)
+        self.assertEqual(result['2330']['trading_date'],day)
+        self.assertEqual(result['2330']['foreign_net_shares'],7)
+        self.assertEqual(result['2330']['investment_trust_net_shares'],5)
+
+    def test_t86_response_date_mismatch_fails(self):
+        days=_dates(); symbols=['2330']; payload=_t86(days[0],symbols)
+        with self.assertRaisesRegex(ValueError,'DATE_IDENTITY_MISMATCH'):
+            normalize_t86_response(payload,days[1],_stock_rows(symbols,days),symbols)
+
+    def test_t86_requires_all_fi_it_fields_and_arithmetic(self):
+        day=_dates()[0]; symbols=['2330']; payload=_t86(day,symbols)
+        payload['raw_payload']['data'][0][3]='99'
+        with self.assertRaisesRegex(ValueError,'ARITHMETIC_MISMATCH'):
+            normalize_t86_response(payload,day,_stock_rows(symbols,[day]),symbols)
+
+    def test_t86_one_market_request_per_session_for_all_symbols(self):
+        days=_dates(); symbols=['2330','2317']; stocks=_stock_rows(symbols,days)
+        class Adapter:
+            calls=[]
+            def fetch_t86(self,day): self.calls.append(day); return _t86(day,symbols)
+        adapter=Adapter(); result=fetch_t86_sessions(adapter,stocks,symbols,days)
+        self.assertEqual(len(adapter.calls),26)
+        self.assertEqual(result['request_count'],26)
+        self.assertEqual(result['session_dates'],days)
+        self.assertEqual([len(result['records'][s]) for s in symbols],[26,26])
+
+    def test_t86_empty_response_does_not_count(self):
+        days=_dates(27); symbols=['2330']; stocks=_stock_rows(symbols,days)
+        class Adapter:
+            def fetch_t86(self,day):
+                payload=_t86(day,symbols)
+                if day==days[-1]: payload['raw_payload']['data']=[]
+                return payload
+        result=fetch_t86_sessions(Adapter(),stocks,symbols,days)
+        self.assertEqual(result['request_count'],27)
+        self.assertEqual(result['empty_nontrading_dates'],[days[-1]])
+        self.assertEqual(len(result['session_dates']),26)
+
+    def test_tpex_monthly_requests_are_deduplicated_and_rows_date_bound(self):
+        days=_dates(40); symbols=['6274']; stocks=_stock_rows(symbols,days)
+        class Adapter:
+            calls=[]
+            def fetch_institutional_history(self,symbol,month):
+                self.calls.append(month)
+                rows=[]
+                for d in days:
+                    if d[:7].replace('-','')==month:
+                        rows.append({'SecuritiesCompanyCode':'6274','Date':d.replace('-','/'),
+                          'ForeignBuy':'12','ForeignSell':'5','ForeignNet':'7',
+                          'InvestmentTrustBuy':'9','InvestmentTrustSell':'4','InvestmentTrustNet':'5'})
+                return {'raw_payload':rows,'source_timestamp':'2026-09-18T09:00:00Z'}
+        adapter=Adapter(); result=fetch_tpex_monthly_history(adapter,symbols,stocks,days[:26])
+        self.assertEqual(adapter.calls,sorted({d[:7].replace('-','') for d in days[:26]}))
+        self.assertEqual(result['monthly_request_deduplication'],'PASS')
+        self.assertEqual(len(result['records']['6274']),26)
+
+    def test_tpex_response_period_mismatch_fails(self):
+        days=_dates(40); symbols=['6274']; stocks=_stock_rows(symbols,days)
+        class Adapter:
+            def fetch_institutional_history(self,symbol,month):
+                return {'raw_payload':[{'SecuritiesCompanyCode':'6274','Date':'2026/09/01',
+                  'ForeignBuy':'12','ForeignSell':'5','ForeignNet':'7','InvestmentTrustBuy':'9',
+                  'InvestmentTrustSell':'4','InvestmentTrustNet':'5'}]}
+        with self.assertRaisesRegex(ValueError,'PERIOD_MISMATCH'):
+            fetch_tpex_monthly_history(Adapter(),symbols,stocks,days[:26])
+
+    def test_institutional_asof_window_accepts_20_rows_and_excludes_future(self):
+        days=[day for day in _dates(100) if '2026-08-14' <= day <= '2026-09-10']
+        rows=[{'trading_date':day,'foreign_net_shares':1} for day in days]
+        rows.append({'trading_date':'2026-09-11','foreign_net_shares':999})
+        selected=_institutional_asof_history(rows,'2330','2026-09-10')
+        self.assertEqual(len(selected),20)
+        self.assertEqual(selected[-1]['trading_date'],'2026-09-10')
+        with self.assertRaisesRegex(RuntimeError,'STAGE_INSTITUTIONAL_WINDOW'):
+            _institutional_asof_history(rows[1:-1],'2330','2026-09-10')
+
+    def test_prior_stage_identity_hash_is_deterministic(self):
+        value={'prior_session':'2026-09-17','symbols':[{'symbol':'2330','previous_stage':'BUILD'}]}
+        self.assertEqual(canonical_digest(value),canonical_digest(value))
+
+    def test_prior_stage_package_hash_excludes_volatile_timestamps(self):
+        a={'symbol':'2330','evidence':{'derived_value':50,'source_timestamp':'2026-09-18T01:00:00Z'}}
+        b={'symbol':'2330','evidence':{'derived_value':50,'source_timestamp':'2026-09-18T02:00:00Z'}}
+        self.assertEqual(_stable_digest(a),_stable_digest(b))
+
+    def test_frozen_model_and_spec_files_match_accepted_hashes(self):
+        self.assertEqual(_verify_model_freeze()['status'],'PASS')
+
+    def test_tdcc_history_is_filtered_as_of_and_uses_published_holder_tiers(self):
+        from scripts.run_cer072_acceptance import _tdcc_history
+        periods=['2026-08-07','2026-08-14','2026-08-21','2026-08-28','2026-09-04',
+                 '2026-09-11','2026-09-18','2026-09-25']
+        normalized=[]
+        for period in periods:
+            for tier in range(1,16):
+                normalized.append({'symbol':'2330','period_end':period,'holding_range':tier,
+                    'holder_percentage':float(tier),'retrieval_timestamp':'2026-09-19T10:00:00Z'})
+        class FakeAdapter:
+            available_periods=periods
+            def fetch_period_union(self, symbols, requested):
+                return {'normalized_rows':[x for x in normalized if x['period_end'] in requested],
+                    'transport_contract':{'method':'POST'},'request_count':len(requested),
+                    'source_timestamp':'2026-09-18','response_date_identity_status':'PASS',
+                    'symbols_required':1,'symbols_complete':1}
+        with patch('scripts.run_cer072_acceptance.TDCCHistoricalAdapter',return_value=FakeAdapter()):
+            history,_=_tdcc_history(['2330'],'2026-09-18',['2026-09-18'])
+        self.assertEqual([r['period_end'] for r in history['2330']],
+                         ['2026-08-21','2026-08-28','2026-09-04','2026-09-11','2026-09-18'])
+        self.assertEqual([r['holder_pct_400'] for r in history['2330']],[54.0]*5)
+
+    @staticmethod
+    def _tpex_daily(day, symbols):
+        fields = ['代號','名稱'] + ['買進股數','賣出股數','買賣超股數'] * 7 + ['三大法人買賣超股數合計']
+        semantic = ['代號','名稱']
+        for group in ('外資及陸資(不含外資自營商)','外資自營商','外資及陸資','投信',
+                      '自營商(自行買賣)','自營商(避險)','自營商'):
+            semantic.extend(f'{group}.{leaf}' for leaf in ('買進股數','賣出股數','買賣超股數'))
+        semantic.append('三大法人買賣超股數合計')
+        values = ['12','5','7','1000','0','1000','1012','255','757','9','4','5',
+                  '0','0','0','0','0','0','0','0','0','76']
+        data = [[s,'測試'] + values for s in symbols]
+        payload = {'tables':[{'date':f'{int(day[:4])-1911:03d}/{day[5:7]}/{day[8:]}',
+                              'title':'三大法人買賣明細資訊','fields':fields,'data':data}]}
+        return {'raw_payload':payload,'diagnostics':{'http_status':200,'content_type':'application/json',
+            'semantic_field_names':semantic,'semantic_schema_source':'official-product-template',
+            'record_count':len(data),'response_date_location':'tables[0].date','body_sha256':'digest'},
+            'source_timestamp':'2026-09-18T09:00:00Z','content_hash':'digest'}
+
+    def test_legacy_adapter_route_is_disabled(self):
+        with self.assertRaisesRegex(RuntimeError,'LEGACY_INSTITUTIONAL_ROUTE_DISABLED'):
+            TPExAdapter().fetch_institutional_history('', '202609')
+
+    def test_official_grouped_header_template_maps_repeated_api_fields_semantically(self):
+        source = '''<template id="theads"><thead><tr>
+          <th rowspan="2">代號</th><th rowspan="2">名稱</th>
+          <th colspan="3">外資及陸資(不含外資自營商)</th><th colspan="3">外資自營商</th>
+          <th colspan="3">外資及陸資</th><th colspan="3">投信</th>
+          <th colspan="3">自營商(自行買賣)</th><th colspan="3">自營商(避險)</th>
+          <th colspan="3">自營商</th><th rowspan="2">三大法人買賣超股數合計</th></tr><tr>
+          ''' + ''.join('<th>' + x + '</th>' for _ in range(7)
+                         for x in ('買進股數','賣出股數','買賣超股數')) + '''
+          </tr></thead></template>'''
+        api_fields = ['代號','名稱'] + ['買進股數','賣出股數','買賣超股數'] * 7 + ['三大法人買賣超股數合計']
+        parsed = TPExAdapter()._parse_institutional_header_template(source, api_fields)
+        self.assertEqual(parsed[2], '外資及陸資(不含外資自營商).買進股數')
+        self.assertEqual(parsed[13], '投信.買賣超股數')
+        self.assertEqual(parsed[-1], '三大法人買賣超股數合計')
+
+    def test_semantic_header_schema_is_required_for_duplicate_json_labels(self):
+        day='2026-09-18'; symbols=['6274']; payload=self._tpex_daily(day,symbols)
+        payload['diagnostics'].pop('semantic_field_names')
+        with self.assertRaisesRegex(ValueError,'SEMANTIC_HEADER_SCHEMA_MISSING'):
+            normalize_tpex_daily_response(payload,day,_stock_rows(symbols,[day]),symbols)
+
+    def test_current_dailytrade_schema_maps_by_field_names_and_excludes_dealer(self):
+        day='2026-09-18'; symbols=['6274']; stocks=_stock_rows(symbols,[day])
+        parsed=normalize_tpex_daily_response(self._tpex_daily(day,symbols),day,stocks,symbols)
+        row=parsed['records']['6274']
+        self.assertEqual(row['foreign_buy'],12)
+        self.assertEqual(row['foreign_net'],7)
+        self.assertNotEqual(row['foreign_buy'],1012)
+        self.assertEqual(parsed['response_date'],day)
+        self.assertEqual(parsed['field_mapping']['foreign_ex_dealer.buy'],
+                         '外資及陸資(不含外資自營商).買進股數')
+
+    def test_official_daily_report_buy_sell_net_share_labels_are_supported(self):
+        day='2026-09-18'; symbols=['6274']; payload=self._tpex_daily(day,symbols)
+        fields=payload['raw_payload']['tables'][0]['fields']
+        payload['raw_payload']['tables'][0]['fields']=[
+            (f if f == '三大法人買賣超股數合計' else f.replace('買進股數','買股數').replace('賣出股數','賣股數').replace('買賣超股數','淨買股數'))
+            for f in fields]
+        payload['diagnostics']['semantic_field_names']=[
+            f.rsplit('.',1)[0] + '.' + f.rsplit('.',1)[-1].replace('買進股數','買股數')
+             .replace('賣出股數','賣股數').replace('買賣超股數','淨買股數')
+            if '.' in f else f for f in payload['diagnostics']['semantic_field_names']]
+        parsed=normalize_tpex_daily_response(payload,day,_stock_rows(symbols,[day]),symbols)
+        self.assertEqual(parsed['records']['6274']['foreign_net'],7)
+        self.assertEqual(parsed['records']['6274']['investment_trust_net'],5)
+
+    def test_roc_response_date_normalizes_and_requires_exact_identity(self):
+        day='2026-09-18'; symbols=['6274']; stocks=_stock_rows(symbols,[day])
+        payload=self._tpex_daily(day,symbols)
+        self.assertEqual(normalize_tpex_daily_response(payload,day,stocks,symbols)['response_date'],day)
+        with self.assertRaisesRegex(ValueError,'RESPONSE_DATE_MISMATCH'):
+            normalize_tpex_daily_response(payload,'2026-09-17',stocks,symbols)
+
+    def test_aggregate_foreign_field_cannot_substitute_for_ex_dealer_fi(self):
+        day='2026-09-18'; symbols=['6274']; payload=self._tpex_daily(day,symbols)
+        table=payload['raw_payload']['tables'][0]
+        payload['diagnostics']['semantic_field_names']=[
+            x.replace('外資及陸資(不含外資自營商).','外資及陸資合計.')
+            for x in payload['diagnostics']['semantic_field_names']]
+        with self.assertRaisesRegex(ValueError,'REQUIRED_FIELDS_MISSING'):
+            normalize_tpex_daily_response(payload,day,_stock_rows(symbols,[day]),symbols)
+
+    def test_foreign_arithmetic_mismatch_fails_closed(self):
+        day='2026-09-18'; symbols=['6274']; payload=self._tpex_daily(day,symbols)
+        payload['raw_payload']['tables'][0]['data'][0][3]='8'
+        with self.assertRaisesRegex(ValueError,'FOREIGN_ARITHMETIC_MISMATCH'):
+            normalize_tpex_daily_response(payload,day,_stock_rows(symbols,[day]),symbols)
+
+    def test_investment_trust_arithmetic_mismatch_fails_closed(self):
+        day='2026-09-18'; symbols=['6274']; payload=self._tpex_daily(day,symbols)
+        payload['raw_payload']['tables'][0]['data'][0][13]='6'
+        with self.assertRaisesRegex(ValueError,'IT_ARITHMETIC_MISMATCH'):
+            normalize_tpex_daily_response(payload,day,_stock_rows(symbols,[day]),symbols)
+
+    def test_daily_transport_posts_roc_date_and_caches_one_market_request(self):
+        adapter=TPExAdapter()
+        daily=self._tpex_daily('2026-09-18',['6274'])
+        with patch('src.sources.tpex._resilient_tpex_daily_json',return_value={
+                'payload':daily['raw_payload'],'body_sha256':'digest','diagnostics':daily['diagnostics']}) as transport, \
+             patch.object(adapter,'_fetch_institutional_daily_semantic_schema',return_value={
+                'semantic_schema_status':'PASS','semantic_schema_source':'fixture',
+                'semantic_schema_sha256':'fixture-hash',
+                'semantic_field_names':daily['diagnostics']['semantic_field_names']}):
+            first=adapter.fetch_institutional_daily('2026-09-18')
+            second=adapter.fetch_institutional_daily('2026-09-18')
+        self.assertEqual(transport.call_count,1)
+        self.assertEqual(first['request_params']['date'],'115/09/18')
+        self.assertTrue(second['diagnostics']['cache_hit'])
+
+    def test_three_probes_are_reused_and_each_session_requested_once_for_five_symbols(self):
+        days=['2026-08-14','2026-08-17','2026-08-18']
+        while len(days)<26:
+            from datetime import date, timedelta
+            d=date.fromisoformat(days[-1])+timedelta(days=1)
+            while d.weekday()>=5: d+=timedelta(days=1)
+            days.append(d.isoformat())
+        symbols=['6274','3081','6187','6510','3227']; stocks=_stock_rows(symbols,days)
+        class Adapter:
+            def __init__(self): self.calls=[]
+            def fetch_institutional_daily(self,day):
+                self.calls.append(day)
+                data=CER072InstitutionalHistoryTests._tpex_daily(day,symbols)
+                return {'raw_payload':data['raw_payload'],'diagnostics':data['diagnostics'],
+                        'source_timestamp':data['source_timestamp'],'content_hash':'digest','endpoint':'official',
+                        'request_params':{'date':day}}
+        adapter=Adapter(); contract=[]; evidence=[]
+        result=fetch_tpex_daily_sessions(adapter,symbols,stocks,days,probe_dates=days[:3],
+            evidence_writer=lambda v,daily=False: (evidence if daily else contract).append(v))
+        self.assertEqual(len(adapter.calls),26)
+        self.assertEqual(len(set(adapter.calls)),26)
+        self.assertEqual(result['session_calendar'],'26/26')
+        self.assertEqual(result['session_count_by_symbol'],{s:26 for s in symbols})
+        self.assertEqual(result['daily_request_deduplication'],'PASS')
+        self.assertEqual(result['valid_responses'],26)
+
+    def test_daily_html_and_json_decode_failure_diagnostics_are_classified(self):
+        self.assertEqual(_body_prefix_class(b'<!doctype html><html>challenge</html>'),'HTML')
+        class Response:
+            status=200
+            headers={'Content-Type':'text/html','Content-Length':'37','Date':'Fri, 18 Sep 2026 08:00:00 GMT'}
+            def __enter__(self): return self
+            def __exit__(self,*args): return False
+            def read(self): return b'<!doctype html><html>challenge</html>'
+            def geturl(self): return 'https://www.tpex.org.tw/www/zh-tw/insti/dailyTrade'
+        class Opener:
+            def open(self,*args,**kwargs): return Response()
+        with patch('src.sources.tpex.build_opener',return_value=Opener()):
+            with self.assertRaises(TPExDailyTransportError) as caught:
+                _resilient_tpex_daily_json('https://www.tpex.org.tw/www/zh-tw/insti/dailyTrade',{'date':'115/09/18'},retries=3)
+        error=caught.exception
+        self.assertEqual(error.diagnostics['http_status'],200)
+        self.assertEqual(error.diagnostics['content_type'],'text/html')
+        self.assertEqual(error.diagnostics['body_prefix_class'],'HTML')
+        self.assertEqual(error.diagnostics['json_decode_status'],'FAIL:JSONDecodeError')
+        self.assertEqual(error.diagnostics['body_prefix_class'],'HTML')
+
+    def test_daily_missing_required_value_never_becomes_zero(self):
+        day='2026-09-18'; symbols=['6274']; payload=self._tpex_daily(day,symbols)
+        payload['raw_payload']['tables'][0]['data'][0][2]='-'
+        with self.assertRaisesRegex(ValueError,'MISSING_REQUIRED_INSTITUTIONAL_FIELD'):
+            normalize_tpex_daily_response(payload,day,_stock_rows(symbols,[day]),symbols)
+
+    def test_daily_missing_symbol_coverage_fails(self):
+        day='2026-09-18'; symbols=['6274','3081']; payload=self._tpex_daily(day,['6274'])
+        with self.assertRaisesRegex(ValueError,'SYMBOLS_MISSING'):
+            normalize_tpex_daily_response(payload,day,_stock_rows(symbols,[day]),symbols)
+
+    def test_contract_probe_preserves_safe_schema_diagnostics_on_mapping_failure(self):
+        days=['2026-08-14','2026-08-17','2026-08-18']
+        while len(days)<26:
+            from datetime import date, timedelta
+            d=date.fromisoformat(days[-1])+timedelta(days=1)
+            while d.weekday()>=5: d+=timedelta(days=1)
+            days.append(d.isoformat())
+        symbols=['6274']; stocks=_stock_rows(symbols,days); evidence=[]
+        invalid=self._tpex_daily(days[0],symbols)
+        invalid['raw_payload']['tables'][0]['fields']=['代號','無關欄位']
+        invalid['raw_payload']['tables'][0]['data']=[['6274','value']]
+        invalid['diagnostics'].update({'top_level_keys':['tables'],'table_count':1,
+            'response_field_names':['代號','無關欄位'],'semantic_field_names':['代號','無關欄位'],'response_date':'115/08/14',
+            'response_date_location':'tables[0].date','table_title':'日報表'})
+        class Adapter:
+            def fetch_institutional_daily(self,day):
+                return {'raw_payload':invalid['raw_payload'],'diagnostics':invalid['diagnostics'],
+                    'endpoint':'official','request_params':{'date':day}}
+        with self.assertRaisesRegex(ValueError,'REQUIRED_FIELDS_MISSING'):
+            fetch_tpex_daily_sessions(Adapter(),symbols,stocks,days,probe_dates=days[:3],
+                evidence_writer=lambda item,daily=False: evidence.append((item,daily)))
+        contract=[item for item,daily in evidence if not daily][-1]
+        self.assertEqual(contract['probes'][0]['response_field_names'],['代號','無關欄位'])
+        self.assertEqual(contract['probes'][0]['response_date_location'],'tables[0].date')
+        self.assertEqual(contract['transport_status'],'FAIL')
+
+
+if __name__=='__main__': unittest.main()

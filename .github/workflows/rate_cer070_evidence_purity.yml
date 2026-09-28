@@ -1,0 +1,122 @@
+name: RATE CER-070 Evidence Purity
+
+on:
+  push:
+    branches:
+      - rate-v2-6-1r2-staging
+    paths-ignore:
+      - .github/workflows/rate_cer070_evidence_purity.yml
+      - .github/workflows/rate_cer071_stage_validation.yml
+      - .github/workflows/rate_cer072_validation.yml
+      - .github/workflows/rate_cer073_source_completeness.yml
+      - .github/workflows/rate_cer073_representation_discovery.yml
+      - .github/workflows/rate_cer073_fundamental_bootstrap.yml
+      - .github/workflows/rate_cer073_fundamental_contract_probe.yml
+      - .github/workflows/rate_cer073_final_source_bundle_closure.yml
+      - .github/workflows/rate_cer074_first_production_acceptance.yml
+      - .github/workflows/rate_production_0730_scheduler.yml
+      - .github/workflows/rate_cer076_0930_incremental_acceptance.yml
+      - .github/workflows/rate_cer077_1200_incremental_acceptance.yml
+      - .github/workflows/rate_cer078_1930_evening_acceptance.yml
+      - .github/workflows/rate_cer079_full_day_chain_acceptance.yml
+      - .github/workflows/rate_cer080_multi_day_continuity_acceptance.yml
+      - .github/workflows/rate_cer081_unattended_multi_day_soak.yml
+      - .github/workflows/rate_production_0930_scheduler.yml
+      - .github/workflows/rate_production_1200_scheduler.yml
+      - .github/workflows/rate_production_1930_scheduler.yml
+      - src/cer081_unattended_soak.py
+      - scripts/run_cer081_unattended_soak_acceptance.py
+      - scripts/publish_production_source_bundle_latest.py
+      - tests/test_production_source_latest_publisher.py
+      - tests/test_cer081_unattended_soak.py
+      - src/cer080_multi_day_continuity.py
+      - scripts/run_cer080_multi_day_continuity_acceptance.py
+      - tests/test_cer080_multi_day_continuity.py
+      - src/cer079_full_day_chain.py
+      - scripts/run_cer079_full_day_chain_acceptance.py
+      - tests/test_cer079_full_day_chain.py
+      - src/cer078_evening_1930.py
+      - scripts/run_cer078_evening_1930_acceptance.py
+      - tests/test_cer078_evening_1930.py
+      - src/cer077_incremental_1200.py
+      - scripts/run_cer077_incremental_1200_acceptance.py
+      - tests/test_cer077_incremental_1200.py
+      - src/cer076_incremental_0930.py
+      - scripts/run_cer076_incremental_0930_acceptance.py
+      - tests/test_cer076_incremental_0930.py
+      - src/cer075_scheduler.py
+      - scripts/run_cer075_scheduler_acceptance.py
+      - tests/test_cer075_scheduler.py
+      - src/cer074_acceptance.py
+      - scripts/run_cer074_acceptance.py
+      - tests/test_cer074_acceptance.py
+      - scripts/close_cer073_final_source_bundle.py
+      - scripts/build_live_source_bundle.py
+      - src/sources/tdcc_historical.py
+      - tests/test_cer072_tdcc_historical.py
+      - tests/test_cer073_final_source_bundle_closure.py
+      - scripts/discover_fundamental_representations.py
+      - scripts/bootstrap_cer073_fundamentals.py
+      - src/sources/fundamental_history.py
+      - tests/test_cer073_representation_discovery.py
+      - tests/test_cer073_fundamental_history_v2.py
+      - docs/CER073_REPRESENTATION_DISCOVERY.md
+  workflow_dispatch:
+    inputs:
+      trading_date:
+        description: "Completed trading date YYYY-MM-DD for T86 transport/parse check"
+        required: true
+        default: "2026-09-18"
+
+permissions:
+  contents: read
+
+jobs:
+  evidence-purity:
+    runs-on: ubuntu-latest
+    env:
+      RATE_LIVE_E2E_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Confirm Phase A2 remains disabled
+        shell: bash
+        run: |
+          test "$RATE_LIVE_E2E_ENABLED" = "false"
+          echo "Phase A2 execution = SKIPPED_BY_CER070_GUARD"
+      - name: Run unit, integration, rotation and regression tests
+        id: tests
+        run: python -m unittest discover -s tests -v
+      - name: T86 connectivity and parse smoke test
+        id: t86
+        if: always()
+        continue-on-error: true
+        run: python scripts/validate_t86_retrieval.py --date "${{ inputs.trading_date || '2026-09-18' }}"
+      - name: Generate CER-070 evidence purity artifact
+        id: purity
+        if: always()
+        run: python scripts/validate_cer070_purity.py --output artifacts/RATE_CER070_EVIDENCE_PURITY.json
+      - name: Upload evidence purity artifact
+        id: upload_purity
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER070_EVIDENCE_PURITY
+          path: artifacts/RATE_CER070_EVIDENCE_PURITY.json
+          if-no-files-found: error
+      - name: Upload T86 policy artifact
+        id: upload_policy
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_T86_USER_DIRECTED_OPERATION_POLICY
+          path: |
+            artifacts/RATE_T86_USER_DIRECTED_OPERATION_POLICY_V1.json
+            artifacts/RATE_TWSE_T86_AUTHORIZATION_EVIDENCE.json
+            artifacts/SOURCE_AUTHORIZATION_MATRIX_V1.json
+            config/SOURCE_REGISTRY.json
+          if-no-files-found: error

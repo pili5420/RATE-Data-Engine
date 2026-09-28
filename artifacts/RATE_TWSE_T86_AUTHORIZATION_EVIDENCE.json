@@ -1,0 +1,102 @@
+{
+  "artifact": "RATE_TWSE_T86_AUTHORIZATION_EVIDENCE",
+  "provider": "TWSE",
+  "dataset_or_product": "三大法人買賣超檔",
+  "product_file": "TWT86UC",
+  "official_reference": [
+    "https://eshop.twse.com.tw/zh/product/detail/c4c87ac184e44896a05fcab5a9d544ec",
+    "https://www.twse.com.tw/zh/products/information/use.html",
+    "https://twse-regulation.twse.com.tw/TW/law/DOC01_print.aspx?FLCODE=FL007129&FLNO=3",
+    "https://www.twse.com.tw/downloads/zh/products/non_display_user.pdf"
+  ],
+  "source_endpoint_or_delivery": {
+    "technical_endpoint": "https://www.twse.com.tw/rwd/zh/fund/T86",
+    "technical_endpoint_authorized_for_production": false,
+    "candidate_production_delivery": "TWSE Data E-Shop order delivery (online download or email delivery)",
+    "candidate_product_file": "TWT86UC"
+  },
+  "usage_type": "NON_DISPLAY_INTERNAL_ANALYTICS",
+  "intended_usage": "automated internal analytics; non-display decision-engine input; derived internal scores only",
+  "redistribution": "NO",
+  "authorization_path": "USER_DIRECTED_ASSUMPTION",
+  "license_or_order_reference": null,
+  "subscriber_or_order_identity": null,
+  "effective_date": null,
+  "expiration_or_renewal": null,
+  "terms_reference": "TWSE Data E-Shop product details and online order terms; TWSE Regulations Governing the Use of Trading Information",
+  "official_product_metadata": {
+    "frequency": "daily",
+    "product_description": "三大法人買賣超檔; TWT86UC excludes block trades; TWTAIUC includes block trades",
+    "publication_schedule": "TWT86UC is produced at 18:00 on each trading day",
+    "delivery_options": [
+      "online download",
+      "email converted data",
+      "email raw file"
+    ],
+    "usage_classes": [
+      "internal use",
+      "external use"
+    ],
+    "internal_use_subscription_price_listed": "NT$1,500/month",
+    "subscription_or_order_evidence_present": false
+  },
+  "field_coverage": {
+    "symbol": "PASS_PRODUCT_METADATA",
+    "trade_date": "PASS_PRODUCT_METADATA",
+    "foreign_buy_sell": "PASS_PRODUCT_METADATA",
+    "investment_trust_buy_sell": "PASS_PRODUCT_METADATA",
+    "dealer_buy_sell": "PASS_PRODUCT_METADATA",
+    "unit": "shares",
+    "block_trade_semantics": "TWT86UC excludes block trades; TWTAIUC includes block trades",
+    "authorized_historical_sample_verified": false,
+    "minimum_20_session_history_verified": false,
+    "required_minimum_valid_sessions": 20,
+    "FI_history": "NOT_YET_VERIFIED",
+    "IT_history": "NOT_YET_VERIFIED",
+    "FC_latest_20_session_input": "NOT_YET_VERIFIED"
+  },
+  "technical_status": {
+    "official_source": "CONFIRMED",
+    "connectivity": "PASS",
+    "parse": "PASS",
+    "authoritative_evidence": {
+      "workflow_run_id": "34978440239",
+      "evidence_artifact_id": "10400247049",
+      "workflow_commit_sha": "7731aa87976b1432d1c6e5bb4ba6a5fe06b01d90",
+      "http_status": 200,
+      "t86_record_count": 1337,
+      "field_count": 19
+    },
+    "source_endpoint_operational_use": "ALLOWED_BY_USER_ASSUMPTION"
+  },
+  "authorization_status": "USER_ASSUMPTION",
+  "authorization_blocking_reason": "NO_VALID_TWT86UC_INTERNAL_USE_ORDER_OR_LICENSE_EVIDENCE_AND_NO_WRITTEN_TWSE_CONFIRMATION",
+  "review_date": "2026-09-19",
+  "notes": [
+    "Operational use is allowed by the explicit user-directed assumption for internal non-display RATE analytics only; this is not a claim of TWSE authorization.",
+    "Formal TWSE license evidence remains NOT_VERIFIED; active TWT86UC subscription and written TWSE confirmation remain NO_EVIDENCE.",
+    "Raw T86 redistribution, public raw-data display, and third-party redistribution are prohibited by this operating profile.",
+    "Historical acceptance still requires at least 20 real valid sessions with FI, IT, and FC coverage. Fixtures, silent prior-day fill, and null-to-zero are prohibited.",
+    "The recorded historical-state digest is preserved separately; no historical rebootstrap is authorized by this policy update."
+  ],
+  "authorization_basis": "USER_DIRECTED_ASSUMPTION",
+  "operational_use_allowed": true,
+  "operational_status": "ALLOWED_BY_USER_ASSUMPTION",
+  "operation_policy_gate": "PASS_WITH_USER_ASSUMPTION",
+  "formal_authorization_status": "UNVERIFIED",
+  "formal_license_verified": false,
+  "formal_license_evidence": "NOT_VERIFIED",
+  "active_twt86uc_subscription": "NO_EVIDENCE",
+  "written_twse_confirmation": "NO_EVIDENCE",
+  "raw_data_redistribution": "NO",
+  "public_raw_data_display": "NO",
+  "third_party_redistribution": "NO",
+  "derived_internal_scores_allowed_by_assumption": true,
+  "user_decision_effective_date": "2026-09-19",
+  "user_directed_assumption": {
+    "usage_type": "NON_DISPLAY_INTERNAL_ANALYTICS",
+    "scope": "internal RATE analytics; automated calculation; no raw T86 redistribution or public display; derived internal scores/signals only",
+    "formal_authorization_claimed": false
+  },
+  "t86_authorization_evidence": "USER_ASSUMPTION_UNVERIFIED"
+}

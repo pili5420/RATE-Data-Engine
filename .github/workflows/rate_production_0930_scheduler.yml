@@ -1,0 +1,151 @@
+name: RATE Production 09:30 Recurring Scheduler
+
+on:
+  schedule:
+    # GitHub cron is UTC. 01:30 UTC Monday-Friday = 09:30 Asia/Taipei Monday-Friday.
+    - cron: "30 1 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      trading_date:
+        description: Explicit legal Taiwan trading date YYYY-MM-DD for controlled recovery/testing
+        required: true
+  push:
+    branches:
+      - rate-v2-6-1r2-staging
+    paths:
+      - .github/workflows/rate_production_0930_scheduler.yml
+      - scripts/resolve_production_runtime_context.py
+      - scripts/publish_production_state_latest.py
+      - scripts/publish_production_source_bundle_latest.py
+      - scripts/build_production_source_bundle_from_official.py
+      - scripts/validate_production_scheduler_safety.py
+      - tests/test_production_scheduler_change_control.py
+      - src/cer076_incremental_0930.py
+      - scripts/run_cer076_incremental_0930_acceptance.py
+      - tests/test_cer076_incremental_0930.py
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: rate-production-0930-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  production-0930:
+    runs-on: ubuntu-latest
+    env:
+      RATE_LIVE_E2E_ENABLED: PRODUCTION_SCHEDULER
+      RATE_SOURCE_URL: "https://openapi.twse.com.tw/v1;https://www.tpex.org.tw/openapi/v1;https://www.tdcc.com.tw/portal/zh/smWeb/qryStock;https://mops.twse.com.tw/mops/web/ajax_t05st10_ifrs"
+      RATE_PRODUCTION_CADENCE: "09:30"
+      GITHUB_EVENT_SCHEDULE: ${{ github.event.schedule }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Resolve numeric Actions job ID
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          job_id=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" --jq '.jobs[] | select(.name=="production-0930") | .id' | head -n 1)
+          test -n "$job_id"
+          echo "ACTIONS_JOB_ID=$job_id" >> "$GITHUB_ENV"
+
+      - name: Resolve dynamic production runtime context
+        shell: bash
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: |
+          mkdir -p artifacts/production_0930 artifacts/production_runtime
+          python scripts/resolve_production_runtime_context.py \
+            --cadence "09:30" \
+            --event-name "${{ github.event_name }}" \
+            --dispatch-trading-date "${{ inputs.trading_date }}" \
+            --state-root artifacts/production_state \
+            --evidence-output artifacts/production_0930/RATE_PRODUCTION_RUNTIME_CONTEXT.json \
+            --env-output "$RUNNER_TEMP/rate_runtime_context.env"
+          cat "$RUNNER_TEMP/rate_runtime_context.env" >> "$GITHUB_ENV"
+
+      - name: Validate production scheduler safety wiring
+        run: python scripts/validate_production_scheduler_safety.py --output artifacts/production_0930/RATE_PRODUCTION_SCHEDULER_SAFETY_VALIDATION.json
+
+      - name: Run cadence-focused guard tests
+        run: python -m unittest tests.test_production_scheduler_change_control -v
+
+      - name: Build official production source bundle
+        if: ${{ github.event_name != 'push' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
+        run: >
+          python scripts/build_production_source_bundle_from_official.py
+          --trading-date "${{ env.RATE_PRODUCTION_TRADING_DATE }}"
+          --cadence "${{ env.RATE_PRODUCTION_CADENCE }}"
+          --rate-source-url "$RATE_SOURCE_URL"
+          --output artifacts/production_0930/RATE_PRODUCTION_SOURCE_BUNDLE.json
+          --evidence-output artifacts/production_0930/RATE_PRODUCTION_OFFICIAL_SOURCE_INGESTION_EVIDENCE.json
+
+      - name: Execute production-safe 09:30 runtime path
+        if: ${{ github.event_name != 'push' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: >
+          python scripts/run_cer076_incremental_0930_acceptance.py
+          --source-bundle artifacts/production_0930/RATE_PRODUCTION_SOURCE_BUNDLE.json
+          --cer074-persisted-evidence "$RATE_PREVIOUS_STATE_EVIDENCE_PATH" --cer075-persisted-evidence "$RATE_PREVIOUS_STATE_EVIDENCE_PATH"
+          --output-dir artifacts/production_0930
+          --state-root data/production/scheduler_0930
+          --actions-job-id "$ACTIONS_JOB_ID"
+
+      - name: Publish live production state pointer
+        if: ${{ success() && github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
+        run: >
+          python scripts/publish_production_state_latest.py
+          --persist-evidence artifacts/production_0930/RATE_CER076_PERSIST_RESULT_EVIDENCE.json
+          --trading-date "${{ env.RATE_PRODUCTION_TRADING_DATE }}"
+          --cadence "09:30"
+          --artifacts-root artifacts
+          --workflow-run-id "${{ github.run_id }}"
+          --workflow-job-id "$ACTIONS_JOB_ID"
+          --evidence-output artifacts/production_0930/RATE_PRODUCTION_STATE_LIVE_UPDATE_EVIDENCE.json
+
+      - name: Publish immutable production source bundle latest
+        if: ${{ success() && github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: >
+          python scripts/publish_production_source_bundle_latest.py
+          --source-bundle artifacts/production_0930/RATE_PRODUCTION_SOURCE_BUNDLE.json
+          --trading-date "${{ env.RATE_PRODUCTION_TRADING_DATE }}"
+          --cadence "09:30"
+          --artifacts-root artifacts
+          --workflow-run-id "${{ github.run_id }}"
+          --workflow-job-id "$ACTIONS_JOB_ID"
+          --evidence-output artifacts/production_0930/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST_UPDATE_EVIDENCE.json
+
+      - name: Commit authorized production pointers
+        if: ${{ success() && github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifacts/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json artifacts/production_source_snapshots artifacts/RATE_PRODUCTION_STATE_LATEST.json artifacts/production_state/live
+          if git diff --cached --quiet; then
+            echo "authorized_pointer_commit=NO_CHANGES"
+          else
+            git commit -m "Update RATE production pointers (09:30)"
+            git push
+          fi
+
+      - name: Upload production cadence artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_PRODUCTION_0930_SCHEDULER_ARTIFACTS
+          path: artifacts/production_0930/*.json
+          if-no-files-found: warn
+

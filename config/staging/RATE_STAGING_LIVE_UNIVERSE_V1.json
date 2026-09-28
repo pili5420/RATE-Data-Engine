@@ -1,0 +1,381 @@
+{
+  "artifact": "CONTROL_CENTER_APPROVED_STAGING_VALIDATION_UNIVERSE_V1",
+  "schema_version": "RATE-UNIVERSE-V1.0",
+  "validation_scope": "STAGING_LIVE_ONLY",
+  "ranking_status": "NOT_A_VALIDATED_TOP30_RANKING",
+  "source_state_id": "RATE-V11.1-PS-20260913-V1-r000009",
+  "source_state_file_sha256": "f1cc9c5f005a07f081943e279cfab9624079d51ae7d3ef1f1e23ef74b638864b",
+  "universe_symbol_digest": "30276287608b87f7d9b606891514247da523dce9214e4b82bb34ba118a35af4c",
+  "as_of_timestamp": "2026-09-14T16:22:23.655469Z",
+  "markets": {
+    "TWSE": 25,
+    "TPEX": 5
+  },
+  "symbols": [
+    {
+      "candidate_slot": 1,
+      "symbol": "3231",
+      "name": "緯創",
+      "market": "TWSE",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TWSE official listed-company symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 2,
+      "symbol": "6274",
+      "name": "台燿",
+      "market": "TPEX",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TPEx official OTC symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 3,
+      "symbol": "3443",
+      "name": "創意",
+      "market": "TWSE",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TWSE official listed-company symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 4,
+      "symbol": "6669",
+      "name": "緯穎",
+      "market": "TWSE",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TWSE official listed-company symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 5,
+      "symbol": "2313",
+      "name": "華通",
+      "market": "TWSE",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TWSE official listed-company symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 6,
+      "symbol": "2449",
+      "name": "京元電子",
+      "market": "TWSE",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TWSE official listed-company symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 7,
+      "symbol": "3413",
+      "name": "京鼎",
+      "market": "TWSE",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TWSE official listed-company symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 8,
+      "symbol": "3081",
+      "name": "聯亞",
+      "market": "TPEX",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TPEx official OTC symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 9,
+      "symbol": "6187",
+      "name": "萬潤",
+      "market": "TPEX",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TPEx official OTC symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 10,
+      "symbol": "2368",
+      "name": "金像電",
+      "market": "TWSE",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TWSE official listed-company symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 11,
+      "symbol": "6442",
+      "name": "光聖",
+      "market": "TWSE",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TWSE official listed-company symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 12,
+      "symbol": "3017",
+      "name": "奇鋐",
+      "market": "TWSE",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TWSE official listed-company symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 13,
+      "symbol": "2345",
+      "name": "智邦",
+      "market": "TWSE",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TWSE official listed-company symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 14,
+      "symbol": "3661",
+      "name": "世芯-KY",
+      "market": "TWSE",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TWSE official listed-company symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 15,
+      "symbol": "3037",
+      "name": "欣興",
+      "market": "TWSE",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TWSE official listed-company symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 16,
+      "symbol": "2383",
+      "name": "台光電",
+      "market": "TWSE",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TWSE official listed-company symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 17,
+      "symbol": "2317",
+      "name": "鴻海",
+      "market": "TWSE",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TWSE official listed-company symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 18,
+      "symbol": "2330",
+      "name": "台積電",
+      "market": "TWSE",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TWSE official listed-company symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 19,
+      "symbol": "2376",
+      "name": "技嘉",
+      "market": "TWSE",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TWSE official listed-company symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 20,
+      "symbol": "2356",
+      "name": "英業達",
+      "market": "TWSE",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TWSE official listed-company symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 21,
+      "symbol": "5388",
+      "name": "中磊",
+      "market": "TWSE",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TWSE official listed-company symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 22,
+      "symbol": "2344",
+      "name": "華邦電",
+      "market": "TWSE",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TWSE official listed-company symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 23,
+      "symbol": "2337",
+      "name": "旺宏",
+      "market": "TWSE",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TWSE official listed-company symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 24,
+      "symbol": "2408",
+      "name": "南亞科",
+      "market": "TWSE",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TWSE official listed-company symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 25,
+      "symbol": "3035",
+      "name": "智原",
+      "market": "TWSE",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TWSE official listed-company symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 26,
+      "symbol": "3034",
+      "name": "聯詠",
+      "market": "TWSE",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TWSE official listed-company symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 27,
+      "symbol": "6510",
+      "name": "精測",
+      "market": "TPEX",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TPEx official OTC symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 28,
+      "symbol": "3036",
+      "name": "文曄",
+      "market": "TWSE",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TWSE official listed-company symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 29,
+      "symbol": "3014",
+      "name": "聯陽",
+      "market": "TWSE",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TWSE official listed-company symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    },
+    {
+      "candidate_slot": 30,
+      "symbol": "3227",
+      "name": "原相",
+      "market": "TPEX",
+      "source_membership": [
+        "PERSISTENT_CANDIDATE_SLOT"
+      ],
+      "ranking_status": "PENDING_LIVE_RECOMPUTE",
+      "market_classification_source": "TPEx official OTC symbol master",
+      "classification_timestamp": "2026-09-14T16:22:23.655469Z"
+    }
+  ],
+  "record_count": 30,
+  "unique_count": 30,
+  "unresolved_market_count": 0,
+  "duplicate_count": 0,
+  "validation_status": "PASS"
+}
