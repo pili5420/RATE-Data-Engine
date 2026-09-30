@@ -12,7 +12,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.cer074_acceptance import atomic_write_json
-from src.production_live_state import CADENCE_DIR, MANIFEST_NAME, PERSIST_NAME, STATE_NAME, file_hash, read_object, require, validate_material
+from src.production_live_state import (CADENCE_DIR, MANIFEST_NAME, PERSIST_NAME, STATE_NAME,
+                                       file_hash, read_object, require, validate_recovery_source_material)
 
 AUTHORIZATION_NAME = "RATE_PRODUCTION_RECOVERY_AUTHORIZATION_MANIFEST.json"
 CONSUMPTION_NAME = "RATE_PRODUCTION_RECOVERY_AUTHORIZATION_CONSUMPTION_EVIDENCE.json"
@@ -134,7 +135,7 @@ def bootstrap_recovery_state(*, source_persist_path, source_state_path, trading_
                 "RECOVERY_SOURCE_PERSIST_HASH_MISMATCH")
         require(file_hash(source_state_path) == authorization.get("approved_source_state_sha256"),
                 "RECOVERY_SOURCE_STATE_FILE_HASH_MISMATCH")
-        state = validate_material(source_persist, source_state, trading_date, cadence)
+        state, legacy_compatibility = validate_recovery_source_material(source_persist, source_state, trading_date, cadence)
         require(state["current_state_id"] == authorization.get("approved_source_state_id"),
                 "RECOVERY_SOURCE_STATE_ID_MISMATCH")
         require(state["decision_payload_hash"] == authorization.get("approved_source_state_hash"),
@@ -161,6 +162,7 @@ def bootstrap_recovery_state(*, source_persist_path, source_state_path, trading_
                     "approval_commit_sha": authorization["approval_commit_sha"],
                     "source_state_id": state["current_state_id"],
                     "source_state_hash": state["decision_payload_hash"],
+                    "legacy_recovery_schema_compatibility": legacy_compatibility,
                     "current_state_id": state["current_state_id"],
                     "current_state_hash": state["decision_payload_hash"],
                     "files": {name: file_hash(directory / name) for name in (PERSIST_NAME, STATE_NAME)}}
@@ -197,6 +199,7 @@ def bootstrap_recovery_state(*, source_persist_path, source_state_path, trading_
                    source_state_id=state["current_state_id"],
                    source_state_hash=state["decision_payload_hash"],
                    recovery_source_type=recovery_source_type,
+                   legacy_recovery_schema_compatibility=legacy_compatibility,
                    previous_state_id=state["previous_state_id"])
     except (RuntimeError, OSError, ValueError, KeyError, TypeError) as exc:
         out["blocking_reason"] = str(exc)
