@@ -2,6 +2,7 @@
 import copy
 import json
 import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -23,6 +24,20 @@ class RateSoak005Tests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.artifacts = self.root / "artifacts"
         self.runtime = self.root / "runtime"
+        self.repo = self.root / "repo"
+        self.git("init", self.repo)
+        self.git("-C", self.repo, "checkout", "-b", "main")
+        self.git("-C", self.repo, "config", "user.email", "rate-test@example.invalid")
+        self.git("-C", self.repo, "config", "user.name", "RATE Test")
+        atomic_write_json(self.repo / "README.json", {"test_repository": True})
+        self.git("-C", self.repo, "add", "README.json")
+        self.git("-C", self.repo, "commit", "-m", "Initial main")
+        self.initial_sha = self.git("-C", self.repo, "rev-parse", "HEAD")
+
+    def git(self, *args):
+        result = subprocess.run(["git", *map(str, args)], cwd=self.root, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result.stdout.strip()
 
     def material(self, day, cadence, previous=None):
         previous = previous or {"current_state_id": "rate-state-" + "a" * 24, "decision_payload_hash": "a" * 64}
@@ -82,6 +97,8 @@ class RateSoak005Tests(unittest.TestCase):
 
     def authorization_manifest(self, persist_path, state_path, state, day, cadence, **overrides):
         authorization_id = overrides.pop("authorization_id", "CC-RATE-SOAK-005")
+        path_authorization_id = overrides.pop("path_authorization_id", authorization_id)
+        commit = overrides.pop("commit", True)
         payload = {"artifact": "RATE_PRODUCTION_RECOVERY_AUTHORIZATION_MANIFEST",
                    "authorization_id": authorization_id,
                    "defect_id": "RATE-SOAK-005",
@@ -99,22 +116,35 @@ class RateSoak005Tests(unittest.TestCase):
                    "single_use": True,
                    "authorization_status": "APPROVED",
                    "approved_by": "CONTROL_CENTER",
-                   "created_at": "2026-09-30T00:00:00Z"}
+                   "created_at": "2026-09-30T00:00:00Z",
+                   "approval_commit_sha": "0" * 40}
         payload.update(overrides)
+        payload["authorization_blob_sha256"] = _canonical_hash(payload)
         payload["manifest_integrity_hash"] = _canonical_hash(payload)
-        path = self.runtime / "authorization" / authorization_id / AUTHORIZATION_NAME
+        path = self.repo / "control" / "recovery_authorizations" / path_authorization_id / AUTHORIZATION_NAME
         atomic_write_json(path, payload)
+        if commit:
+            rel = path.relative_to(self.repo).as_posix()
+            self.git("-C", self.repo, "add", rel)
+            self.git("-C", self.repo, "commit", "-m", f"Approve recovery {path_authorization_id}")
+            approval = self.git("-C", self.repo, "rev-parse", "HEAD")
+            payload["approval_commit_sha"] = approval
+            payload["authorization_blob_sha256"] = _canonical_hash(payload)
+            payload["manifest_integrity_hash"] = _canonical_hash(payload)
+            atomic_write_json(path, payload)
+            self.git("-C", self.repo, "add", rel)
+            self.git("-C", self.repo, "commit", "-m", f"Bind approval commit {path_authorization_id}")
         return path, payload
 
     def bootstrap_recovery(self, day, cadence, **overrides):
         persist_path, state_path, state = self.recovery_source_files(day, cadence)
-        authorization_manifest_path, _ = self.authorization_manifest(persist_path, state_path, state, day, cadence)
+        self.authorization_manifest(persist_path, state_path, state, day, cadence)
         args = dict(source_persist_path=persist_path, source_state_path=state_path,
-                    authorization_manifest_path=authorization_manifest_path,
                     trading_date=day, cadence=cadence, recovery_authorization_id="CC-RATE-SOAK-005",
                     recovery_source_type="FORMAL_ACCEPTED_RECOVERY_SOURCE",
+                    repository_root=self.repo,
                     artifacts_root=self.artifacts, workflow_run_id="301", workflow_job_id="401",
-                    event_name="workflow_dispatch", ref="refs/heads/main", commit_sha="d" * 40,
+                    event_name="workflow_dispatch", ref="refs/heads/main", commit_sha=self.git("-C", self.repo, "rev-parse", "HEAD"),
                     evidence_output=self.artifacts / "production_state/RATE_PRODUCTION_RECOVERY_BOOTSTRAP_EVIDENCE.json")
         args.update(overrides)
         return bootstrap_recovery_state(**args), state
@@ -198,10 +228,10 @@ class RateSoak005Tests(unittest.TestCase):
         self.assertEqual(scheduled["blocking_reason"], "RECOVERY_BOOTSTRAP_AUTHORIZATION_REQUIRED")
         persist_path, state_path, _ = self.recovery_source_files("2026-09-30", "19:30")
         unauthorized = bootstrap_recovery_state(source_persist_path=persist_path, source_state_path=state_path,
-            authorization_manifest_path=None, trading_date="2026-09-30", cadence="19:30",
+            trading_date="2026-09-30", cadence="19:30",
             recovery_authorization_id="CC-FAKE", recovery_source_type="FORMAL_ACCEPTED_RECOVERY_SOURCE",
-            artifacts_root=self.artifacts, workflow_run_id="301", workflow_job_id="401",
-            event_name="workflow_dispatch", ref="refs/heads/main", commit_sha="d" * 40)
+            repository_root=self.repo, artifacts_root=self.artifacts, workflow_run_id="301", workflow_job_id="401",
+            event_name="workflow_dispatch", ref="refs/heads/main", commit_sha=self.git("-C", self.repo, "rev-parse", "HEAD"))
         self.assertEqual(unauthorized["blocking_reason"], "RECOVERY_AUTHORIZATION_MANIFEST_REQUIRED")
         self.assertFalse((self.artifacts / "production_state/live/2026-09-30/1930").exists())
 
@@ -218,11 +248,10 @@ class RateSoak005Tests(unittest.TestCase):
         auth_path, _ = self.authorization_manifest(persist_path, state_path, json.loads(state_path.read_text())["decision_state"], "2026-09-29", "19:30",
                                                    approved_target_trading_date="2026-09-30")
         stale = bootstrap_recovery_state(source_persist_path=persist_path, source_state_path=state_path,
-            authorization_manifest_path=auth_path,
             trading_date="2026-09-30", cadence="19:30", recovery_authorization_id="CC-RATE-SOAK-005",
             recovery_source_type="FORMAL_ACCEPTED_RECOVERY_SOURCE",
-            artifacts_root=self.artifacts, workflow_run_id="301", workflow_job_id="401",
-            event_name="workflow_dispatch", ref="refs/heads/main", commit_sha="d" * 40)
+            repository_root=self.repo, artifacts_root=self.artifacts, workflow_run_id="301", workflow_job_id="401",
+            event_name="workflow_dispatch", ref="refs/heads/main", commit_sha=self.git("-C", self.repo, "rev-parse", "HEAD"))
         self.assertEqual(stale["blocking_reason"], "RECOVERY_AUTHORIZATION_SOURCE_SLOT_MISMATCH")
         persist_path, state_path, state = self.recovery_source_files("2026-09-30", "19:30")
         auth_path, _ = self.authorization_manifest(persist_path, state_path, state, "2026-09-30", "19:30")
@@ -230,11 +259,10 @@ class RateSoak005Tests(unittest.TestCase):
         material["decision_state"]["decision"]["transaction_ledger"]["transactions"] = []
         atomic_write_json(state_path, material)
         tampered = bootstrap_recovery_state(source_persist_path=persist_path, source_state_path=state_path,
-            authorization_manifest_path=auth_path,
             trading_date="2026-09-30", cadence="19:30", recovery_authorization_id="CC-RATE-SOAK-005",
             recovery_source_type="FORMAL_ACCEPTED_RECOVERY_SOURCE",
-            artifacts_root=self.artifacts, workflow_run_id="301", workflow_job_id="401",
-            event_name="workflow_dispatch", ref="refs/heads/main", commit_sha="d" * 40)
+            repository_root=self.repo, artifacts_root=self.artifacts, workflow_run_id="301", workflow_job_id="401",
+            event_name="workflow_dispatch", ref="refs/heads/main", commit_sha=self.git("-C", self.repo, "rev-parse", "HEAD"))
         self.assertEqual(tampered["blocking_reason"], "RECOVERY_SOURCE_STATE_FILE_HASH_MISMATCH")
 
     def test_recovery_source_fixture_staging_cache_synthetic_forbidden(self):
@@ -248,31 +276,41 @@ class RateSoak005Tests(unittest.TestCase):
                 atomic_write_json(state_path, material)
                 auth_path, _ = self.authorization_manifest(persist_path, state_path, material["decision_state"], "2026-09-30", "19:30")
                 out = bootstrap_recovery_state(source_persist_path=persist_path, source_state_path=state_path,
-                    authorization_manifest_path=auth_path,
                     trading_date="2026-09-30", cadence="19:30", recovery_authorization_id="CC-RATE-SOAK-005",
                     recovery_source_type="FORMAL_ACCEPTED_RECOVERY_SOURCE",
-                    artifacts_root=self.artifacts, workflow_run_id="301", workflow_job_id="401",
-                    event_name="workflow_dispatch", ref="refs/heads/main", commit_sha="d" * 40)
+                    repository_root=self.repo, artifacts_root=self.artifacts, workflow_run_id="301", workflow_job_id="401",
+                    event_name="workflow_dispatch", ref="refs/heads/main", commit_sha=self.git("-C", self.repo, "rev-parse", "HEAD"))
                 self.assertEqual(out["blocking_reason"], "RECOVERY_SOURCE_FALLBACK_FORBIDDEN")
 
     def test_authorization_manifest_fixture_staging_cache_synthetic_forbidden(self):
         for segment in ("fixtures", "staging", "cache", "synthetic"):
             with self.subTest(segment=segment):
                 persist_path, state_path, state = self.recovery_source_files("2026-09-30", "19:30")
-                auth_path, payload = self.authorization_manifest(persist_path, state_path, state, "2026-09-30", "19:30")
+                _, payload = self.authorization_manifest(persist_path, state_path, state, "2026-09-30", "19:30",
+                                                         path_authorization_id="CC-UNUSED", commit=False)
                 forbidden_path = self.runtime / segment / "authorization" / AUTHORIZATION_NAME
                 atomic_write_json(forbidden_path, payload)
                 out = bootstrap_recovery_state(source_persist_path=persist_path, source_state_path=state_path,
-                    authorization_manifest_path=forbidden_path,
                     trading_date="2026-09-30", cadence="19:30", recovery_authorization_id="CC-RATE-SOAK-005",
                     recovery_source_type="FORMAL_ACCEPTED_RECOVERY_SOURCE",
-                    artifacts_root=self.artifacts, workflow_run_id="301", workflow_job_id="401",
-                    event_name="workflow_dispatch", ref="refs/heads/main", commit_sha="d" * 40)
-                self.assertEqual(out["blocking_reason"], "RECOVERY_AUTHORIZATION_FALLBACK_FORBIDDEN")
+                    repository_root=self.repo, artifacts_root=self.artifacts, workflow_run_id="301", workflow_job_id="401",
+                    event_name="workflow_dispatch", ref="refs/heads/main", commit_sha=self.git("-C", self.repo, "rev-parse", "HEAD"))
+                self.assertEqual(out["blocking_reason"], "RECOVERY_AUTHORIZATION_MANIFEST_REQUIRED")
+
+    def test_authorization_id_path_traversal_blocked(self):
+        persist_path, state_path, _ = self.recovery_source_files("2026-09-30", "19:30")
+        for authorization_id in ("CC-../escape", "CC-RATE/SOAK", "CC-RATE\\SOAK"):
+            with self.subTest(authorization_id=authorization_id):
+                out = bootstrap_recovery_state(source_persist_path=persist_path, source_state_path=state_path,
+                    trading_date="2026-09-30", cadence="19:30", recovery_authorization_id=authorization_id,
+                    recovery_source_type="FORMAL_ACCEPTED_RECOVERY_SOURCE",
+                    repository_root=self.repo, artifacts_root=self.artifacts, workflow_run_id="301", workflow_job_id="401",
+                    event_name="workflow_dispatch", ref="refs/heads/main", commit_sha=self.git("-C", self.repo, "rev-parse", "HEAD"))
+                self.assertEqual(out["blocking_reason"], "RECOVERY_BOOTSTRAP_AUTHORIZATION_REQUIRED")
 
     def test_authorization_manifest_mismatches_fail_closed(self):
         cases = (
-            ("wrong authorization ID", {"authorization_id": "CC-OTHER"}, "RECOVERY_AUTHORIZATION_ID_MISMATCH", "CC-RATE-SOAK-005"),
+            ("wrong authorization ID", {"authorization_id": "CC-OTHER", "path_authorization_id": "CC-RATE-SOAK-005"}, "RECOVERY_AUTHORIZATION_ID_MISMATCH", "CC-RATE-SOAK-005"),
             ("wrong source state ID", {"approved_source_state_id": "rate-state-" + "0" * 24}, "RECOVERY_SOURCE_STATE_ID_MISMATCH", "CC-RATE-SOAK-005"),
             ("wrong source state hash", {"approved_source_state_hash": "0" * 64}, "RECOVERY_SOURCE_STATE_HASH_MISMATCH", "CC-RATE-SOAK-005"),
             ("wrong persist SHA-256", {"approved_source_persist_sha256": "0" * 64}, "RECOVERY_SOURCE_PERSIST_HASH_MISMATCH", "CC-RATE-SOAK-005"),
@@ -289,12 +327,87 @@ class RateSoak005Tests(unittest.TestCase):
                 persist_path, state_path, state = self.recovery_source_files("2026-09-30", "19:30")
                 auth_path, _ = self.authorization_manifest(persist_path, state_path, state, "2026-09-30", "19:30", **override)
                 out = bootstrap_recovery_state(source_persist_path=persist_path, source_state_path=state_path,
-                    authorization_manifest_path=auth_path,
                     trading_date="2026-09-30", cadence="19:30", recovery_authorization_id=caller_id,
                     recovery_source_type="FORMAL_ACCEPTED_RECOVERY_SOURCE",
-                    artifacts_root=self.artifacts, workflow_run_id="301", workflow_job_id="401",
-                    event_name="workflow_dispatch", ref="refs/heads/main", commit_sha="d" * 40)
+                    repository_root=self.repo, artifacts_root=self.artifacts, workflow_run_id="301", workflow_job_id="401",
+                    event_name="workflow_dispatch", ref="refs/heads/main", commit_sha=self.git("-C", self.repo, "rev-parse", "HEAD"))
                 self.assertEqual(out["blocking_reason"], reason)
+
+    def test_authorization_feature_branch_non_ancestor_and_missing_commit_blocked(self):
+        persist_path, state_path, state = self.recovery_source_files("2026-09-30", "19:30")
+        main_sha = self.git("-C", self.repo, "rev-parse", "HEAD")
+        self.git("-C", self.repo, "checkout", "-b", "feature-auth")
+        self.authorization_manifest(persist_path, state_path, state, "2026-09-30", "19:30", authorization_id="CC-FEATURE")
+        self.git("-C", self.repo, "checkout", "main")
+        feature_only = bootstrap_recovery_state(source_persist_path=persist_path, source_state_path=state_path,
+            trading_date="2026-09-30", cadence="19:30", recovery_authorization_id="CC-FEATURE",
+            recovery_source_type="FORMAL_ACCEPTED_RECOVERY_SOURCE",
+            repository_root=self.repo, artifacts_root=self.artifacts, workflow_run_id="301", workflow_job_id="401",
+            event_name="workflow_dispatch", ref="refs/heads/main", commit_sha=main_sha)
+        self.assertEqual(feature_only["blocking_reason"], "RECOVERY_AUTHORIZATION_MANIFEST_REQUIRED")
+
+        self.authorization_manifest(persist_path, state_path, state, "2026-09-30", "19:30", authorization_id="CC-MISSING-COMMIT")
+        path = self.repo / "control/recovery_authorizations/CC-MISSING-COMMIT" / AUTHORIZATION_NAME
+        payload = json.loads(path.read_text())
+        payload["approval_commit_sha"] = "f" * 40
+        payload["authorization_blob_sha256"] = _canonical_hash(payload)
+        payload["manifest_integrity_hash"] = _canonical_hash(payload)
+        atomic_write_json(path, payload)
+        missing = bootstrap_recovery_state(source_persist_path=persist_path, source_state_path=state_path,
+            trading_date="2026-09-30", cadence="19:30", recovery_authorization_id="CC-MISSING-COMMIT",
+            recovery_source_type="FORMAL_ACCEPTED_RECOVERY_SOURCE",
+            repository_root=self.repo, artifacts_root=self.artifacts, workflow_run_id="301", workflow_job_id="401",
+            event_name="workflow_dispatch", ref="refs/heads/main", commit_sha=self.git("-C", self.repo, "rev-parse", "HEAD"))
+        self.assertEqual(missing["blocking_reason"], "RECOVERY_APPROVAL_COMMIT_INVALID")
+
+    def test_authorization_non_ancestor_modified_bytes_and_blob_mismatch_blocked(self):
+        persist_path, state_path, state = self.recovery_source_files("2026-09-30", "19:30")
+        _, non_ancestor_payload = self.authorization_manifest(persist_path, state_path, state, "2026-09-30", "19:30", authorization_id="CC-NON-ANCESTOR")
+        path = self.repo / "control/recovery_authorizations/CC-NON-ANCESTOR" / AUTHORIZATION_NAME
+        self.git("-C", self.repo, "checkout", "-b", "side-approval", self.initial_sha)
+        atomic_write_json(path, non_ancestor_payload)
+        self.git("-C", self.repo, "add", path.relative_to(self.repo).as_posix())
+        self.git("-C", self.repo, "commit", "-m", "Side approval")
+        side_sha = self.git("-C", self.repo, "rev-parse", "HEAD")
+        self.git("-C", self.repo, "checkout", "main")
+        payload = json.loads(path.read_text())
+        payload["approval_commit_sha"] = side_sha
+        payload["authorization_blob_sha256"] = _canonical_hash(payload)
+        payload["manifest_integrity_hash"] = _canonical_hash(payload)
+        atomic_write_json(path, payload)
+        non_ancestor = bootstrap_recovery_state(source_persist_path=persist_path, source_state_path=state_path,
+            trading_date="2026-09-30", cadence="19:30", recovery_authorization_id="CC-NON-ANCESTOR",
+            recovery_source_type="FORMAL_ACCEPTED_RECOVERY_SOURCE",
+            repository_root=self.repo, artifacts_root=self.artifacts, workflow_run_id="301", workflow_job_id="401",
+            event_name="workflow_dispatch", ref="refs/heads/main", commit_sha=self.git("-C", self.repo, "rev-parse", "HEAD"))
+        self.assertEqual(non_ancestor["blocking_reason"], "RECOVERY_APPROVAL_COMMIT_NOT_MAIN_ANCESTOR")
+
+        self.authorization_manifest(persist_path, state_path, state, "2026-09-30", "19:30", authorization_id="CC-MODIFIED")
+        path = self.repo / "control/recovery_authorizations/CC-MODIFIED" / AUTHORIZATION_NAME
+        payload = json.loads(path.read_text())
+        payload["approved_by"] = "CONTROL_CENTER_REVISED"
+        payload["authorization_blob_sha256"] = _canonical_hash(payload)
+        payload["manifest_integrity_hash"] = _canonical_hash(payload)
+        atomic_write_json(path, payload)
+        modified = bootstrap_recovery_state(source_persist_path=persist_path, source_state_path=state_path,
+            trading_date="2026-09-30", cadence="19:30", recovery_authorization_id="CC-MODIFIED",
+            recovery_source_type="FORMAL_ACCEPTED_RECOVERY_SOURCE",
+            repository_root=self.repo, artifacts_root=self.artifacts, workflow_run_id="301", workflow_job_id="401",
+            event_name="workflow_dispatch", ref="refs/heads/main", commit_sha=self.git("-C", self.repo, "rev-parse", "HEAD"))
+        self.assertEqual(modified["blocking_reason"], "RECOVERY_AUTHORIZATION_BYTES_CHANGED_AFTER_APPROVAL")
+
+        self.authorization_manifest(persist_path, state_path, state, "2026-09-30", "19:30", authorization_id="CC-BLOB")
+        path = self.repo / "control/recovery_authorizations/CC-BLOB" / AUTHORIZATION_NAME
+        payload = json.loads(path.read_text())
+        payload["authorization_blob_sha256"] = "0" * 64
+        payload["manifest_integrity_hash"] = _canonical_hash(payload)
+        atomic_write_json(path, payload)
+        blob = bootstrap_recovery_state(source_persist_path=persist_path, source_state_path=state_path,
+            trading_date="2026-09-30", cadence="19:30", recovery_authorization_id="CC-BLOB",
+            recovery_source_type="FORMAL_ACCEPTED_RECOVERY_SOURCE",
+            repository_root=self.repo, artifacts_root=self.artifacts, workflow_run_id="301", workflow_job_id="401",
+            event_name="workflow_dispatch", ref="refs/heads/main", commit_sha=self.git("-C", self.repo, "rev-parse", "HEAD"))
+        self.assertEqual(blob["blocking_reason"], "RECOVERY_AUTHORIZATION_BLOB_HASH_MISMATCH")
 
     def test_tampered_authorization_manifest_fails_closed(self):
         persist_path, state_path, state = self.recovery_source_files("2026-09-30", "19:30")
@@ -303,11 +416,10 @@ class RateSoak005Tests(unittest.TestCase):
         payload["approved_by"] = "LOCAL"
         atomic_write_json(auth_path, payload)
         out = bootstrap_recovery_state(source_persist_path=persist_path, source_state_path=state_path,
-            authorization_manifest_path=auth_path,
             trading_date="2026-09-30", cadence="19:30", recovery_authorization_id="CC-RATE-SOAK-005",
             recovery_source_type="FORMAL_ACCEPTED_RECOVERY_SOURCE",
-            artifacts_root=self.artifacts, workflow_run_id="301", workflow_job_id="401",
-            event_name="workflow_dispatch", ref="refs/heads/main", commit_sha="d" * 40)
+            repository_root=self.repo, artifacts_root=self.artifacts, workflow_run_id="301", workflow_job_id="401",
+            event_name="workflow_dispatch", ref="refs/heads/main", commit_sha=self.git("-C", self.repo, "rev-parse", "HEAD"))
         self.assertEqual(out["blocking_reason"], "RECOVERY_AUTHORIZATION_MANIFEST_TAMPERED")
 
     def test_single_use_authorization_reuse_blocked(self):
@@ -420,6 +532,9 @@ class RateSoak005Tests(unittest.TestCase):
         self.assertIn("RATE_ACCEPTANCE_COUNTER_RESET: \"false\"", recovery)
         self.assertIn("bootstrap_production_recovery_state.py", recovery)
         self.assertIn("FORMAL_ACCEPTED_RECOVERY_SOURCE", recovery)
+        self.assertNotIn("authorization_manifest_path", recovery)
+        self.assertNotIn("--authorization-manifest", recovery)
+        self.assertNotIn("control/recovery_authorizations", recovery)
 
 
 if __name__ == "__main__":

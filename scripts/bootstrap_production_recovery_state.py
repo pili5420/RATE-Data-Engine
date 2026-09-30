@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,11 +17,14 @@ from src.production_live_state import CADENCE_DIR, MANIFEST_NAME, PERSIST_NAME, 
 AUTHORIZATION_NAME = "RATE_PRODUCTION_RECOVERY_AUTHORIZATION_MANIFEST.json"
 CONSUMPTION_NAME = "RATE_PRODUCTION_RECOVERY_AUTHORIZATION_CONSUMPTION_EVIDENCE.json"
 FORBIDDEN_SOURCE_PARTS = {"fixture", "fixtures", "staging", "cache", "synthetic"}
+AUTHORIZATION_ROOT = Path("control") / "recovery_authorizations"
 
 
 def _canonical_hash(payload):
     clone = dict(payload)
     clone.pop("manifest_integrity_hash", None)
+    clone.pop("authorization_blob_sha256", None)
+    clone.pop("approval_commit_sha", None)
     blob = json.dumps(clone, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(blob).hexdigest()
 
@@ -35,12 +39,48 @@ def _forbid_fallback_path(path, reason):
     require(not (FORBIDDEN_SOURCE_PARTS & {part.lower() for part in Path(path).parts}), reason)
 
 
+def _git(repository_root, *args):
+    result = subprocess.run(["git", "-C", str(repository_root), *args], capture_output=True, text=True)
+    require(result.returncode == 0, result.stderr.strip() or "RECOVERY_AUTHORIZATION_GIT_VALIDATION_FAILED")
+    return result.stdout.strip()
+
+
+def _authorization_path(repository_root, authorization_id):
+    relative = AUTHORIZATION_ROOT / authorization_id / AUTHORIZATION_NAME
+    path = Path(repository_root) / relative
+    require(path.resolve().is_relative_to((Path(repository_root) / AUTHORIZATION_ROOT).resolve()),
+            "RECOVERY_AUTHORIZATION_PATH_INVALID")
+    return relative, path
+
+
+def _validate_approval_commit(repository_root, relative_path, authorization, current_main_sha):
+    approval = authorization.get("approval_commit_sha")
+    require(isinstance(approval, str) and len(approval) == 40
+            and all(c in "0123456789abcdef" for c in approval),
+            "RECOVERY_APPROVAL_COMMIT_INVALID")
+    approval_check = subprocess.run(["git", "-C", str(repository_root), "cat-file", "-e", f"{approval}^{{commit}}"],
+                                    capture_output=True, text=True)
+    require(approval_check.returncode == 0, "RECOVERY_APPROVAL_COMMIT_INVALID")
+    current_check = subprocess.run(["git", "-C", str(repository_root), "cat-file", "-e", f"{current_main_sha}^{{commit}}"],
+                                   capture_output=True, text=True)
+    require(current_check.returncode == 0, "RECOVERY_APPROVAL_COMMIT_INVALID")
+    result = subprocess.run(["git", "-C", str(repository_root), "merge-base", "--is-ancestor", approval, current_main_sha],
+                            capture_output=True, text=True)
+    require(result.returncode == 0, "RECOVERY_APPROVAL_COMMIT_NOT_MAIN_ANCESTOR")
+    committed = json.loads(_git(repository_root, "show", f"{approval}:{relative_path.as_posix()}"))
+    current = authorization
+    require(_canonical_hash(committed) == _canonical_hash(current),
+            "RECOVERY_AUTHORIZATION_BYTES_CHANGED_AFTER_APPROVAL")
+    require(_canonical_hash(authorization) == authorization.get("authorization_blob_sha256"),
+            "RECOVERY_AUTHORIZATION_BLOB_HASH_MISMATCH")
+
+
 def bootstrap_recovery_state(*, source_persist_path, source_state_path, trading_date, cadence,
                              recovery_authorization_id, artifacts_root="artifacts",
                              workflow_run_id=None, workflow_job_id=None, event_name=None,
                              commit_sha=None, ref=None, evidence_output=None,
                              recovery_source_type="FORMAL_ACCEPTED_RECOVERY_SOURCE",
-                             authorization_manifest_path=None):
+                             repository_root="."):
     out = {"artifact": "RATE_PRODUCTION_RECOVERY_BOOTSTRAP_EVIDENCE", "validation_status": "BLOCKED",
            "trading_date": trading_date, "cadence": cadence, "recovery_mode": True,
            "scheduled_soak_credit": False, "acceptance_counter_reset": False,
@@ -57,13 +97,15 @@ def bootstrap_recovery_state(*, source_persist_path, source_state_path, trading_
                 and all(c in "0123456789abcdef" for c in commit_sha),
                 "RECOVERY_BOOTSTRAP_AUTHORIZATION_REQUIRED")
         authorization_id = _safe_authorization_id(recovery_authorization_id)
-        require(authorization_manifest_path is not None, "RECOVERY_AUTHORIZATION_MANIFEST_REQUIRED")
-        _forbid_fallback_path(authorization_manifest_path, "RECOVERY_AUTHORIZATION_FALLBACK_FORBIDDEN")
+        repository_root = Path(repository_root).resolve()
+        relative_authorization_path, authorization_manifest_path = _authorization_path(repository_root, authorization_id)
+        require(authorization_manifest_path.is_file(), "RECOVERY_AUTHORIZATION_MANIFEST_REQUIRED")
         authorization = read_object(authorization_manifest_path)
         require(authorization.get("artifact") == "RATE_PRODUCTION_RECOVERY_AUTHORIZATION_MANIFEST",
                 "RECOVERY_AUTHORIZATION_MANIFEST_INVALID")
         require(authorization.get("manifest_integrity_hash") == _canonical_hash(authorization),
                 "RECOVERY_AUTHORIZATION_MANIFEST_TAMPERED")
+        _validate_approval_commit(repository_root, relative_authorization_path, authorization, commit_sha)
         require(authorization.get("authorization_id") == authorization_id,
                 "RECOVERY_AUTHORIZATION_ID_MISMATCH")
         require(authorization.get("defect_id") == "RATE-SOAK-005",
@@ -115,6 +157,8 @@ def bootstrap_recovery_state(*, source_persist_path, source_state_path, trading_
                     "acceptance_counter_reset": False,
                     "recovery_authorization_id": authorization_id,
                     "recovery_authorization_manifest_hash": authorization["manifest_integrity_hash"],
+                    "recovery_authorization_blob_sha256": authorization["authorization_blob_sha256"],
+                    "approval_commit_sha": authorization["approval_commit_sha"],
                     "source_state_id": state["current_state_id"],
                     "source_state_hash": state["decision_payload_hash"],
                     "current_state_id": state["current_state_id"],
@@ -143,6 +187,8 @@ def bootstrap_recovery_state(*, source_persist_path, source_state_path, trading_
                        "source_state_hash": state["decision_payload_hash"],
                        "target_trading_date": trading_date, "target_cadence": cadence,
                        "recovery_manifest_hash": authorization["manifest_integrity_hash"],
+                       "authorization_blob_sha256": authorization["authorization_blob_sha256"],
+                       "approval_commit_sha": authorization["approval_commit_sha"],
                        "scheduled_soak_credit": False, "acceptance_counter_reset": False}
         atomic_write_json(consumption_path, consumption)
         out.update(validation_status="PASS", live_state_updated=True,
@@ -167,7 +213,7 @@ def main():
     parser.add_argument("--cadence", required=True, choices=sorted(CADENCE_DIR))
     parser.add_argument("--recovery-authorization-id", required=True)
     parser.add_argument("--recovery-source-type", required=True, choices=["FORMAL_ACCEPTED_RECOVERY_SOURCE"])
-    parser.add_argument("--authorization-manifest", required=True)
+    parser.add_argument("--repository-root", default=".")
     parser.add_argument("--artifacts-root", default="artifacts")
     parser.add_argument("--workflow-run-id")
     parser.add_argument("--workflow-job-id")
@@ -177,7 +223,7 @@ def main():
                                    trading_date=args.trading_date, cadence=args.cadence,
                                    recovery_authorization_id=args.recovery_authorization_id,
                                    recovery_source_type=args.recovery_source_type,
-                                   authorization_manifest_path=args.authorization_manifest,
+                                   repository_root=args.repository_root,
                                    artifacts_root=args.artifacts_root,
                                    workflow_run_id=args.workflow_run_id,
                                    workflow_job_id=args.workflow_job_id,
