@@ -79,11 +79,18 @@ def _load_live_state(state_root, trading_date, cadence):
     manifest = read_object(directory / MANIFEST_NAME)
     require(manifest.get("artifact") == "RATE_PRODUCTION_STATE_MANIFEST" and manifest.get("validation_status") == "PASS",
             "LIVE_STATE_MANIFEST_INVALID")
-    require(manifest.get("event_name") == "schedule" and manifest.get("ref") == "refs/heads/main"
-            and str(manifest.get("workflow_run_id", "")).isdigit() and str(manifest.get("workflow_job_id", "")).isdigit()
-            and isinstance(manifest.get("commit_sha"), str) and len(manifest["commit_sha"]) == 40
-            and all(c in "0123456789abcdef" for c in manifest["commit_sha"]),
-            "LIVE_STATE_SCHEDULE_PROVENANCE_REQUIRED")
+    common_provenance = (manifest.get("ref") == "refs/heads/main"
+                         and str(manifest.get("workflow_run_id", "")).isdigit()
+                         and str(manifest.get("workflow_job_id", "")).isdigit()
+                         and isinstance(manifest.get("commit_sha"), str) and len(manifest["commit_sha"]) == 40
+                         and all(c in "0123456789abcdef" for c in manifest["commit_sha"]))
+    scheduled = manifest.get("event_name") == "schedule" and manifest.get("recovery_mode") is not True
+    recovery = (manifest.get("event_name") == "workflow_dispatch" and manifest.get("recovery_mode") is True
+                and manifest.get("scheduled_soak_credit") is False
+                and manifest.get("acceptance_counter_reset") is False
+                and isinstance(manifest.get("recovery_authorization_id"), str)
+                and bool(manifest.get("recovery_authorization_id")))
+    require(common_provenance and (scheduled or recovery), "LIVE_STATE_SCHEDULE_PROVENANCE_REQUIRED")
     require(manifest.get("trading_date") == trading_date and manifest.get("cadence") == cadence,
             "LIVE_STATE_DATE_CADENCE_MISMATCH")
     for name in (PERSIST_NAME, STATE_NAME):
@@ -94,6 +101,10 @@ def _load_live_state(state_root, trading_date, cadence):
     state = validate_material(persist, material, trading_date, cadence)
     require(manifest.get("current_state_id") == state["current_state_id"] and manifest.get("current_state_hash") == state["decision_payload_hash"],
             "LIVE_STATE_MANIFEST_BINDING_INVALID")
+    if recovery:
+        require(manifest.get("source_state_id") == state["current_state_id"]
+                and manifest.get("source_state_hash") == state["decision_payload_hash"],
+                "LIVE_STATE_RECOVERY_SOURCE_BINDING_INVALID")
     return {"persist": persist, "material": material, "state": state, "manifest": manifest, "path": persist_path}
 
 
