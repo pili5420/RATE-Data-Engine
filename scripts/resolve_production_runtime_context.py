@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.cer074_acceptance import atomic_write_json, load_json
 from src.cer080_multi_day_continuity import EXCHANGE_HOLIDAYS, TRADING_CALENDAR_SOURCE, is_trading_day, resolve_next_trading_day
+from src.production_live_state import load_live_state
 
 CADENCE_PREDECESSOR = {
     "07:30": "19:30",
@@ -87,9 +88,14 @@ def resolve_context(*, cadence: str, event_name: str, dispatch_trading_date: str
         "production_persistent_state_reset_count": 0,
     }
     if event_name in {"schedule", "workflow_dispatch"} and runtime_mode == "RUN":
-        if not previous_state_path.exists():
+        try:
+            previous = load_live_state(state_root, previous_trading_date, previous_cadence)
+            context["previous_state_id"] = previous["state"]["current_state_id"]
+            context["previous_state_hash"] = previous["state"]["decision_payload_hash"]
+            context["previous_state_match_count"] = 1
+        except RuntimeError as exc:
             context["validation_status"] = "BLOCKED"
-            context["blocking_reason"] = "LIVE_PREVIOUS_PRODUCTION_STATE_MISSING"
+            context["blocking_reason"] = str(exc)
     return context
 
 

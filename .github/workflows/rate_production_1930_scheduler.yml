@@ -16,6 +16,8 @@ on:
       - .github/workflows/rate_production_1930_scheduler.yml
       - scripts/resolve_production_runtime_context.py
       - scripts/publish_production_state_latest.py
+      - src/production_live_state.py
+      - tests/test_rate_soak_005.py
       - scripts/publish_production_source_bundle_latest.py
       - scripts/build_production_source_bundle_from_official.py
       - scripts/validate_production_scheduler_safety.py
@@ -29,7 +31,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: rate-production-1930-${{ github.ref }}
+  group: rate-production-0730-0930-1200-1930-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -42,6 +44,8 @@ jobs:
       GITHUB_EVENT_SCHEDULE: ${{ github.event.schedule }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -74,7 +78,7 @@ jobs:
         run: python scripts/validate_production_scheduler_safety.py --output artifacts/production_1930/RATE_PRODUCTION_SCHEDULER_SAFETY_VALIDATION.json
 
       - name: Run cadence-focused guard tests
-        run: python -m unittest tests.test_production_scheduler_change_control -v
+        run: python -m unittest tests.test_production_scheduler_change_control tests.test_rate_soak_005 -v
 
       - name: Build official production source bundle
         if: ${{ github.event_name != 'push' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
@@ -108,6 +112,7 @@ jobs:
           --trading-date "${{ env.RATE_PRODUCTION_TRADING_DATE }}"
           --cadence "19:30"
           --artifacts-root artifacts
+          --state-root data/production/scheduler_1930
           --workflow-run-id "${{ github.run_id }}"
           --workflow-job-id "$ACTIONS_JOB_ID"
           --evidence-output artifacts/production_1930/RATE_PRODUCTION_STATE_LIVE_UPDATE_EVIDENCE.json
@@ -138,8 +143,17 @@ jobs:
             echo "authorized_pointer_commit=NO_CHANGES"
           else
             git commit -m "Update RATE production pointers (19:30)"
-            git push
+            git pull --rebase origin "${{ github.ref_name }}"
+            git push origin "HEAD:${{ github.ref_name }}"
           fi
+
+      - name: Upload committed live production state
+        if: ${{ success() && github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_LIVE_PRODUCTION_STATE_1930_${{ env.RATE_PRODUCTION_TRADING_DATE }}_${{ github.run_id }}
+          path: artifacts/production_state/live/${{ env.RATE_PRODUCTION_TRADING_DATE }}/1930/*.json
+          if-no-files-found: error
 
       - name: Upload production cadence artifacts
         if: always()

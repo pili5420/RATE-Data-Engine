@@ -1,0 +1,107 @@
+name: RATE Production Recovery Bootstrap
+
+on:
+  workflow_dispatch:
+    inputs:
+      trading_date:
+        description: "Canonical recovery trading date, YYYY-MM-DD"
+        required: true
+      cadence:
+        description: "Canonical recovery cadence"
+        required: true
+        type: choice
+        options:
+          - "07:30"
+          - "09:30"
+          - "12:00"
+          - "19:30"
+      source_persist_path:
+        description: "Explicit formal recovery source persist evidence path"
+        required: true
+      source_state_path:
+        description: "Explicit formal recovery source full decision-state path"
+        required: true
+      recovery_authorization_id:
+        description: "Control Center authorization id, prefixed CC-"
+        required: true
+      recovery_source_type:
+        description: "Formal recovery source contract"
+        required: true
+        type: choice
+        options:
+          - "FORMAL_ACCEPTED_RECOVERY_SOURCE"
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: rate-production-recovery-bootstrap-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  recovery-bootstrap:
+    runs-on: ubuntu-latest
+    env:
+      RATE_PRODUCTION_RECOVERY_MODE: "true"
+      RATE_SCHEDULED_SOAK_CREDIT: "false"
+      RATE_ACCEPTANCE_COUNTER_RESET: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Capture numeric Actions job id
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          job_id="$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs --jq '.jobs[] | select(.name=="recovery-bootstrap") | .id' | head -n 1)"
+          test -n "$job_id"
+          echo "ACTIONS_JOB_ID=$job_id" >> "$GITHUB_ENV"
+
+      - name: Run recovery guard tests
+        run: python -m unittest tests.test_production_scheduler_change_control tests.test_rate_soak_005 -v
+
+      - name: Execute authorized recovery bootstrap
+        run: >
+          python scripts/bootstrap_production_recovery_state.py
+          --source-persist "${{ inputs.source_persist_path }}"
+          --source-state "${{ inputs.source_state_path }}"
+          --trading-date "${{ inputs.trading_date }}"
+          --cadence "${{ inputs.cadence }}"
+          --recovery-authorization-id "${{ inputs.recovery_authorization_id }}"
+          --recovery-source-type "${{ inputs.recovery_source_type }}"
+          --repository-root .
+          --artifacts-root artifacts
+          --workflow-run-id "${{ github.run_id }}"
+          --workflow-job-id "$ACTIONS_JOB_ID"
+          --evidence-output artifacts/production_state/RATE_PRODUCTION_RECOVERY_BOOTSTRAP_EVIDENCE.json
+
+      - name: Commit authorized recovery state
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifacts/RATE_PRODUCTION_STATE_LATEST.json artifacts/production_state/live artifacts/production_state/recovery_authorizations
+          if git diff --cached --quiet; then
+            echo "authorized_recovery_commit=NO_CHANGES"
+          else
+            git commit -m "Bootstrap authorized RATE production recovery state"
+            git pull --rebase origin "${{ github.ref_name }}"
+            git push origin "HEAD:${{ github.ref_name }}"
+          fi
+
+      - name: Upload recovery bootstrap evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_PRODUCTION_RECOVERY_BOOTSTRAP_${{ inputs.trading_date }}_${{ github.run_id }}
+          path: |
+            artifacts/production_state/*.json
+            artifacts/production_state/recovery_authorizations/**/*.json
+          if-no-files-found: warn

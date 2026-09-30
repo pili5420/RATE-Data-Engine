@@ -173,7 +173,7 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
         finally:
             shutil.rmtree(root, ignore_errors=True)
 
-    def test_seed_live_state_from_cer079_eod_is_idempotent_and_unblocks_next_0730_resolver(self):
+    def test_seed_live_state_is_idempotent_but_not_a_formal_scheduled_predecessor(self):
         root = Path("artifacts/test-production-scheduler-change-control")
         try:
             shutil.rmtree(root, ignore_errors=True)
@@ -186,12 +186,13 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
             self.assertEqual(second["idempotency_result"], "BOOTSTRAP_NOT_REQUIRED_EXISTING_LIVE_STATE")
             context = resolve_context(cadence="07:30", event_name="workflow_dispatch", dispatch_trading_date="2026-09-21", state_root=root / "production_state")
             self.assertEqual(context["previous_state_resolution"], "LIVE_PRODUCTION_STATE_STORE")
-            self.assertEqual(context["validation_status"], "PASS")
+            self.assertEqual(context["validation_status"], "BLOCKED")
+            self.assertEqual(context["blocking_reason"], "LIVE_STATE_UNREADABLE")
             self.assertNotEqual(context.get("blocking_reason"), "LIVE_PREVIOUS_PRODUCTION_STATE_MISSING")
         finally:
             shutil.rmtree(root, ignore_errors=True)
 
-    def test_cer079_seed_day1_full_chain_day2_0730_skips_bootstrap_and_uses_day1_1930(self):
+    def test_acceptance_seed_and_summary_only_chain_cannot_be_promoted_to_live(self):
         root = Path("artifacts/test-production-scheduler-change-control")
         try:
             shutil.rmtree(root, ignore_errors=True)
@@ -209,15 +210,17 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
             for artifact, cadence, state_id, state_hash, previous in chain:
                 evidence = self._persist_evidence(root, artifact=artifact, trading_date="2026-09-21", cadence=cadence, current_state_id=state_id, current_state_hash=state_hash, previous_state_id=previous)
                 published = publish_state(persist_evidence_path=evidence, trading_date="2026-09-21", cadence=cadence, artifacts_root=root)
-                self.assertEqual(published["validation_status"], "PASS")
+                self.assertEqual(published["validation_status"], "BLOCKED")
+                self.assertEqual(published["blocking_reason"], "LIVE_STATE_SCHEDULE_PROVENANCE_REQUIRED")
             latest_before = json.loads((root / "RATE_PRODUCTION_STATE_LATEST.json").read_text(encoding="utf-8"))
             second_day_seed = seed(source_evidence_path=src, artifacts_root=root)
             latest_after = json.loads((root / "RATE_PRODUCTION_STATE_LATEST.json").read_text(encoding="utf-8"))
             self.assertEqual(second_day_seed["idempotency_result"], "BOOTSTRAP_NOT_REQUIRED_EXISTING_LIVE_STATE")
             self.assertEqual(latest_after, latest_before)
-            self.assertEqual(latest_after["current_state_id"], "rate-state-day1-1930")
+            self.assertEqual(latest_after["current_state_id"], "rate-state-656e460995324fb4a3eb7b30")
             context = resolve_context(cadence="07:30", event_name="workflow_dispatch", dispatch_trading_date="2026-09-22", state_root=root / "production_state")
-            self.assertEqual(context["validation_status"], "PASS")
+            self.assertEqual(context["validation_status"], "BLOCKED")
+            self.assertEqual(context["blocking_reason"], "LIVE_PREVIOUS_PRODUCTION_STATE_MISSING")
             self.assertEqual(context["previous_state_resolution"], "LIVE_PRODUCTION_STATE_STORE")
             self.assertEqual(context["previous_state_evidence_path"], "artifacts/test-production-scheduler-change-control/production_state/live/2026-09-21/1930/RATE_PRODUCTION_PERSIST_RESULT_EVIDENCE.json")
             self.assertEqual(context["production_persistent_state_reset_count"], 0)
@@ -279,7 +282,7 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
         finally:
             shutil.rmtree(root, ignore_errors=True)
 
-    def test_live_state_publish_requires_pass_and_writes_live_pointer(self):
+    def test_summary_only_persist_evidence_cannot_write_live_pointer(self):
         root = Path("artifacts/test-production-scheduler-change-control")
         try:
             shutil.rmtree(root, ignore_errors=True)
@@ -294,10 +297,9 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
                 'persist_result': {'status': 'PERSISTED', 'state_entry': {'current_state_id': 'rate-state-x', 'decision_payload_hash': 'hash-x', 'trading_date': '2026-09-29', 'cadence': '09:30'}}
             }), encoding='utf-8')
             result = publish_state(persist_evidence_path=evidence, trading_date='2026-09-29', cadence='09:30', artifacts_root=root)
-            self.assertEqual(result['validation_status'], 'PASS')
-            self.assertTrue((root / 'production_state/live/2026-09-29/0930/RATE_PRODUCTION_PERSIST_RESULT_EVIDENCE.json').exists())
-            latest = json.loads((root / 'RATE_PRODUCTION_STATE_LATEST.json').read_text(encoding='utf-8'))
-            self.assertEqual(latest['current_state_id'], 'rate-state-x')
+            self.assertEqual(result['validation_status'], 'BLOCKED')
+            self.assertFalse((root / 'production_state/live/2026-09-29/0930/RATE_PRODUCTION_PERSIST_RESULT_EVIDENCE.json').exists())
+            self.assertFalse((root / 'RATE_PRODUCTION_STATE_LATEST.json').exists())
         finally:
             shutil.rmtree(root, ignore_errors=True)
 

@@ -16,9 +16,10 @@ on:
       - .github/workflows/rate_production_0730_scheduler.yml
       - scripts/resolve_production_runtime_context.py
       - scripts/publish_production_state_latest.py
+      - src/production_live_state.py
+      - tests/test_rate_soak_005.py
       - scripts/publish_production_source_bundle_latest.py
       - scripts/build_production_source_bundle_from_official.py
-      - scripts/seed_live_production_state.py
       - scripts/validate_production_scheduler_safety.py
       - tests/test_production_scheduler_change_control.py
       - src/cer075_scheduler.py
@@ -30,7 +31,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: rate-production-0730-${{ github.ref }}
+  group: rate-production-0730-0930-1200-1930-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -41,9 +42,10 @@ jobs:
       RATE_SOURCE_URL: "https://openapi.twse.com.tw/v1;https://www.tpex.org.tw/openapi/v1;https://www.tdcc.com.tw/portal/zh/smWeb/qryStock;https://mops.twse.com.tw/mops/web/ajax_t05st10_ifrs"
       RATE_PRODUCTION_CADENCE: "07:30"
       GITHUB_EVENT_SCHEDULE: ${{ github.event.schedule }}
-      RATE_CER079_EOD_CLOSURE_ARTIFACT_ID: "10928396442"
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -56,20 +58,6 @@ jobs:
           job_id=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" --jq '.jobs[] | select(.name=="production-0730") | .id' | head -n 1)
           test -n "$job_id"
           echo "ACTIONS_JOB_ID=$job_id" >> "$GITHUB_ENV"
-
-      - name: Seed live production state from accepted CER-079 EOD state
-        if: ${{ github.event_name == 'schedule' }}
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          mkdir -p artifacts/accepted/cer079/eod artifacts/production_state
-          gh api "repos/${{ github.repository }}/actions/artifacts/${RATE_CER079_EOD_CLOSURE_ARTIFACT_ID}/zip" > artifacts/accepted/cer079/eod.zip
-          unzip -o artifacts/accepted/cer079/eod.zip -d artifacts/accepted/cer079/eod
-          python scripts/seed_live_production_state.py \
-            --source-evidence artifacts/accepted/cer079/eod/RATE_CER079_END_OF_DAY_CLOSURE_EVIDENCE.json \
-            --artifacts-root artifacts \
-            --evidence-output artifacts/production_state/RATE_PRODUCTION_LIVE_BOOTSTRAP_SEED_EVIDENCE.json
 
       - name: Resolve dynamic production runtime context
         shell: bash
@@ -90,7 +78,7 @@ jobs:
         run: python scripts/validate_production_scheduler_safety.py --output artifacts/production_0730/RATE_PRODUCTION_SCHEDULER_SAFETY_VALIDATION.json
 
       - name: Run cadence-focused guard tests
-        run: python -m unittest tests.test_production_scheduler_change_control -v
+        run: python -m unittest tests.test_production_scheduler_change_control tests.test_rate_soak_005 -v
 
       - name: Build official production source bundle
         if: ${{ github.event_name != 'push' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
@@ -124,6 +112,7 @@ jobs:
           --trading-date "${{ env.RATE_PRODUCTION_TRADING_DATE }}"
           --cadence "07:30"
           --artifacts-root artifacts
+          --state-root data/production/scheduler_0730
           --workflow-run-id "${{ github.run_id }}"
           --workflow-job-id "$ACTIONS_JOB_ID"
           --evidence-output artifacts/cer075/RATE_PRODUCTION_STATE_LIVE_UPDATE_EVIDENCE.json
@@ -154,8 +143,17 @@ jobs:
             echo "authorized_pointer_commit=NO_CHANGES"
           else
             git commit -m "Update RATE production pointers (07:30)"
-            git push
+            git pull --rebase origin "${{ github.ref_name }}"
+            git push origin "HEAD:${{ github.ref_name }}"
           fi
+
+      - name: Upload committed live production state
+        if: ${{ success() && github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_LIVE_PRODUCTION_STATE_0730_${{ env.RATE_PRODUCTION_TRADING_DATE }}_${{ github.run_id }}
+          path: artifacts/production_state/live/${{ env.RATE_PRODUCTION_TRADING_DATE }}/0730/*.json
+          if-no-files-found: error
 
       - name: Upload production cadence artifacts
         if: always()
