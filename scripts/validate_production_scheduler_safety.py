@@ -55,7 +55,8 @@ def validate() -> dict[str, Any]:
     dynamic = all(v["dynamic_trading_date_resolution"] and v["scheduled_historical_acceptance_date_forbidden"] for v in per.values())
     live = all(v["fixed_predecessor_artifact_ids_removed"] and v["reset_state_root_removed"] and v["production_state_publish"] for v in per.values())
     official_source = all(v["official_source_ingestion"] and v["cer073_audit_only_not_recurring_source"] for v in per.values())
-    seed = "seed_live_production_state.py" in workflows["07:30"] and "RATE_CER079_EOD_CLOSURE_ARTIFACT_ID" in workflows["07:30"]
+    # Bootstrap remains an isolated controlled utility, never a recurring fallback.
+    seed = all("seed_live_production_state.py" not in text and "RATE_CER079_EOD_CLOSURE_ARTIFACT_ID" not in text for text in workflows.values())
     seed_script = Path("scripts/seed_live_production_state.py").read_text(encoding="utf-8")
     one_time_seed = seed and "BOOTSTRAP_NOT_REQUIRED_EXISTING_LIVE_STATE" in seed_script
     main_guard = all(v["main_sha_guard_removed"] for v in per.values())
