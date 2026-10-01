@@ -1,18 +1,36 @@
 import copy
 import json
+import os
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.bootstrap_production_rebaseline_state import (AUTHORIZATION_NAME, CONSUMPTION_NAME,
-    _canonical_hash, bootstrap_rebaseline_state)
+from scripts.bootstrap_production_rebaseline_state import (
+    APPROVED_MATERIAL_ROOT,
+    AUTHORIZATION_NAME,
+    CONSUMPTION_NAME,
+    _canonical_hash,
+    bootstrap_rebaseline_state,
+)
 from src.cer074_acceptance import atomic_write_json, sha256, strip_runtime
-from src.production_live_state import (CADENCE_DIR, MANIFEST_NAME, PERSIST_NAME, STATE_NAME,
-    file_hash, load_live_state, validate_material, validate_rebaseline_material, validate_recovery_source_material)
+from src.production_live_state import (
+    ARTIFACTS,
+    CADENCE_DIR,
+    MANIFEST_NAME,
+    PERSIST_NAME,
+    STATE_NAME,
+    file_hash,
+    load_live_state,
+    validate_material,
+    validate_rebaseline_material,
+    validate_recovery_source_material,
+)
 
 
 class RateRebaselineBootstrapTests(unittest.TestCase):
+    baseline_id = "rate-rebaseline-20261002-0730-cc-approved-v1"
+
     def setUp(self):
         tmp_root = Path.cwd() / ".tmp" / "rate-rebaseline-tests"
         tmp_root.mkdir(parents=True, exist_ok=True)
@@ -21,7 +39,7 @@ class RateRebaselineBootstrapTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.repo = self.root / "repo"
         self.artifacts = self.root / "artifacts"
-        self.material_root = self.root / "material"
+        self.material_root = self.repo / APPROVED_MATERIAL_ROOT / self.baseline_id
         self.git("init", self.repo)
         self.git("-C", self.repo, "checkout", "-b", "main")
         self.git("-C", self.repo, "config", "user.email", "rate-test@example.invalid")
@@ -40,47 +58,123 @@ class RateRebaselineBootstrapTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         return result.stdout.strip()
 
-    def decision(self):
-        roy = {"source_type": "CONTROL_CENTER_APPROVED_ROY_PORTFOLIO_OPENING_STATE",
-               "positions": [{"id": "roy-1", "symbol": "台積電", "quantity": 40, "average_cost": 867.72}],
-               "totals": {"cash": 179523, "opening_nav": 1509636}}
-        ai = {"source_type": "AI_PAPER_PORTFOLIO_REBASELINE_OPENING_STATE",
-              "opening_state_type": "CONTROL_CENTER_REBASELINE_OPENING_STATE",
-              "opening_capital": 1000000, "positions": [], "cash": 1000000, "nav": 1000000,
-              "historical_pnl_carried_forward": False, "historical_transactions_carried_forward": False,
-              "historical_recovery": False}
-        ledger = {"event_type": "REBASELINE_OPENING_BALANCE",
-                  "pre_rebaseline_transaction_history": "UNAVAILABLE",
-                  "historical_transaction_reconstruction": "PROHIBITED",
-                  "ledger_continuity_mode": "POST_REBASELINE_ONLY",
-                  "historical_recovery_status": "HISTORICAL_RECOVERY_SOURCE_IRRECOVERABLE"}
-        return {"baseline_type": "CONTROL_CENTER_REBASELINE", "baseline_version": "V1",
-                "trading_date": self.day, "cadence": self.cadence, "execution_scope": "PRODUCTION",
-                "previous_state_resolution": "CONTROL_CENTER_REBASELINE",
-                "historical_chain_break_acknowledged": True,
-                "historical_account_state_recoverable": False,
-                "production_evidence_state": {"validation_status": "PASS", "freshness": "PASS", "completeness": "PASS",
-                                              "coverage": "30/30", "fixture_fallback": "FORBIDDEN",
-                                              "stale_snapshot_fallback": "FORBIDDEN", "recovery_fallback": "FORBIDDEN"},
-                "roy_portfolio": roy, "ai_paper_portfolio": ai, "transaction_ledger": ledger,
-                "historical_predecessor_reference": {"state_id": "rate-state-656e460995324fb4a3eb7b30"}}
+    def rel(self, path):
+        return Path(path).relative_to(self.repo).as_posix()
 
-    def write_material(self, mutate=None):
+    def source_bundle(self):
+        provenance = {
+            "future_dated": False,
+            "stale": False,
+            "fixture": False,
+            "staging": False,
+            "local_cache": False,
+            "synthetic": False,
+            "recovery": False,
+            "historical_acceptance_fallback": "FORBIDDEN",
+        }
+        return {
+            "artifact": "RATE_PRODUCTION_SOURCE_BUNDLE",
+            "validation_status": "PASS",
+            "trading_date": self.day,
+            "cadence": self.cadence,
+            "freshness": "PASS",
+            "completeness": "PASS",
+            "coverage": "30/30",
+            "decision_record_coverage": {"actual": 30, "required": 30, "coverage": "30/30", "status": "PASS"},
+            "decision_records": [{"rank": idx + 1, "symbol": f"233{idx % 10}"} for idx in range(30)],
+            "source_snapshot_id": "twse-prod-snapshot-20261002-0730",
+            "input_snapshot_ids": ["twse-ohlcv-20261002", "twse-fundamental-20261002", "twse-institutional-20261002"],
+            "source_provenance": provenance,
+            "production_data_validation": {"freshness": "PASS", "completeness": "PASS"},
+        }
+
+    def portfolio_material(self):
+        roy = {
+            "source_type": "CONTROL_CENTER_APPROVED_ROY_PORTFOLIO_OPENING_STATE",
+            "currency": "TWD",
+            "positions": [
+                {"symbol": "台積電", "quantity": 40, "average_cost": 867.72, "currency": "TWD",
+                 "market_value": 37600, "total_cost": 34708.8},
+                {"symbol": "聯發科", "quantity": 12, "average_cost": 1250.0, "currency": "TWD",
+                 "market_value": 15720, "total_cost": 15000.0},
+            ],
+            "totals": {
+                "cash": 179523,
+                "opening_nav": 1509636,
+                "stock_market_value": 1330113,
+                "stock_total_cost": 1298708.8,
+            },
+        }
+        ai = {
+            "source_type": "AI_PAPER_PORTFOLIO_REBASELINE_OPENING_STATE",
+            "opening_state_type": "CONTROL_CENTER_REBASELINE_OPENING_STATE",
+            "opening_capital": 1000000,
+            "positions": [],
+            "cash": 1000000,
+            "nav": 1000000,
+            "currency": "TWD",
+            "historical_pnl_carried_forward": False,
+            "historical_transactions_carried_forward": False,
+            "historical_recovery": False,
+        }
+        ledger = {
+            "event_type": "REBASELINE_OPENING_BALANCE",
+            "pre_rebaseline_transaction_history": "UNAVAILABLE",
+            "historical_transaction_reconstruction": "PROHIBITED",
+            "ledger_continuity_mode": "POST_REBASELINE_ONLY",
+            "historical_recovery_status": "HISTORICAL_RECOVERY_SOURCE_IRRECOVERABLE",
+            "historical_terminal_reference": {
+                "trading_date": "2026-09-18",
+                "cadence": "19:30",
+                "state_id": "rate-state-656e460995324fb4a3eb7b30",
+                "state_hash": "656e460995324fb4a3eb7b3033b754752997c8cb761d414083a2148eb150b5c7",
+            },
+            "roy_portfolio_reference": "CONTROL_CENTER_REBASELINE_ROY_OPENING_STATE.json",
+            "ai_paper_portfolio_reference": "CONTROL_CENTER_REBASELINE_AI_OPENING_STATE.json",
+        }
+        return roy, ai, ledger
+
+    def decision(self, source_bundle_hash, source_bundle, roy, ai, ledger):
+        return {
+            "baseline_id": self.baseline_id,
+            "baseline_type": "CONTROL_CENTER_REBASELINE",
+            "baseline_version": "V1",
+            "trading_date": self.day,
+            "cadence": self.cadence,
+            "execution_scope": "PRODUCTION",
+            "previous_state_resolution": "CONTROL_CENTER_REBASELINE",
+            "historical_chain_break_acknowledged": True,
+            "historical_account_state_recoverable": False,
+            "production_source_bundle_sha256": source_bundle_hash,
+            "production_evidence_state": {
+                "validation_status": "PASS",
+                "trading_date": self.day,
+                "cadence": self.cadence,
+                "freshness": "PASS",
+                "completeness": "PASS",
+                "coverage": "30/30",
+                "source_snapshot_id": source_bundle["source_snapshot_id"],
+                "input_snapshot_ids": source_bundle["input_snapshot_ids"],
+                "source_provenance": source_bundle["source_provenance"],
+                "fixture_fallback": "FORBIDDEN",
+                "stale_snapshot_fallback": "FORBIDDEN",
+                "synthetic_fallback": "FORBIDDEN",
+                "recovery_fallback": "FORBIDDEN",
+                "historical_acceptance_bundle_fallback": "FORBIDDEN",
+            },
+            "roy_portfolio": copy.deepcopy(roy),
+            "ai_paper_portfolio": copy.deepcopy(ai),
+            "transaction_ledger": copy.deepcopy(ledger),
+            "historical_predecessor_reference": ledger["historical_terminal_reference"],
+        }
+
+    def write_material(self, mutate=None, mutate_phase="source"):
         self.material_root.mkdir(parents=True, exist_ok=True)
-        decision = self.decision()
-        if mutate:
-            mutate(decision)
-        digest = sha256(strip_runtime(decision))
-        state_id = "rate-state-" + digest[:24]
-        rebaseline_state = {"artifact": "RATE_PRODUCTION_REBASELINE_DECISION_STATE", "validation_status": "PASS",
-                            "state_id": state_id, "state_hash": digest, "decision": decision}
-        source_bundle = {"artifact": "RATE_PRODUCTION_SOURCE_BUNDLE", "validation_status": "PASS",
-                         "trading_date": self.day, "cadence": self.cadence, "coverage": "30/30",
-                         "decision_record_coverage": {"coverage": "30/30"},
-                         "source_provenance": {"fixture_fallback": "FORBIDDEN", "stale_snapshot_fallback": "FORBIDDEN"}}
-        roy = {"artifact": "CONTROL_CENTER_REBASELINE_ROY_OPENING_STATE", **decision["roy_portfolio"]}
-        ai = {"artifact": "CONTROL_CENTER_REBASELINE_AI_OPENING_STATE", **decision["ai_paper_portfolio"]}
-        ledger = {"artifact": "RATE_LEDGER_REBASELINE_BOUNDARY", **decision["transaction_ledger"]}
+        source_bundle = self.source_bundle()
+        roy, ai, ledger = self.portfolio_material()
+        context = {"source_bundle": source_bundle, "roy": roy, "ai": ai, "ledger": ledger}
+        if mutate and mutate_phase == "source":
+            mutate(context)
         paths = {
             "source_bundle": self.material_root / "RATE_PRODUCTION_SOURCE_BUNDLE.json",
             "roy": self.material_root / "CONTROL_CENTER_REBASELINE_ROY_OPENING_STATE.json",
@@ -89,38 +183,80 @@ class RateRebaselineBootstrapTests(unittest.TestCase):
             "state": self.material_root / "RATE_PRODUCTION_REBASELINE_DECISION_STATE.json",
             "manifest": self.material_root / "RATE_PRODUCTION_REBASELINE_MANIFEST.json",
         }
-        for key, obj in (("source_bundle", source_bundle), ("roy", roy), ("ai", ai), ("ledger", ledger), ("state", rebaseline_state)):
+        atomic_write_json(paths["source_bundle"], source_bundle)
+        source_hash = file_hash(paths["source_bundle"])
+        decision = self.decision(source_hash, source_bundle, roy, ai, ledger)
+        context["decision"] = decision
+        if mutate and mutate_phase == "decision":
+            mutate(context)
+        digest = sha256(strip_runtime(decision))
+        state_id = "rate-state-" + digest[:24]
+        rebaseline_state = {
+            "artifact": "RATE_PRODUCTION_REBASELINE_DECISION_STATE",
+            "validation_status": "PASS",
+            "baseline_id": self.baseline_id,
+            "state_id": state_id,
+            "state_hash": digest,
+            "decision": decision,
+        }
+        context["rebaseline_state"] = rebaseline_state
+        if mutate and mutate_phase == "rebaseline_state":
+            mutate(context)
+        if mutate and mutate_phase == "material":
+            mutate(context)
+        for key, obj in (("roy", {"artifact": "CONTROL_CENTER_REBASELINE_ROY_OPENING_STATE", **roy}),
+                         ("ai", {"artifact": "CONTROL_CENTER_REBASELINE_AI_OPENING_STATE", **ai}),
+                         ("ledger", {"artifact": "RATE_LEDGER_REBASELINE_BOUNDARY", **ledger}),
+                         ("state", rebaseline_state)):
             atomic_write_json(paths[key], obj)
-        manifest = {"artifact": "RATE_PRODUCTION_REBASELINE_MANIFEST", "validation_status": "PASS",
-                    "baseline_type": "CONTROL_CENTER_REBASELINE", "selected_trading_date": self.day,
-                    "selected_cadence": self.cadence, "baseline_id": "rate-rebaseline-20261002-0730-cc-approved-v1",
-                    "state_id": state_id, "state_hash": digest,
-                    "files": {"RATE_PRODUCTION_SOURCE_BUNDLE.json": file_hash(paths["source_bundle"]),
-                              "CONTROL_CENTER_REBASELINE_ROY_OPENING_STATE.json": file_hash(paths["roy"]),
-                              "CONTROL_CENTER_REBASELINE_AI_OPENING_STATE.json": file_hash(paths["ai"]),
-                              "RATE_LEDGER_REBASELINE_BOUNDARY.json": file_hash(paths["ledger"]),
-                              "RATE_PRODUCTION_REBASELINE_DECISION_STATE.json": file_hash(paths["state"])}}
+        manifest = {
+            "artifact": "RATE_PRODUCTION_REBASELINE_MANIFEST",
+            "validation_status": "PASS",
+            "baseline_type": "CONTROL_CENTER_REBASELINE",
+            "baseline_id": self.baseline_id,
+            "selected_trading_date": self.day,
+            "selected_cadence": self.cadence,
+            "state_id": state_id,
+            "state_hash": digest,
+            "files": {
+                "RATE_PRODUCTION_SOURCE_BUNDLE.json": file_hash(paths["source_bundle"]),
+                "CONTROL_CENTER_REBASELINE_ROY_OPENING_STATE.json": file_hash(paths["roy"]),
+                "CONTROL_CENTER_REBASELINE_AI_OPENING_STATE.json": file_hash(paths["ai"]),
+                "RATE_LEDGER_REBASELINE_BOUNDARY.json": file_hash(paths["ledger"]),
+                "RATE_PRODUCTION_REBASELINE_DECISION_STATE.json": file_hash(paths["state"]),
+            },
+        }
+        context["manifest"] = manifest
+        if mutate and mutate_phase == "manifest":
+            mutate(context)
         atomic_write_json(paths["manifest"], manifest)
         paths["state_id"] = state_id
         paths["state_hash"] = digest
         return paths
 
     def authorization_manifest(self, **overrides):
-        payload = {"artifact": "RATE_PRODUCTION_REBASELINE_AUTHORIZATION_MANIFEST",
-                   "authorization_id": self.authorization_id,
-                   "authorization_status": "APPROVED", "approved_by": "CONTROL_CENTER",
-                   "baseline_type": "CONTROL_CENTER_REBASELINE",
-                   "previous_state_resolution": "CONTROL_CENTER_REBASELINE",
-                   "baseline_id": "rate-rebaseline-20261002-0730-cc-approved-v1",
-                   "trading_date": self.day, "cadence": self.cadence,
-                   "production_source_bundle_sha256": file_hash(self.paths["source_bundle"]),
-                   "roy_opening_state_sha256": file_hash(self.paths["roy"]),
-                   "ai_opening_state_sha256": file_hash(self.paths["ai"]),
-                   "ledger_boundary_sha256": file_hash(self.paths["ledger"]),
-                   "canonical_rebaseline_state_sha256": file_hash(self.paths["state"]),
-                   "expected_state_id": self.paths["state_id"], "expected_state_hash": self.paths["state_hash"],
-                   "single_use": True, "acceptance_counter_reset": False,
-                   "post_rebaseline_continuity_window": "NEW", "approval_commit_sha": "0" * 40}
+        payload = {
+            "artifact": "RATE_PRODUCTION_REBASELINE_AUTHORIZATION_MANIFEST",
+            "authorization_id": self.authorization_id,
+            "authorization_status": "APPROVED",
+            "approved_by": "CONTROL_CENTER",
+            "baseline_type": "CONTROL_CENTER_REBASELINE",
+            "previous_state_resolution": "CONTROL_CENTER_REBASELINE",
+            "baseline_id": self.baseline_id,
+            "trading_date": self.day,
+            "cadence": self.cadence,
+            "production_source_bundle_sha256": file_hash(self.paths["source_bundle"]),
+            "roy_opening_state_sha256": file_hash(self.paths["roy"]),
+            "ai_opening_state_sha256": file_hash(self.paths["ai"]),
+            "ledger_boundary_sha256": file_hash(self.paths["ledger"]),
+            "canonical_rebaseline_state_sha256": file_hash(self.paths["state"]),
+            "expected_state_id": self.paths["state_id"],
+            "expected_state_hash": self.paths["state_hash"],
+            "single_use": True,
+            "acceptance_counter_reset": False,
+            "post_rebaseline_continuity_window": "NEW",
+            "approval_commit_sha": "0" * 40,
+        }
         payload.update(overrides)
         payload["authorization_blob_sha256"] = _canonical_hash(payload)
         payload["manifest_integrity_hash"] = _canonical_hash(payload)
@@ -139,14 +275,25 @@ class RateRebaselineBootstrapTests(unittest.TestCase):
         return path, payload
 
     def bootstrap(self, **overrides):
-        args = dict(rebaseline_manifest_path=self.paths["manifest"], rebaseline_state_path=self.paths["state"],
-                    source_bundle_path=self.paths["source_bundle"], roy_opening_state_path=self.paths["roy"],
-                    ai_opening_state_path=self.paths["ai"], ledger_boundary_path=self.paths["ledger"],
-                    trading_date=self.day, cadence=self.cadence, rebaseline_authorization_id=self.authorization_id,
-                    repository_root=self.repo, artifacts_root=self.artifacts, workflow_run_id="701", workflow_job_id="801",
-                    event_name="workflow_dispatch", ref="refs/heads/main",
-                    commit_sha=self.git("-C", self.repo, "rev-parse", "HEAD"),
-                    evidence_output=self.artifacts / "production_state/RATE_PRODUCTION_REBASELINE_BOOTSTRAP_EVIDENCE.json")
+        args = dict(
+            rebaseline_manifest_path=self.rel(self.paths["manifest"]),
+            rebaseline_state_path=self.rel(self.paths["state"]),
+            source_bundle_path=self.rel(self.paths["source_bundle"]),
+            roy_opening_state_path=self.rel(self.paths["roy"]),
+            ai_opening_state_path=self.rel(self.paths["ai"]),
+            ledger_boundary_path=self.rel(self.paths["ledger"]),
+            trading_date=self.day,
+            cadence=self.cadence,
+            rebaseline_authorization_id=self.authorization_id,
+            repository_root=self.repo,
+            artifacts_root=self.artifacts,
+            workflow_run_id="701",
+            workflow_job_id="801",
+            event_name="workflow_dispatch",
+            ref="refs/heads/main",
+            commit_sha=self.git("-C", self.repo, "rev-parse", "HEAD"),
+            evidence_output=self.artifacts / "production_state/RATE_PRODUCTION_REBASELINE_BOOTSTRAP_EVIDENCE.json",
+        )
         args.update(overrides)
         return bootstrap_rebaseline_state(**args)
 
@@ -155,21 +302,23 @@ class RateRebaselineBootstrapTests(unittest.TestCase):
         self.assertEqual(out["validation_status"], "BLOCKED", out)
         self.assertEqual(out["blocking_reason"], reason, out)
 
-    def test_valid_control_center_rebaseline_bootstrap_writes_canonical_trio_and_consumes_once(self):
+    def test_valid_control_center_rebaseline_bootstrap_writes_atomic_canonical_package_and_consumes_once(self):
         out = self.bootstrap()
         self.assertEqual(out["validation_status"], "PASS", out)
         directory = self.artifacts / "production_state/live" / self.day / CADENCE_DIR[self.cadence]
-        self.assertTrue((directory / PERSIST_NAME).is_file())
-        self.assertTrue((directory / STATE_NAME).is_file())
-        self.assertTrue((directory / MANIFEST_NAME).is_file())
+        for name in (PERSIST_NAME, STATE_NAME, MANIFEST_NAME, CONSUMPTION_NAME):
+            self.assertTrue((directory / name).is_file(), name)
         manifest = json.loads((directory / MANIFEST_NAME).read_text(encoding="utf-8"))
-        self.assertIs(manifest["rebaseline_bootstrap"], True)
-        self.assertFalse(manifest["scheduled_soak_credit"])
-        self.assertFalse(manifest["acceptance_counter_reset"])
-        self.assertEqual(manifest["post_rebaseline_continuity_window"], "NEW")
-        consumed = self.artifacts / "production_state/rebaseline_authorizations" / self.authorization_id / CONSUMPTION_NAME
-        self.assertTrue(consumed.is_file())
-        self.assertEqual(json.loads(consumed.read_text(encoding="utf-8"))["authorization_id"], self.authorization_id)
+        self.assertEqual(manifest["baseline_id"], self.baseline_id)
+        self.assertEqual(manifest["baseline_state_id"], self.paths["state_id"])
+        self.assertEqual(manifest["baseline_state_hash"], self.paths["state_hash"])
+        self.assertEqual(manifest["files"][CONSUMPTION_NAME], file_hash(directory / CONSUMPTION_NAME))
+        consumed = json.loads((directory / CONSUMPTION_NAME).read_text(encoding="utf-8"))
+        self.assertEqual(consumed["authorization_id"], self.authorization_id)
+        self.assertEqual(consumed["baseline_id"], self.baseline_id)
+        latest = json.loads((self.artifacts / "RATE_PRODUCTION_STATE_LATEST.json").read_text(encoding="utf-8"))
+        self.assertEqual(latest["baseline_id"], self.baseline_id)
+        self.assertEqual(latest["current_state_id"], self.paths["state_id"])
         loaded = load_live_state(self.artifacts / "production_state", self.day, self.cadence)
         self.assertEqual(loaded["state"]["current_state_id"], self.paths["state_id"])
         second = self.bootstrap()
@@ -180,41 +329,160 @@ class RateRebaselineBootstrapTests(unittest.TestCase):
         self.assert_blocked("REBASELINE_BOOTSTRAP_AUTHORIZATION_REQUIRED", ref="refs/heads/feature")
         self.assert_blocked("REBASELINE_AUTHORIZATION_MANIFEST_REQUIRED", rebaseline_authorization_id="CC-MISSING")
 
-    def test_wrong_hashes_and_reused_authorization_blocked(self):
+    def test_authorization_integrity_blocks_changed_bytes_wrong_commit_wrong_baseline_and_material_hash(self):
+        self.authorization_manifest(baseline_id="wrong-baseline")
+        self.assert_blocked("REBASELINE_BASELINE_ID_MISMATCH")
         self.authorization_manifest(production_source_bundle_sha256="0" * 64)
         self.assert_blocked("REBASELINE_PRODUCTION_BUNDLE_HASH_MISMATCH")
-        self.authorization_manifest(roy_opening_state_sha256="0" * 64)
-        self.assert_blocked("REBASELINE_ROY_OPENING_HASH_MISMATCH")
-        self.authorization_manifest(ai_opening_state_sha256="0" * 64)
-        self.assert_blocked("REBASELINE_AI_OPENING_HASH_MISMATCH")
-        self.authorization_manifest(ledger_boundary_sha256="0" * 64)
-        self.assert_blocked("REBASELINE_LEDGER_BOUNDARY_HASH_MISMATCH")
         self.authorization_manifest(expected_state_hash="0" * 64)
         self.assert_blocked("REBASELINE_MATERIAL_STATE_HASH_MISMATCH")
-
-    def test_stale_incomplete_synthetic_fabricated_and_historical_binding_blocked(self):
-        cases = [
-            lambda d: d["production_evidence_state"].update(freshness="FAIL"),
-            lambda d: d["production_evidence_state"].update(coverage="29/30"),
-            lambda d: d["roy_portfolio"]["positions"][0].update(synthetic=True),
-            lambda d: d["transaction_ledger"].update(transactions=[{"id": "fabricated"}]),
-            lambda d: d.update(previous_state_id="rate-state-656e460995324fb4a3eb7b30"),
-        ]
-        for mutate in cases:
-            with self.subTest(mutate=mutate):
-                self.paths = self.write_material(mutate=mutate)
-                self.authorization_manifest()
-                self.assert_blocked("REBASELINE_BOOTSTRAP_BLOCKED")
-
-    def test_normal_validate_material_and_recovery_validator_unchanged(self):
-        self.paths = self.write_material()
+        path = self.repo / "control" / "rebaseline_authorizations" / self.authorization_id / AUTHORIZATION_NAME
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload["approved_by"] = "LOCAL"
+        atomic_write_json(path, payload)
+        self.assert_blocked("REBASELINE_AUTHORIZATION_MANIFEST_TAMPERED")
         self.authorization_manifest()
+        path = self.repo / "control" / "rebaseline_authorizations" / self.authorization_id / AUTHORIZATION_NAME
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload["approval_commit_sha"] = "f" * 40
+        payload["authorization_blob_sha256"] = _canonical_hash(payload)
+        payload["manifest_integrity_hash"] = _canonical_hash(payload)
+        atomic_write_json(path, payload)
+        self.assert_blocked("REBASELINE_APPROVAL_COMMIT_INVALID")
+
+    def test_production_source_bundle_strict_binding_blocks_wrong_date_cadence_stale_incomplete_and_29_of_30(self):
+        cases = [
+            ("REBASELINE_PRODUCTION_SOURCE_BINDING_MISMATCH", "source", lambda m: m["source_bundle"].update(trading_date="2026-10-03")),
+            ("REBASELINE_PRODUCTION_SOURCE_BINDING_MISMATCH", "source", lambda m: m["source_bundle"].update(cadence="09:30")),
+            ("REBASELINE_PRODUCTION_SOURCE_BINDING_MISMATCH", "source", lambda m: m["source_bundle"].update(freshness="FAIL")),
+            ("REBASELINE_PRODUCTION_SOURCE_BINDING_MISMATCH", "source", lambda m: m["source_bundle"].update(completeness="FAIL")),
+            ("REBASELINE_PRODUCTION_SOURCE_BINDING_MISMATCH", "source", lambda m: m["source_bundle"].update(coverage="29/30")),
+            ("REBASELINE_PRODUCTION_SOURCE_BINDING_MISMATCH", "source", lambda m: m["source_bundle"]["decision_records"].pop()),
+            ("REBASELINE_PRODUCTION_SOURCE_BINDING_MISMATCH", "source", lambda m: m["source_bundle"]["source_provenance"].update(stale=True)),
+            ("REBASELINE_PRODUCTION_SOURCE_BINDING_MISMATCH", "source", lambda m: m["source_bundle"].update(input_snapshot_ids=[])),
+        ]
+        for reason, phase, mutate in cases:
+            with self.subTest(reason=reason, phase=phase, mutate=mutate):
+                self.paths = self.write_material(mutate=mutate, mutate_phase=phase)
+                self.authorization_manifest()
+                self.assert_blocked(reason)
+
+    def test_embedded_source_roy_ai_ledger_and_baseline_cross_binding_mismatches_blocked(self):
+        cases = [
+            ("REBASELINE_PRODUCTION_EVIDENCE_BINDING_MISMATCH",
+             "decision", lambda m: m["decision"].update(production_source_bundle_sha256="0" * 64)),
+            ("REBASELINE_PRODUCTION_EVIDENCE_BINDING_MISMATCH",
+             "decision", lambda m: m["decision"]["production_evidence_state"].update(source_snapshot_id="wrong")),
+            ("REBASELINE_ROY_STATE_BINDING_MISMATCH",
+             "decision", lambda m: m["decision"]["roy_portfolio"]["positions"][0].update(quantity=999)),
+            ("REBASELINE_ROY_STATE_BINDING_MISMATCH",
+             "material", lambda m: m["roy"]["totals"].pop("stock_total_cost")),
+            ("REBASELINE_AI_STATE_BINDING_MISMATCH",
+             "decision", lambda m: m["decision"]["ai_paper_portfolio"].update(cash=999999)),
+            ("REBASELINE_AI_STATE_BINDING_MISMATCH",
+             "material", lambda m: m["ai"].update(positions=[{"symbol": "2330"}])),
+            ("REBASELINE_LEDGER_BINDING_MISMATCH",
+             "decision", lambda m: m["decision"]["transaction_ledger"].update(ledger_continuity_mode="HISTORICAL")),
+            ("REBASELINE_LEDGER_BINDING_MISMATCH",
+             "material", lambda m: m["ledger"].update(transactions=[{"id": "synthetic"}])),
+            ("REBASELINE_BASELINE_ID_MISMATCH",
+             "decision", lambda m: m["decision"].update(baseline_id="wrong-baseline")),
+            ("REBASELINE_BASELINE_ID_MISMATCH",
+             "manifest", lambda m: m["manifest"].update(baseline_id="wrong-baseline")),
+            ("REBASELINE_MATERIAL_STATE_HASH_MISMATCH",
+             "rebaseline_state", lambda m: m["rebaseline_state"].update(state_hash="0" * 64)),
+        ]
+        for reason, phase, mutate in cases:
+            with self.subTest(reason=reason, phase=phase, mutate=mutate):
+                self.paths = self.write_material(mutate=mutate, mutate_phase=phase)
+                self.authorization_manifest()
+                self.assert_blocked(reason)
+
+    def test_material_paths_must_stay_inside_approved_namespace_without_absolute_traversal_or_symlink_escape(self):
+        self.assert_blocked("REBASELINE_MATERIAL_PATH_INVALID", source_bundle_path="../outside.json")
+        self.assert_blocked("REBASELINE_MATERIAL_PATH_INVALID", source_bundle_path=str(self.paths["source_bundle"]))
+        bad = self.repo / "artifacts" / "production_state" / "RATE_PRODUCTION_SOURCE_BUNDLE.json"
+        atomic_write_json(bad, json.loads(self.paths["source_bundle"].read_text(encoding="utf-8")))
+        self.assert_blocked("REBASELINE_MATERIAL_PATH_INVALID", source_bundle_path=bad.relative_to(self.repo).as_posix())
+        external = self.root / "external.json"
+        atomic_write_json(external, json.loads(self.paths["source_bundle"].read_text(encoding="utf-8")))
+        link = self.material_root / "RATE_PRODUCTION_SOURCE_BUNDLE_LINK.json"
+        try:
+            os.symlink(external, link)
+        except (OSError, NotImplementedError):
+            self.skipTest("symlink creation unavailable on this platform")
+        self.assert_blocked("REBASELINE_MATERIAL_PATH_INVALID", source_bundle_path=link.relative_to(self.repo).as_posix())
+
+    def test_crash_safe_staging_promotion_latest_and_idempotent_repair(self):
+        for crash in ("after_one_staged_file", "staging_hash_mismatch", "before_atomic_promotion"):
+            with self.subTest(crash=crash):
+                out = self.bootstrap(simulate_crash_at=crash)
+                self.assertEqual(out["validation_status"], "BLOCKED", out)
+                live_dir = self.artifacts / "production_state/live" / self.day / CADENCE_DIR[self.cadence]
+                self.assertFalse(live_dir.exists(), crash)
+                self.assertFalse((self.artifacts / "RATE_PRODUCTION_STATE_LATEST.json").exists(), crash)
+                if self.artifacts.exists():
+                    for child in self.artifacts.iterdir():
+                        if child.is_dir():
+                            import shutil
+                            shutil.rmtree(child)
+                        else:
+                            child.unlink()
+        out = self.bootstrap(simulate_crash_at="after_live_promotion_before_latest")
+        self.assertEqual(out["validation_status"], "BLOCKED", out)
+        self.assertEqual(out["blocking_reason"], "LIVE_SLOT_PUBLISHED_LATEST_UPDATE_FAILED")
+        live_dir = self.artifacts / "production_state/live" / self.day / CADENCE_DIR[self.cadence]
+        self.assertTrue((live_dir / CONSUMPTION_NAME).is_file())
+        self.assertFalse((self.artifacts / "RATE_PRODUCTION_STATE_LATEST.json").exists())
+        repaired = self.bootstrap()
+        self.assertEqual(repaired["validation_status"], "PASS", repaired)
+        self.assertIs(repaired["idempotent_latest_repair"], True)
+        self.assertTrue((self.artifacts / "RATE_PRODUCTION_STATE_LATEST.json").is_file())
+
+    def test_next_scheduled_state_can_resolve_rebaseline_then_continue_as_persisted_without_rebaseline_propagation(self):
+        out = self.bootstrap()
+        self.assertEqual(out["validation_status"], "PASS", out)
+        previous = load_live_state(self.artifacts / "production_state", self.day, self.cadence)
+        next_decision = copy.deepcopy(previous["state"]["decision"])
+        next_decision.update({
+            "baseline_type": "POST_REBASELINE_CONTINUITY",
+            "previous_state_resolution": "PERSISTED_PRODUCTION_STATE",
+            "previous_state_id": previous["state"]["current_state_id"],
+            "previous_state_hash": previous["state"]["decision_payload_hash"],
+            "historical_chain_break_acknowledged": False,
+            "historical_account_state_recoverable": True,
+            "cadence": "09:30",
+        })
+        next_decision.pop("production_source_bundle_sha256", None)
+        next_decision["transaction_ledger"] = {"transactions": [
+            {"id": "post-rebaseline-open", "event_type": "CONTINUITY_OPEN", "previous_state_id": previous["state"]["current_state_id"]}
+        ], "reset": False}
+        digest = sha256(strip_runtime(next_decision))
+        state_id = "rate-state-" + digest[:24]
+        entry = {"current_state_id": state_id, "decision_payload_hash": digest, "trading_date": self.day,
+                 "cadence": "09:30", "execution_scope": "PRODUCTION",
+                 "previous_state_resolution": "PERSISTED_PRODUCTION_STATE",
+                 "previous_state_id": previous["state"]["current_state_id"],
+                 "previous_state_hash": previous["state"]["decision_payload_hash"]}
+        persist = {"artifact": ARTIFACTS["09:30"], "validation_status": "PASS",
+                   "current_state_id": state_id, "current_state_hash": digest,
+                   "previous_state_id": previous["state"]["current_state_id"],
+                   "persist_result": {"status": "PERSISTED", "state_entry": entry}}
+        material = {"artifact": "RATE_PRODUCTION_DECISION_STATE", "validation_status": "PASS",
+                    "state_entry": entry,
+                    "decision_state": {"current_state_id": state_id, "decision_payload_hash": digest,
+                                       "previous_state_id": previous["state"]["current_state_id"],
+                                       "state_entry": entry, "decision": next_decision}}
+        self.assertEqual(validate_material(persist, material, self.day, "09:30")["current_state_id"], state_id)
+
+    def test_normal_validate_material_and_recovery_validator_remain_strictly_isolated(self):
         out = self.bootstrap()
         self.assertEqual(out["validation_status"], "PASS", out)
         directory = self.artifacts / "production_state/live" / self.day / CADENCE_DIR[self.cadence]
         persist = json.loads((directory / PERSIST_NAME).read_text(encoding="utf-8"))
         material = json.loads((directory / STATE_NAME).read_text(encoding="utf-8"))
-        self.assertEqual(validate_rebaseline_material(persist, material, self.day, self.cadence)["current_state_id"], self.paths["state_id"])
+        self.assertEqual(validate_rebaseline_material(persist, material, self.day, self.cadence)["current_state_id"],
+                         self.paths["state_id"])
         with self.assertRaisesRegex(RuntimeError, "LIVE_STATE_PERSIST_CONTRACT_INVALID|LIVE_STATE_FALLBACK_FORBIDDEN"):
             validate_material(persist, material, self.day, self.cadence)
         with self.assertRaisesRegex(RuntimeError, "REBASELINE_BOOTSTRAP_BLOCKED|LIVE_STATE_PERSIST_CONTRACT_INVALID"):
@@ -223,6 +491,3 @@ class RateRebaselineBootstrapTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-
-

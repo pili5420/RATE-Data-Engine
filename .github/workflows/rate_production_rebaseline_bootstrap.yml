@@ -15,22 +15,22 @@ on:
         description: "Control Center rebaseline authorization ID"
         required: true
       rebaseline_manifest_path:
-        description: "RATE_PRODUCTION_REBASELINE_MANIFEST.json path"
+        description: "RATE_PRODUCTION_REBASELINE_MANIFEST.json path under artifacts/rebaseline_material/<baseline_id>/"
         required: true
       rebaseline_state_path:
-        description: "RATE_PRODUCTION_REBASELINE_DECISION_STATE.json path"
+        description: "RATE_PRODUCTION_REBASELINE_DECISION_STATE.json path under artifacts/rebaseline_material/<baseline_id>/"
         required: true
       source_bundle_path:
-        description: "RATE_PRODUCTION_SOURCE_BUNDLE.json path"
+        description: "RATE_PRODUCTION_SOURCE_BUNDLE.json path under artifacts/rebaseline_material/<baseline_id>/"
         required: true
       roy_opening_state_path:
-        description: "CONTROL_CENTER_REBASELINE_ROY_OPENING_STATE.json path"
+        description: "CONTROL_CENTER_REBASELINE_ROY_OPENING_STATE.json path under artifacts/rebaseline_material/<baseline_id>/"
         required: true
       ai_opening_state_path:
-        description: "CONTROL_CENTER_REBASELINE_AI_OPENING_STATE.json path"
+        description: "CONTROL_CENTER_REBASELINE_AI_OPENING_STATE.json path under artifacts/rebaseline_material/<baseline_id>/"
         required: true
       ledger_boundary_path:
-        description: "RATE_LEDGER_REBASELINE_BOUNDARY.json path"
+        description: "RATE_LEDGER_REBASELINE_BOUNDARY.json path under artifacts/rebaseline_material/<baseline_id>/"
         required: true
 
 permissions:
@@ -90,7 +90,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add artifacts/RATE_PRODUCTION_STATE_LATEST.json artifacts/production_state/live artifacts/production_state/rebaseline_authorizations
+          git add artifacts/RATE_PRODUCTION_STATE_LATEST.json artifacts/production_state/live
           if git diff --cached --quiet; then
             echo "authorized_rebaseline_commit=NO_CHANGES"
           else
@@ -107,5 +107,4 @@ jobs:
           path: |
             artifacts/production_state/RATE_PRODUCTION_REBASELINE_BOOTSTRAP_EVIDENCE.json
             artifacts/production_state/live/${{ inputs.trading_date }}/**/*.json
-            artifacts/production_state/rebaseline_authorizations/**/*.json
           if-no-files-found: warn

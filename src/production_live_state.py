@@ -198,6 +198,7 @@ def validate_recovery_source_material(persist, material, trading_date, cadence):
 
 
 REBASELINE_PERSIST_ARTIFACT = "RATE_PRODUCTION_REBASELINE_PERSIST_RESULT_EVIDENCE"
+REBASELINE_CONSUMPTION_NAME = "RATE_PRODUCTION_REBASELINE_AUTHORIZATION_CONSUMPTION_EVIDENCE.json"
 
 
 def _require_no_forbidden_rebaseline_data(decision):
@@ -335,6 +336,22 @@ def _load_live_state(state_root, trading_date, cadence):
         require(manifest.get("baseline_state_id") == state["current_state_id"]
                 and manifest.get("baseline_state_hash") == state["decision_payload_hash"],
                 "LIVE_STATE_REBASELINE_BINDING_INVALID")
+        consumption_path = directory / REBASELINE_CONSUMPTION_NAME
+        require(consumption_path.is_file() and consumption_path.resolve().is_relative_to(root),
+                "LIVE_STATE_REBASELINE_CONSUMPTION_MISSING")
+        require(file_hash(consumption_path) == (manifest.get("files") or {}).get(REBASELINE_CONSUMPTION_NAME),
+                "LIVE_STATE_REBASELINE_CONSUMPTION_MISMATCH")
+        consumption = read_object(consumption_path)
+        require(consumption.get("artifact") == "RATE_PRODUCTION_REBASELINE_AUTHORIZATION_CONSUMPTION_EVIDENCE"
+                and consumption.get("validation_status") == "PASS"
+                and consumption.get("consumed") is True
+                and consumption.get("authorization_id") == manifest.get("rebaseline_authorization_id")
+                and consumption.get("baseline_id") == manifest.get("baseline_id")
+                and consumption.get("source_state_id") == state["current_state_id"]
+                and consumption.get("source_state_hash") == state["decision_payload_hash"]
+                and consumption.get("target_trading_date") == trading_date
+                and consumption.get("target_cadence") == cadence,
+                "LIVE_STATE_REBASELINE_CONSUMPTION_MISMATCH")
     return {"persist": persist, "material": material, "state": state, "manifest": manifest, "path": persist_path}
 
 
