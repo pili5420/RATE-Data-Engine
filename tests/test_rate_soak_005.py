@@ -14,7 +14,7 @@ from scripts.publish_production_state_latest import publish_state
 from scripts.resolve_production_runtime_context import resolve_context
 from src.cer074_acceptance import atomic_write_json, sha256, strip_runtime
 from src.production_live_state import (ARTIFACTS, CADENCE_DIR, MANIFEST_NAME, PERSIST_NAME, STATE_NAME,
-                                      file_hash, load_live_state)
+                                      file_hash, load_live_state, validate_material, validate_recovery_source_material)
 
 
 class RateSoak005Tests(unittest.TestCase):
@@ -94,6 +94,81 @@ class RateSoak005Tests(unittest.TestCase):
         atomic_write_json(persist_path, persist)
         atomic_write_json(state_path, material)
         return persist_path, state_path, material["decision_state"]
+
+    def legacy_material(self, day, cadence, previous=None):
+        previous = previous or {"current_state_id": "rate-state-" + "a" * 24, "decision_payload_hash": "a" * 64}
+        decision = {"trading_date": day, "cadence": cadence, "execution_scope": "PRODUCTION",
+                    "previous_state_resolution": "PERSISTED_PRODUCTION_STATE",
+                    "previous_state_id": previous["current_state_id"],
+                    "previous_state_hash": previous["decision_payload_hash"],
+                    "records": [{"symbol": "TEST"}],
+                    "roy_portfolio": {"positions_extended": True, "cash": "PASS", "nav": "PASS", "reset": False},
+                    "ai_paper_portfolio": {"positions_extended": True, "cash_preserved": True,
+                                           "closing_nav": "PASS", "reset": False},
+                    "transaction_ledger": {"ledger_id": "legacy-accepted-ledger",
+                                           "historical_transactions_preserved": True,
+                                           "append_only": True, "new_transactions": [], "reset": False}}
+        return self.wrap_decision(decision, previous, cadence)
+
+    def value_level_legacy_material(self, day, cadence, previous=None):
+        previous = previous or {"current_state_id": "rate-state-" + "a" * 24, "decision_payload_hash": "a" * 64}
+        decision = {"trading_date": day, "cadence": cadence, "execution_scope": "PRODUCTION",
+                    "previous_state_resolution": "PERSISTED_PRODUCTION_STATE",
+                    "previous_state_id": previous["current_state_id"],
+                    "previous_state_hash": previous["decision_payload_hash"],
+                    "records": [{"symbol": "TEST"}],
+                    "roy_portfolio": {"holdings": [{"id": "roy-pos-1", "symbol": "ROY", "quantity": 27,
+                                                    "cost_basis": 2700}],
+                                      "cash_balance": 123456, "equity": 126156, "reset": False},
+                    "ai_paper_portfolio_ledger": {"position_lots": [{"id": "ai-pos-1", "symbol": "AI",
+                                                                     "quantity": 19, "cost_basis": 1900}],
+                                                  "cash_balance": 654321, "equity": 656221,
+                                                  "reset": False, "positions_preserved": True,
+                                                  "cash_preserved": True},
+                    "transaction_ledger": {"ledger_id": "legacy-accepted-ledger",
+                                           "historical_transactions": [{"id": "txn-1", "symbol": "AI",
+                                                                        "quantity": 10},
+                                                                       {"id": "txn-2", "symbol": "AI",
+                                                                        "quantity": 9}],
+                                           "new_transactions": [{"id": "txn-3", "symbol": "AI",
+                                                                 "quantity": 0}],
+                                           "historical_transactions_preserved": True,
+                                           "append_only": True, "reset": False}}
+        return self.wrap_decision(decision, previous, cadence)
+
+    def wrap_decision(self, decision, previous, cadence):
+        digest = sha256(strip_runtime(decision))
+        state = {"current_state_id": "rate-state-" + digest[:24], "decision_payload_hash": digest,
+                 "previous_state_id": previous["current_state_id"], "decision": decision}
+        entry = {k: decision[k] for k in ("trading_date", "cadence", "execution_scope", "previous_state_resolution", "previous_state_id")}
+        entry.update(current_state_id=state["current_state_id"], decision_payload_hash=digest)
+        persist = {"artifact": ARTIFACTS[cadence], "validation_status": "PASS", "current_state_id": state["current_state_id"],
+                   "current_state_hash": digest, "previous_state_id": previous["current_state_id"],
+                   "persist_result": {"status": "PERSISTED", "state_entry": entry}}
+        return persist, {"state_entry": entry, "decision_state": state}
+
+    def legacy_recovery_source_files(self, day, cadence):
+        persist, material = self.value_level_legacy_material(day, cadence)
+        source = self.runtime / "legacy-accepted-recovery-source" / CADENCE_DIR[cadence]
+        persist_path = source / PERSIST_NAME
+        state_path = source / STATE_NAME
+        atomic_write_json(persist_path, persist)
+        atomic_write_json(state_path, material)
+        return persist_path, state_path, material["decision_state"]
+
+    def assert_recovery_normalization_blocked(self, mutate, reason="RECOVERY_SCHEMA_NORMALIZATION_DATA_UNAVAILABLE"):
+        persist, material = self.value_level_legacy_material("2026-09-30", "19:30")
+        mutate(material["decision_state"]["decision"])
+        digest = sha256(strip_runtime(material["decision_state"]["decision"]))
+        material["decision_state"].update(current_state_id="rate-state-" + digest[:24],
+                                          decision_payload_hash=digest)
+        material["state_entry"].update(current_state_id=material["decision_state"]["current_state_id"],
+                                       decision_payload_hash=digest)
+        persist.update(current_state_id=material["decision_state"]["current_state_id"],
+                       current_state_hash=digest)
+        persist["persist_result"]["state_entry"] = material["state_entry"]
+        with self.assertRaisesRegex(RuntimeError, reason):
+            validate_recovery_source_material(persist, material, "2026-09-30", "19:30")
 
     def authorization_manifest(self, persist_path, state_path, state, day, cadence, **overrides):
         authorization_id = overrides.pop("authorization_id", "CC-RATE-SOAK-005")
@@ -222,6 +297,79 @@ class RateSoak005Tests(unittest.TestCase):
         consumed = json.loads(consumption.read_text())
         self.assertIs(consumed["consumed"], True)
         self.assertEqual(consumed["authorization_id"], "CC-RATE-SOAK-005")
+
+    def test_legacy_accepted_state_never_passes_normal_runtime_validation(self):
+        persist, material = self.legacy_material("2026-09-30", "19:30")
+        with self.assertRaisesRegex(RuntimeError, "LIVE_STATE_AI_ACCOUNT_MISSING"):
+            validate_material(persist, material, "2026-09-30", "19:30")
+
+    def test_authorized_recovery_adapts_legacy_accepted_state_to_runtime_schema(self):
+        persist_path, state_path, state = self.legacy_recovery_source_files("2026-09-30", "19:30")
+        source = json.loads(state_path.read_text())["decision_state"]["decision"]
+        self.authorization_manifest(persist_path, state_path, state, "2026-09-30", "19:30")
+        out = bootstrap_recovery_state(source_persist_path=persist_path, source_state_path=state_path,
+            trading_date="2026-09-30", cadence="19:30", recovery_authorization_id="CC-RATE-SOAK-005",
+            recovery_source_type="FORMAL_ACCEPTED_RECOVERY_SOURCE",
+            repository_root=self.repo, artifacts_root=self.artifacts, workflow_run_id="301", workflow_job_id="401",
+            event_name="workflow_dispatch", ref="refs/heads/main", commit_sha=self.git("-C", self.repo, "rev-parse", "HEAD"))
+        self.assertEqual(out["validation_status"], "PASS", out)
+        self.assertIs(out["legacy_recovery_schema_compatibility"], True)
+        loaded = load_live_state(self.artifacts / "production_state", "2026-09-30", "19:30")
+        self.assertEqual(loaded["state"]["current_state_id"], state["current_state_id"])
+        self.assertEqual(loaded["state"]["decision_payload_hash"], state["decision_payload_hash"])
+        self.assertEqual(loaded["state"]["runtime_schema_compatibility"]["mode"], "RECOVERY_ONLY")
+        self.assertIs(loaded["state"]["runtime_schema_compatibility"]["synthetic_position_created"], False)
+        self.assertIs(loaded["state"]["runtime_schema_compatibility"]["synthetic_transaction_created"], False)
+        self.assertIs(loaded["state"]["runtime_schema_compatibility"]["default_zero_balance_used"], False)
+        self.assertIn("positions", loaded["state"]["decision"]["ai_paper_portfolio"])
+        self.assertIn("cash", loaded["state"]["decision"]["ai_paper_portfolio"])
+        self.assertNotEqual(loaded["state"]["decision"]["ai_paper_portfolio"]["cash"], 0)
+        self.assertIn("transactions", loaded["state"]["decision"]["transaction_ledger"])
+        normalized = loaded["state"]["decision"]
+        self.assertEqual(normalized["ai_paper_portfolio"]["positions"],
+                         source["ai_paper_portfolio_ledger"]["position_lots"])
+        self.assertEqual(normalized["ai_paper_portfolio"]["positions"][0]["quantity"], 19)
+        self.assertEqual(normalized["ai_paper_portfolio"]["cash"],
+                         source["ai_paper_portfolio_ledger"]["cash_balance"])
+        self.assertEqual(normalized["ai_paper_portfolio"]["nav"],
+                         source["ai_paper_portfolio_ledger"]["equity"])
+        self.assertEqual(normalized["roy_portfolio"]["positions"],
+                         source["roy_portfolio"]["holdings"])
+        self.assertEqual(normalized["roy_portfolio"]["positions"][0]["quantity"], 27)
+        self.assertEqual(normalized["roy_portfolio"]["cash"], source["roy_portfolio"]["cash_balance"])
+        self.assertEqual(normalized["roy_portfolio"]["nav"], source["roy_portfolio"]["equity"])
+        self.assertEqual(normalized["transaction_ledger"]["transactions"],
+                         [*source["transaction_ledger"]["historical_transactions"],
+                          *source["transaction_ledger"]["new_transactions"]])
+        self.assertEqual([t["id"] for t in normalized["transaction_ledger"]["transactions"]],
+                         ["txn-1", "txn-2", "txn-3"])
+        result_0730, state_0730 = self.publish("2026-10-01", "07:30", loaded["state"])
+        self.assertEqual(result_0730["validation_status"], "PASS", result_0730)
+        self.assertEqual(state_0730["previous_state_id"], state["current_state_id"])
+
+    def test_recovery_value_level_normalization_missing_data_and_placeholders_blocked(self):
+        cases = (
+            ("missing AI positions", lambda d: d["ai_paper_portfolio_ledger"].pop("position_lots")),
+            ("missing AI cash", lambda d: d["ai_paper_portfolio_ledger"].pop("cash_balance")),
+            ("missing AI NAV", lambda d: d["ai_paper_portfolio_ledger"].pop("equity")),
+            ("missing full ledger", lambda d: d["transaction_ledger"].pop("historical_transactions")),
+            ("placeholder positions", lambda d: d["ai_paper_portfolio_ledger"].update(position_lots=[])),
+            ("marker cash object", lambda d: d["ai_paper_portfolio_ledger"].update(cash_balance={"preserved": True})),
+            ("default zero cash", lambda d: d["ai_paper_portfolio_ledger"].update(cash_balance=0)),
+            ("fabricated transaction missing id", lambda d: d["transaction_ledger"]["historical_transactions"].append({"symbol": "AI", "quantity": 1})),
+            ("fabricated position missing id", lambda d: d["ai_paper_portfolio_ledger"]["position_lots"].append({"symbol": "AI", "quantity": 1})),
+            ("missing Roy positions", lambda d: d["roy_portfolio"].pop("holdings")),
+            ("missing Roy cash", lambda d: d["roy_portfolio"].pop("cash_balance")),
+            ("missing Roy NAV", lambda d: d["roy_portfolio"].pop("equity")),
+            ("missing Roy quantity", lambda d: d["roy_portfolio"]["holdings"][0].pop("quantity")),
+        )
+        for label, mutate in cases:
+            with self.subTest(label=label):
+                self.assert_recovery_normalization_blocked(mutate)
+
+    def test_recovery_source_with_only_new_transactions_is_blocked(self):
+        self.assert_recovery_normalization_blocked(
+            lambda d: d["transaction_ledger"].pop("historical_transactions"))
 
     def test_unauthorized_and_scheduled_recovery_bootstrap_blocked(self):
         scheduled, _ = self.bootstrap_recovery("2026-09-30", "19:30", event_name="schedule")

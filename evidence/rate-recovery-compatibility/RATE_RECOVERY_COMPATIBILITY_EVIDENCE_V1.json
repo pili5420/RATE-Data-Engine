@@ -1,0 +1,60 @@
+{
+  "artifact": "RATE_RECOVERY_COMPATIBILITY_EVIDENCE_V1",
+  "defect_id": "RATE-SOAK-005",
+  "generated_at": "2026-09-30T22:25:08.619055Z",
+  "historical_identity": {
+    "cadence": "19:30",
+    "normalization_rewrote_historical_identity": false,
+    "previous_state_id": "rate-state-c227b116309d50b2967ed12b",
+    "previous_state_id_match": true,
+    "state_hash": "656e460995324fb4a3eb7b3033b754752997c8cb761d414083a2148eb150b5c7",
+    "state_hash_match": true,
+    "state_id": "rate-state-656e460995324fb4a3eb7b30",
+    "state_id_match": true,
+    "trading_date": "2026-09-18"
+  },
+  "no_fallback_confirmation": {
+    "fixture": false,
+    "local_cache": false,
+    "staging": false,
+    "stale_fallback": false,
+    "synthetic_fallback": false
+  },
+  "recovery_only_validation_probe": {
+    "legacy_recovery_schema_compatibility": true,
+    "previous_state_id": "rate-state-c227b116309d50b2967ed12b",
+    "result": "PASS",
+    "state_hash": "656e460995324fb4a3eb7b3033b754752997c8cb761d414083a2148eb150b5c7",
+    "state_id": "rate-state-656e460995324fb4a3eb7b30"
+  },
+  "scheduled_production_isolation": {
+    "normal_load_live_state_uses_recovery_validator_only_when_recovery_manifest_true": true,
+    "publish_script_uses_validate_material": true,
+    "publish_script_uses_validate_recovery_source_material": false
+  },
+  "semantic_preservation": {
+    "ai_cash_is_default_zero": false,
+    "ai_paper_portfolio_reset": false,
+    "default_zero_balance_used": false,
+    "legacy_ai_continuity_preserved": true,
+    "legacy_ledger_continuity_preserved": true,
+    "previous_state_lineage_preserved": true,
+    "roy_portfolio_reset": false,
+    "synthetic_position_created": false,
+    "synthetic_transaction_created": false,
+    "transaction_ledger_reset": false,
+    "transaction_list_from_source_or_empty_delta_only": true
+  },
+  "source_files": {
+    "persist_path": "D:\\Codex\\rate-formal-recovery-source\\evidence\\rate-formal-recovery-source\\downloads\\artifact-10927903239\\RATE_CER078_PERSIST_RESULT_EVIDENCE.json",
+    "persist_sha256": "bd0d0707e5beb3bc9f4348185f5692bc45f6469d5684ed82003219a2e887c2aa",
+    "state_path": "D:\\Codex\\rate-reconstruct-cer078\\data\\production\\formal_recovery_source_probe\\decision_state\\1930\\rate-state-656e460995324fb4a3eb7b30.json",
+    "state_sha256": "ede0339410c7732ea1b927c60218576954d7476cc9948f8ece61d5ad05699992"
+  },
+  "strict_validation_probe": {
+    "blocking_reason": "LIVE_STATE_AI_ACCOUNT_MISSING",
+    "result": "FAIL"
+  },
+  "superseded_by": "RATE_RECOVERY_COMPATIBILITY_EVIDENCE_V2.json",
+  "validation_status": "SUPERSEDED"
+}

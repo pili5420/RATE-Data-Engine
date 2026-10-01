@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import copy
 from datetime import date
 from pathlib import Path
 
@@ -12,7 +13,7 @@ CADENCE_DIR = {"07:30": "0730", "09:30": "0930", "12:00": "1200", "19:30": "1930
 PERSIST_NAME = "RATE_PRODUCTION_PERSIST_RESULT_EVIDENCE.json"
 STATE_NAME = "RATE_PRODUCTION_DECISION_STATE.json"
 MANIFEST_NAME = "RATE_PRODUCTION_STATE_MANIFEST.json"
-ARTIFACTS = {c: f"RATE_CER{n}_PERSIST_RESULT_EVIDENCE" for c, n in zip(CADENCE_DIR, (75, 76, 77, 78))}
+ARTIFACTS = {c: f"RATE_CER{n:03d}_PERSIST_RESULT_EVIDENCE" for c, n in zip(CADENCE_DIR, (75, 76, 77, 78))}
 
 
 def require(condition, reason):
@@ -33,7 +34,7 @@ def read_object(path):
         raise RuntimeError("LIVE_STATE_UNREADABLE") from exc
 
 
-def validate_material(persist, material, trading_date, cadence):
+def _validate_material_core(persist, material, trading_date, cadence):
     require(persist.get("artifact") == ARTIFACTS[cadence] and persist.get("validation_status") == "PASS",
             "LIVE_STATE_PERSIST_CONTRACT_INVALID")
     result = persist.get("persist_result") or {}
@@ -57,6 +58,10 @@ def validate_material(persist, material, trading_date, cadence):
                 "LIVE_STATE_DATE_CADENCE_MISMATCH")
         require(obj.get("execution_scope") == "PRODUCTION", "LIVE_STATE_SCOPE_INVALID")
         require(obj.get("previous_state_resolution") == "PERSISTED_PRODUCTION_STATE", "LIVE_STATE_FALLBACK_FORBIDDEN")
+    return state, decision, digest
+
+
+def _require_current_runtime_accounts(decision):
     # Persisting IDs or 'preserved=True' markers alone is insufficient to restore accounts.
     require(isinstance(decision.get("roy_portfolio"), (list, dict)), "LIVE_STATE_ROY_PORTFOLIO_MISSING")
     ai = decision.get("ai_paper_portfolio", decision.get("ai_paper_portfolio_ledger"))
@@ -64,7 +69,131 @@ def validate_material(persist, material, trading_date, cadence):
     ledger = decision.get("transaction_ledger")
     require(isinstance(ledger, dict) and isinstance(ledger.get("transactions"), list), "LIVE_STATE_TRANSACTION_HISTORY_MISSING")
     require(not ai.get("reset") and not ledger.get("reset"), "LIVE_STATE_ACCOUNT_RESET_FORBIDDEN")
+
+
+def validate_material(persist, material, trading_date, cadence):
+    state, decision, _ = _validate_material_core(persist, material, trading_date, cadence)
+    _require_current_runtime_accounts(decision)
     return state
+
+
+def _legacy_bool(value):
+    return value is True or value == "PASS"
+
+
+def _number(value):
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _positions(account):
+    for key in ("positions", "position_lots", "holdings"):
+        value = account.get(key)
+        if isinstance(value, list):
+            return value
+    return None
+
+
+def _cash(account):
+    for key in ("cash", "cash_balance"):
+        if key in account:
+            return account[key]
+    return None
+
+
+def _nav(account):
+    for key in ("nav", "equity", "closing_nav"):
+        if key in account:
+            return account[key]
+    return None
+
+
+def _require_value_level_account(account, label):
+    require(isinstance(account, dict) and not account.get("reset"),
+            "RECOVERY_SCHEMA_NORMALIZATION_DATA_UNAVAILABLE")
+    positions = _positions(account)
+    cash = _cash(account)
+    nav = _nav(account)
+    require(isinstance(positions, list) and len(positions) > 0 and _number(cash) and cash != 0 and _number(nav),
+            "RECOVERY_SCHEMA_NORMALIZATION_DATA_UNAVAILABLE")
+    for position in positions:
+        require(isinstance(position, dict) and bool(position.get("id"))
+                and bool(position.get("symbol"))
+                and _number(position.get("quantity")),
+                "RECOVERY_SCHEMA_NORMALIZATION_DATA_UNAVAILABLE")
+    return {"positions": copy.deepcopy(positions), "cash": cash, "nav": nav,
+            "reset": False, "legacy_source_field": label, "legacy_source": copy.deepcopy(account)}
+
+
+def _full_transactions(ledger):
+    if isinstance(ledger.get("transactions"), list):
+        return ledger["transactions"]
+    historical = ledger.get("historical_transactions")
+    current = ledger.get("new_transactions")
+    if isinstance(historical, list) and isinstance(current, list):
+        return [*historical, *current]
+    return None
+
+
+def _require_value_level_ledger(ledger):
+    require(isinstance(ledger, dict) and not ledger.get("reset"),
+            "RECOVERY_SCHEMA_NORMALIZATION_DATA_UNAVAILABLE")
+    transactions = _full_transactions(ledger)
+    require(isinstance(transactions, list), "RECOVERY_SCHEMA_NORMALIZATION_DATA_UNAVAILABLE")
+    for transaction in transactions:
+        require(isinstance(transaction, dict) and bool(transaction.get("id")),
+                "RECOVERY_SCHEMA_NORMALIZATION_DATA_UNAVAILABLE")
+    return {"ledger_id": ledger.get("ledger_id", "legacy-accepted-transaction-ledger"),
+            "transactions": copy.deepcopy(transactions), "reset": False,
+            "legacy_source": copy.deepcopy(ledger)}
+
+
+def _legacy_runtime_state(state, decision, digest):
+    runtime = copy.deepcopy(state)
+    normalized = copy.deepcopy(decision)
+    roy = _require_value_level_account(decision.get("roy_portfolio"), "roy_portfolio")
+    ai_source_key = "ai_paper_portfolio" if isinstance(decision.get("ai_paper_portfolio"), dict) else "ai_paper_portfolio_ledger"
+    ai = _require_value_level_account(decision.get(ai_source_key), ai_source_key)
+    ledger = _require_value_level_ledger(decision.get("transaction_ledger") or {})
+    normalized["roy_portfolio"] = {**roy, "legacy_accepted_state": True, "legacy_source_hash": digest}
+    normalized["ai_paper_portfolio"] = {**ai, "legacy_accepted_state": True, "legacy_source_hash": digest}
+    normalized["transaction_ledger"] = {**ledger, "legacy_accepted_state": True, "legacy_source_hash": digest}
+    runtime["decision"] = normalized
+    runtime["runtime_schema_compatibility"] = {
+        "mode": "RECOVERY_ONLY",
+        "source_schema": "LEGACY_ACCEPTED_STATE",
+        "target_schema": "CURRENT_RUNTIME_ACCOUNT_SCHEMA",
+        "original_decision_payload_hash": digest,
+        "schema_normalization": "VALUE_LEVEL",
+        "synthetic_position_created": False,
+        "synthetic_transaction_created": False,
+        "default_zero_balance_used": False,
+    }
+    return runtime
+
+
+def validate_recovery_source_material(persist, material, trading_date, cadence):
+    try:
+        state = validate_material(persist, material, trading_date, cadence)
+        return state, False
+    except RuntimeError as exc:
+        strict_reason = str(exc)
+    state, decision, digest = _validate_material_core(persist, material, trading_date, cadence)
+    require(strict_reason in {"LIVE_STATE_AI_ACCOUNT_MISSING", "LIVE_STATE_TRANSACTION_HISTORY_MISSING"},
+            strict_reason)
+    require(isinstance(decision.get("roy_portfolio"), (list, dict)), "LIVE_STATE_ROY_PORTFOLIO_MISSING")
+    ai = decision.get("ai_paper_portfolio", decision.get("ai_paper_portfolio_ledger"))
+    ledger = decision.get("transaction_ledger")
+    require(isinstance(ai, dict) and not ai.get("reset")
+            and (_legacy_bool(ai.get("positions_preserved")) or _legacy_bool(ai.get("positions_extended")))
+            and (_legacy_bool(ai.get("cash_preserved")) or _legacy_bool(ai.get("closing_nav"))),
+            "RECOVERY_LEGACY_AI_ACCOUNT_COMPATIBILITY_INVALID")
+    require(isinstance(ledger, dict) and not ledger.get("reset")
+            and (_legacy_bool(ledger.get("historical_transactions_preserved"))
+                 or _legacy_bool(ledger.get("append_only"))
+                 or isinstance(ledger.get("historical_transactions"), list)
+                 or isinstance(ledger.get("transactions"), list)),
+            "RECOVERY_LEGACY_TRANSACTION_LEDGER_COMPATIBILITY_INVALID")
+    return _legacy_runtime_state(state, decision, digest), True
 
 
 def _load_live_state(state_root, trading_date, cadence):
@@ -98,7 +227,7 @@ def _load_live_state(state_root, trading_date, cadence):
         require(path.is_file() and path.resolve().is_relative_to(root), "LIVE_STATE_FULL_DECISION_MISSING")
         require(file_hash(path) == (manifest.get("files") or {}).get(name), "LIVE_STATE_FILE_HASH_MISMATCH")
     persist, material = read_object(persist_path), read_object(directory / STATE_NAME)
-    state = validate_material(persist, material, trading_date, cadence)
+    state = validate_recovery_source_material(persist, material, trading_date, cadence)[0] if recovery else validate_material(persist, material, trading_date, cadence)
     require(manifest.get("current_state_id") == state["current_state_id"] and manifest.get("current_state_hash") == state["decision_payload_hash"],
             "LIVE_STATE_MANIFEST_BINDING_INVALID")
     if recovery:
