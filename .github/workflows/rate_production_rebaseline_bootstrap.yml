@@ -1,0 +1,111 @@
+name: RATE Production Re-baseline Bootstrap
+
+on:
+  workflow_dispatch:
+    inputs:
+      trading_date:
+        description: "Canonical rebaseline trading date, YYYY-MM-DD"
+        required: true
+      cadence:
+        description: "Canonical rebaseline cadence"
+        required: true
+        type: choice
+        options: ["07:30", "09:30", "12:00", "19:30"]
+      rebaseline_authorization_id:
+        description: "Control Center rebaseline authorization ID"
+        required: true
+      rebaseline_manifest_path:
+        description: "RATE_PRODUCTION_REBASELINE_MANIFEST.json path"
+        required: true
+      rebaseline_state_path:
+        description: "RATE_PRODUCTION_REBASELINE_DECISION_STATE.json path"
+        required: true
+      source_bundle_path:
+        description: "RATE_PRODUCTION_SOURCE_BUNDLE.json path"
+        required: true
+      roy_opening_state_path:
+        description: "CONTROL_CENTER_REBASELINE_ROY_OPENING_STATE.json path"
+        required: true
+      ai_opening_state_path:
+        description: "CONTROL_CENTER_REBASELINE_AI_OPENING_STATE.json path"
+        required: true
+      ledger_boundary_path:
+        description: "RATE_LEDGER_REBASELINE_BOUNDARY.json path"
+        required: true
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: rate-production-rebaseline-bootstrap-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  rebaseline-bootstrap:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    env:
+      RATE_PRODUCTION_REBASELINE_BOOTSTRAP_MODE: "CONTROL_CENTER_REBASELINE_BOOTSTRAP"
+      RATE_SCHEDULED_SOAK_CREDIT: "false"
+      RATE_ACCEPTANCE_COUNTER_RESET: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Resolve numeric Actions job ID
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          job_id="$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs --jq '.jobs[] | select(.name=="rebaseline-bootstrap") | .id' | head -n 1)"
+          test -n "$job_id"
+          echo "ACTIONS_JOB_ID=$job_id" >> "$GITHUB_ENV"
+
+      - name: Run rebaseline guard tests
+        run: python -m unittest tests.test_rate_rebaseline_bootstrap tests.test_rate_soak_005 tests.test_production_scheduler_change_control -v
+
+      - name: Execute authorized rebaseline bootstrap
+        run: >
+          python scripts/bootstrap_production_rebaseline_state.py
+          --rebaseline-manifest "${{ inputs.rebaseline_manifest_path }}"
+          --rebaseline-state "${{ inputs.rebaseline_state_path }}"
+          --source-bundle "${{ inputs.source_bundle_path }}"
+          --roy-opening-state "${{ inputs.roy_opening_state_path }}"
+          --ai-opening-state "${{ inputs.ai_opening_state_path }}"
+          --ledger-boundary "${{ inputs.ledger_boundary_path }}"
+          --trading-date "${{ inputs.trading_date }}"
+          --cadence "${{ inputs.cadence }}"
+          --rebaseline-authorization-id "${{ inputs.rebaseline_authorization_id }}"
+          --workflow-run-id "${{ github.run_id }}"
+          --workflow-job-id "$ACTIONS_JOB_ID"
+          --evidence-output artifacts/production_state/RATE_PRODUCTION_REBASELINE_BOOTSTRAP_EVIDENCE.json
+
+      - name: Commit authorized rebaseline state
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifacts/RATE_PRODUCTION_STATE_LATEST.json artifacts/production_state/live artifacts/production_state/rebaseline_authorizations
+          if git diff --cached --quiet; then
+            echo "authorized_rebaseline_commit=NO_CHANGES"
+          else
+            git commit -m "Bootstrap authorized RATE production rebaseline state"
+            git pull --rebase origin "${{ github.ref_name }}"
+            git push origin "HEAD:${{ github.ref_name }}"
+          fi
+
+      - name: Upload rebaseline bootstrap evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_PRODUCTION_REBASELINE_BOOTSTRAP_${{ inputs.trading_date }}_${{ github.run_id }}
+          path: |
+            artifacts/production_state/RATE_PRODUCTION_REBASELINE_BOOTSTRAP_EVIDENCE.json
+            artifacts/production_state/live/${{ inputs.trading_date }}/**/*.json
+            artifacts/production_state/rebaseline_authorizations/**/*.json
+          if-no-files-found: warn
