@@ -24,6 +24,8 @@ AUTHORIZATION_ROOT = Path("control") / "rebaseline_authorizations"
 APPROVED_MATERIAL_ROOT = Path("artifacts") / "rebaseline_material"
 FORBIDDEN_PARTS = {"fixture", "fixtures", "staging", "cache", "synthetic", "recovery",
                    "recovery_authorizations", "production_state"}
+CADENCE_ORDER = {cadence: index for index, cadence in enumerate(CADENCE_DIR)}
+CADENCE_BY_DIR = {directory: cadence for cadence, directory in CADENCE_DIR.items()}
 
 
 def _canonical_hash(payload):
@@ -393,6 +395,84 @@ def _latest_matches(root, *, authorization_id, baseline_id, state_id, state_hash
             and latest.get("cadence") == cadence)
 
 
+def _slot_key(trading_date, cadence):
+    require(trading_date and cadence in CADENCE_ORDER, "REBASELINE_LATEST_CONFLICT")
+    return trading_date, CADENCE_ORDER[cadence]
+
+
+def _compare_slots(left_date, left_cadence, right_date, right_cadence):
+    left = _slot_key(left_date, left_cadence)
+    right = _slot_key(right_date, right_cadence)
+    return (left > right) - (left < right)
+
+
+def _newer_canonical_live_state_exists(root, *, trading_date, cadence, state_id, state_hash):
+    live_root = root / "production_state" / "live"
+    if not live_root.is_dir():
+        return False
+    for manifest_path in live_root.glob("*/" + "*/" + MANIFEST_NAME):
+        cadence_name = CADENCE_BY_DIR.get(manifest_path.parent.name)
+        date_name = manifest_path.parent.parent.name
+        if not cadence_name:
+            continue
+        manifest = read_object(manifest_path)
+        require(manifest.get("trading_date") == date_name and manifest.get("cadence") == cadence_name,
+                "REBASELINE_LATEST_CONFLICT")
+        slot_cmp = _compare_slots(date_name, cadence_name, trading_date, cadence)
+        if slot_cmp > 0:
+            return True
+        if slot_cmp == 0 and (manifest.get("current_state_id") != state_id
+                              or manifest.get("current_state_hash") != state_hash):
+            raise RuntimeError("REBASELINE_LATEST_CONFLICT")
+    return False
+
+
+def _latest_is_same_baseline(latest, *, authorization_id, baseline_id, state_id, state_hash, trading_date, cadence):
+    return (latest.get("rebaseline_authorization_id") == authorization_id
+            and latest.get("baseline_id") == baseline_id
+            and latest.get("trading_date") == trading_date
+            and latest.get("cadence") == cadence
+            and latest.get("baseline_type") == "CONTROL_CENTER_REBASELINE"
+            and latest.get("rebaseline_bootstrap") is True
+            and latest.get("current_state_id") == state_id
+            and latest.get("current_state_hash") == state_hash)
+
+
+def _latest_repair_status(root, *, authorization_id, baseline_id, state_id, state_hash, trading_date, cadence):
+    latest_path = root / "RATE_PRODUCTION_STATE_LATEST.json"
+    if _newer_canonical_live_state_exists(root, trading_date=trading_date, cadence=cadence,
+                                          state_id=state_id, state_hash=state_hash):
+        return "REBASELINE_LATEST_ALREADY_ADVANCED"
+    if not latest_path.is_file():
+        return "REBASELINE_LATEST_REPAIR_ELIGIBLE"
+    latest = read_object(latest_path)
+    if _latest_is_same_baseline(latest, authorization_id=authorization_id, baseline_id=baseline_id,
+                                state_id=state_id, state_hash=state_hash,
+                                trading_date=trading_date, cadence=cadence):
+        return "REBASELINE_AUTHORIZATION_ALREADY_CONSUMED"
+    same_auth_pending = (latest.get("rebaseline_authorization_id") == authorization_id
+                         and latest.get("baseline_id") == baseline_id
+                         and latest.get("current_state_id") in {None, state_id}
+                         and latest.get("current_state_hash") in {None, state_hash}
+                         and latest.get("latest_update_status") in {"PENDING", "BOOTSTRAP_PENDING", "INCOMPLETE"})
+    if same_auth_pending:
+        return "REBASELINE_LATEST_REPAIR_ELIGIBLE"
+
+    latest_date = latest.get("trading_date")
+    latest_cadence = latest.get("cadence")
+    if latest.get("previous_state_resolution") == "PERSISTED_PRODUCTION_STATE" and latest.get("rebaseline_bootstrap") is not True:
+        return "REBASELINE_LATEST_ALREADY_ADVANCED"
+    if latest_date and latest_cadence in CADENCE_ORDER:
+        slot_cmp = _compare_slots(latest_date, latest_cadence, trading_date, cadence)
+        if slot_cmp > 0:
+            return "REBASELINE_LATEST_ALREADY_ADVANCED"
+        if slot_cmp == 0:
+            return "REBASELINE_LATEST_CONFLICT"
+        return "REBASELINE_LATEST_REPAIR_ELIGIBLE"
+
+    return "REBASELINE_LATEST_CONFLICT"
+
+
 def _stage_package(staging_dir, *, persist, material, consumption, trading_date, cadence, event_name, ref, commit_sha,
                    workflow_run_id, workflow_job_id, authorization, authorization_id, state_id, state_hash,
                    simulate_crash_at=None):
@@ -509,14 +589,19 @@ def bootstrap_rebaseline_state(*, rebaseline_manifest_path, rebaseline_state_pat
         if live_dir.exists():
             _validate_live_slot(live_dir, authorization_id=authorization_id, baseline_id=baseline_id,
                                 state_id=state_id, state_hash=state_hash)
-            if _latest_matches(root, authorization_id=authorization_id, baseline_id=baseline_id, state_id=state_id,
-                               state_hash=state_hash, trading_date=trading_date, cadence=cadence):
+            latest_status = _latest_repair_status(root, authorization_id=authorization_id, baseline_id=baseline_id,
+                                                  state_id=state_id, state_hash=state_hash,
+                                                  trading_date=trading_date, cadence=cadence)
+            if latest_status == "REBASELINE_AUTHORIZATION_ALREADY_CONSUMED":
                 raise RuntimeError("REBASELINE_AUTHORIZATION_ALREADY_CONSUMED")
+            if latest_status != "REBASELINE_LATEST_REPAIR_ELIGIBLE":
+                raise RuntimeError(latest_status)
             _write_latest_atomic(root, trading_date=trading_date, cadence=cadence,
                                  workflow_run_id=workflow_run_id, workflow_job_id=workflow_job_id,
                                  authorization_id=authorization_id, baseline_id=baseline_id,
                                  state_id=state_id, state_hash=state_hash, live_dir=live_dir)
             out.update(validation_status="PASS", live_state_updated=False, idempotent_latest_repair=True,
+                       latest_repair_eligibility="REBASELINE_LATEST_REPAIR_ELIGIBLE",
                        latest_pointer_path=(root / "RATE_PRODUCTION_STATE_LATEST.json").as_posix(),
                        latest_pointer_sha256=file_hash(root / "RATE_PRODUCTION_STATE_LATEST.json"),
                        destination_live_state_path=(live_dir / PERSIST_NAME).as_posix(),

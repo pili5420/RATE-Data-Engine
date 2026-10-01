@@ -302,6 +302,78 @@ class RateRebaselineBootstrapTests(unittest.TestCase):
         self.assertEqual(out["validation_status"], "BLOCKED", out)
         self.assertEqual(out["blocking_reason"], reason, out)
 
+    def publish_live_without_latest(self):
+        out = self.bootstrap(simulate_crash_at="after_live_promotion_before_latest")
+        self.assertEqual(out["validation_status"], "BLOCKED", out)
+        self.assertEqual(out["blocking_reason"], "LIVE_SLOT_PUBLISHED_LATEST_UPDATE_FAILED")
+        return self.artifacts / "production_state/live" / self.day / CADENCE_DIR[self.cadence]
+
+    def write_latest(self, **overrides):
+        latest = {
+            "artifact": "RATE_PRODUCTION_STATE_LATEST",
+            "validation_status": "PASS",
+            "trading_date": self.day,
+            "cadence": self.cadence,
+            "current_state_id": self.paths["state_id"],
+            "current_state_hash": self.paths["state_hash"],
+            "baseline_id": self.baseline_id,
+            "baseline_type": "CONTROL_CENTER_REBASELINE",
+            "rebaseline_bootstrap": True,
+            "rebaseline_authorization_id": self.authorization_id,
+        }
+        latest.update(overrides)
+        path = self.artifacts / "RATE_PRODUCTION_STATE_LATEST.json"
+        atomic_write_json(path, latest)
+        return path
+
+    def write_scheduled_live_slot(self, trading_date, cadence, previous_state_id=None, previous_state_hash=None):
+        decision = {
+            "trading_date": trading_date,
+            "cadence": cadence,
+            "execution_scope": "PRODUCTION",
+            "previous_state_resolution": "PERSISTED_PRODUCTION_STATE",
+            "previous_state_id": previous_state_id or self.paths["state_id"],
+            "previous_state_hash": previous_state_hash or self.paths["state_hash"],
+            "roy_portfolio": {"positions": [], "cash": 1},
+            "ai_paper_portfolio": {"positions": [], "cash": 1, "reset": False},
+            "transaction_ledger": {"transactions": [{"id": f"{trading_date}-{cadence}"}], "reset": False},
+        }
+        digest = sha256(strip_runtime(decision))
+        state_id = "rate-state-" + digest[:24]
+        entry = {
+            "current_state_id": state_id,
+            "decision_payload_hash": digest,
+            "trading_date": trading_date,
+            "cadence": cadence,
+            "execution_scope": "PRODUCTION",
+            "previous_state_resolution": "PERSISTED_PRODUCTION_STATE",
+            "previous_state_id": decision["previous_state_id"],
+        }
+        directory = self.artifacts / "production_state/live" / trading_date / CADENCE_DIR[cadence]
+        persist = {"artifact": ARTIFACTS[cadence], "validation_status": "PASS",
+                   "current_state_id": state_id, "current_state_hash": digest,
+                   "previous_state_id": decision["previous_state_id"],
+                   "persist_result": {"status": "PERSISTED", "state_entry": entry}}
+        material = {"artifact": "RATE_PRODUCTION_DECISION_STATE", "validation_status": "PASS",
+                    "state_entry": entry,
+                    "decision_state": {"current_state_id": state_id, "decision_payload_hash": digest,
+                                       "previous_state_id": decision["previous_state_id"],
+                                       "state_entry": entry, "decision": decision}}
+        atomic_write_json(directory / PERSIST_NAME, persist)
+        atomic_write_json(directory / STATE_NAME, material)
+        manifest = {"artifact": "RATE_PRODUCTION_STATE_MANIFEST", "validation_status": "PASS",
+                    "trading_date": trading_date, "cadence": cadence, "event_name": "schedule",
+                    "ref": "refs/heads/main", "commit_sha": "a" * 40, "workflow_run_id": "1",
+                    "workflow_job_id": "2", "current_state_id": state_id, "current_state_hash": digest,
+                    "files": {PERSIST_NAME: file_hash(directory / PERSIST_NAME),
+                              STATE_NAME: file_hash(directory / STATE_NAME)}}
+        atomic_write_json(directory / MANIFEST_NAME, manifest)
+        self.write_latest(trading_date=trading_date, cadence=cadence, current_state_id=state_id,
+                          current_state_hash=digest, baseline_type=None, rebaseline_bootstrap=False,
+                          previous_state_resolution="PERSISTED_PRODUCTION_STATE",
+                          rebaseline_authorization_id=None)
+        return state_id, digest, file_hash(self.artifacts / "RATE_PRODUCTION_STATE_LATEST.json")
+
     def test_valid_control_center_rebaseline_bootstrap_writes_atomic_canonical_package_and_consumes_once(self):
         out = self.bootstrap()
         self.assertEqual(out["validation_status"], "PASS", out)
@@ -439,6 +511,66 @@ class RateRebaselineBootstrapTests(unittest.TestCase):
         self.assertIs(repaired["idempotent_latest_repair"], True)
         self.assertTrue((self.artifacts / "RATE_PRODUCTION_STATE_LATEST.json").is_file())
 
+    def test_latest_repair_allowed_only_for_missing_older_or_pending_without_newer_canonical_state(self):
+        self.publish_live_without_latest()
+        repaired = self.bootstrap()
+        self.assertEqual(repaired["validation_status"], "PASS", repaired)
+        self.assertEqual(repaired["latest_repair_eligibility"], "REBASELINE_LATEST_REPAIR_ELIGIBLE")
+        exact = self.bootstrap()
+        self.assertEqual(exact["validation_status"], "BLOCKED", exact)
+        self.assertEqual(exact["blocking_reason"], "REBASELINE_AUTHORIZATION_ALREADY_CONSUMED")
+
+        self.artifacts.mkdir(exist_ok=True)
+        import shutil
+        shutil.rmtree(self.artifacts / "production_state")
+        self.publish_live_without_latest()
+        self.write_latest(trading_date="2026-10-01", cadence="19:30",
+                          current_state_id="rate-state-older", current_state_hash="1" * 64,
+                          baseline_id="older-baseline", rebaseline_authorization_id="CC-OLDER")
+        repaired = self.bootstrap()
+        self.assertEqual(repaired["validation_status"], "PASS", repaired)
+
+        shutil.rmtree(self.artifacts / "production_state")
+        self.publish_live_without_latest()
+        self.write_latest(validation_status="BLOCKED", latest_update_status="PENDING",
+                          current_state_id=None, current_state_hash=None)
+        repaired = self.bootstrap()
+        self.assertEqual(repaired["validation_status"], "PASS", repaired)
+
+    def test_latest_monotonic_guard_blocks_newer_scheduled_states_without_rewriting_latest(self):
+        cases = [("09:30", self.day), ("12:00", self.day), ("07:30", "2026-10-03")]
+        for cadence, trading_date in cases:
+            with self.subTest(cadence=cadence, trading_date=trading_date):
+                self.publish_live_without_latest()
+                _state_id, _state_hash, before_hash = self.write_scheduled_live_slot(trading_date, cadence)
+                out = self.bootstrap()
+                self.assertEqual(out["validation_status"], "BLOCKED", out)
+                self.assertEqual(out["blocking_reason"], "REBASELINE_LATEST_ALREADY_ADVANCED", out)
+                self.assertEqual(file_hash(self.artifacts / "RATE_PRODUCTION_STATE_LATEST.json"), before_hash)
+                import shutil
+                shutil.rmtree(self.artifacts / "production_state")
+                latest = self.artifacts / "RATE_PRODUCTION_STATE_LATEST.json"
+                if latest.exists():
+                    latest.unlink()
+
+    def test_latest_conflicting_same_slot_blocks_and_newer_live_prevents_older_latest_repair(self):
+        self.publish_live_without_latest()
+        self.write_latest(current_state_id="rate-state-conflict", current_state_hash="2" * 64)
+        out = self.bootstrap()
+        self.assertEqual(out["validation_status"], "BLOCKED", out)
+        self.assertEqual(out["blocking_reason"], "REBASELINE_LATEST_CONFLICT")
+
+        import shutil
+        shutil.rmtree(self.artifacts / "production_state")
+        self.publish_live_without_latest()
+        self.write_scheduled_live_slot(self.day, "09:30")
+        self.write_latest(trading_date="2026-10-01", cadence="19:30",
+                          current_state_id="rate-state-older", current_state_hash="1" * 64,
+                          baseline_id="older-baseline", rebaseline_authorization_id="CC-OLDER")
+        out = self.bootstrap()
+        self.assertEqual(out["validation_status"], "BLOCKED", out)
+        self.assertEqual(out["blocking_reason"], "REBASELINE_LATEST_ALREADY_ADVANCED")
+
     def test_next_scheduled_state_can_resolve_rebaseline_then_continue_as_persisted_without_rebaseline_propagation(self):
         out = self.bootstrap()
         self.assertEqual(out["validation_status"], "PASS", out)
@@ -487,6 +619,25 @@ class RateRebaselineBootstrapTests(unittest.TestCase):
             validate_material(persist, material, self.day, self.cadence)
         with self.assertRaisesRegex(RuntimeError, "REBASELINE_BOOTSTRAP_BLOCKED|LIVE_STATE_PERSIST_CONTRACT_INVALID"):
             validate_recovery_source_material(persist, material, self.day, self.cadence)
+
+    def test_workflow_uses_optimistic_main_concurrency_without_rebase_force_or_merge(self):
+        workflow = Path(".github/workflows/rate_production_rebaseline_bootstrap.yml").read_text(encoding="utf-8")
+        self.assertIn("VALIDATED_MAIN_SHA: ${{ github.sha }}", workflow)
+        self.assertIn("git fetch origin \"${{ github.ref_name }}\"", workflow)
+        self.assertIn('origin_main_sha="$(git rev-parse "origin/${{ github.ref_name }}")"', workflow)
+        self.assertIn('if [ "$origin_main_sha" != "$VALIDATED_MAIN_SHA" ]; then', workflow)
+        self.assertIn("MAIN_ADVANCED_AFTER_REBASELINE_VALIDATION", workflow)
+        self.assertIn("REBASELINE_BOOTSTRAP_PARENT_MISMATCH", workflow)
+        self.assertIn("BOOTSTRAP_MAIN_CONCURRENCY_CONFLICT", workflow)
+        self.assertIn('"validated_main_sha"', workflow)
+        self.assertIn('"origin_main_sha_before_push"', workflow)
+        self.assertIn('"bootstrap_parent_sha"', workflow)
+        self.assertIn('"bootstrap_commit_sha"', workflow)
+        self.assertIn('git push origin "HEAD:${{ github.ref_name }}"', workflow)
+        self.assertNotIn("git pull --rebase", workflow)
+        self.assertNotIn("git pull", workflow)
+        self.assertNotIn("--force", workflow)
+        self.assertNotIn("git merge", workflow)
 
 
 if __name__ == "__main__":
