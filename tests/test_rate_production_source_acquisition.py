@@ -232,12 +232,32 @@ class RateProductionSourceAcquisitionTests(unittest.TestCase):
         payload = self._records(31)
         contract_symbols = [str(1001 + idx) for idx in range(30)]
         result, bundle, _, _, binding, *_ = self._build(self._uri("31.json", payload), "contract-filter", universe_contract=self._universe_contract(contract_symbols))
-        self.assertEqual(result["validation_status"], "BLOCKED")
-        self.assertEqual(binding["validation_status"], "BLOCKED")
-        self.assertEqual(binding["blocking_reason"], "PRODUCTION_SOURCE_UNAPPROVED_SYMBOLS_PRESENT")
+        self.assertEqual(result["validation_status"], "PASS")
+        self.assertEqual(binding["validation_status"], "PASS")
+        self.assertEqual(binding["allowed_not_selected_symbols"], ["1000"])
+        self.assertEqual(binding["extra_raw_symbols_status"], "ALLOWED_NOT_SELECTED")
+        self.assertEqual(bundle["universe"], contract_symbols)
         result2, bundle2, *_ = self._build(self._uri("30.json", self._records()), "contract-pass", universe_contract=self._universe_contract())
         self.assertEqual(result2["validation_status"], "PASS")
         self.assertEqual(bundle2["universe"], [str(1000 + idx) for idx in range(30)])
+
+    def test_formal_rebaseline_bootstrap_seed_contract_binds_exact_approved_30(self):
+        contract = json.loads(Path("config/RATE_PRODUCTION_UNIVERSE_CONTRACT_V1.json").read_text(encoding="utf-8"))
+        approved = contract["approved_universe"]
+        records = []
+        for idx, symbol in enumerate(["9999", *approved]):
+            records.append({"symbol": symbol, "trading_date": self.trading_date, **self._complete_fields(idx)})
+        payload = {"schema_version": "RATE-OFFICIAL-NORMALIZED-SOURCE-V2", "trading_date": self.trading_date, "records": records}
+        result, bundle, _, _, binding, *_ = self._build(self._uri("formal-seed.json", payload), "formal-seed")
+        self.assertEqual(result["validation_status"], "PASS")
+        self.assertEqual(bundle["coverage"], "30/30")
+        self.assertEqual(bundle["universe"], approved)
+        self.assertEqual(binding["validation_status"], "PASS")
+        self.assertEqual(binding["universe_mode"], "CONTROL_CENTER_REBASELINE_BOOTSTRAP_SEED")
+        self.assertEqual(binding["ranking_status"], "BOOTSTRAP_SEED_NOT_RANKING_RESULT")
+        self.assertEqual(binding["valid_scope"], "REBASELINE_BOOTSTRAP_ONLY")
+        self.assertEqual(binding["allowed_not_selected_symbols"], ["9999"])
+        self.assertEqual(binding["extra_raw_symbols_status"], "ALLOWED_NOT_SELECTED")
 
     def test_source_only_build_does_not_touch_latest_live_or_authorization(self):
         url = self._uri("official.json", self._records())

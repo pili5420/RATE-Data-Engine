@@ -26,6 +26,7 @@ OFFICIAL_DOMAINS = {
 }
 CADENCE_APPLICABILITY_PATH = Path("config/RATE_PRODUCTION_SOURCE_CADENCE_APPLICABILITY.json")
 EXTERNAL_DEPENDENCIES_PATH = Path("config/RATE_EXTERNAL_PRODUCTION_DEPENDENCIES.json")
+DEFAULT_UNIVERSE_CONTRACT_PATH = Path("config/RATE_PRODUCTION_UNIVERSE_CONTRACT_V1.json")
 EXTERNAL_INTRADAY_DEPENDENCY = "EXTERNAL_AUTHORIZED_INTRADAY_FEED_DEPENDENCY"
 
 NO_FALLBACK = {
@@ -386,20 +387,42 @@ def _is_test_context() -> bool:
     return os.getenv("RATE_SOURCE_TEST_CONTEXT") == "1"
 
 
+def _universe_symbol_and_market(item: Any) -> tuple[str | None, str | None]:
+    if isinstance(item, Mapping):
+        return _symbol(item.get("symbol") or item.get("stock_id") or item.get("ticker")), (str(item.get("market")).upper() if item.get("market") else None)
+    return _symbol(item), None
+
+
 def load_universe_contract(path: str | Path | None) -> dict[str, Any] | None:
-    if not path:
+    target = Path(path) if path else DEFAULT_UNIVERSE_CONTRACT_PATH
+    if not target.exists():
         return None
-    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    data = json.loads(target.read_text(encoding="utf-8"))
     universe = data.get("approved_universe") or data.get("universe") or data.get("symbols")
     if not isinstance(universe, list):
         raise RuntimeError("PRODUCTION_UNIVERSE_CONTRACT_INVALID")
-    symbols = [_symbol(item) for item in universe]
-    symbols = [item for item in symbols if item]
+    parsed = [_universe_symbol_and_market(item) for item in universe]
+    symbols = [symbol for symbol, _ in parsed if symbol]
+    markets = {symbol: market for symbol, market in parsed if symbol and market}
+    if data.get("artifact") != "RATE_PRODUCTION_UNIVERSE_CONTRACT":
+        raise RuntimeError("PRODUCTION_UNIVERSE_CONTRACT_INVALID")
+    if data.get("contract_purpose") not in {None, "PRODUCTION_SOURCE_ACQUISITION_BINDING"}:
+        raise RuntimeError("PRODUCTION_UNIVERSE_CONTRACT_INVALID")
+    if data.get("universe_mode") not in {None, "CONTROL_CENTER_REBASELINE_BOOTSTRAP_SEED", "PREVIOUS_VALIDATION_PASS_DECISION_STATE_SHORT_TERM_TOP30"}:
+        raise RuntimeError("PRODUCTION_UNIVERSE_CONTRACT_INVALID")
     return {
         "artifact": data.get("artifact", "RATE_PRODUCTION_UNIVERSE_CONTRACT"),
         "validation_status": data.get("validation_status", "PASS"),
+        "contract_purpose": data.get("contract_purpose"),
+        "universe_mode": data.get("universe_mode"),
+        "ranking_status": data.get("ranking_status"),
+        "valid_scope": data.get("valid_scope"),
+        "required_count": data.get("required_count", REQUIRED_DECISION_COVERAGE),
         "approved_universe": symbols,
-        "source_path": str(path).replace("\\", "/"),
+        "approved_markets": markets,
+        "post_rebaseline_universe_source": data.get("post_rebaseline_universe_source"),
+        "post_rebaseline_fallback_allowed": data.get("post_rebaseline_fallback_allowed"),
+        "source_path": str(target).replace("\\", "/"),
         "contract_sha256": sha256_value(data),
     }
 
@@ -440,17 +463,20 @@ def bind_universe(*, available_symbols: list[str], universe_contract: dict[str, 
     duplicate_symbols = sorted({item for item in expected if expected.count(item) > 1})
     missing = sorted(set(expected) - set(unique_available))
     unapproved = sorted(set(unique_available) - set(expected))
-    status = "PASS" if len(expected) == REQUIRED_DECISION_COVERAGE and not duplicate_symbols and not missing and not unapproved and universe_contract.get("validation_status") == "PASS" else "BLOCKED"
+    approved_markets = universe_contract.get("approved_markets") or {}
+    invalid_market = sorted(symbol for symbol, market in approved_markets.items() if market not in {"TWSE", "TPEX"})
+    required_count = universe_contract.get("required_count", REQUIRED_DECISION_COVERAGE)
+    status = "PASS" if len(expected) == REQUIRED_DECISION_COVERAGE and required_count == REQUIRED_DECISION_COVERAGE and not duplicate_symbols and not missing and not invalid_market and universe_contract.get("validation_status") == "PASS" else "BLOCKED"
     reason = None
     if status != "PASS":
-        if len(expected) != REQUIRED_DECISION_COVERAGE:
+        if len(expected) != REQUIRED_DECISION_COVERAGE or required_count != REQUIRED_DECISION_COVERAGE:
             reason = "PRODUCTION_UNIVERSE_CONTRACT_NOT_EXACT_30"
         elif duplicate_symbols:
             reason = "PRODUCTION_UNIVERSE_DUPLICATE_SYMBOLS"
+        elif invalid_market:
+            reason = "PRODUCTION_UNIVERSE_INVALID_MARKET_MAPPING"
         elif missing:
             reason = "PRODUCTION_UNIVERSE_SYMBOLS_MISSING_FROM_SOURCE"
-        elif unapproved:
-            reason = "PRODUCTION_SOURCE_UNAPPROVED_SYMBOLS_PRESENT"
         else:
             reason = "PRODUCTION_UNIVERSE_CONTRACT_NOT_PASS"
     return {
@@ -463,8 +489,14 @@ def bind_universe(*, available_symbols: list[str], universe_contract: dict[str, 
         "approved_universe_count": len(expected),
         "available_symbol_count": len(unique_available),
         "missing_symbols": missing,
-        "unapproved_symbols": unapproved,
+        "unapproved_symbols": [],
+        "allowed_not_selected_symbols": unapproved,
+        "extra_raw_symbols_status": "ALLOWED_NOT_SELECTED" if unapproved else "NONE",
         "duplicate_symbols": duplicate_symbols,
+        "invalid_market_symbols": invalid_market,
+        "universe_mode": universe_contract.get("universe_mode"),
+        "ranking_status": universe_contract.get("ranking_status"),
+        "valid_scope": universe_contract.get("valid_scope"),
         "contract_sha256": universe_contract.get("contract_sha256"),
         "universe_binding_hash": sha256_value({"expected_universe": expected, "contract_sha256": universe_contract.get("contract_sha256")}),
     }

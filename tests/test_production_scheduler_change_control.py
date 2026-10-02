@@ -119,12 +119,14 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
             source_url = self._write_official_dataset(root, self._official_dataset())
             output = root / "RATE_PRODUCTION_SOURCE_BUNDLE.json"
             evidence = root / "RATE_PRODUCTION_OFFICIAL_SOURCE_INGESTION_EVIDENCE.json"
+            universe_contract = root / "RATE_PRODUCTION_UNIVERSE_CONTRACT.json"
+            universe_contract.write_text(json.dumps({"artifact": "RATE_PRODUCTION_UNIVERSE_CONTRACT", "contract_purpose": "PRODUCTION_SOURCE_ACQUISITION_BINDING", "validation_status": "PASS", "required_count": 30, "approved_universe": [str(1000 + idx) for idx in range(30)]}, ensure_ascii=False), encoding="utf-8")
             old_context = os.environ.get("RATE_SOURCE_TEST_CONTEXT")
             old_freshness = os.environ.get("RATE_SOURCE_TEST_FRESHNESS_CONTRACTS")
             os.environ["RATE_SOURCE_TEST_CONTEXT"] = "1"
             os.environ["RATE_SOURCE_TEST_FRESHNESS_CONTRACTS"] = "1"
             try:
-                result = build_bundle(rate_source_url=source_url, trading_date="2026-09-21", cadence="19:30", output=output, evidence_output=evidence)
+                result = build_bundle(rate_source_url=source_url, trading_date="2026-09-21", cadence="19:30", output=output, evidence_output=evidence, universe_contract=universe_contract)
             finally:
                 if old_context is None:
                     os.environ.pop("RATE_SOURCE_TEST_CONTEXT", None)

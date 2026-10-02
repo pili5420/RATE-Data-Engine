@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 from scripts.build_production_source_bundle_from_official import build_bundle
-from scripts.build_production_rebaseline_material import build_rebaseline_material
+from scripts.build_production_rebaseline_material import build_rebaseline_material, load_roy_opening_state
 from src.production_live_state import file_hash
 
 
@@ -90,11 +90,24 @@ class RateEODRebaselineMaterialTests(unittest.TestCase):
         state = json.loads((material_root / "RATE_PRODUCTION_REBASELINE_DECISION_STATE.json").read_text(encoding="utf-8"))
         self.assertEqual(file_hash(manifest), material["manifest_sha256"])
         self.assertEqual(roy["positions_count"], 10)
-        self.assertEqual(roy["positions"], [])
-        self.assertEqual(roy["position_detail_synthesis"], "PROHIBITED")
+        self.assertEqual(len(roy["positions"]), 10)
+        self.assertEqual(roy["positions"][0], {"symbol": "00632R", "security_name": "元大台灣50反1", "quantity": 5000, "average_cost": 10.04, "currency": "TWD"})
+        self.assertEqual(roy["positions"][9], {"symbol": "6442", "security_name": "光聖", "quantity": 70, "average_cost": 1851.56, "currency": "TWD"})
         self.assertEqual(roy["totals"], {"cash": 179523, "opening_nav": 1509636, "stock_market_value": 1330113, "stock_total_cost": 1972438})
         self.assertNotIn("previous_state_id", state["decision"])
         self.assertNotIn("runtime_previous_state_id", state["decision"])
+
+    def test_roy_opening_state_mismatch_blocks_material_build(self):
+        source = json.loads(Path("control/rebaseline_inputs/RATE_REBASELINE_ROY_OPENING_STATE_V1.json").read_text(encoding="utf-8"))
+        missing_position = self._write("roy-missing-position.json", {**source, "positions": source["positions"][:9]})
+        with self.assertRaisesRegex(RuntimeError, "REBASELINE_ROY_OPENING_STATE_INVALID"):
+            load_roy_opening_state(missing_position)
+
+        bad_totals = json.loads(json.dumps(source, ensure_ascii=False))
+        bad_totals["totals"]["cash"] = 0
+        bad_totals_path = self._write("roy-bad-totals.json", bad_totals)
+        with self.assertRaisesRegex(RuntimeError, "REBASELINE_ROY_OPENING_STATE_INVALID"):
+            load_roy_opening_state(bad_totals_path)
 
 
 if __name__ == "__main__":

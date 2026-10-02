@@ -11,12 +11,45 @@ from src.cer074_acceptance import atomic_write_json, sha256, strip_runtime
 from src.production_live_state import file_hash
 from scripts.bootstrap_production_rebaseline_state import validate_material_package
 
+ROY_OPENING_INPUT_PATH = Path("control/rebaseline_inputs/RATE_REBASELINE_ROY_OPENING_STATE_V1.json")
+ROY_TOTALS = {"cash": 179523, "opening_nav": 1509636, "stock_market_value": 1330113, "stock_total_cost": 1972438}
+
 
 def canonical_hash(value: Any) -> str:
     return sha256(strip_runtime(value))
 
 
-def build_rebaseline_material(*, source_bundle_path: str | Path, output_root: str | Path = "artifacts/rebaseline_material") -> dict[str, Any]:
+def load_roy_opening_state(path: str | Path = ROY_OPENING_INPUT_PATH) -> dict[str, Any]:
+    roy = json.loads(Path(path).read_text(encoding="utf-8"))
+    if roy.get("artifact") != "CONTROL_CENTER_REBASELINE_ROY_OPENING_STATE":
+        raise RuntimeError("REBASELINE_ROY_OPENING_STATE_INVALID")
+    if roy.get("source_type") != "CONTROL_CENTER_APPROVED_ROY_PORTFOLIO_OPENING_STATE":
+        raise RuntimeError("REBASELINE_ROY_OPENING_STATE_INVALID")
+    if roy.get("currency") != "TWD" or roy.get("control_center_approved") is not True:
+        raise RuntimeError("REBASELINE_ROY_OPENING_STATE_INVALID")
+    positions = roy.get("positions")
+    if roy.get("positions_count") != 10 or not isinstance(positions, list) or len(positions) != 10:
+        raise RuntimeError("REBASELINE_ROY_OPENING_STATE_INVALID")
+    for position in positions:
+        if not isinstance(position, dict) or position.get("synthetic") is True:
+            raise RuntimeError("REBASELINE_ROY_OPENING_STATE_INVALID")
+        for key in ("symbol", "security_name", "quantity", "average_cost", "currency"):
+            if key not in position:
+                raise RuntimeError("REBASELINE_ROY_OPENING_STATE_INVALID")
+        if not isinstance(position["quantity"], (int, float)) or isinstance(position["quantity"], bool) or position["quantity"] <= 0:
+            raise RuntimeError("REBASELINE_ROY_OPENING_STATE_INVALID")
+        if not isinstance(position["average_cost"], (int, float)) or isinstance(position["average_cost"], bool) or position["average_cost"] <= 0:
+            raise RuntimeError("REBASELINE_ROY_OPENING_STATE_INVALID")
+        if position.get("currency") != "TWD":
+            raise RuntimeError("REBASELINE_ROY_OPENING_STATE_INVALID")
+    if roy.get("totals") != ROY_TOTALS:
+        raise RuntimeError("REBASELINE_ROY_OPENING_STATE_INVALID")
+    if roy.get("synthetic_position_created") is not False or roy.get("default_zero_balance_used") is not False:
+        raise RuntimeError("REBASELINE_ROY_OPENING_STATE_INVALID")
+    return roy
+
+
+def build_rebaseline_material(*, source_bundle_path: str | Path, output_root: str | Path = "artifacts/rebaseline_material", roy_opening_state_path: str | Path = ROY_OPENING_INPUT_PATH) -> dict[str, Any]:
     source_bundle_path = Path(source_bundle_path)
     source_bundle = json.loads(source_bundle_path.read_text(encoding="utf-8"))
     trading_date = source_bundle.get("trading_date")
@@ -29,17 +62,7 @@ def build_rebaseline_material(*, source_bundle_path: str | Path, output_root: st
     material_root = Path(output_root) / baseline_id
     material_root.mkdir(parents=True, exist_ok=True)
 
-    roy = {
-        "artifact": "CONTROL_CENTER_REBASELINE_ROY_OPENING_STATE",
-        "source_type": "CONTROL_CENTER_APPROVED_ROY_PORTFOLIO_OPENING_STATE",
-        "opening_state_type": "CONTROL_CENTER_REBASELINE_AGGREGATE_OPENING_STATE",
-        "currency": "TWD",
-        "positions_count": 10,
-        "position_detail_source_status": "NOT_PROVIDED_BY_CONTROL_CENTER",
-        "position_detail_synthesis": "PROHIBITED",
-        "positions": [],
-        "totals": {"cash": 179523, "opening_nav": 1509636, "stock_market_value": 1330113, "stock_total_cost": 1972438},
-    }
+    roy = load_roy_opening_state(roy_opening_state_path)
     ai = {
         "artifact": "CONTROL_CENTER_REBASELINE_AI_OPENING_STATE",
         "source_type": "AI_PAPER_PORTFOLIO_REBASELINE_OPENING_STATE",
@@ -176,8 +199,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Build RATE production rebaseline material dry-run package from a PASS 19:30 source bundle.")
     parser.add_argument("--source-bundle", required=True)
     parser.add_argument("--output-root", default="artifacts/rebaseline_material")
+    parser.add_argument("--roy-opening-state", default=str(ROY_OPENING_INPUT_PATH))
     args = parser.parse_args()
-    evidence = build_rebaseline_material(source_bundle_path=args.source_bundle, output_root=args.output_root)
+    evidence = build_rebaseline_material(source_bundle_path=args.source_bundle, output_root=args.output_root, roy_opening_state_path=args.roy_opening_state)
     print(json.dumps(evidence, ensure_ascii=False, sort_keys=True))
     return 0 if evidence["validation_status"] == "PASS" else 1
 

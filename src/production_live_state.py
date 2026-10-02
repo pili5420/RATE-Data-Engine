@@ -227,21 +227,18 @@ def _require_no_forbidden_rebaseline_data(decision):
             "REBASELINE_BOOTSTRAP_BLOCKED")
     roy_positions = roy.get("positions")
     positions_count = roy.get("positions_count")
-    if isinstance(roy_positions, list) and roy_positions:
-        for position in roy_positions:
-            require(isinstance(position, dict) and position.get("synthetic") is not True
-                    and bool(position.get("symbol")) and _number(position.get("quantity"))
-                    and _number(position.get("average_cost")), "REBASELINE_BOOTSTRAP_BLOCKED")
-    else:
-        require(roy_positions == [] and positions_count == 10
-                and roy.get("opening_state_type") == "CONTROL_CENTER_REBASELINE_AGGREGATE_OPENING_STATE"
-                and roy.get("position_detail_source_status") == "NOT_PROVIDED_BY_CONTROL_CENTER"
-                and roy.get("position_detail_synthesis") == "PROHIBITED",
-                "REBASELINE_BOOTSTRAP_BLOCKED")
+    require(positions_count == 10 and isinstance(roy_positions, list) and len(roy_positions) == 10,
+            "REBASELINE_ROY_OPENING_STATE_INVALID")
+    for position in roy_positions:
+        require(isinstance(position, dict) and position.get("synthetic") is not True
+                and bool(position.get("symbol")) and bool(position.get("security_name"))
+                and _number(position.get("quantity")) and position.get("quantity") > 0
+                and _number(position.get("average_cost")) and position.get("average_cost") > 0
+                and position.get("currency") == "TWD", "REBASELINE_ROY_OPENING_STATE_INVALID")
     totals = roy.get("totals") or {}
     require(_number(totals.get("cash")) and _number(totals.get("opening_nav"))
             and _number(totals.get("stock_market_value")) and _number(totals.get("stock_total_cost")),
-            "REBASELINE_BOOTSTRAP_BLOCKED")
+            "REBASELINE_ROY_OPENING_STATE_INVALID")
 
     ai = decision.get("ai_paper_portfolio")
     require(isinstance(ai, dict) and ai.get("opening_state_type") == "CONTROL_CENTER_REBASELINE_OPENING_STATE",
