@@ -12,6 +12,9 @@ from scripts.build_production_source_bundle_from_official import (
     TDCCAdapter,
     MOPSAdapter,
     build_bundle,
+    cadence_blocking_reason,
+    cadence_domain_rule,
+    load_external_dependencies,
     parse_source_urls,
     source_snapshot_id,
 )
@@ -128,6 +131,23 @@ class RateProductionSourceAcquisitionTests(unittest.TestCase):
         self.assertIn('ACCEPTANCE_COUNTER_RESET: "false"', text)
         self.assertIn('EXECUTION_AUTHORITY: "MAIN_ONLY"', text)
 
+
+    def test_cadence_applicability_rules_preserve_intraday_requirement(self):
+        self.assertEqual(cadence_domain_rule("07:30", "market_intraday")["applicability"], "NOT_APPLICABLE")
+        self.assertEqual(cadence_domain_rule("19:30", "market_intraday")["applicability"], "NOT_APPLICABLE")
+        self.assertEqual(cadence_domain_rule("09:30", "market_intraday")["applicability"], "REQUIRED")
+        self.assertEqual(cadence_domain_rule("12:00", "market_intraday")["applicability"], "REQUIRED")
+        self.assertEqual(cadence_blocking_reason("09:30"), "EXTERNAL_AUTHORIZED_INTRADAY_FEED_DEPENDENCY")
+        self.assertEqual(cadence_blocking_reason("12:00"), "EXTERNAL_AUTHORIZED_INTRADAY_FEED_DEPENDENCY")
+        self.assertIsNone(cadence_blocking_reason("19:30"))
+        registry = load_external_dependencies()
+        dep = next(item for item in registry["dependencies"] if item["dependency_id"] == "EXTERNAL_AUTHORIZED_INTRADAY_FEED_DEPENDENCY")
+        self.assertEqual(dep["affected_cadences"], ["09:30", "12:00"])
+        self.assertFalse(dep["fallback_allowed"])
+        self.assertFalse(dep["soak_credit_allowed_while_blocked"])
+        self.assertFalse(dep["cer081_completion_allowed_while_blocked"])
+        self.assertFalse(dep["production_acceptance_allowed_while_blocked"])
+
     def test_source_specific_adapters_valid_real_schema_payloads_normalize_pass(self):
         cases = [
             (TWSEAdapter, {"records": [{"Code": "1000", "Date": self.trading_date, **self._complete_fields(0)}]}),
@@ -182,7 +202,7 @@ class RateProductionSourceAcquisitionTests(unittest.TestCase):
         self.assertEqual(matrix1["validation_status"], "PASS")
         self.assertEqual(matrix2["validation_status"], "PASS")
 
-    def test_missing_formal_universe_or_freshness_contract_blocks_production_probe(self):
+    def test_production_file_scheme_blocked_and_intraday_external_dependency_sealed(self):
         url = self._uri("official.json", self._records())
         os.environ.pop("RATE_SOURCE_TEST_CONTEXT", None)
         os.environ.pop("RATE_SOURCE_TEST_FRESHNESS_CONTRACTS", None)
@@ -190,9 +210,23 @@ class RateProductionSourceAcquisitionTests(unittest.TestCase):
         self.assertEqual(result["validation_status"], "BLOCKED")
         self.assertIn("UNAPPROVED_PRODUCTION_SOURCE_SCHEME", json.dumps(bundle, ensure_ascii=False))
         os.environ["RATE_SOURCE_TEST_CONTEXT"] = "1"
-        result2, bundle2, *_ = self._build(url, "freshness-blocked", universe_contract=self._universe_contract())
-        self.assertEqual(result2["validation_status"], "BLOCKED")
-        self.assertIn("FRESHNESS_CONTRACT_MISSING", json.dumps(bundle2, ensure_ascii=False))
+        for cadence in ("09:30", "12:00"):
+            self.cadence = cadence
+            result2, bundle2, evidence2, *_ = self._build(url, f"external-{cadence.replace(':','')}", universe_contract=self._universe_contract())
+            self.assertEqual(result2["validation_status"], "BLOCKED")
+            self.assertEqual(bundle2["blocking_reason"], "EXTERNAL_AUTHORIZED_INTRADAY_FEED_DEPENDENCY")
+            self.assertEqual(evidence2["cadence_applicability"]["external_dependency"], "EXTERNAL_AUTHORIZED_INTRADAY_FEED_DEPENDENCY")
+            self.assertFalse(evidence2["scheduled_soak_credit"])
+            intraday_rows = [row for row in bundle2["required_dataset_coverage"] if row["dataset_name"] == "market_intraday"]
+            self.assertEqual(intraday_rows[0]["required_for_this_run"], True)
+        self.cadence = "19:30"
+        result3, bundle3, evidence3, matrix3, *_ = self._build(url, "eod-intraday-na", universe_contract=self._universe_contract())
+        self.assertEqual(result3["validation_status"], "PASS")
+        intraday_rows = [row for row in matrix3["requirements"] if row["dataset_name"] == "market_intraday"]
+        self.assertEqual(intraday_rows[0]["cadence_applicability"], "NOT_APPLICABLE")
+        self.assertEqual(intraday_rows[0]["required_for_this_run"], False)
+        self.assertEqual(intraday_rows[0]["coverage_status"], "NOT_APPLICABLE")
+        self.assertIsNone(evidence3["cadence_applicability"]["external_dependency"])
 
     def test_universe_contract_exact_30_and_no_first_30_shortcut(self):
         payload = self._records(31)

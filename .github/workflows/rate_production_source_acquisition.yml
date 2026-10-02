@@ -15,6 +15,10 @@ on:
           - "09:30"
           - "12:00"
           - "19:30"
+      universe_contract_path:
+        description: Optional Control Center-approved production universe contract path committed on main
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -41,20 +45,33 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Stage formal source contract artifacts
+        run: |
+          mkdir -p artifacts/production_source_acquisition
+          cp config/RATE_PRODUCTION_SOURCE_CADENCE_APPLICABILITY.json artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_CADENCE_APPLICABILITY.json
+          cp config/RATE_EXTERNAL_PRODUCTION_DEPENDENCIES.json artifacts/production_source_acquisition/RATE_EXTERNAL_PRODUCTION_DEPENDENCIES.json
+
       - name: Build official production source bundle only
         env:
           GITHUB_SHA: ${{ github.sha }}
-        run: >
-          python scripts/build_production_source_bundle_from_official.py
-          --trading-date "${{ inputs.trading_date }}"
-          --cadence "${{ inputs.cadence }}"
-          --rate-source-url "$RATE_SOURCE_URL"
-          --output artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_BUNDLE.json
-          --evidence-output artifacts/production_source_acquisition/RATE_PRODUCTION_OFFICIAL_SOURCE_ACQUISITION_EVIDENCE.json
-          --requirement-matrix-output artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_REQUIREMENT_MATRIX.json
-          --universe-binding-output artifacts/production_source_acquisition/RATE_PRODUCTION_UNIVERSE_BINDING.json
-          --freshness-matrix-output artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_FRESHNESS_MATRIX.json
-          --feature-input-contract-output artifacts/production_source_acquisition/RATE_PRODUCTION_FEATURE_INPUT_CONTRACT.json
+          RATE_UNIVERSE_CONTRACT_PATH: ${{ inputs.universe_contract_path }}
+        run: |
+          args=(
+            scripts/build_production_source_bundle_from_official.py
+            --trading-date "${{ inputs.trading_date }}"
+            --cadence "${{ inputs.cadence }}"
+            --rate-source-url "$RATE_SOURCE_URL"
+            --output artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_BUNDLE.json
+            --evidence-output artifacts/production_source_acquisition/RATE_PRODUCTION_OFFICIAL_SOURCE_ACQUISITION_EVIDENCE.json
+            --requirement-matrix-output artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_REQUIREMENT_MATRIX.json
+            --universe-binding-output artifacts/production_source_acquisition/RATE_PRODUCTION_UNIVERSE_BINDING.json
+            --freshness-matrix-output artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_FRESHNESS_MATRIX.json
+            --feature-input-contract-output artifacts/production_source_acquisition/RATE_PRODUCTION_FEATURE_INPUT_CONTRACT.json
+          )
+          if [ -n "$RATE_UNIVERSE_CONTRACT_PATH" ]; then
+            args+=(--universe-contract "$RATE_UNIVERSE_CONTRACT_PATH")
+          fi
+          python "${args[@]}"
 
       - name: Upload source acquisition evidence
         if: always()

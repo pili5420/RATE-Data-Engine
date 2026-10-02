@@ -6,7 +6,7 @@ import json
 import os
 import sys
 import urllib.request
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -24,6 +24,10 @@ OFFICIAL_DOMAINS = {
     "TDCC": ("www.tdcc.com.tw", "openapi.tdcc.com.tw"),
     "MOPS": ("mops.twse.com.tw",),
 }
+CADENCE_APPLICABILITY_PATH = Path("config/RATE_PRODUCTION_SOURCE_CADENCE_APPLICABILITY.json")
+EXTERNAL_DEPENDENCIES_PATH = Path("config/RATE_EXTERNAL_PRODUCTION_DEPENDENCIES.json")
+EXTERNAL_INTRADAY_DEPENDENCY = "EXTERNAL_AUTHORIZED_INTRADAY_FEED_DEPENDENCY"
+
 NO_FALLBACK = {
     "fixture_fallback": "FORBIDDEN",
     "historical_acceptance_bundle_fallback": "FORBIDDEN",
@@ -37,13 +41,14 @@ NO_FALLBACK = {
     "third_party_fallback": "FORBIDDEN",
 }
 DATASET_CONTRACT = (
-    {"dataset_name": "market_price_volume", "source_authority": "TWSE/TPEx", "required": True, "contract_source": "src/live_decision_inputs.py:TECHNICAL_REQUIRED; tests/test_production_scheduler_change_control.py", "frequency": "intraday/daily", "freshness_contract": "CADENCE_FRESHNESS_MINUTES", "fields": ("technical_features",)},
-    {"dataset_name": "volume", "source_authority": "TWSE/TPEx", "required": True, "contract_source": "src/technical_features.py:technical_record volume/liquidity inputs", "frequency": "intraday/daily", "freshness_contract": "CADENCE_FRESHNESS_MINUTES", "fields": ("technical_features",)},
-    {"dataset_name": "institutional_smart_money", "source_authority": "TWSE/TPEx", "required": True, "contract_source": "src/live_decision_inputs.py optional wire-through plus CER081 formal source gates", "frequency": "daily", "freshness_contract": "FRESHNESS_CONTRACT_MISSING:institutional_smart_money", "fields": ("SmartMoney_inputs", "SMART_MONEY", "FI", "IT")},
-    {"dataset_name": "large_holder", "source_authority": "TDCC", "required": True, "contract_source": "Control Center V2; CER081/source completeness gates", "frequency": "weekly", "freshness_contract": "FRESHNESS_CONTRACT_MISSING:large_holder", "fields": ("LH",)},
-    {"dataset_name": "fundamental", "source_authority": "MOPS", "required": True, "contract_source": "Control Center V2; CER081/source completeness gates", "frequency": "monthly/quarterly", "freshness_contract": "FRESHNESS_CONTRACT_MISSING:fundamental", "fields": ("Fundamental",)},
-    {"dataset_name": "trading_metadata", "source_authority": "TWSE/TPEx", "required": True, "contract_source": "Control Center V2; production source bundle required_missing history", "frequency": "event/as-published", "freshness_contract": "FRESHNESS_CONTRACT_MISSING:trading_metadata", "fields": ("Stage_inputs", "Stage_evidence")},
-    {"dataset_name": "benchmark_market_structure", "source_authority": "TWSE/TPEx", "required": True, "contract_source": "src/technical_features.py RelativeStrength benchmark input", "frequency": "intraday/daily", "freshness_contract": "FRESHNESS_CONTRACT_MISSING:benchmark_market_structure", "fields": ("Rotation_inputs", "Rotation")},
+    {"dataset_name": "market_intraday", "domain": "market_intraday", "source_authority": "Authorized TWSE Intraday Feed", "required": True, "contract_source": "RATE_PRODUCTION_SOURCE_CADENCE_APPLICABILITY.json; Control Center KEEP_REQUIRED_DO_NOT_DEGRADE", "frequency": "intraday", "freshness_contract": "CADENCE_FRESHNESS_MINUTES", "fields": ("intraday_price", "intraday_volume", "intraday_turnover")},
+    {"dataset_name": "market_price_volume", "domain": "market_daily", "source_authority": "TWSE/TPEx", "required": True, "contract_source": "src/live_decision_inputs.py:TECHNICAL_REQUIRED; tests/test_production_scheduler_change_control.py", "frequency": "intraday/daily", "freshness_contract": "CADENCE_FRESHNESS_MINUTES", "fields": ("technical_features",)},
+    {"dataset_name": "volume", "domain": "market_daily", "source_authority": "TWSE/TPEx", "required": True, "contract_source": "src/technical_features.py:technical_record volume/liquidity inputs", "frequency": "intraday/daily", "freshness_contract": "CADENCE_FRESHNESS_MINUTES", "fields": ("technical_features",)},
+    {"dataset_name": "institutional_smart_money", "domain": "institutional", "source_authority": "TWSE/TPEx", "required": True, "contract_source": "src/live_decision_inputs.py optional wire-through plus CER081 formal source gates", "frequency": "daily", "freshness_contract": "LATEST_OFFICIAL_AVAILABLE", "fields": ("SmartMoney_inputs", "SMART_MONEY", "FI", "IT")},
+    {"dataset_name": "large_holder", "domain": "large_holder", "source_authority": "TDCC", "required": True, "contract_source": "Control Center V2; CER081/source completeness gates", "frequency": "weekly", "freshness_contract": "LATEST_PUBLISHED_PERIOD", "fields": ("LH",)},
+    {"dataset_name": "fundamental", "domain": "fundamental", "source_authority": "MOPS", "required": True, "contract_source": "Control Center V2; CER081/source completeness gates", "frequency": "monthly/quarterly", "freshness_contract": "LATEST_PUBLISHED_PERIOD", "fields": ("Fundamental",)},
+    {"dataset_name": "trading_metadata", "domain": "trading_metadata", "source_authority": "TWSE/TPEx", "required": True, "contract_source": "Control Center V2; production source bundle required_missing history", "frequency": "event/as-published", "freshness_contract": "CURRENT_TRADING_STATUS", "fields": ("Stage_inputs", "Stage_evidence")},
+    {"dataset_name": "benchmark_market_structure", "domain": "benchmark", "source_authority": "TWSE/TPEx", "required": True, "contract_source": "src/technical_features.py RelativeStrength benchmark input", "frequency": "intraday/daily", "freshness_contract": "EXACT_TRADING_DATE_ALIGNED", "fields": ("Rotation_inputs", "Rotation")},
 )
 FEATURE_INPUT_CONTRACT = (
     {"feature_name": "PT", "existing_calculation_owner": "src/technical_features.py:technical_record", "required_raw_fields": ["close", "MA60"], "required_history_window": "120 sessions", "source_authority": "TWSE/TPEx official historical market data", "calculation_changed": False},
@@ -326,6 +331,57 @@ def source_snapshot_id(source: str, dataset: str, effective_date: str, payload_h
 
 
 
+
+def load_cadence_applicability(path: str | Path | None = None) -> dict[str, Any]:
+    target = Path(path) if path else CADENCE_APPLICABILITY_PATH
+    return json.loads(target.read_text(encoding="utf-8"))
+
+
+def load_external_dependencies(path: str | Path | None = None) -> dict[str, Any]:
+    target = Path(path) if path else EXTERNAL_DEPENDENCIES_PATH
+    return json.loads(target.read_text(encoding="utf-8"))
+
+
+def cadence_domain_rule(cadence: str, domain: str, applicability: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    applicability = applicability or load_cadence_applicability()
+    domains = ((applicability.get("domains") or {}).get(cadence) or {})
+    rule = domains.get(domain)
+    if rule:
+        return dict(rule)
+    # Non-intraday formal domains remain required for all currently supported
+    # production source cadences unless a cadence-specific contract says
+    # otherwise. Intraday is intentionally cadence-gated by Control Center.
+    if domain == "market_intraday":
+        return {"applicability": "NOT_APPLICABLE"}
+    return {"applicability": "REQUIRED"}
+
+
+def required_for_cadence(cadence: str, contract: Mapping[str, Any], applicability: Mapping[str, Any] | None = None) -> bool:
+    if not bool(contract.get("required")):
+        return False
+    rule = cadence_domain_rule(cadence, str(contract.get("domain") or contract.get("dataset_name")), applicability)
+    return rule.get("applicability") == "REQUIRED"
+
+
+def cadence_blocking_reason(cadence: str, applicability: Mapping[str, Any] | None = None) -> str | None:
+    rule = cadence_domain_rule(cadence, "market_intraday", applicability)
+    if rule.get("applicability") == "REQUIRED" and rule.get("current_operational_status") == "BLOCKED":
+        return str(rule.get("blocking_reason") or EXTERNAL_INTRADAY_DEPENDENCY)
+    return None
+
+
+def cadence_applicability_evidence(cadence: str, applicability: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    applicability = applicability or load_cadence_applicability()
+    domains = ((applicability.get("domains") or {}).get(cadence) or {})
+    return {
+        "artifact": "RATE_PRODUCTION_SOURCE_CADENCE_APPLICABILITY_EVIDENCE",
+        "cadence": cadence,
+        "domains": domains,
+        "external_dependency": cadence_blocking_reason(cadence, applicability),
+        "validation_status": "BLOCKED" if cadence_blocking_reason(cadence, applicability) else "PASS",
+    }
+
+
 def _is_test_context() -> bool:
     return os.getenv("RATE_SOURCE_TEST_CONTEXT") == "1"
 
@@ -449,8 +505,13 @@ def build_freshness_matrix(*, trading_date: str, cadence: str, normalized_source
         timestamps = [item.get("retrieval_timestamp") for item in source_items if item and item.get("normalization_status") == "PASS"]
         parsed_times = [_parse_time(ts) for ts in timestamps]
         parsed_times = [ts for ts in parsed_times if ts]
+        domain_rule = cadence_domain_rule(cadence, str(contract.get("domain") or contract.get("dataset_name")))
+        required_this_run = required_for_cadence(cadence, contract)
         max_age_minutes = CADENCE_FRESHNESS_MINUTES.get(cadence) if freshness_contract == "CADENCE_FRESHNESS_MINUTES" else None
-        if str(freshness_contract).startswith("FRESHNESS_CONTRACT_MISSING"):
+        if domain_rule.get("applicability") == "NOT_APPLICABLE":
+            status = "NOT_APPLICABLE"
+            reason = None
+        elif str(freshness_contract).startswith("FRESHNESS_CONTRACT_MISSING"):
             if _is_test_context() and os.getenv("RATE_SOURCE_TEST_FRESHNESS_CONTRACTS") == "1":
                 status = "PASS"
                 reason = None
@@ -466,12 +527,14 @@ def build_freshness_matrix(*, trading_date: str, cadence: str, normalized_source
             stale = max_age_minutes is not None and any(age > max_age_minutes for age in ages)
             status = "PASS" if not future and not stale else "BLOCKED"
             reason = "SOURCE_FUTURE_DATED" if future else ("SOURCE_STALE" if stale else None)
-        if status != "PASS" and bool(contract.get("required")):
+        if status not in {"PASS", "NOT_APPLICABLE"} and required_this_run:
             blocking_reasons.append(str(reason))
         dataset_rows.append({
             "dataset_name": name,
             "source_authority": contract["source_authority"],
             "required": contract["required"],
+            "required_for_this_run": required_this_run,
+            "cadence_applicability": domain_rule.get("applicability"),
             "frequency": contract["frequency"],
             "freshness_contract": freshness_contract,
             "retrieval_timestamps": timestamps,
@@ -496,18 +559,22 @@ def build_requirement_matrix(*, trading_date: str, cadence: str, normalized_sour
         authorities = str(contract["source_authority"]).split("/")
         source_items = [by_source.get("TPEX" if a.upper() == "TPEX" else a.upper()) for a in authorities]
         available = [item for item in source_items if isinstance(item, dict) and item.get("normalization_status") == "PASS"]
-        required = bool(contract["required"])
-        coverage_status = "PASS" if (available or not required) else "BLOCKED"
+        rule = cadence_domain_rule(cadence, str(contract.get("domain") or contract.get("dataset_name")))
+        required = required_for_cadence(cadence, contract)
+        coverage_status = "NOT_APPLICABLE" if rule.get("applicability") == "NOT_APPLICABLE" else ("PASS" if (available or not required) else "BLOCKED")
         matrix.append({
             "dataset_name": contract["dataset_name"],
             "source_authority": contract["source_authority"],
             "official_endpoint": [item.get("endpoint") for item in source_items if isinstance(item, dict) and item.get("endpoint")],
-            "required": required,
+            "required": bool(contract["required"]),
+            "required_for_this_run": required,
+            "cadence_applicability": rule.get("applicability"),
+            "contract_source": contract.get("contract_source"),
             "frequency": contract["frequency"],
-            "normalization_status": "PASS" if available else ("OPTIONAL_UNAVAILABLE" if not required else "BLOCKED"),
-            "freshness_status": "PASS" if available else ("OPTIONAL_UNAVAILABLE" if not required else "BLOCKED"),
+            "normalization_status": "NOT_APPLICABLE" if rule.get("applicability") == "NOT_APPLICABLE" else ("PASS" if available else ("OPTIONAL_UNAVAILABLE" if not required else "BLOCKED")),
+            "freshness_status": "NOT_APPLICABLE" if rule.get("applicability") == "NOT_APPLICABLE" else ("PASS" if available else ("OPTIONAL_UNAVAILABLE" if not required else "BLOCKED")),
             "coverage_status": coverage_status,
-            "symbol_join_status": "PASS" if universe and (available or not required) else ("OPTIONAL_UNAVAILABLE" if not required else "BLOCKED"),
+            "symbol_join_status": "NOT_APPLICABLE" if rule.get("applicability") == "NOT_APPLICABLE" else ("PASS" if universe and (available or not required) else ("OPTIONAL_UNAVAILABLE" if not required else "BLOCKED")),
             "symbols_expected": len(universe),
             "symbols_joined": len(universe) if (available or not required) else 0,
         })
@@ -616,7 +683,7 @@ def assemble_production_bundle(*, normalized_sources: list[dict[str, Any]], trad
         "datasets": [{k: v for k, v in item.items() if k not in {"normalized_records"}} for item in normalized_sources],
         "dataset_join_status": join_status,
     }
-    provenance = {"source": "RATE_OFFICIAL_TW_MARKET_DATA_SSOT", "retrieval_timestamp": retrieval_timestamp, "trading_date": trading_date, "execution_scope": "PRODUCTION_SOURCE_ACQUISITION", "execution_authority": os.getenv("EXECUTION_AUTHORITY") or ("TEST_CONTEXT" if _is_test_context() else "DEVELOPMENT_LIVE_PROBE"), "production_evidence_authoritative": (os.getenv("EXECUTION_AUTHORITY") == "MAIN_ONLY" and os.getenv("GITHUB_REF") == "refs/heads/main"), "source_acquisition_independent_from_previous_state": True, **NO_FALLBACK}
+    provenance = {"source": "RATE_OFFICIAL_TW_MARKET_DATA_SSOT", "retrieval_timestamp": retrieval_timestamp, "trading_date": trading_date, "execution_scope": "PRODUCTION_SOURCE_ACQUISITION", "execution_authority": os.getenv("EXECUTION_AUTHORITY") or ("TEST_CONTEXT" if _is_test_context() else "DEVELOPMENT_LIVE_PROBE"), "production_evidence_authoritative": (os.getenv("EXECUTION_AUTHORITY") == "MAIN_ONLY" and os.getenv("GITHUB_REF") == "refs/heads/main"), "source_acquisition_independent_from_previous_state": True, "cadence_applicability": cadence_applicability_evidence(cadence), **NO_FALLBACK}
     bundle = {
         "artifact": "RATE_PRODUCTION_SOURCE_BUNDLE",
         "bundle_version": "RATE-PRODUCTION-SOURCE-V2",
@@ -667,7 +734,7 @@ def _blocked_bundle(*, trading_date: str, cadence: str, retrieval_timestamp: str
         "completeness": "BLOCKED",
         "source_snapshot_id": None,
         "input_snapshot_ids": [],
-        "source_provenance": {"source": "RATE_OFFICIAL_TW_MARKET_DATA_SSOT", "retrieval_timestamp": retrieval_timestamp, "trading_date": trading_date, "execution_scope": "PRODUCTION_SOURCE_ACQUISITION", "execution_authority": os.getenv("EXECUTION_AUTHORITY") or ("TEST_CONTEXT" if _is_test_context() else "DEVELOPMENT_LIVE_PROBE"), "production_evidence_authoritative": False, "source_acquisition_independent_from_previous_state": True, **NO_FALLBACK},
+        "source_provenance": {"source": "RATE_OFFICIAL_TW_MARKET_DATA_SSOT", "retrieval_timestamp": retrieval_timestamp, "trading_date": trading_date, "execution_scope": "PRODUCTION_SOURCE_ACQUISITION", "execution_authority": os.getenv("EXECUTION_AUTHORITY") or ("TEST_CONTEXT" if _is_test_context() else "DEVELOPMENT_LIVE_PROBE"), "production_evidence_authoritative": False, "source_acquisition_independent_from_previous_state": True, "cadence_applicability": cadence_applicability_evidence(cadence), **NO_FALLBACK},
         "required_dataset_contract_hash": sha256_value(DATASET_CONTRACT),
         "required_dataset_coverage": matrix or [],
         "universe_binding": universe_binding or {},
@@ -703,6 +770,9 @@ def build_bundle(*, rate_source_url: str, trading_date: str, cadence: str, outpu
     universe_binding = bind_universe(available_symbols=partial_universe, universe_contract=contract)
     freshness_matrix = build_freshness_matrix(trading_date=trading_date, cadence=cadence, normalized_sources=normalized_sources, retrieval_timestamp=retrieval_timestamp)
     try:
+        external_block = cadence_blocking_reason(cadence)
+        if external_block:
+            raise RuntimeError(external_block)
         required_failures = [item for item in normalized_sources if ADAPTERS[str(item.get("source"))].required and item.get("normalization_status") != "PASS"]
         if required_failures:
             raise RuntimeError("REQUIRED_SOURCE_UNAVAILABLE")
@@ -745,6 +815,8 @@ def build_bundle(*, rate_source_url: str, trading_date: str, cadence: str, outpu
         "production_evidence_authoritative": bool(bundle.get("source_provenance", {}).get("production_evidence_authoritative")),
         "source_acquisition_independent_from_previous_state": True,
         "previous_state_required": False,
+        "cadence_applicability": cadence_applicability_evidence(cadence),
+        "external_dependencies": load_external_dependencies(),
         "scheduled_soak_credit": False,
         "acceptance_counter_reset": False,
         "source_endpoints": {k: v for k, v in url_map.items()},

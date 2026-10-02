@@ -176,11 +176,17 @@ def _validate_roy_binding(roy, decision):
             "REBASELINE_ROY_STATE_BINDING_MISMATCH")
     require(roy.get("currency") == "TWD", "REBASELINE_ROY_STATE_BINDING_MISMATCH")
     positions = roy.get("positions")
-    require(isinstance(positions, list) and positions, "REBASELINE_ROY_STATE_BINDING_MISMATCH")
-    for position in positions:
-        for key in ("symbol", "quantity", "average_cost", "currency"):
-            require(key in position, "REBASELINE_ROY_STATE_BINDING_MISMATCH")
-        require(position.get("synthetic") is not True, "REBASELINE_ROY_STATE_BINDING_MISMATCH")
+    if isinstance(positions, list) and positions:
+        for position in positions:
+            for key in ("symbol", "quantity", "average_cost", "currency"):
+                require(key in position, "REBASELINE_ROY_STATE_BINDING_MISMATCH")
+            require(position.get("synthetic") is not True, "REBASELINE_ROY_STATE_BINDING_MISMATCH")
+    else:
+        require(positions == [] and roy.get("positions_count") == 10
+                and roy.get("opening_state_type") == "CONTROL_CENTER_REBASELINE_AGGREGATE_OPENING_STATE"
+                and roy.get("position_detail_source_status") == "NOT_PROVIDED_BY_CONTROL_CENTER"
+                and roy.get("position_detail_synthesis") == "PROHIBITED",
+                "REBASELINE_ROY_STATE_BINDING_MISMATCH")
     totals = roy.get("totals") or {}
     for key in ("cash", "opening_nav", "stock_market_value", "stock_total_cost"):
         require(key in totals, "REBASELINE_ROY_STATE_BINDING_MISMATCH")

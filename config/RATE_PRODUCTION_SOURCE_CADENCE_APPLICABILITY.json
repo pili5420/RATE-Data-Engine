@@ -1,0 +1,23 @@
+{
+  "artifact": "RATE_PRODUCTION_SOURCE_CADENCE_APPLICABILITY",
+  "schema_version": "RATE-PRODUCTION-SOURCE-CADENCE-APPLICABILITY-V1",
+  "control_center_decision": "KEEP_INTRADAY_REQUIRED_FOR_0930_1200_SCOPE_0730_1930_EOD_PLUMBING",
+  "domains": {
+    "07:30": {
+      "market_daily": {"applicability": "REQUIRED", "freshness_mode": "LATEST_OFFICIAL_AVAILABLE"},
+      "market_intraday": {"applicability": "NOT_APPLICABLE"}
+    },
+    "09:30": {
+      "market_intraday": {"applicability": "REQUIRED", "current_operational_status": "BLOCKED", "blocking_reason": "EXTERNAL_AUTHORIZED_INTRADAY_FEED_DEPENDENCY"}
+    },
+    "12:00": {
+      "market_intraday": {"applicability": "REQUIRED", "current_operational_status": "BLOCKED", "blocking_reason": "EXTERNAL_AUTHORIZED_INTRADAY_FEED_DEPENDENCY"}
+    },
+    "19:30": {
+      "market_daily": {"applicability": "REQUIRED", "freshness_mode": "EXACT_TRADING_DATE_ALIGNED"},
+      "market_intraday": {"applicability": "NOT_APPLICABLE"}
+    }
+  },
+  "not_applicable_semantics": "NOT_APPLICABLE means the formal Data Contract for that cadence does not require the domain; it is not optional, fallback, or skipped validation.",
+  "validation_status": "PASS"
+}

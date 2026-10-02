@@ -124,7 +124,7 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
             os.environ["RATE_SOURCE_TEST_CONTEXT"] = "1"
             os.environ["RATE_SOURCE_TEST_FRESHNESS_CONTRACTS"] = "1"
             try:
-                result = build_bundle(rate_source_url=source_url, trading_date="2026-09-21", cadence="09:30", output=output, evidence_output=evidence)
+                result = build_bundle(rate_source_url=source_url, trading_date="2026-09-21", cadence="19:30", output=output, evidence_output=evidence)
             finally:
                 if old_context is None:
                     os.environ.pop("RATE_SOURCE_TEST_CONTEXT", None)
@@ -142,7 +142,7 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
             self.assertEqual(len(bundle["records"]), 30)
             self.assertEqual(len(bundle["decision_records"]), 30)
             self.assertEqual(bundle["trading_date"], "2026-09-21")
-            self.assertEqual(bundle["cadence"], "09:30")
+            self.assertEqual(bundle["cadence"], "19:30")
             self.assertEqual(bundle["source_provenance"]["source"], "RATE_OFFICIAL_TW_MARKET_DATA_SSOT")
             self.assertEqual(bundle["source_provenance"]["fixture_fallback"], "FORBIDDEN")
             self.assertEqual(bundle["source_provenance"]["historical_acceptance_bundle_fallback"], "FORBIDDEN")

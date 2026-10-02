@@ -226,13 +226,22 @@ def _require_no_forbidden_rebaseline_data(decision):
     require(isinstance(roy, dict) and roy.get("source_type") == "CONTROL_CENTER_APPROVED_ROY_PORTFOLIO_OPENING_STATE",
             "REBASELINE_BOOTSTRAP_BLOCKED")
     roy_positions = roy.get("positions")
-    require(isinstance(roy_positions, list) and len(roy_positions) > 0, "REBASELINE_BOOTSTRAP_BLOCKED")
-    for position in roy_positions:
-        require(isinstance(position, dict) and position.get("synthetic") is not True
-                and bool(position.get("symbol")) and _number(position.get("quantity"))
-                and _number(position.get("average_cost")), "REBASELINE_BOOTSTRAP_BLOCKED")
+    positions_count = roy.get("positions_count")
+    if isinstance(roy_positions, list) and roy_positions:
+        for position in roy_positions:
+            require(isinstance(position, dict) and position.get("synthetic") is not True
+                    and bool(position.get("symbol")) and _number(position.get("quantity"))
+                    and _number(position.get("average_cost")), "REBASELINE_BOOTSTRAP_BLOCKED")
+    else:
+        require(roy_positions == [] and positions_count == 10
+                and roy.get("opening_state_type") == "CONTROL_CENTER_REBASELINE_AGGREGATE_OPENING_STATE"
+                and roy.get("position_detail_source_status") == "NOT_PROVIDED_BY_CONTROL_CENTER"
+                and roy.get("position_detail_synthesis") == "PROHIBITED",
+                "REBASELINE_BOOTSTRAP_BLOCKED")
     totals = roy.get("totals") or {}
-    require(_number(totals.get("cash")) and _number(totals.get("opening_nav")), "REBASELINE_BOOTSTRAP_BLOCKED")
+    require(_number(totals.get("cash")) and _number(totals.get("opening_nav"))
+            and _number(totals.get("stock_market_value")) and _number(totals.get("stock_total_cost")),
+            "REBASELINE_BOOTSTRAP_BLOCKED")
 
     ai = decision.get("ai_paper_portfolio")
     require(isinstance(ai, dict) and ai.get("opening_state_type") == "CONTROL_CENTER_REBASELINE_OPENING_STATE",
