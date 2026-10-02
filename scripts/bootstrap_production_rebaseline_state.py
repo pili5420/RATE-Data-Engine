@@ -450,26 +450,26 @@ def _latest_repair_status(root, *, authorization_id, baseline_id, state_id, stat
                                 state_id=state_id, state_hash=state_hash,
                                 trading_date=trading_date, cadence=cadence):
         return "REBASELINE_AUTHORIZATION_ALREADY_CONSUMED"
+    latest_date = latest.get("trading_date")
+    latest_cadence = latest.get("cadence")
     same_auth_pending = (latest.get("rebaseline_authorization_id") == authorization_id
                          and latest.get("baseline_id") == baseline_id
                          and latest.get("current_state_id") in {None, state_id}
                          and latest.get("current_state_hash") in {None, state_hash}
                          and latest.get("latest_update_status") in {"PENDING", "BOOTSTRAP_PENDING", "INCOMPLETE"})
-    if same_auth_pending:
-        return "REBASELINE_LATEST_REPAIR_ELIGIBLE"
-
-    latest_date = latest.get("trading_date")
-    latest_cadence = latest.get("cadence")
-    if latest.get("previous_state_resolution") == "PERSISTED_PRODUCTION_STATE" and latest.get("rebaseline_bootstrap") is not True:
-        return "REBASELINE_LATEST_ALREADY_ADVANCED"
     if latest_date and latest_cadence in CADENCE_ORDER:
         slot_cmp = _compare_slots(latest_date, latest_cadence, trading_date, cadence)
         if slot_cmp > 0:
             return "REBASELINE_LATEST_ALREADY_ADVANCED"
+        if slot_cmp < 0:
+            return "REBASELINE_LATEST_REPAIR_ELIGIBLE"
+        if same_auth_pending:
+            return "REBASELINE_LATEST_REPAIR_ELIGIBLE"
         if slot_cmp == 0:
             return "REBASELINE_LATEST_CONFLICT"
-        return "REBASELINE_LATEST_REPAIR_ELIGIBLE"
 
+    if same_auth_pending:
+        return "REBASELINE_LATEST_REPAIR_ELIGIBLE"
     return "REBASELINE_LATEST_CONFLICT"
 
 

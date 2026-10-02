@@ -526,7 +526,9 @@ class RateRebaselineBootstrapTests(unittest.TestCase):
         self.publish_live_without_latest()
         self.write_latest(trading_date="2026-10-01", cadence="19:30",
                           current_state_id="rate-state-older", current_state_hash="1" * 64,
-                          baseline_id="older-baseline", rebaseline_authorization_id="CC-OLDER")
+                          baseline_id="older-baseline", rebaseline_authorization_id="CC-OLDER",
+                          rebaseline_bootstrap=False,
+                          previous_state_resolution="PERSISTED_PRODUCTION_STATE")
         repaired = self.bootstrap()
         self.assertEqual(repaired["validation_status"], "PASS", repaired)
 
@@ -629,15 +631,25 @@ class RateRebaselineBootstrapTests(unittest.TestCase):
         self.assertIn("MAIN_ADVANCED_AFTER_REBASELINE_VALIDATION", workflow)
         self.assertIn("REBASELINE_BOOTSTRAP_PARENT_MISMATCH", workflow)
         self.assertIn("BOOTSTRAP_MAIN_CONCURRENCY_CONFLICT", workflow)
+        self.assertIn('"push_result": "PASS"', workflow)
+        self.assertIn('"pushed_main_sha": os.environ["BOOTSTRAP_COMMIT_SHA"]', workflow)
+        self.assertIn('"pushed_main_sha": None', workflow)
+        self.assertIn('"execution_evidence_authority": "ACTIONS_ARTIFACT"', workflow)
         self.assertIn('"validated_main_sha"', workflow)
         self.assertIn('"origin_main_sha_before_push"', workflow)
         self.assertIn('"bootstrap_parent_sha"', workflow)
         self.assertIn('"bootstrap_commit_sha"', workflow)
         self.assertIn('git push origin "HEAD:${{ github.ref_name }}"', workflow)
+        self.assertLess(workflow.index('"push_result": "PASS"'),
+                        workflow.index("      - name: Upload rebaseline bootstrap evidence"))
         self.assertNotIn("git pull --rebase", workflow)
         self.assertNotIn("git pull", workflow)
+        self.assertNotIn("git rebase", workflow)
         self.assertNotIn("--force", workflow)
+        self.assertNotIn("--force-with-lease", workflow)
         self.assertNotIn("git merge", workflow)
+        self.assertNotIn("git commit --amend", workflow)
+        self.assertNotIn("git add artifacts/production_state/RATE_PRODUCTION_REBASELINE_BOOTSTRAP_EVIDENCE.json", workflow)
 
 
 if __name__ == "__main__":
