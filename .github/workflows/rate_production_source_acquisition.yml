@@ -22,15 +22,21 @@ permissions:
 
 jobs:
   source-acquisition:
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     env:
       RATE_SOURCE_URL: "TWSE=https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL;TPEX=https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes;TDCC=https://www.tdcc.com.tw/portal/zh/smWeb/qryStock;MOPS=https://mops.twse.com.tw/mops/web/ajax_t05st10_ifrs"
       SCHEDULED_SOAK_CREDIT: "false"
       ACCEPTANCE_COUNTER_RESET: "false"
+      EXECUTION_SCOPE: "PRODUCTION_SOURCE_ACQUISITION"
+      EXECUTION_AUTHORITY: "MAIN_ONLY"
+      VALIDATED_MAIN_SHA: ${{ github.sha }}
+      GITHUB_EVENT_NAME: ${{ github.event_name }}
+      GITHUB_REF: ${{ github.ref }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -46,6 +52,9 @@ jobs:
           --output artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_BUNDLE.json
           --evidence-output artifacts/production_source_acquisition/RATE_PRODUCTION_OFFICIAL_SOURCE_ACQUISITION_EVIDENCE.json
           --requirement-matrix-output artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_REQUIREMENT_MATRIX.json
+          --universe-binding-output artifacts/production_source_acquisition/RATE_PRODUCTION_UNIVERSE_BINDING.json
+          --freshness-matrix-output artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_FRESHNESS_MATRIX.json
+          --feature-input-contract-output artifacts/production_source_acquisition/RATE_PRODUCTION_FEATURE_INPUT_CONTRACT.json
 
       - name: Upload source acquisition evidence
         if: always()
