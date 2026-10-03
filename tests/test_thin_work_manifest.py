@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import shutil
 import tempfile
@@ -46,6 +47,17 @@ class RateThinWorkManifestTests(unittest.TestCase):
 
     def write_source(self, payload):
         self.artifact.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+
+    def resign_manifest(self, manifest):
+        manifest["manifest_sha256"] = hashlib.sha256(
+            json.dumps(
+                {k: v for k, v in manifest.items() if k != "manifest_sha256"},
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()
+        return manifest
 
     def manifest(self, **overrides):
         values = {
@@ -111,6 +123,18 @@ class RateThinWorkManifestTests(unittest.TestCase):
         self.assertEqual(result["validation_status"], "FAIL_CLOSED")
         self.assertIn("MISSING_PRODUCTION_SNAPSHOT_ID", result["errors"])
 
+    def test_snapshot_id_does_not_alias_production_snapshot_id(self):
+        source = dict(self.source)
+        source.pop("production_snapshot_id")
+        source["snapshot_id"] = "legacy-snapshot"
+        self.write_source(source)
+        manifest = self.manifest()
+        self.assertIsNone(manifest["production_snapshot_id"])
+        self.assertEqual(manifest["input_snapshot_id"], "rate-snapshot-fixture")
+        result = validate_shadow_manifest(manifest, root=self.tmp, now=self.now)
+        self.assertEqual(result["validation_status"], "FAIL_CLOSED")
+        self.assertIn("MISSING_PRODUCTION_SNAPSHOT_ID", result["errors"])
+
     def test_input_snapshot_id_is_not_used_as_production_snapshot_id(self):
         source = dict(self.source)
         source["production_snapshot_id"] = "rate-prod-distinct"
@@ -127,6 +151,47 @@ class RateThinWorkManifestTests(unittest.TestCase):
         result = validate_shadow_manifest(manifest, root=self.tmp, expected_production_snapshot_id="other-prod", now=self.now)
         self.assertEqual(result["validation_status"], "FAIL_CLOSED")
         self.assertIn("PRODUCTION_SNAPSHOT_BINDING_MISMATCH", result["errors"])
+
+    def test_validation_status_must_be_exactly_pass(self):
+        self.assertEqual(validate_shadow_manifest(self.manifest(), root=self.tmp, now=self.now)["validation_status"], "PASS")
+        for status in ("FAIL", "BLOCKED", None, "UNKNOWN"):
+            with self.subTest(status=status):
+                manifest = copy.deepcopy(self.manifest())
+                if status is None:
+                    manifest.pop("validation_status")
+                else:
+                    manifest["validation_status"] = status
+                self.resign_manifest(manifest)
+                result = validate_shadow_manifest(manifest, root=self.tmp, now=self.now)
+                self.assertEqual(result["validation_status"], "FAIL_CLOSED")
+                self.assertIn("VALIDATION_STATUS_NOT_PASS", result["errors"])
+
+    def test_freshness_status_must_be_exactly_pass(self):
+        self.assertEqual(validate_shadow_manifest(self.manifest(), root=self.tmp, now=self.now)["validation_status"], "PASS")
+        for status in ("STALE", "BLOCKED", None, "UNKNOWN"):
+            with self.subTest(status=status):
+                manifest = copy.deepcopy(self.manifest())
+                if status is None:
+                    manifest.pop("freshness_status")
+                else:
+                    manifest["freshness_status"] = status
+                self.resign_manifest(manifest)
+                result = validate_shadow_manifest(manifest, root=self.tmp, now=self.now)
+                self.assertEqual(result["validation_status"], "FAIL_CLOSED")
+                self.assertIn("FRESHNESS_STATUS_NOT_PASS", result["errors"])
+
+    def test_source_status_must_be_pass(self):
+        for status in ("FAIL", "BLOCKED", None, "UNKNOWN"):
+            with self.subTest(status=status):
+                manifest = copy.deepcopy(self.manifest())
+                if status is None:
+                    manifest.pop("source_status")
+                else:
+                    manifest["source_status"] = status
+                self.resign_manifest(manifest)
+                result = validate_shadow_manifest(manifest, root=self.tmp, now=self.now)
+                self.assertEqual(result["validation_status"], "FAIL_CLOSED")
+                self.assertIn("SOURCE_STATUS_NOT_PASS", result["errors"])
 
     def test_negative_paths_fail_closed(self):
         cases = {}
