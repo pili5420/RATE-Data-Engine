@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Mapping
 
-from .state_chain import validate_state_file
+from .production_live_state import validate_state_file
 from .thin_work_manifest import CONTRACT_VERSION, validate_shadow_manifest
 
 PHASE_A_CONSUMER_CONTRACT = "RATE-THIN-WORK-CONSUMER-PHASE-A-V1"
@@ -57,14 +57,14 @@ def _previous_state_hash(previous_state: Mapping[str, object] | None) -> str | N
     return None
 
 
-def _read_previous_state(path: str | Path | None) -> tuple[dict | None, list[str]]:
+def _read_previous_state(path: str | Path | None, expected_production_snapshot_id: str | None) -> tuple[dict | None, list[str]]:
     if path is None:
         return None, ["MISSING_PREVIOUS_STATE"]
     target = Path(path)
     if not target.is_file():
         return None, ["MISSING_PREVIOUS_STATE"]
     try:
-        return validate_state_file(target), []
+        return validate_state_file(target, expected_production_snapshot_id=expected_production_snapshot_id), []
     except ValueError as exc:
         reason = str(exc) or "CORRUPTED_PREVIOUS_STATE"
         return None, [reason if reason.startswith("RATE_") else "CORRUPTED_PREVIOUS_STATE"]
@@ -87,7 +87,8 @@ def build_phase_a_consumer_evidence(
     now=None,
 ) -> dict:
     manifest, manifest_errors = _read_json_file(manifest_path, "MISSING_MANIFEST")
-    previous_state, previous_errors = _read_previous_state(previous_state_path)
+    manifest_production_snapshot_id = manifest.get("production_snapshot_id") if isinstance(manifest, dict) else None
+    previous_state, previous_errors = _read_previous_state(previous_state_path, manifest_production_snapshot_id)
     binding_errors = []
     required_expectations = {
         "expected_run_id": expected_run_id,
@@ -160,7 +161,7 @@ def build_phase_a_consumer_evidence(
         "source_status_gate": _gate("SOURCE_STATUS_NOT_PASS" not in errors, fail_closed_reason),
         "dataset_gate": _gate("MISSING_REQUIRED_DATASET" not in errors, fail_closed_reason),
         "blocked_dependency_gate": _gate("BLOCKED_DEPENDENCIES_PRESENT" not in errors, fail_closed_reason),
-        "previous_state_gate": _gate(not any(error in errors for error in ("INVALID_PREVIOUS_STATE_REQUIREMENT", "MISSING_PREVIOUS_STATE", "CORRUPTED_PREVIOUS_STATE", "MISSING_PREVIOUS_STATE_ID", "MISSING_PREVIOUS_STATE_HASH", "PREVIOUS_STATE_ID_MISMATCH", "PREVIOUS_STATE_HASH_MISMATCH", "RATE_STATE_SCHEMA_REQUIRED", "RATE_STATE_HASH_MISMATCH", "RATE_STATE_LINEAGE_ID", "RATE_STATE_LINEAGE_HASH", "RATE_STATE_LINEAGE_PORTFOLIO", "RATE_STATE_LINEAGE_LEDGER", "RATE_STATE_RESET_DETECTED", "RATE_LEDGER_RESET_DETECTED")), fail_closed_reason),
+        "previous_state_gate": _gate(not any(error in errors for error in ("INVALID_PREVIOUS_STATE_REQUIREMENT", "MISSING_PREVIOUS_STATE", "CORRUPTED_PREVIOUS_STATE", "MISSING_PREVIOUS_STATE_ID", "MISSING_PREVIOUS_STATE_HASH", "PREVIOUS_STATE_ID_MISMATCH", "PREVIOUS_STATE_HASH_MISMATCH", "RATE_STATE_SCHEMA_REQUIRED", "RATE_STATE_HASH_MISMATCH", "RATE_STATE_ID_MISMATCH", "RATE_STATE_LINEAGE_ID", "RATE_STATE_LINEAGE_HASH", "RATE_STATE_LINEAGE_PREVIOUS_ID", "RATE_STATE_LINEAGE_SNAPSHOT", "RATE_STATE_LINEAGE_DECISION_PAYLOAD", "RATE_STATE_LINEAGE_PORTFOLIO", "RATE_STATE_LINEAGE_ROY_PORTFOLIO", "RATE_STATE_LINEAGE_AI_PAPER_ACCOUNT", "RATE_STATE_LINEAGE_AI_PAPER_LEDGER", "RATE_STATE_LINEAGE_LEDGER", "RATE_STATE_PRODUCTION_SNAPSHOT_MISMATCH", "RATE_STATE_PORTFOLIO_REFERENCE_REQUIRED", "RATE_STATE_ROY_PORTFOLIO_ACCOUNT_REQUIRED", "RATE_STATE_AI_PAPER_ACCOUNT_REQUIRED", "RATE_STATE_AI_PAPER_LEDGER_REQUIRED", "RATE_STATE_TRANSACTION_LEDGER_REQUIRED", "RATE_STATE_PRODUCTION_SCOPE", "RATE_STATE_FALLBACK_USED", "RATE_STATE_RESET_DETECTED", "RATE_LEDGER_RESET_DETECTED")), fail_closed_reason),
         "decision_preview_allowed": pass_status,
         "portfolio_preview_allowed": pass_status,
         "ledger_preview_allowed": pass_status,

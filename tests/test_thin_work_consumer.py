@@ -8,7 +8,7 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-from src.state_chain import calculate_state_hash
+from src.production_live_state import calculate_state_hash, state_id_for
 from src.thin_work_manifest import INTRADAY_BLOCKED_DEPENDENCY, build_shadow_manifest
 from src.thin_work_consumer import build_phase_a_consumer_evidence
 
@@ -75,7 +75,7 @@ class RateThinWorkConsumerTests(unittest.TestCase):
             "expected_run_id": "run-1",
             "expected_commit_sha": "a" * 40,
             "expected_production_snapshot_id": "rate-prod-1",
-            "expected_previous_state_id": "rate-state-prev-1",
+            "expected_previous_state_id": self.previous_state["current_state_id"],
             "expected_previous_state_hash": self.previous_state["current_state_hash"],
             "now": self.now,
         }
@@ -88,21 +88,36 @@ class RateThinWorkConsumerTests(unittest.TestCase):
             "previous_state_id": "rate-state-prev-0",
             "current_state_hash": "PENDING",
             "decision_payload_hash": "decision-hash-1",
+            "production_snapshot_id": "rate-prod-1",
             "portfolio_state_reference": "portfolio-ref-1",
+            "roy_portfolio_account_reference": "roy-account-ref-1",
+            "ai_paper_portfolio_account_reference": "paper-account-ref-1",
             "ai_paper_portfolio_ledger_reference": "paper-ledger-ref-1",
             "transaction_ledger_reference": "transaction-ledger-ref-1",
             "state_reset_detected": False,
             "ledger_reset_detected": False,
+            "fallback_used": False,
+            "production_execution_scope": "PRODUCTION",
             "lineage": {
                 "current_state_id": "rate-state-prev-1",
                 "current_state_hash": "PENDING",
+                "previous_state_id": "rate-state-prev-0",
+                "production_snapshot_id": "rate-prod-1",
+                "decision_payload_hash": "decision-hash-1",
                 "portfolio_state_reference": "portfolio-ref-1",
+                "roy_portfolio_account_reference": "roy-account-ref-1",
+                "ai_paper_portfolio_account_reference": "paper-account-ref-1",
+                "ai_paper_portfolio_ledger_reference": "paper-ledger-ref-1",
                 "transaction_ledger_reference": "transaction-ledger-ref-1",
             },
         }
         state["current_state_hash"] = calculate_state_hash(state)
+        state["current_state_id"] = state_id_for(state["current_state_hash"])
+        state["lineage"]["current_state_id"] = state["current_state_id"]
         state["lineage"]["current_state_hash"] = state["current_state_hash"]
         state["current_state_hash"] = calculate_state_hash(state)
+        state["current_state_id"] = state_id_for(state["current_state_hash"])
+        state["lineage"]["current_state_id"] = state["current_state_id"]
         state["lineage"]["current_state_hash"] = state["current_state_hash"]
         return state
 
@@ -158,14 +173,9 @@ class RateThinWorkConsumerTests(unittest.TestCase):
         self.previous_state_path.write_text("{", encoding="utf-8")
         self.assert_fail(self.evidence(), "CORRUPTED_PREVIOUS_STATE")
         state = self.previous_state_fixture()
-        state["current_state_id"] = "other"
-        state["lineage"]["current_state_id"] = "other"
-        state["current_state_hash"] = calculate_state_hash(state)
-        state["lineage"]["current_state_hash"] = state["current_state_hash"]
-        state["current_state_hash"] = calculate_state_hash(state)
-        state["lineage"]["current_state_hash"] = state["current_state_hash"]
+        state["current_state_id"] = "rate-production-state-wrong"
         self.write_json(self.previous_state_path, state)
-        self.assert_fail(self.evidence(), "PREVIOUS_STATE_ID_MISMATCH")
+        self.assert_fail(self.evidence(), "RATE_STATE_ID_MISMATCH")
 
     def test_previous_state_semantic_corruption_fails_closed(self):
         state = self.previous_state_fixture()
@@ -175,26 +185,71 @@ class RateThinWorkConsumerTests(unittest.TestCase):
 
         state = self.previous_state_fixture()
         state["lineage"]["transaction_ledger_reference"] = "stale-ledger"
-        state["current_state_hash"] = calculate_state_hash(state)
-        state["lineage"]["current_state_hash"] = state["current_state_hash"]
-        state["current_state_hash"] = calculate_state_hash(state)
-        state["lineage"]["current_state_hash"] = state["current_state_hash"]
+        state = self.refresh_state_identity(state)
         self.write_json(self.previous_state_path, state)
         self.assert_fail(self.evidence(expected_previous_state_hash=state["current_state_hash"]), "RATE_STATE_LINEAGE_LEDGER")
 
         state = self.previous_state_fixture()
         state.pop("portfolio_state_reference")
         self.write_json(self.previous_state_path, state)
-        self.assert_fail(self.evidence(), "RATE_STATE_SCHEMA_REQUIRED")
+        self.assert_fail(self.evidence(), "RATE_STATE_PORTFOLIO_REFERENCE_REQUIRED")
 
         state = self.previous_state_fixture()
         state["ledger_reset_detected"] = True
-        state["current_state_hash"] = calculate_state_hash(state)
-        state["lineage"]["current_state_hash"] = state["current_state_hash"]
-        state["current_state_hash"] = calculate_state_hash(state)
-        state["lineage"]["current_state_hash"] = state["current_state_hash"]
+        state = self.refresh_state_identity(state)
         self.write_json(self.previous_state_path, state)
         self.assert_fail(self.evidence(expected_previous_state_hash=state["current_state_hash"]), "RATE_LEDGER_RESET_DETECTED")
+
+    def refresh_state_identity(self, state):
+        state["current_state_hash"] = calculate_state_hash(state)
+        state["current_state_id"] = state_id_for(state["current_state_hash"])
+        state["lineage"]["current_state_id"] = state["current_state_id"]
+        state["lineage"]["current_state_hash"] = state["current_state_hash"]
+        state["current_state_hash"] = calculate_state_hash(state)
+        state["current_state_id"] = state_id_for(state["current_state_hash"])
+        state["lineage"]["current_state_id"] = state["current_state_id"]
+        state["lineage"]["current_state_hash"] = state["current_state_hash"]
+        return state
+
+    def test_previous_state_canonical_contract_fail_closed_matrix(self):
+        cases = {
+            "state hash mismatch": ("RATE_STATE_HASH_MISMATCH", lambda s: s.update({"decision_payload_hash": "tampered"}), False),
+            "state ID mismatch": ("RATE_STATE_ID_MISMATCH", lambda s: s.update({"current_state_id": "rate-production-state-wrong"}), False),
+            "lineage ID mismatch": ("RATE_STATE_LINEAGE_ID", lambda s: s["lineage"].update({"current_state_id": "rate-production-state-stale"}), False),
+            "lineage hash mismatch": ("RATE_STATE_LINEAGE_HASH", lambda s: s["lineage"].update({"current_state_hash": "0" * 64}), False),
+            "lineage previous mismatch": ("RATE_STATE_LINEAGE_PREVIOUS_ID", lambda s: s["lineage"].update({"previous_state_id": "stale"}), True),
+            "lineage snapshot mismatch": ("RATE_STATE_LINEAGE_SNAPSHOT", lambda s: s["lineage"].update({"production_snapshot_id": "stale"}), True),
+            "portfolio account missing": ("RATE_STATE_ROY_PORTFOLIO_ACCOUNT_REQUIRED", lambda s: s.pop("roy_portfolio_account_reference"), False),
+            "AI Paper account missing": ("RATE_STATE_AI_PAPER_ACCOUNT_REQUIRED", lambda s: s.pop("ai_paper_portfolio_account_reference"), False),
+            "AI Paper ledger missing": ("RATE_STATE_AI_PAPER_LEDGER_REQUIRED", lambda s: s.pop("ai_paper_portfolio_ledger_reference"), False),
+            "transaction ledger missing": ("RATE_STATE_TRANSACTION_LEDGER_REQUIRED", lambda s: s.pop("transaction_ledger_reference"), False),
+            "reset marker detected": ("RATE_STATE_RESET_DETECTED", lambda s: s.update({"state_reset_detected": True}), True),
+            "fallback detected": ("RATE_STATE_FALLBACK_USED", lambda s: s.update({"fallback_used": True}), True),
+            "non-production scope": ("RATE_STATE_PRODUCTION_SCOPE", lambda s: s.update({"production_execution_scope": "SHADOW"}), True),
+        }
+        for name, (reason, mutate, resign) in cases.items():
+            with self.subTest(name=name):
+                state = self.previous_state_fixture()
+                mutate(state)
+                if resign:
+                    state = self.refresh_state_identity(state)
+                self.write_json(self.previous_state_path, state)
+                expected_hash = state.get("current_state_hash") if resign else self.previous_state["current_state_hash"]
+                self.assert_fail(self.evidence(expected_previous_state_hash=expected_hash), reason)
+
+    def test_previous_state_manifest_binding_mismatch_fails_closed(self):
+        state = self.previous_state_fixture()
+        state["production_snapshot_id"] = "rate-prod-other"
+        state["lineage"]["production_snapshot_id"] = "rate-prod-other"
+        state = self.refresh_state_identity(state)
+        self.write_json(self.previous_state_path, state)
+        self.assert_fail(self.evidence(expected_previous_state_hash=state["current_state_hash"]), "RATE_STATE_PRODUCTION_SNAPSHOT_MISMATCH")
+
+    def test_tampered_payload_with_unchanged_claimed_id_fails_closed(self):
+        state = self.previous_state_fixture()
+        state["portfolio_state_reference"] = "tampered"
+        self.write_json(self.previous_state_path, state)
+        self.assert_fail(self.evidence(), "RATE_STATE_HASH_MISMATCH")
 
     def test_missing_expected_bindings_fail_closed(self):
         cases = {
