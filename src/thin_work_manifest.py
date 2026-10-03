@@ -99,9 +99,11 @@ def build_shadow_manifest(
     blocked = list(source_bundle.get("blocked_dependencies", []))
     if cadence in INTRADAY_CADENCES and source_bundle.get("authorized_intraday_feed") != "PASS":
         blocked.append(INTRADAY_BLOCKED_DEPENDENCY)
-    validation_status = str(source_bundle.get("validation_status", "BLOCKED"))
-    freshness_status = str(source_bundle.get("freshness_status", "BLOCKED"))
-    source_status = "PASS" if validation_status == "PASS" and not missing and not blocked else "BLOCKED"
+    validation_status = source_bundle.get("validation_status")
+    freshness_status = source_bundle.get("freshness_status")
+    source_status = source_bundle.get("source_status")
+    if source_status is None:
+        source_status = "PASS" if validation_status == "PASS" and freshness_status == "PASS" and not missing and not blocked else "BLOCKED"
     generated = generated_at or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     manifest = {
         "system": "RATE",
@@ -109,14 +111,14 @@ def build_shadow_manifest(
         "cadence": cadence,
         "run_id": run_id,
         "event": event,
-        "production_snapshot_id": source_bundle.get("production_snapshot_id") or source_bundle.get("snapshot_id"),
+        "production_snapshot_id": source_bundle.get("production_snapshot_id"),
         "commit_sha": commit_sha,
         "generated_at": generated,
         "market_date": market_date,
         "snapshot_type": snapshot_type,
         "source_status": source_status,
         "freshness_status": freshness_status,
-        "validation_status": validation_status if validation_status in {"PASS", "FAIL"} else "BLOCKED",
+        "validation_status": validation_status,
         "authorized_intraday_feed_status": source_bundle.get("authorized_intraday_feed"),
         "required_datasets": required,
         "datasets_present": sorted(set(required) - set(missing)),
@@ -168,8 +170,12 @@ def validate_shadow_manifest(
             errors.append("STALE_ARTIFACT")
     except ThinWorkManifestError as exc:
         errors.append(str(exc))
-    if manifest.get("validation_status") == "FAIL":
-        errors.append("VALIDATION_FAIL")
+    if manifest.get("validation_status") != "PASS":
+        errors.append("VALIDATION_STATUS_NOT_PASS")
+    if manifest.get("freshness_status") != "PASS":
+        errors.append("FRESHNESS_STATUS_NOT_PASS")
+    if manifest.get("source_status") != "PASS":
+        errors.append("SOURCE_STATUS_NOT_PASS")
     if manifest.get("blocked_dependencies"):
         errors.append("BLOCKED_DEPENDENCIES_PRESENT")
     if manifest.get("datasets_missing"):
