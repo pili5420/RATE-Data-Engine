@@ -15,6 +15,7 @@ from scripts.build_production_source_bundle_from_official import (
     cadence_blocking_reason,
     cadence_domain_rule,
     load_external_dependencies,
+    load_source_registry,
     parse_source_urls,
     source_snapshot_id,
     _normalize_source_date,
@@ -86,7 +87,7 @@ class RateProductionSourceAcquisitionTests(unittest.TestCase):
         path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
         return path.resolve().as_uri()
 
-    def _build(self, url: str, name: str = "case", *, universe_contract: str | None = None):
+    def _build(self, url: str, name: str = "case", *, universe_contract: str | None = None, source_registry: str | None = None):
         out = self.root / name / "RATE_PRODUCTION_SOURCE_BUNDLE.json"
         ev = self.root / name / "RATE_PRODUCTION_OFFICIAL_SOURCE_ACQUISITION_EVIDENCE.json"
         mx = self.root / name / "RATE_PRODUCTION_SOURCE_REQUIREMENT_MATRIX.json"
@@ -94,13 +95,73 @@ class RateProductionSourceAcquisitionTests(unittest.TestCase):
         fm = self.root / name / "RATE_PRODUCTION_SOURCE_FRESHNESS_MATRIX.json"
         fc = self.root / name / "RATE_PRODUCTION_FEATURE_INPUT_CONTRACT.json"
         out.parent.mkdir(parents=True, exist_ok=True)
-        result = build_bundle(rate_source_url=url, trading_date=self.trading_date, cadence=self.cadence, output=out, evidence_output=ev, requirement_matrix_output=mx, universe_contract=universe_contract, universe_binding_output=ub, freshness_matrix_output=fm, feature_input_contract_output=fc)
+        result = build_bundle(rate_source_url=url, trading_date=self.trading_date, cadence=self.cadence, output=out, evidence_output=ev, requirement_matrix_output=mx, universe_contract=universe_contract, universe_binding_output=ub, freshness_matrix_output=fm, feature_input_contract_output=fc, source_registry=source_registry)
         return result, json.loads(out.read_text(encoding="utf-8")), json.loads(ev.read_text(encoding="utf-8")), json.loads(mx.read_text(encoding="utf-8")), json.loads(ub.read_text(encoding="utf-8")), json.loads(fm.read_text(encoding="utf-8")), json.loads(fc.read_text(encoding="utf-8"))
 
     def _universe_contract(self, symbols: list[str] | None = None) -> str:
         symbols = symbols or [str(1000 + idx) for idx in range(30)]
         path = self.root / "universe_contract.json"
         path.write_text(json.dumps({"artifact": "RATE_PRODUCTION_UNIVERSE_CONTRACT", "validation_status": "PASS", "approved_universe": symbols}, ensure_ascii=False), encoding="utf-8")
+        return str(path)
+
+    def _raw_history(self, symbol: str, offset: int = 0):
+        rows = []
+        for idx in range(130):
+            close = 50.0 + offset + idx * 0.1
+            rows.append({
+                "symbol": symbol,
+                "trading_date": f"2026-05-{idx + 1:02d}" if idx < 31 else f"2026-06-{idx - 30:02d}" if idx < 61 else f"2026-07-{idx - 60:02d}" if idx < 92 else f"2026-08-{idx - 91:02d}" if idx < 122 else f"2026-09-{idx - 121:02d}",
+                "open": close - 0.2,
+                "high": close + 0.4,
+                "low": close - 0.5,
+                "close": close,
+                "volume": 100000 + idx + offset,
+                "turnover": (100000 + idx + offset) * close,
+            })
+        rows[-1]["trading_date"] = self.trading_date
+        return rows
+
+    def _registry_payloads(self, symbols: list[str] | None = None):
+        symbols = symbols or [str(1000 + idx) for idx in range(30)]
+        market = {"records": [{"symbol": symbol, "history": self._raw_history(symbol, idx)} for idx, symbol in enumerate(symbols)]}
+        benchmark = {"records": [{"benchmark": "TAIEX", "history": self._raw_history("TAIEX", 100)}]}
+        institutional = {"records": [{"symbol": symbol, "trading_date": self.trading_date, "FI": 10 + idx, "IT": 5 + idx, "SmartMoney_inputs": {"FI": 10 + idx, "IT": 5 + idx}, "SMART_MONEY": 20 + idx} for idx, symbol in enumerate(symbols)]}
+        large_holder = {"records": [{"stock_code": symbol, "published_date": self.trading_date, "large_holder": 30 + idx} for idx, symbol in enumerate(symbols)]}
+        fundamental = {"records": [{"company_code": symbol, "publication_date": self.trading_date, "fundamental": 40 + idx} for idx, symbol in enumerate(symbols)]}
+        metadata = {"records": [{"symbol": symbol, "trading_date": self.trading_date, "Stage_inputs": {"listed_market": "TWSE", "trading_status": "NORMAL"}, "Stage_evidence": {"metadata_source": "official"}, "Rotation_inputs": {"benchmark": "TAIEX"}, "Rotation": 50 + idx} for idx, symbol in enumerate(symbols)]}
+        return {
+            "market": market,
+            "benchmark": benchmark,
+            "institutional": institutional,
+            "large_holder": large_holder,
+            "fundamental": fundamental,
+            "metadata": metadata,
+        }
+
+    def _registry(self, payloads: dict[str, object], *, omit_domain: str | None = None) -> str:
+        registry = load_source_registry("config/RATE_PRODUCTION_OFFICIAL_SOURCE_REGISTRY_V1.json")
+        endpoint_by_dataset = {
+            "twse_market_daily": self._uri("registry/market.json", payloads["market"]),
+            "tpex_market_daily": self._uri("registry/tpex-market.json", {"records": []}),
+            "twse_benchmark": self._uri("registry/benchmark.json", payloads["benchmark"]),
+            "twse_institutional": self._uri("registry/institutional.json", payloads["institutional"]),
+            "tpex_institutional": self._uri("registry/tpex-institutional.json", {"records": []}),
+            "tdcc_large_holder": self._uri("registry/large-holder.json", payloads["large_holder"]),
+            "twse_fundamental_revenue": self._uri("registry/fundamental.json", payloads["fundamental"]),
+            "twse_trading_metadata": self._uri("registry/metadata.json", payloads["metadata"]),
+        }
+        datasets = []
+        for item in registry["datasets"]:
+            if item["domain"] == omit_domain:
+                continue
+            updated = dict(item)
+            if item["dataset_id"] in endpoint_by_dataset:
+                updated["endpoint"] = endpoint_by_dataset[item["dataset_id"]]
+            datasets.append(updated)
+        registry["datasets"] = datasets
+        path = self.root / "registry" / "RATE_PRODUCTION_OFFICIAL_SOURCE_REGISTRY_V1.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(registry, ensure_ascii=False), encoding="utf-8")
         return str(path)
 
     def test_source_acquisition_does_not_require_previous_live_state(self):
@@ -162,6 +223,61 @@ class RateProductionSourceAcquisitionTests(unittest.TestCase):
             normalized = cls(url).normalize(cls(url).fetch(), self.trading_date)
             self.assertEqual(normalized["normalization_status"], "PASS", cls.__name__)
             self.assertEqual(normalized["normalized_count"], 1, cls.__name__)
+
+    def test_registry_exists_and_maps_required_domains(self):
+        registry = load_source_registry("config/RATE_PRODUCTION_OFFICIAL_SOURCE_REGISTRY_V1.json")
+        domains = {item["domain"] for item in registry["datasets"]}
+        self.assertTrue({"market_daily", "benchmark", "institutional", "large_holder", "fundamental", "trading_metadata", "market_intraday"} <= domains)
+        self.assertTrue(all(item["fallback_allowed"] is False for item in registry["datasets"]))
+        intraday = next(item for item in registry["datasets"] if item["domain"] == "market_intraday")
+        self.assertEqual(intraday["cadence_applicability"]["07:30"], "NOT_APPLICABLE")
+        self.assertEqual(intraday["cadence_applicability"]["19:30"], "NOT_APPLICABLE")
+        self.assertEqual(intraday["cadence_applicability"]["09:30"], "BLOCKED_EXTERNAL")
+        self.assertEqual(intraday["blocked_dependency"], "EXTERNAL_AUTHORIZED_INTRADAY_FEED_DEPENDENCY")
+
+    def test_registry_eod_raw_market_rows_enter_existing_feature_pipeline(self):
+        symbols = [str(1000 + idx) for idx in range(30)]
+        registry = self._registry(self._registry_payloads(symbols))
+        result, bundle, evidence, matrix, binding, freshness, feature = self._build("", "registry-1930", universe_contract=self._universe_contract(symbols), source_registry=registry)
+        self.assertEqual(result["validation_status"], "PASS")
+        self.assertEqual(bundle["coverage"], "30/30")
+        self.assertEqual(bundle["validation_status"], "PASS")
+        self.assertEqual(bundle["datasets_missing"], [])
+        self.assertEqual(bundle["blocked_dependencies"], [])
+        self.assertEqual(binding["validation_status"], "PASS")
+        self.assertEqual(freshness["validation_status"], "PASS")
+        self.assertNotIn("technical_features", json.dumps(self._registry_payloads(symbols)["market"], ensure_ascii=False))
+        first = bundle["production_sources"][symbols[0]]
+        self.assertIn("technical_features", first)
+        self.assertEqual(first["feature_lineage"]["technical_features"]["source"], "src.technical_features.compute_scores")
+        self.assertFalse(bundle["official_source_transformation"]["feature_pipeline"]["source_side_precomputed_feature_dependency"])
+        domains = {row["dataset_name"]: row for row in matrix["requirements"]}
+        self.assertEqual(domains["market_intraday"]["cadence_applicability"], "NOT_APPLICABLE")
+        self.assertEqual(domains["market_price_volume"]["coverage_status"], "PASS")
+        self.assertEqual(domains["benchmark_market_structure"]["coverage_status"], "PASS")
+
+    def test_registry_0730_eod_pass_and_intraday_cadences_remain_external_blocked(self):
+        symbols = [str(1000 + idx) for idx in range(30)]
+        registry = self._registry(self._registry_payloads(symbols))
+        self.cadence = "07:30"
+        result, bundle, *_ = self._build("", "registry-0730", universe_contract=self._universe_contract(symbols), source_registry=registry)
+        self.assertEqual(result["validation_status"], "PASS")
+        self.assertEqual(bundle["authorized_intraday_feed"], "NOT_APPLICABLE")
+        for cadence in ("09:30", "12:00"):
+            self.cadence = cadence
+            result2, bundle2, evidence2, *_ = self._build("", f"registry-{cadence.replace(':','')}", universe_contract=self._universe_contract(symbols), source_registry=registry)
+            self.assertEqual(result2["validation_status"], "BLOCKED")
+            self.assertEqual(bundle2["blocking_reason"], "EXTERNAL_AUTHORIZED_INTRADAY_FEED_DEPENDENCY")
+            self.assertEqual(evidence2["cadence_applicability"]["external_dependency"], "EXTERNAL_AUTHORIZED_INTRADAY_FEED_DEPENDENCY")
+        self.cadence = "19:30"
+
+    def test_registry_missing_required_eod_domain_fails_closed(self):
+        symbols = [str(1000 + idx) for idx in range(30)]
+        registry = self._registry(self._registry_payloads(symbols), omit_domain="large_holder")
+        result, bundle, *_ = self._build("", "registry-missing-large-holder", universe_contract=self._universe_contract(symbols), source_registry=registry)
+        self.assertEqual(result["validation_status"], "BLOCKED")
+        self.assertEqual(bundle["validation_status"], "BLOCKED")
+        self.assertNotEqual(bundle["decision_record_coverage"]["status"], "PASS")
 
     def test_official_roc_dates_normalize_to_iso(self):
         self.assertEqual(_normalize_source_date("1151002"), "2026-10-02")

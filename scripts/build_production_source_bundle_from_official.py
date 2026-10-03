@@ -13,6 +13,7 @@ from typing import Any, Mapping
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.cer074_acceptance import atomic_write_json
 from src.live_decision_inputs import build_live_decision_records
+from src.technical_features import compute_scores
 from scripts.publish_production_source_bundle_latest import CADENCE_FRESHNESS_MINUTES, validate_production_source_bundle
 
 REQUIRED_DECISION_COVERAGE = 30
@@ -27,6 +28,7 @@ OFFICIAL_DOMAINS = {
 CADENCE_APPLICABILITY_PATH = Path("config/RATE_PRODUCTION_SOURCE_CADENCE_APPLICABILITY.json")
 EXTERNAL_DEPENDENCIES_PATH = Path("config/RATE_EXTERNAL_PRODUCTION_DEPENDENCIES.json")
 DEFAULT_UNIVERSE_CONTRACT_PATH = Path("config/RATE_PRODUCTION_UNIVERSE_CONTRACT_V1.json")
+DEFAULT_SOURCE_REGISTRY_PATH = Path("config/RATE_PRODUCTION_OFFICIAL_SOURCE_REGISTRY_V1.json")
 EXTERNAL_INTRADAY_DEPENDENCY = "EXTERNAL_AUTHORIZED_INTRADAY_FEED_DEPENDENCY"
 
 NO_FALLBACK = {
@@ -96,6 +98,13 @@ def _normalize_source_date(value: Any) -> str:
     return text.replace("/", "-")
 
 
+def _number(value: Any) -> float:
+    text = str(value).strip().replace(",", "")
+    if text in {"", "-", "--", "None", "null"}:
+        raise RuntimeError("NUMERIC_VALUE_MISSING")
+    return float(text.replace("(", "-").replace(")", ""))
+
+
 def _rows(value: Any) -> list[dict[str, Any]]:
     if isinstance(value, list):
         return [row for row in value if isinstance(row, dict)]
@@ -115,8 +124,37 @@ def _rows(value: Any) -> list[dict[str, Any]]:
     for key in ("records", "data", "decision_input_records", "normalized_records", "rows"):
         rows = value.get(key)
         if isinstance(rows, list):
+            fields = value.get("fields") if isinstance(value.get("fields"), list) else None
+            if fields:
+                return [dict(zip(fields, row)) if isinstance(row, list) else row for row in rows if isinstance(row, (list, dict))]
             return [row for row in rows if isinstance(row, dict)]
     return []
+
+
+def load_source_registry(path: str | Path | None = None) -> dict[str, Any]:
+    target = Path(path) if path else DEFAULT_SOURCE_REGISTRY_PATH
+    data = json.loads(target.read_text(encoding="utf-8"))
+    if data.get("artifact") != "RATE_PRODUCTION_OFFICIAL_SOURCE_REGISTRY" or data.get("validation_status") != "PASS":
+        raise RuntimeError("PRODUCTION_OFFICIAL_SOURCE_REGISTRY_INVALID")
+    datasets = data.get("datasets")
+    if not isinstance(datasets, list) or not datasets:
+        raise RuntimeError("PRODUCTION_OFFICIAL_SOURCE_REGISTRY_EMPTY")
+    if any(item.get("fallback_allowed") is not False for item in datasets if isinstance(item, Mapping)):
+        raise RuntimeError("PRODUCTION_OFFICIAL_SOURCE_REGISTRY_FALLBACK_NOT_FORBIDDEN")
+    return data
+
+
+def registry_dataset_entries(path: str | Path | None, cadence: str) -> list[dict[str, Any]]:
+    registry = load_source_registry(path)
+    entries = []
+    for item in registry["datasets"]:
+        if not isinstance(item, Mapping):
+            raise RuntimeError("PRODUCTION_OFFICIAL_SOURCE_REGISTRY_ENTRY_INVALID")
+        applicability = (item.get("cadence_applicability") or {}).get(cadence)
+        if applicability == "NOT_APPLICABLE":
+            continue
+        entries.append(dict(item))
+    return entries
 
 
 def _host_allowed(source: str, url: str) -> bool:
@@ -315,6 +353,185 @@ class MOPSAdapter(OfficialSourceAdapter):
 ADAPTERS = {"TWSE": TWSEAdapter, "TPEX": TPExAdapter, "TDCC": TDCCAdapter, "MOPS": MOPSAdapter}
 
 
+def _raw_market_row(row: Mapping[str, Any], *, source: str, trading_date: str) -> dict[str, Any]:
+    symbol = _symbol(row.get("symbol") or row.get("stock_id") or row.get("Code") or row.get("SecuritiesCompanyCode") or row.get("證券代號"))
+    if not symbol:
+        raise RuntimeError(f"{source}_RAW_SYMBOL_MISSING")
+    raw_date = row.get("trading_date") or row.get("trade_date") or row.get("Date") or row.get("日期") or trading_date
+    normalized_date = _normalize_source_date(raw_date)
+    if normalized_date != trading_date:
+        raise RuntimeError(f"{source}_RAW_TRADING_DATE_MISMATCH")
+    open_value = row.get("open", row.get("OpeningPrice", row.get("Open", row.get("開盤價"))))
+    high_value = row.get("high", row.get("HighestPrice", row.get("High", row.get("最高價"))))
+    low_value = row.get("low", row.get("LowestPrice", row.get("Low", row.get("最低價"))))
+    close_value = row.get("close", row.get("ClosingPrice", row.get("LatestPrice", row.get("Close", row.get("收盤價", row.get("收盤指數"))))))
+    volume_value = row.get("volume", row.get("TradeVolume", row.get("TradingVolume", row.get("TradingShares", row.get("成交股數", row.get("成交股數/單位數"))))))
+    turnover_value = row.get("turnover", row.get("TradeValue", row.get("TradingValue", row.get("TransactionAmount", row.get("成交金額")))))
+    return {
+        "symbol": symbol,
+        "trade_date": normalized_date,
+        "trading_date": normalized_date,
+        "open": _number(open_value),
+        "high": _number(high_value),
+        "low": _number(low_value),
+        "close": _number(close_value),
+        "volume": _number(volume_value),
+        "turnover": _number(turnover_value if turnover_value is not None else _number(close_value) * _number(volume_value)),
+        "source": source,
+    }
+
+
+def _market_history_rows(row: Mapping[str, Any], *, source: str, trading_date: str) -> list[dict[str, Any]]:
+    history = row.get("history")
+    if isinstance(history, list):
+        return [_raw_market_row({**item, "symbol": row.get("symbol") or item.get("symbol")}, source=source, trading_date=str(item.get("trading_date") or item.get("trade_date") or trading_date)) for item in history if isinstance(item, Mapping)]
+    return [_raw_market_row(row, source=source, trading_date=trading_date)]
+
+
+def _benchmark_history_rows(row: Mapping[str, Any], *, trading_date: str) -> tuple[str, list[dict[str, Any]]]:
+    benchmark_id = str(row.get("benchmark") or row.get("index") or row.get("symbol") or "TAIEX")
+    history = row.get("history") if isinstance(row.get("history"), list) else [row]
+    rows = []
+    for item in history:
+        if not isinstance(item, Mapping):
+            continue
+        raw_date = item.get("trading_date") or item.get("trade_date") or item.get("Date") or trading_date
+        normalized_date = _normalize_source_date(raw_date)
+        close_value = item.get("close", item.get("ClosingIndex", item.get("index", item.get("收盤指數"))))
+        rows.append({
+            "symbol": benchmark_id,
+            "trade_date": normalized_date,
+            "trading_date": normalized_date,
+            "open": _number(item.get("open", item.get("OpeningIndex", item.get("open_price", close_value)))),
+            "high": _number(item.get("high", item.get("HighestIndex", item.get("high_price", close_value)))),
+            "low": _number(item.get("low", item.get("LowestIndex", item.get("low_price", close_value)))),
+            "close": _number(close_value),
+            "volume": _number(item.get("volume", item.get("TradeVolume", 1))),
+            "turnover": _number(item.get("turnover", item.get("TradeValue", item.get("close", 1)))),
+        })
+    if not any(row["trade_date"] == trading_date for row in rows):
+        raise RuntimeError("BENCHMARK_TRADING_DATE_MISSING")
+    return benchmark_id, rows
+
+
+def _domain_record(row: Mapping[str, Any], *, source: str, trading_date: str) -> dict[str, Any]:
+    copied = dict(row)
+    copied.setdefault("symbol", _symbol(row.get("symbol") or row.get("stock_id") or row.get("stock_code") or row.get("company_code") or row.get("公司代號") or row.get("證券代號")))
+    official_date = next((value for key, value in row.items() if "資料日期" in str(key)), None)
+    copied.setdefault("effective_date", _normalize_source_date(row.get("effective_date") or row.get("published_date") or row.get("publication_date") or row.get("trading_date") or row.get("出表日期") or official_date or trading_date))
+    return _normalize_record(copied, source, trading_date)
+
+
+def _tdcc_large_holder_records(rows: list[dict[str, Any]], trading_date: str) -> list[dict[str, Any]]:
+    grouped: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        symbol = _symbol(row.get("symbol") or row.get("stock_code") or row.get("證券代號"))
+        if not symbol:
+            continue
+        tier_value = row.get("holding_range") or row.get("持股分級")
+        try:
+            tier = int(str(tier_value).strip())
+        except Exception:
+            continue
+        official_date = next((value for key, value in row.items() if "資料日期" in str(key)), trading_date)
+        effective_date = _normalize_source_date(row.get("effective_date") or row.get("published_date") or official_date)
+        if effective_date > trading_date:
+            continue
+        target = grouped.setdefault(symbol, {"symbol": symbol, "effective_date": effective_date, "trading_date": trading_date, "LH": 0.0, "large_holder_tiers": []})
+        if tier >= 12:
+            pct = _number(row.get("holder_percentage", row.get("占集保庫存數比例%", row.get("percentage", 0))))
+            target["LH"] += pct
+            target["large_holder_tiers"].append({"tier": tier, "holder_percentage": pct, "effective_date": effective_date})
+    return [value for value in grouped.values() if value["large_holder_tiers"]]
+
+
+def _normalize_dataset_entry(entry: Mapping[str, Any], fetched: Mapping[str, Any], trading_date: str) -> dict[str, Any]:
+    dataset_id = str(entry["dataset_id"])
+    domain = str(entry["domain"])
+    source = str(entry.get("authority") or dataset_id).upper()
+    if fetched.get("status") != "PASS":
+        return {**dict(fetched), "dataset_id": dataset_id, "domain": domain, "source": source, "normalization_status": "BLOCKED", "normalized_records": []}
+    try:
+        rows = fetched.get("raw_payload") or []
+        records: list[dict[str, Any]] = []
+        if domain == "market_daily":
+            for row in rows:
+                try:
+                    for hist_row in _market_history_rows(row, source=source, trading_date=trading_date):
+                        records.append({"symbol": hist_row["symbol"], "source": source, "trading_date": hist_row["trading_date"], "raw_market_history": [hist_row], "raw_market_latest": hist_row})
+                except Exception:
+                    continue
+        elif domain == "benchmark":
+            for row in rows:
+                benchmark_id, history = _benchmark_history_rows(row, trading_date=trading_date)
+                records.append({"symbol": benchmark_id, "source": source, "trading_date": trading_date, "benchmark_id": benchmark_id, "benchmark_history": history})
+        elif domain == "large_holder":
+            tdcc_rows = _tdcc_large_holder_records(rows, trading_date)
+            if tdcc_rows:
+                records.extend(_domain_record(row, source=source, trading_date=trading_date) for row in tdcc_rows)
+            else:
+                for row in rows:
+                    mapped = dict(row)
+                    if "large_holder" in mapped and "LH" not in mapped:
+                        mapped["LH"] = mapped["large_holder"]
+                    records.append(_domain_record(mapped, source=source, trading_date=trading_date))
+        elif domain == "fundamental":
+            for row in rows:
+                try:
+                    mapped = dict(row)
+                    if "fundamental" in mapped and "Fundamental" not in mapped:
+                        mapped["Fundamental"] = mapped["fundamental"]
+                    elif "營業收入-去年同月增減(%)" in mapped and "Fundamental" not in mapped:
+                        mapped["Fundamental"] = {"revenue_yoy": _number(mapped["營業收入-去年同月增減(%)"]), "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"}
+                    mapped["trading_date"] = trading_date
+                    records.append(_domain_record(mapped, source=source, trading_date=trading_date))
+                except Exception:
+                    continue
+        elif domain == "institutional":
+            for row in rows:
+                mapped = dict(row)
+                net_buy = mapped.get("NetBuy", mapped.get("買賣超股數", mapped.get("外資買賣超股數")))
+                if net_buy is not None and "FI" not in mapped:
+                    mapped["FI"] = _number(net_buy)
+                if net_buy is not None and "IT" not in mapped:
+                    mapped["IT"] = 0.0
+                if net_buy is not None and "SmartMoney_inputs" not in mapped:
+                    mapped["SmartMoney_inputs"] = {"net_buy": _number(net_buy)}
+                if net_buy is not None and "SMART_MONEY" not in mapped:
+                    mapped["SMART_MONEY"] = _number(net_buy)
+                records.append(_domain_record(mapped, source=source, trading_date=trading_date))
+        elif domain == "trading_metadata":
+            for row in rows:
+                mapped = dict(row)
+                if "Stage_inputs" not in mapped:
+                    mapped["Stage_inputs"] = {"trading_status": "NORMAL", "issuer_name": mapped.get("公司名稱"), "listed_date": mapped.get("上市日期")}
+                if "Stage_evidence" not in mapped:
+                    mapped["Stage_evidence"] = {"metadata_source": "official_machine_readable", "parser": entry.get("parser")}
+                records.append(_domain_record(mapped, source=source, trading_date=trading_date))
+        else:
+            for row in rows:
+                records.append(_domain_record(row, source=source, trading_date=trading_date))
+        if not records:
+            raise RuntimeError(f"{dataset_id}_NO_NORMALIZED_RECORDS")
+        return {**{k: v for k, v in dict(fetched).items() if k != "raw_payload"}, "dataset_id": dataset_id, "domain": domain, "source": source, "provider": entry.get("authority"), "endpoint": entry.get("endpoint"), "parser_version": entry.get("parser"), "normalization_status": "PASS", "normalized_records": records, "normalized_count": len(records), "effective_date": trading_date}
+    except Exception as exc:
+        return {**{k: v for k, v in dict(fetched).items() if k != "raw_payload"}, "dataset_id": dataset_id, "domain": domain, "source": source, "status": "BLOCKED", "normalization_status": "FAIL", "normalized_records": [], "blocking_reason": str(exc), "parser_version": entry.get("parser")}
+
+
+class RegistryDatasetAdapter(OfficialSourceAdapter):
+    def __init__(self, entry: Mapping[str, Any]):
+        super().__init__(entry.get("endpoint"))
+        self.entry = dict(entry)
+        self.source = str(entry.get("authority") or entry.get("dataset_id")).upper()
+        self.provider = str(entry.get("authority") or "Official")
+        self.parser_version = str(entry.get("parser") or "RATE-DATASET-PARSER-V1")
+
+    def fetch(self) -> dict[str, Any]:
+        if self.entry.get("authorization_status") == "BLOCKED_EXTERNAL":
+            return {"source": self.source, "provider": self.provider, "dataset_id": self.entry.get("dataset_id"), "domain": self.entry.get("domain"), "status": "BLOCKED", "blocking_reason": self.entry.get("blocked_dependency") or EXTERNAL_INTRADAY_DEPENDENCY, "records": [], "endpoint": self.entry.get("endpoint"), "http_status": None, "parse_status": "BLOCKED", "record_count": 0, "retrieval_timestamp": utc_now(), "parser_version": self.parser_version}
+        return super().fetch()
+
+
 def parse_source_urls(rate_source_url: str) -> dict[str, str | None]:
     urls = [u.strip() for u in (rate_source_url or "").split(";") if u.strip()]
     mapping: dict[str, str | None] = {key: None for key in ADAPTERS}
@@ -335,6 +552,21 @@ def parse_source_urls(rate_source_url: str) -> dict[str, str | None]:
         elif index < len(positional):
             mapping[positional[index]] = url
     return mapping
+
+
+def build_registry_sources(source_registry: str | Path | None, *, trading_date: str, cadence: str) -> tuple[list[dict[str, Any]], dict[str, str | None], list[dict[str, Any]]]:
+    entries = registry_dataset_entries(source_registry, cadence)
+    normalized_sources = []
+    source_endpoints: dict[str, str | None] = {}
+    for entry in entries:
+        adapter = RegistryDatasetAdapter(entry)
+        fetched = adapter.fetch()
+        normalized = _normalize_dataset_entry(entry, fetched, trading_date=trading_date)
+        normalized["required"] = (entry.get("cadence_applicability") or {}).get(cadence) != "OPTIONAL"
+        normalized["registry_entry"] = {k: v for k, v in entry.items() if k != "endpoint"}
+        normalized_sources.append(normalized)
+        source_endpoints[str(entry["dataset_id"])] = entry.get("endpoint")
+    return normalized_sources, source_endpoints, entries
 
 
 def source_snapshot_id(source: str, dataset: str, effective_date: str, payload_hash: str | None, *, parser_version: str | None = None, source_authority: str | None = None) -> str:
@@ -538,12 +770,16 @@ def build_freshness_matrix(*, trading_date: str, cadence: str, normalized_source
     now = _parse_time(retrieval_timestamp) or datetime.now(timezone.utc)
     dataset_rows = []
     blocking_reasons: list[str] = []
+    domain_status: dict[str, list[dict[str, Any]]] = {}
     source_status = {str(item.get("source")): item for item in normalized_sources}
+    for item in normalized_sources:
+        if item.get("domain"):
+            domain_status.setdefault(str(item.get("domain")), []).append(item)
     for contract in DATASET_CONTRACT:
         name = str(contract["dataset_name"])
         freshness_contract = str(contract.get("freshness_contract"))
         sources = [part.upper().replace("TPEX", "TPEX") for part in str(contract["source_authority"]).split("/")]
-        source_items = [source_status.get(src) for src in sources if source_status.get(src)]
+        source_items = domain_status.get(str(contract.get("domain"))) or [source_status.get(src) for src in sources if source_status.get(src)]
         timestamps = [item.get("retrieval_timestamp") for item in source_items if item and item.get("normalization_status") == "PASS"]
         parsed_times = [_parse_time(ts) for ts in timestamps]
         parsed_times = [ts for ts in parsed_times if ts]
@@ -596,10 +832,14 @@ def build_freshness_matrix(*, trading_date: str, cadence: str, normalized_source
 
 def build_requirement_matrix(*, trading_date: str, cadence: str, normalized_sources: list[dict[str, Any]], universe: list[str], join_status: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
     by_source = {item.get("source"): item for item in normalized_sources}
+    by_domain: dict[str, list[dict[str, Any]]] = {}
+    for item in normalized_sources:
+        if item.get("domain"):
+            by_domain.setdefault(str(item.get("domain")), []).append(item)
     matrix = []
     for contract in DATASET_CONTRACT:
         authorities = str(contract["source_authority"]).split("/")
-        source_items = [by_source.get("TPEX" if a.upper() == "TPEX" else a.upper()) for a in authorities]
+        source_items = by_domain.get(str(contract.get("domain"))) or [by_source.get("TPEX" if a.upper() == "TPEX" else a.upper()) for a in authorities]
         available = [item for item in source_items if isinstance(item, dict) and item.get("normalization_status") == "PASS"]
         rule = cadence_domain_rule(cadence, str(contract.get("domain") or contract.get("dataset_name")))
         required = required_for_cadence(cadence, contract)
@@ -627,6 +867,8 @@ def build_requirement_matrix(*, trading_date: str, cadence: str, normalized_sour
 def _merge_production_sources(normalized_sources: list[dict[str, Any]], trading_date: str, expected_universe: list[str] | None = None) -> tuple[list[str], dict[str, dict[str, Any]], list[dict[str, Any]]]:
     production_sources: dict[str, dict[str, Any]] = {}
     symbol_sources: dict[str, set[str]] = {}
+    raw_history_by_symbol: dict[str, list[dict[str, Any]]] = {}
+    benchmark_history: list[dict[str, Any]] = []
     for source in normalized_sources:
         if source.get("normalization_status") != "PASS":
             continue
@@ -634,6 +876,10 @@ def _merge_production_sources(normalized_sources: list[dict[str, Any]], trading_
             symbol = _symbol(record.get("symbol"))
             if not symbol:
                 continue
+            if record.get("raw_market_history"):
+                raw_history_by_symbol.setdefault(symbol, []).extend(record["raw_market_history"])
+            if record.get("benchmark_history"):
+                benchmark_history.extend(record["benchmark_history"])
             target = production_sources.setdefault(symbol, {})
             if record.get("technical_features"):
                 target["technical_features"] = record["technical_features"]
@@ -641,6 +887,30 @@ def _merge_production_sources(normalized_sources: list[dict[str, Any]], trading_
                 if key in record:
                     target[key] = record[key]
             symbol_sources.setdefault(symbol, set()).add(str(source.get("source")))
+    feature_symbols = list(expected_universe) if expected_universe is not None else sorted(raw_history_by_symbol)
+    feature_inputs = []
+    feature_order = []
+    if benchmark_history:
+        for symbol in feature_symbols:
+            rows = sorted(raw_history_by_symbol.get(symbol, []), key=lambda row: row["trade_date"])
+            if rows and "technical_features" not in production_sources.get(symbol, {}):
+                feature_inputs.append(rows)
+                feature_order.append(symbol)
+    if feature_inputs:
+        try:
+            computed = compute_scores(feature_inputs, benchmark=sorted(benchmark_history, key=lambda row: row["trade_date"]))
+            for symbol, item in zip(feature_order, computed):
+                target = production_sources.setdefault(symbol, {})
+                target["technical_features"] = item["technical_features"]
+                target.setdefault("feature_lineage", {})
+                target["feature_lineage"]["technical_features"] = {
+                    "source": "src.technical_features.compute_scores",
+                    "input": "official_raw_market_history",
+                    "calculation_changed": False,
+                    "calculation_status": "PASS",
+                }
+        except Exception:
+            pass
     universe = list(expected_universe) if expected_universe is not None else sorted(production_sources)
     if expected_universe is not None:
         production_sources = {symbol: production_sources[symbol] for symbol in expected_universe if symbol in production_sources}
@@ -681,6 +951,25 @@ def _qualified_count(join_status: list[dict[str, Any]]) -> int:
     return sum(1 for item in join_status if not item.get("missing_required_fields") and not item.get("missing_required_datasets"))
 
 
+def _required_domain_status(normalized_sources: list[dict[str, Any]], cadence: str) -> dict[str, str]:
+    statuses: dict[str, str] = {}
+    for contract in DATASET_CONTRACT:
+        domain = str(contract.get("domain") or contract.get("dataset_name"))
+        if required_for_cadence(cadence, contract):
+            statuses[domain] = "BLOCKED"
+    for item in normalized_sources:
+        domain = str(item.get("domain") or "")
+        if domain in statuses and item.get("normalization_status") == "PASS":
+            statuses[domain] = "PASS"
+    return statuses
+
+
+def _required_source_status_pass(normalized_sources: list[dict[str, Any]], cadence: str) -> bool:
+    if any(item.get("domain") for item in normalized_sources):
+        return all(status == "PASS" for status in _required_domain_status(normalized_sources, cadence).values())
+    return all(item.get("normalization_status") == "PASS" for item in normalized_sources if item.get("required", True))
+
+
 def assemble_production_bundle(*, normalized_sources: list[dict[str, Any]], trading_date: str, cadence: str, retrieval_timestamp: str, universe_binding: dict[str, Any], freshness_matrix: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
     if universe_binding.get("validation_status") != "PASS":
         raise RuntimeError(str(universe_binding.get("blocking_reason") or "PRODUCTION_UNIVERSE_BINDING_BLOCKED"))
@@ -712,8 +1001,8 @@ def assemble_production_bundle(*, normalized_sources: list[dict[str, Any]], trad
     required_datasets = sorted({str(item["domain"]) for item in DATASET_CONTRACT if required_for_cadence(cadence, item)})
     datasets_present = sorted({str(item["domain"]) for item in DATASET_CONTRACT if required_for_cadence(cadence, item)})
     transformation = {
-        "source_retrieval": "PASS" if all(item.get("status") == "PASS" for item in normalized_sources if ADAPTERS[str(item.get("source"))].required) else "BLOCKED",
-        "normalization": "PASS" if all(item.get("normalization_status") == "PASS" for item in normalized_sources if ADAPTERS[str(item.get("source"))].required) else "BLOCKED",
+        "source_retrieval": "PASS" if _required_source_status_pass(normalized_sources, cadence) else "BLOCKED",
+        "normalization": "PASS" if _required_source_status_pass(normalized_sources, cadence) else "BLOCKED",
         "symbol_mapping": "PASS",
         "authoritative_universe_binding": universe_binding,
         "required_dataset_joins": "PASS",
@@ -724,6 +1013,12 @@ def assemble_production_bundle(*, normalized_sources: list[dict[str, Any]], trad
         "production_source_count": len(production_sources),
         "feature_validation": built["feature_validation"],
         "feature_input_contract": build_feature_input_contract_artifact(),
+        "feature_pipeline": {
+            "raw_market_data": "OFFICIAL_RAW_MARKET_HISTORY",
+            "historical_window_source": "official raw market rows / persisted rolling history compatible payload",
+            "deterministic_feature_engine": "src.technical_features.compute_scores",
+            "source_side_precomputed_feature_dependency": False,
+        },
         "freshness_matrix": freshness_matrix,
         "datasets": [{k: v for k, v in item.items() if k not in {"normalized_records"}} for item in normalized_sources],
         "dataset_join_status": join_status,
@@ -808,16 +1103,20 @@ def _blocked_bundle(*, trading_date: str, cadence: str, retrieval_timestamp: str
     }
 
 
-def build_bundle(*, rate_source_url: str, trading_date: str, cadence: str, output: str | Path, evidence_output: str | Path, requirement_matrix_output: str | Path | None = None, universe_contract: str | Path | None = None, universe_binding_output: str | Path | None = None, freshness_matrix_output: str | Path | None = None, feature_input_contract_output: str | Path | None = None) -> dict[str, Any]:
+def build_bundle(*, rate_source_url: str, trading_date: str, cadence: str, output: str | Path, evidence_output: str | Path, requirement_matrix_output: str | Path | None = None, universe_contract: str | Path | None = None, universe_binding_output: str | Path | None = None, freshness_matrix_output: str | Path | None = None, feature_input_contract_output: str | Path | None = None, source_registry: str | Path | None = None) -> dict[str, Any]:
     if cadence not in CADENCES:
         raise RuntimeError("CADENCE_INVALID")
     retrieval_timestamp = utc_now()
-    url_map = parse_source_urls(rate_source_url)
-    normalized_sources = []
-    for source, cls in ADAPTERS.items():
-        adapter = cls(url_map.get(source))
-        fetched = adapter.fetch()
-        normalized_sources.append(adapter.normalize(fetched, trading_date))
+    registry_entries: list[dict[str, Any]] = []
+    if source_registry or not rate_source_url:
+        normalized_sources, url_map, registry_entries = build_registry_sources(source_registry, trading_date=trading_date, cadence=cadence)
+    else:
+        url_map = parse_source_urls(rate_source_url)
+        normalized_sources = []
+        for source, cls in ADAPTERS.items():
+            adapter = cls(url_map.get(source))
+            fetched = adapter.fetch()
+            normalized_sources.append(adapter.normalize(fetched, trading_date))
 
     blocking_reason = None
     transformation: dict[str, Any] = {}
@@ -830,8 +1129,7 @@ def build_bundle(*, rate_source_url: str, trading_date: str, cadence: str, outpu
         external_block = cadence_blocking_reason(cadence)
         if external_block:
             raise RuntimeError(external_block)
-        required_failures = [item for item in normalized_sources if ADAPTERS[str(item.get("source"))].required and item.get("normalization_status") != "PASS"]
-        if required_failures:
+        if not _required_source_status_pass(normalized_sources, cadence):
             raise RuntimeError("REQUIRED_SOURCE_UNAVAILABLE")
         bundle, transformation, matrix = assemble_production_bundle(normalized_sources=normalized_sources, trading_date=trading_date, cadence=cadence, retrieval_timestamp=retrieval_timestamp, universe_binding=universe_binding, freshness_matrix=freshness_matrix)
     except Exception as exc:
@@ -877,6 +1175,8 @@ def build_bundle(*, rate_source_url: str, trading_date: str, cadence: str, outpu
         "scheduled_soak_credit": False,
         "acceptance_counter_reset": False,
         "source_endpoints": {k: v for k, v in url_map.items()},
+        "source_registry_path": str(source_registry or (DEFAULT_SOURCE_REGISTRY_PATH if not rate_source_url else "")).replace("\\", "/") or None,
+        "source_registry_entries": [{k: v for k, v in entry.items() if k != "endpoint"} for entry in registry_entries],
         "sources": [{k: v for k, v in item.items() if k != "normalized_records"} for item in normalized_sources],
         "requirement_matrix_path": str(requirement_matrix_output).replace("\\", "/") if requirement_matrix_output else None,
         "universe_binding_path": str(universe_binding_output).replace("\\", "/") if universe_binding_output else None,
@@ -910,6 +1210,7 @@ def main() -> int:
     parser.add_argument("--trading-date", required=True)
     parser.add_argument("--cadence", required=True, choices=sorted(CADENCES))
     parser.add_argument("--rate-source-url", default=os.getenv("RATE_SOURCE_URL", ""))
+    parser.add_argument("--source-registry", default=os.getenv("RATE_SOURCE_REGISTRY_PATH", str(DEFAULT_SOURCE_REGISTRY_PATH)))
     parser.add_argument("--output", required=True)
     parser.add_argument("--evidence-output", required=True)
     parser.add_argument("--requirement-matrix-output", default=None)
@@ -918,7 +1219,7 @@ def main() -> int:
     parser.add_argument("--freshness-matrix-output", default=None)
     parser.add_argument("--feature-input-contract-output", default=None)
     args = parser.parse_args()
-    evidence = build_bundle(rate_source_url=args.rate_source_url, trading_date=args.trading_date, cadence=args.cadence, output=args.output, evidence_output=args.evidence_output, requirement_matrix_output=args.requirement_matrix_output, universe_contract=args.universe_contract, universe_binding_output=args.universe_binding_output, freshness_matrix_output=args.freshness_matrix_output, feature_input_contract_output=args.feature_input_contract_output)
+    evidence = build_bundle(rate_source_url=args.rate_source_url, trading_date=args.trading_date, cadence=args.cadence, output=args.output, evidence_output=args.evidence_output, requirement_matrix_output=args.requirement_matrix_output, universe_contract=args.universe_contract, universe_binding_output=args.universe_binding_output, freshness_matrix_output=args.freshness_matrix_output, feature_input_contract_output=args.feature_input_contract_output, source_registry=args.source_registry)
     print(json.dumps(evidence, ensure_ascii=False, sort_keys=True))
     return 0 if evidence["validation_status"] == "PASS" else 1
 

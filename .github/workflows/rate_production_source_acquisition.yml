@@ -29,7 +29,6 @@ jobs:
     if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     env:
-      RATE_SOURCE_URL: "TWSE=https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL;TPEX=https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes;TDCC=https://www.tdcc.com.tw/portal/zh/smWeb/qryStock;MOPS=https://mops.twse.com.tw/mops/web/ajax_t05st10_ifrs"
       SCHEDULED_SOAK_CREDIT: "false"
       ACCEPTANCE_COUNTER_RESET: "false"
       EXECUTION_SCOPE: "PRODUCTION_SOURCE_ACQUISITION"
@@ -50,6 +49,7 @@ jobs:
           mkdir -p artifacts/production_source_acquisition
           cp config/RATE_PRODUCTION_SOURCE_CADENCE_APPLICABILITY.json artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_CADENCE_APPLICABILITY.json
           cp config/RATE_EXTERNAL_PRODUCTION_DEPENDENCIES.json artifacts/production_source_acquisition/RATE_EXTERNAL_PRODUCTION_DEPENDENCIES.json
+          cp config/RATE_PRODUCTION_OFFICIAL_SOURCE_REGISTRY_V1.json artifacts/production_source_acquisition/RATE_PRODUCTION_OFFICIAL_SOURCE_REGISTRY_V1.json
 
       - name: Build official production source bundle only
         env:
@@ -60,7 +60,7 @@ jobs:
             scripts/build_production_source_bundle_from_official.py
             --trading-date "${{ inputs.trading_date }}"
             --cadence "${{ inputs.cadence }}"
-            --rate-source-url "$RATE_SOURCE_URL"
+            --source-registry config/RATE_PRODUCTION_OFFICIAL_SOURCE_REGISTRY_V1.json
             --output artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_BUNDLE.json
             --evidence-output artifacts/production_source_acquisition/RATE_PRODUCTION_OFFICIAL_SOURCE_ACQUISITION_EVIDENCE.json
             --requirement-matrix-output artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_REQUIREMENT_MATRIX.json
