@@ -21,7 +21,7 @@ on:
         default: ""
 
 permissions:
-  contents: read
+  contents: write
   actions: read
 
 jobs:
@@ -72,6 +72,36 @@ jobs:
             args+=(--universe-contract "$RATE_UNIVERSE_CONTRACT_PATH")
           fi
           python "${args[@]}"
+
+      - name: Materialize Production bundle and Thin Work manifest
+        if: success()
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: >-
+          python scripts/publish_production_source_bundle_latest.py
+          --source-bundle artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_BUNDLE.json
+          --trading-date "${{ inputs.trading_date }}"
+          --cadence "${{ inputs.cadence }}"
+          --artifacts-root artifacts
+          --workflow-run-id "${{ github.run_id }}"
+          --workflow-job-id "${{ github.job }}"
+          --evidence-output artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST_UPDATE_EVIDENCE.json
+
+      - name: Commit authoritative Production source bundle and manifest
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifacts/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json
+          git add artifacts/RATE_THIN_WORK_PRODUCTION_BUNDLE_MANIFEST_LATEST.json
+          git add artifacts/production_source_snapshots
+          if git diff --cached --quiet; then
+            echo "No production materialization changes."
+          else
+            git commit -m "Materialize RATE production input bundle ${{ inputs.trading_date }} ${{ inputs.cadence }}"
+            git push origin "HEAD:${{ github.ref_name }}"
+          fi
 
       - name: Upload source acquisition evidence
         if: always()

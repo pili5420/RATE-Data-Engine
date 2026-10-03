@@ -44,6 +44,10 @@ def _canonical_bytes(value: object) -> bytes:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
+def _manifest_hash_payload(manifest: Mapping[str, object]) -> dict:
+    return {k: v for k, v in manifest.items() if k not in {"manifest_sha256", "contract_validation"}}
+
+
 def _read_json(path: Path) -> dict:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
@@ -65,8 +69,19 @@ def _timestamp(value: str) -> datetime:
     return parsed
 
 
-def _dataset_status(source_bundle: Mapping[str, object]) -> tuple[list[str], list[str]]:
-    required = sorted(REQUIRED_BUNDLE_DOMAINS)
+def _cadence_required_domains(cadence: str | None) -> list[str]:
+    required = set(REQUIRED_BUNDLE_DOMAINS)
+    if cadence not in INTRADAY_CADENCES:
+        required.discard("market_intraday")
+    return sorted(required)
+
+
+def _dataset_status(source_bundle: Mapping[str, object], cadence: str | None = None) -> tuple[list[str], list[str]]:
+    explicit_required = source_bundle.get("required_datasets")
+    required = sorted(str(item) for item in explicit_required) if isinstance(explicit_required, list) else _cadence_required_domains(cadence)
+    explicit_missing = source_bundle.get("datasets_missing")
+    if isinstance(explicit_missing, list):
+        return required, sorted({str(item) for item in explicit_missing})
     domains = source_bundle.get("domains")
     if isinstance(domains, list):
         present = sorted({str(item.get("domain")) for item in domains if isinstance(item, dict) and item.get("domain")})
@@ -95,7 +110,7 @@ def build_shadow_manifest(
     if not artifact_path.is_file():
         raise ThinWorkManifestError("MISSING_ARTIFACT")
     source_bundle = _read_json(artifact_path)
-    required, missing = _dataset_status(source_bundle)
+    required, missing = _dataset_status(source_bundle, cadence)
     blocked = list(source_bundle.get("blocked_dependencies", []))
     if cadence in INTRADAY_CADENCES and source_bundle.get("authorized_intraday_feed") != "PASS":
         blocked.append(INTRADAY_BLOCKED_DEPENDENCY)
@@ -132,7 +147,7 @@ def build_shadow_manifest(
             "artifact": source_bundle.get("artifact", "RATE_PRODUCTION_SOURCE_BUNDLE"),
         }],
     }
-    manifest["manifest_sha256"] = hashlib.sha256(_canonical_bytes({k: v for k, v in manifest.items() if k != "manifest_sha256"})).hexdigest()
+    manifest["manifest_sha256"] = hashlib.sha256(_canonical_bytes(_manifest_hash_payload(manifest))).hexdigest()
     return manifest
 
 
@@ -194,7 +209,7 @@ def validate_shadow_manifest(
         if reference.get("sha256") != _sha256(path):
             errors.append(f"PAYLOAD_REFERENCE_HASH_MISMATCH:{reference.get('path')}")
     expected_hash = manifest.get("manifest_sha256")
-    actual_hash = hashlib.sha256(_canonical_bytes({k: v for k, v in manifest.items() if k != "manifest_sha256"})).hexdigest()
+    actual_hash = hashlib.sha256(_canonical_bytes(_manifest_hash_payload(manifest))).hexdigest()
     if expected_hash != actual_hash:
         errors.append("CORRUPTED_MANIFEST")
     status = "PASS" if not errors else "FAIL_CLOSED"

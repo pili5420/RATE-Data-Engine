@@ -17,6 +17,7 @@ from scripts.build_production_source_bundle_from_official import (
     load_external_dependencies,
     parse_source_urls,
     source_snapshot_id,
+    _normalize_source_date,
 )
 from scripts.resolve_production_runtime_context import resolve_context
 
@@ -161,6 +162,11 @@ class RateProductionSourceAcquisitionTests(unittest.TestCase):
             normalized = cls(url).normalize(cls(url).fetch(), self.trading_date)
             self.assertEqual(normalized["normalization_status"], "PASS", cls.__name__)
             self.assertEqual(normalized["normalized_count"], 1, cls.__name__)
+
+    def test_official_roc_dates_normalize_to_iso(self):
+        self.assertEqual(_normalize_source_date("1151002"), "2026-10-02")
+        self.assertEqual(_normalize_source_date("20261002"), "2026-10-02")
+        self.assertEqual(_normalize_source_date("2026/10/02"), "2026-10-02")
 
     def test_malformed_source_payloads_blocked(self):
         cases = [("twse", TWSEAdapter, {"records": [{"trading_date": self.trading_date}]}), ("tpex", TPExAdapter, {"records": [{"symbol": "1000", "trading_date": "2026-09-20"}]}), ("tdcc", TDCCAdapter, {"records": "bad"}), ("mops", MOPSAdapter, {"records": [{"symbol": "1000", "trading_date": self.trading_date, "technical_features": {"PT": "bad"}}]})]
