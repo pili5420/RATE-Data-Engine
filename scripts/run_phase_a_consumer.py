@@ -12,10 +12,11 @@ def main() -> int:
     parser.add_argument("--manifest", required=True)
     parser.add_argument("--previous-state", required=True)
     parser.add_argument("--root", default=".")
-    parser.add_argument("--expected-run-id")
-    parser.add_argument("--expected-commit-sha")
-    parser.add_argument("--expected-production-snapshot-id")
-    parser.add_argument("--expected-previous-state-id")
+    parser.add_argument("--expected-run-id", required=True)
+    parser.add_argument("--expected-commit-sha", required=True)
+    parser.add_argument("--expected-production-snapshot-id", required=True)
+    parser.add_argument("--expected-previous-state-id", required=True)
+    parser.add_argument("--expected-previous-state-hash", required=True)
     parser.add_argument("--output")
     args = parser.parse_args()
     evidence = build_phase_a_consumer_evidence(
@@ -26,6 +27,7 @@ def main() -> int:
         expected_commit_sha=args.expected_commit_sha,
         expected_production_snapshot_id=args.expected_production_snapshot_id,
         expected_previous_state_id=args.expected_previous_state_id,
+        expected_previous_state_hash=args.expected_previous_state_hash,
     )
     text = json.dumps(evidence, ensure_ascii=False, indent=2) + "\n"
     if args.output:

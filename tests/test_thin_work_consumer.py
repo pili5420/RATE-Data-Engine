@@ -8,6 +8,7 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
+from src.state_chain import calculate_state_hash
 from src.thin_work_manifest import INTRADAY_BLOCKED_DEPENDENCY, build_shadow_manifest
 from src.thin_work_consumer import build_phase_a_consumer_evidence
 
@@ -38,7 +39,7 @@ class RateThinWorkConsumerTests(unittest.TestCase):
             ],
         }
         self.write_json(self.source_path, self.source)
-        self.previous_state = {"current_state_id": "rate-state-prev-1", "state_hash": "h1"}
+        self.previous_state = self.previous_state_fixture()
         self.write_json(self.previous_state_path, self.previous_state)
         self.manifest_path = self.tmp / "manifest.json"
         self.write_json(self.manifest_path, self.manifest())
@@ -75,10 +76,35 @@ class RateThinWorkConsumerTests(unittest.TestCase):
             "expected_commit_sha": "a" * 40,
             "expected_production_snapshot_id": "rate-prod-1",
             "expected_previous_state_id": "rate-state-prev-1",
+            "expected_previous_state_hash": self.previous_state["current_state_hash"],
             "now": self.now,
         }
         args.update(overrides)
         return build_phase_a_consumer_evidence(**args)
+
+    def previous_state_fixture(self):
+        state = {
+            "current_state_id": "rate-state-prev-1",
+            "previous_state_id": "rate-state-prev-0",
+            "current_state_hash": "PENDING",
+            "decision_payload_hash": "decision-hash-1",
+            "portfolio_state_reference": "portfolio-ref-1",
+            "ai_paper_portfolio_ledger_reference": "paper-ledger-ref-1",
+            "transaction_ledger_reference": "transaction-ledger-ref-1",
+            "state_reset_detected": False,
+            "ledger_reset_detected": False,
+            "lineage": {
+                "current_state_id": "rate-state-prev-1",
+                "current_state_hash": "PENDING",
+                "portfolio_state_reference": "portfolio-ref-1",
+                "transaction_ledger_reference": "transaction-ledger-ref-1",
+            },
+        }
+        state["current_state_hash"] = calculate_state_hash(state)
+        state["lineage"]["current_state_hash"] = state["current_state_hash"]
+        state["current_state_hash"] = calculate_state_hash(state)
+        state["lineage"]["current_state_hash"] = state["current_state_hash"]
+        return state
 
     def assert_fail(self, evidence, reason):
         self.assertEqual(evidence["status"], "FAIL_CLOSED")
@@ -131,8 +157,56 @@ class RateThinWorkConsumerTests(unittest.TestCase):
         self.assert_fail(self.evidence(previous_state_path=self.tmp / "missing-state.json"), "MISSING_PREVIOUS_STATE")
         self.previous_state_path.write_text("{", encoding="utf-8")
         self.assert_fail(self.evidence(), "CORRUPTED_PREVIOUS_STATE")
-        self.write_json(self.previous_state_path, {"current_state_id": "other"})
+        state = self.previous_state_fixture()
+        state["current_state_id"] = "other"
+        state["lineage"]["current_state_id"] = "other"
+        state["current_state_hash"] = calculate_state_hash(state)
+        state["lineage"]["current_state_hash"] = state["current_state_hash"]
+        state["current_state_hash"] = calculate_state_hash(state)
+        state["lineage"]["current_state_hash"] = state["current_state_hash"]
+        self.write_json(self.previous_state_path, state)
         self.assert_fail(self.evidence(), "PREVIOUS_STATE_ID_MISMATCH")
+
+    def test_previous_state_semantic_corruption_fails_closed(self):
+        state = self.previous_state_fixture()
+        state["decision_payload_hash"] = "tampered"
+        self.write_json(self.previous_state_path, state)
+        self.assert_fail(self.evidence(), "RATE_STATE_HASH_MISMATCH")
+
+        state = self.previous_state_fixture()
+        state["lineage"]["transaction_ledger_reference"] = "stale-ledger"
+        state["current_state_hash"] = calculate_state_hash(state)
+        state["lineage"]["current_state_hash"] = state["current_state_hash"]
+        state["current_state_hash"] = calculate_state_hash(state)
+        state["lineage"]["current_state_hash"] = state["current_state_hash"]
+        self.write_json(self.previous_state_path, state)
+        self.assert_fail(self.evidence(expected_previous_state_hash=state["current_state_hash"]), "RATE_STATE_LINEAGE_LEDGER")
+
+        state = self.previous_state_fixture()
+        state.pop("portfolio_state_reference")
+        self.write_json(self.previous_state_path, state)
+        self.assert_fail(self.evidence(), "RATE_STATE_SCHEMA_REQUIRED")
+
+        state = self.previous_state_fixture()
+        state["ledger_reset_detected"] = True
+        state["current_state_hash"] = calculate_state_hash(state)
+        state["lineage"]["current_state_hash"] = state["current_state_hash"]
+        state["current_state_hash"] = calculate_state_hash(state)
+        state["lineage"]["current_state_hash"] = state["current_state_hash"]
+        self.write_json(self.previous_state_path, state)
+        self.assert_fail(self.evidence(expected_previous_state_hash=state["current_state_hash"]), "RATE_LEDGER_RESET_DETECTED")
+
+    def test_missing_expected_bindings_fail_closed(self):
+        cases = {
+            "expected_run_id": "MISSING_EXPECTED_RUN_ID",
+            "expected_commit_sha": "MISSING_EXPECTED_COMMIT_SHA",
+            "expected_production_snapshot_id": "MISSING_EXPECTED_PRODUCTION_SNAPSHOT_ID",
+            "expected_previous_state_id": "MISSING_EXPECTED_PREVIOUS_STATE_ID",
+            "expected_previous_state_hash": "MISSING_EXPECTED_PREVIOUS_STATE_HASH",
+        }
+        for arg, reason in cases.items():
+            with self.subTest(arg=arg):
+                self.assert_fail(self.evidence(**{arg: None}), reason)
 
     def test_intraday_missing_feed_is_governed_blocked_outcome(self):
         source = dict(self.source)
