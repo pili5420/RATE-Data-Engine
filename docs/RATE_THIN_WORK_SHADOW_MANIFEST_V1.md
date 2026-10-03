@@ -19,7 +19,12 @@ For `09:30` and `12:00`, absence of an authorized intraday feed must bind
 `EXTERNAL_AUTHORIZED_INTRADAY_FEED_DEPENDENCY` in `blocked_dependencies`.
 There is no fallback source.
 
-Validation is fail closed. Any missing artifact, binding mismatch, commit or
-run mismatch, stale/future timestamp, validation failure, missing required
-dataset, corrupted manifest hash, or invalid previous-state requirement returns
-`FAIL_CLOSED` and explicitly disallows state, portfolio, and ledger mutation.
+Validation is fail closed. `production_snapshot_id` is read only from the
+source bundle `production_snapshot_id` field; legacy `snapshot_id` never aliases
+or substitutes for it. `source_status`, `freshness_status`, and
+`validation_status` must each be exactly `PASS`.
+
+Any missing artifact, binding mismatch, commit or run mismatch, stale/future
+timestamp, non-`PASS` gate status, missing required dataset, corrupted manifest
+hash, or invalid previous-state requirement returns `FAIL_CLOSED` and explicitly
+disallows state, portfolio, and ledger mutation.
