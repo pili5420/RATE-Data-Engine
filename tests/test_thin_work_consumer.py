@@ -8,7 +8,7 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-from src.production_live_state import calculate_state_hash, state_id_for
+from src.phase_a_state_adapter import calculate_state_hash, state_id_for
 from src.thin_work_manifest import INTRADAY_BLOCKED_DEPENDENCY, build_shadow_manifest
 from src.thin_work_consumer import build_phase_a_consumer_evidence
 

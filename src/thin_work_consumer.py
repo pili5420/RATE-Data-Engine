@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Mapping
 
-from .production_live_state import validate_state_file
+from .phase_a_state_adapter import validate_phase_a_previous_state_file
 from .thin_work_manifest import CONTRACT_VERSION, validate_shadow_manifest
 
 PHASE_A_CONSUMER_CONTRACT = "RATE-THIN-WORK-CONSUMER-PHASE-A-V1"
@@ -64,7 +64,7 @@ def _read_previous_state(path: str | Path | None, expected_production_snapshot_i
     if not target.is_file():
         return None, ["MISSING_PREVIOUS_STATE"]
     try:
-        return validate_state_file(target, expected_production_snapshot_id=expected_production_snapshot_id), []
+        return validate_phase_a_previous_state_file(target, expected_production_snapshot_id=expected_production_snapshot_id), []
     except ValueError as exc:
         reason = str(exc) or "CORRUPTED_PREVIOUS_STATE"
         return None, [reason if reason.startswith("RATE_") else "CORRUPTED_PREVIOUS_STATE"]

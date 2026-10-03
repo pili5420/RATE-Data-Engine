@@ -2,7 +2,6 @@ from __future__ import annotations
 import hashlib, json
 from datetime import datetime, timezone
 from pathlib import Path
-from .production_live_state import calculate_state_hash, validate_state_document, validate_state_file
 
 ROOT=Path('artifacts'); GENESIS=ROOT/'RATE_PRODUCTION_GENESIS_STATE.json'; CHAIN=ROOT/'RATE_DECISION_STATE_CHAIN.json'
 def resolve_previous(model_version, data_contract_version, calculation_spec_version):
