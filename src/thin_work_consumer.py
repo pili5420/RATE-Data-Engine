@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Mapping
 
-from .phase_a_state_adapter import validate_phase_a_previous_state_file
+from .phase_a_state_adapter import load_phase_a_previous_state
 from .thin_work_manifest import CONTRACT_VERSION, validate_shadow_manifest
 
 PHASE_A_CONSUMER_CONTRACT = "RATE-THIN-WORK-CONSUMER-PHASE-A-V1"
@@ -51,23 +51,10 @@ def _previous_state_id(previous_state: Mapping[str, object] | None) -> str | Non
 def _previous_state_hash(previous_state: Mapping[str, object] | None) -> str | None:
     if previous_state is None:
         return None
-    for key in ("current_state_hash", "state_hash"):
+    for key in ("decision_payload_hash", "current_state_hash", "state_hash"):
         if previous_state.get(key):
             return str(previous_state[key])
     return None
-
-
-def _read_previous_state(path: str | Path | None, expected_production_snapshot_id: str | None) -> tuple[dict | None, list[str]]:
-    if path is None:
-        return None, ["MISSING_PREVIOUS_STATE"]
-    target = Path(path)
-    if not target.is_file():
-        return None, ["MISSING_PREVIOUS_STATE"]
-    try:
-        return validate_phase_a_previous_state_file(target, expected_production_snapshot_id=expected_production_snapshot_id), []
-    except ValueError as exc:
-        reason = str(exc) or "CORRUPTED_PREVIOUS_STATE"
-        return None, [reason if reason.startswith("RATE_") else "CORRUPTED_PREVIOUS_STATE"]
 
 
 def _gate(status: bool, errors: list[str]) -> dict:
@@ -77,7 +64,10 @@ def _gate(status: bool, errors: list[str]) -> dict:
 def build_phase_a_consumer_evidence(
     *,
     manifest_path: str | Path,
-    previous_state_path: str | Path | None,
+    previous_state_path: str | Path | None = None,
+    previous_state_root: str | Path | None = None,
+    previous_trading_date: str | None = None,
+    previous_cadence: str | None = None,
     root: str | Path = ".",
     expected_run_id: str | None = None,
     expected_commit_sha: str | None = None,
@@ -87,8 +77,6 @@ def build_phase_a_consumer_evidence(
     now=None,
 ) -> dict:
     manifest, manifest_errors = _read_json_file(manifest_path, "MISSING_MANIFEST")
-    manifest_production_snapshot_id = manifest.get("production_snapshot_id") if isinstance(manifest, dict) else None
-    previous_state, previous_errors = _read_previous_state(previous_state_path, manifest_production_snapshot_id)
     binding_errors = []
     required_expectations = {
         "expected_run_id": expected_run_id,
@@ -100,6 +88,14 @@ def build_phase_a_consumer_evidence(
     for name, value in required_expectations.items():
         if not value:
             binding_errors.append("MISSING_" + name.upper())
+    previous_state, previous_errors = load_phase_a_previous_state(
+        state_root=previous_state_root or root,
+        trading_date=previous_trading_date,
+        cadence=previous_cadence,
+        expected_previous_state_id=expected_previous_state_id,
+        expected_previous_state_hash=expected_previous_state_hash,
+        reference_path=previous_state_path,
+    )
 
     manifest_validation = {"validation_status": "FAIL_CLOSED", "errors": manifest_errors}
     if manifest is not None:
@@ -137,6 +133,7 @@ def build_phase_a_consumer_evidence(
         "production_snapshot_id": production_snapshot_id,
         "previous_state_id": previous_id,
         "previous_state_hash": previous_hash,
+        "previous_production_snapshot_id": previous_state.get("previous_production_snapshot_id") if previous_state else None,
         "run_id": manifest.get("run_id") if manifest else None,
         "commit_sha": manifest.get("commit_sha") if manifest else None,
     }
@@ -154,6 +151,7 @@ def build_phase_a_consumer_evidence(
         "manifest_validation": manifest_validation,
         "previous_state_id": previous_id,
         "previous_state_hash": previous_hash,
+        "previous_production_snapshot_id": previous_state.get("previous_production_snapshot_id") if previous_state else None,
         "proposed_current_state_id": proposed_current_state_id,
         "binding_gate": _gate(not any(error in errors for error in ("CONTRACT_VERSION_MISMATCH", "PRODUCTION_SNAPSHOT_BINDING_MISMATCH", "RUN_ID_MISMATCH", "COMMIT_MISMATCH", "MISSING_PRODUCTION_SNAPSHOT_ID", "MISSING_MANIFEST", "CORRUPTED_MANIFEST", "MISSING_EXPECTED_RUN_ID", "MISSING_EXPECTED_COMMIT_SHA", "MISSING_EXPECTED_PRODUCTION_SNAPSHOT_ID", "MISSING_EXPECTED_PREVIOUS_STATE_ID", "MISSING_EXPECTED_PREVIOUS_STATE_HASH", "PREVIOUS_STATE_HASH_MISMATCH")), fail_closed_reason),
         "freshness_gate": _gate("FRESHNESS_STATUS_NOT_PASS" not in errors and "STALE_ARTIFACT" not in errors and "FUTURE_DATED_ARTIFACT" not in errors, fail_closed_reason),
@@ -161,7 +159,7 @@ def build_phase_a_consumer_evidence(
         "source_status_gate": _gate("SOURCE_STATUS_NOT_PASS" not in errors, fail_closed_reason),
         "dataset_gate": _gate("MISSING_REQUIRED_DATASET" not in errors, fail_closed_reason),
         "blocked_dependency_gate": _gate("BLOCKED_DEPENDENCIES_PRESENT" not in errors, fail_closed_reason),
-        "previous_state_gate": _gate(not any(error in errors for error in ("INVALID_PREVIOUS_STATE_REQUIREMENT", "MISSING_PREVIOUS_STATE", "CORRUPTED_PREVIOUS_STATE", "MISSING_PREVIOUS_STATE_ID", "MISSING_PREVIOUS_STATE_HASH", "PREVIOUS_STATE_ID_MISMATCH", "PREVIOUS_STATE_HASH_MISMATCH", "RATE_STATE_SCHEMA_REQUIRED", "RATE_STATE_HASH_MISMATCH", "RATE_STATE_ID_MISMATCH", "RATE_STATE_LINEAGE_ID", "RATE_STATE_LINEAGE_HASH", "RATE_STATE_LINEAGE_PREVIOUS_ID", "RATE_STATE_LINEAGE_SNAPSHOT", "RATE_STATE_LINEAGE_DECISION_PAYLOAD", "RATE_STATE_LINEAGE_PORTFOLIO", "RATE_STATE_LINEAGE_ROY_PORTFOLIO", "RATE_STATE_LINEAGE_AI_PAPER_ACCOUNT", "RATE_STATE_LINEAGE_AI_PAPER_LEDGER", "RATE_STATE_LINEAGE_LEDGER", "RATE_STATE_PRODUCTION_SNAPSHOT_MISMATCH", "RATE_STATE_PORTFOLIO_REFERENCE_REQUIRED", "RATE_STATE_ROY_PORTFOLIO_ACCOUNT_REQUIRED", "RATE_STATE_AI_PAPER_ACCOUNT_REQUIRED", "RATE_STATE_AI_PAPER_LEDGER_REQUIRED", "RATE_STATE_TRANSACTION_LEDGER_REQUIRED", "RATE_STATE_PRODUCTION_SCOPE", "RATE_STATE_FALLBACK_USED", "RATE_STATE_RESET_DETECTED", "RATE_LEDGER_RESET_DETECTED")), fail_closed_reason),
+        "previous_state_gate": _gate(not any(error in ("INVALID_PREVIOUS_STATE_REQUIREMENT", "MISSING_PREVIOUS_STATE", "CORRUPTED_PREVIOUS_STATE", "MISSING_PREVIOUS_STATE_ID", "MISSING_PREVIOUS_STATE_HASH", "PREVIOUS_STATE_ID_MISMATCH", "PREVIOUS_STATE_HASH_MISMATCH", "PREVIOUS_STATE_REFERENCE_MISMATCH") or error.startswith("LIVE_") or error.startswith("RECOVERY_") or error.startswith("REBASELINE_") for error in errors), fail_closed_reason),
         "decision_preview_allowed": pass_status,
         "portfolio_preview_allowed": pass_status,
         "ledger_preview_allowed": pass_status,

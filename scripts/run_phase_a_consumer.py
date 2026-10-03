@@ -10,7 +10,10 @@ from src.thin_work_consumer import build_phase_a_consumer_evidence
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run RATE Thin Work Phase A consumer preflight.")
     parser.add_argument("--manifest", required=True)
-    parser.add_argument("--previous-state", required=True)
+    parser.add_argument("--previous-state")
+    parser.add_argument("--previous-state-root", required=True)
+    parser.add_argument("--previous-trading-date", required=True)
+    parser.add_argument("--previous-cadence", required=True)
     parser.add_argument("--root", default=".")
     parser.add_argument("--expected-run-id", required=True)
     parser.add_argument("--expected-commit-sha", required=True)
@@ -22,6 +25,9 @@ def main() -> int:
     evidence = build_phase_a_consumer_evidence(
         manifest_path=args.manifest,
         previous_state_path=args.previous_state,
+        previous_state_root=args.previous_state_root,
+        previous_trading_date=args.previous_trading_date,
+        previous_cadence=args.previous_cadence,
         root=args.root,
         expected_run_id=args.expected_run_id,
         expected_commit_sha=args.expected_commit_sha,

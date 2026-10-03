@@ -1,112 +1,52 @@
 from __future__ import annotations
 
-import hashlib
-import json
 from pathlib import Path
 from typing import Mapping
 
 from . import production_live_state
 
-STATE_ID_PREFIX = "rate-production-state-"
 
-
-def deterministic_hash(payload):
-    return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
-
-
-def state_payload_for_hash(state: Mapping[str, object]) -> dict:
-    payload = json.loads(json.dumps({k: v for k, v in state.items() if k not in {"current_state_id", "current_state_hash", "state_hash", "state_commit_status"}}, sort_keys=True, default=str))
-    if isinstance(payload.get("lineage"), dict):
-        payload["lineage"].pop("current_state_id", None)
-        payload["lineage"].pop("current_state_hash", None)
-        payload["lineage"].pop("state_hash", None)
-    return payload
-
-
-def calculate_state_hash(state: Mapping[str, object]) -> str:
-    return deterministic_hash(state_payload_for_hash(state))
-
-
-def state_id_for(state_hash: str) -> str:
-    return STATE_ID_PREFIX + state_hash[:24]
-
-
-def validate_phase_a_previous_state(state: Mapping[str, object], *, expected_production_snapshot_id: str | None = None) -> dict:
-    if not isinstance(state, dict):
-        raise ValueError("RATE_STATE_SCHEMA_REQUIRED")
-    for key, code in (
-        ("portfolio_state_reference", "RATE_STATE_PORTFOLIO_REFERENCE_REQUIRED"),
-        ("roy_portfolio_account_reference", "RATE_STATE_ROY_PORTFOLIO_ACCOUNT_REQUIRED"),
-        ("ai_paper_portfolio_account_reference", "RATE_STATE_AI_PAPER_ACCOUNT_REQUIRED"),
-        ("ai_paper_portfolio_ledger_reference", "RATE_STATE_AI_PAPER_LEDGER_REQUIRED"),
-        ("transaction_ledger_reference", "RATE_STATE_TRANSACTION_LEDGER_REQUIRED"),
-    ):
-        if key not in state:
-            raise ValueError(code)
-    required = {
-        "current_state_id",
-        "previous_state_id",
-        "current_state_hash",
-        "decision_payload_hash",
-        "production_snapshot_id",
-        "portfolio_state_reference",
-        "roy_portfolio_account_reference",
-        "ai_paper_portfolio_account_reference",
-        "ai_paper_portfolio_ledger_reference",
-        "transaction_ledger_reference",
-        "state_reset_detected",
-        "ledger_reset_detected",
-        "fallback_used",
-        "production_execution_scope",
-        "lineage",
-    }
-    if not required.issubset(state):
-        raise ValueError("RATE_STATE_SCHEMA_REQUIRED")
-    if expected_production_snapshot_id is not None and state.get("production_snapshot_id") != expected_production_snapshot_id:
-        raise ValueError("RATE_STATE_PRODUCTION_SNAPSHOT_MISMATCH")
-    if state.get("production_execution_scope") != "PRODUCTION":
-        raise ValueError("RATE_STATE_PRODUCTION_SCOPE")
-    if state.get("fallback_used") is not False:
-        raise ValueError("RATE_STATE_FALLBACK_USED")
-    if state.get("state_reset_detected") is not False:
-        raise ValueError("RATE_STATE_RESET_DETECTED")
-    if state.get("ledger_reset_detected") is not False:
-        raise ValueError("RATE_LEDGER_RESET_DETECTED")
-    for key, code in (
-        ("portfolio_state_reference", "RATE_STATE_PORTFOLIO_REFERENCE_REQUIRED"),
-        ("roy_portfolio_account_reference", "RATE_STATE_ROY_PORTFOLIO_ACCOUNT_REQUIRED"),
-        ("ai_paper_portfolio_account_reference", "RATE_STATE_AI_PAPER_ACCOUNT_REQUIRED"),
-        ("ai_paper_portfolio_ledger_reference", "RATE_STATE_AI_PAPER_LEDGER_REQUIRED"),
-        ("transaction_ledger_reference", "RATE_STATE_TRANSACTION_LEDGER_REQUIRED"),
-    ):
-        if not state.get(key):
-            raise ValueError(code)
-    expected_hash = calculate_state_hash(state)
-    if state.get("current_state_hash") != expected_hash:
-        raise ValueError("RATE_STATE_HASH_MISMATCH")
-    if state.get("current_state_id") != state_id_for(expected_hash):
-        raise ValueError("RATE_STATE_ID_MISMATCH")
-    lineage = state.get("lineage") if isinstance(state.get("lineage"), dict) else {}
-    for key, code in (
-        ("current_state_id", "RATE_STATE_LINEAGE_ID"),
-        ("current_state_hash", "RATE_STATE_LINEAGE_HASH"),
-        ("previous_state_id", "RATE_STATE_LINEAGE_PREVIOUS_ID"),
-        ("production_snapshot_id", "RATE_STATE_LINEAGE_SNAPSHOT"),
-        ("decision_payload_hash", "RATE_STATE_LINEAGE_DECISION_PAYLOAD"),
-        ("portfolio_state_reference", "RATE_STATE_LINEAGE_PORTFOLIO"),
-        ("roy_portfolio_account_reference", "RATE_STATE_LINEAGE_ROY_PORTFOLIO"),
-        ("ai_paper_portfolio_account_reference", "RATE_STATE_LINEAGE_AI_PAPER_ACCOUNT"),
-        ("ai_paper_portfolio_ledger_reference", "RATE_STATE_LINEAGE_AI_PAPER_LEDGER"),
-        ("transaction_ledger_reference", "RATE_STATE_LINEAGE_LEDGER"),
-    ):
-        if lineage.get(key) != state.get(key):
-            raise ValueError(code)
-    return dict(state)
-
-
-def validate_phase_a_previous_state_file(path: str | Path, *, expected_production_snapshot_id: str | None = None) -> dict:
+def load_phase_a_previous_state(
+    *,
+    state_root: str | Path | None,
+    trading_date: str | None,
+    cadence: str | None,
+    expected_previous_state_id: str | None = None,
+    expected_previous_state_hash: str | None = None,
+    reference_path: str | Path | None = None,
+) -> tuple[dict | None, list[str]]:
+    if not state_root or not trading_date or not cadence:
+        return None, ["MISSING_PREVIOUS_STATE"]
     try:
-        state = production_live_state.read_object(path)
+        loaded = production_live_state.load_live_state(state_root, trading_date, cadence)
+        state = dict(loaded["state"])
+        manifest = loaded["manifest"]
+        if reference_path is not None:
+            reference = Path(reference_path)
+            if not reference.is_file():
+                raise RuntimeError("MISSING_PREVIOUS_STATE")
+            if production_live_state.file_hash(reference) != production_live_state.file_hash(loaded["path"]):
+                raise RuntimeError("PREVIOUS_STATE_REFERENCE_MISMATCH")
+        if expected_previous_state_id and state.get("current_state_id") != expected_previous_state_id:
+            raise RuntimeError("PREVIOUS_STATE_ID_MISMATCH")
+        if expected_previous_state_hash and state.get("decision_payload_hash") != expected_previous_state_hash:
+            raise RuntimeError("PREVIOUS_STATE_HASH_MISMATCH")
+        return {
+            "current_state_id": state.get("current_state_id"),
+            "decision_payload_hash": state.get("decision_payload_hash"),
+            "previous_state_id": state.get("previous_state_id"),
+            "previous_production_snapshot_id": _previous_snapshot_id(state, manifest),
+            "canonical_manifest": manifest,
+            "canonical_state": state,
+        }, []
     except RuntimeError as exc:
-        raise ValueError("CORRUPTED_PREVIOUS_STATE") from exc
-    return validate_phase_a_previous_state(state, expected_production_snapshot_id=expected_production_snapshot_id)
+        return None, [str(exc) or "LIVE_STATE_INVALID"]
+
+
+def _previous_snapshot_id(state: Mapping[str, object], manifest: Mapping[str, object]) -> str | None:
+    decision = state.get("decision") if isinstance(state.get("decision"), dict) else {}
+    for source in (state, decision, manifest):
+        value = source.get("production_snapshot_id") if isinstance(source, Mapping) else None
+        if value:
+            return str(value)
+    return None

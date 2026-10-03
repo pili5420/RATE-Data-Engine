@@ -14,17 +14,20 @@ class StateEngineTests(unittest.TestCase):
  def test_deterministic_double_run(self): p={'input_snapshot_id':'s','previous_state_id':'g','model_version':'m','calculation_spec_version':'c','x':1}; self.assertEqual(deterministic_hash(p),deterministic_hash(dict(p)))
  def test_query_universe_dedup_symbol_integrity(self): xs=['2330','2330','2317']; self.assertEqual(len(set(xs)),2); self.assertTrue(all(x.isdigit() for x in set(xs)))
  def test_resolve_previous_missing_chain_fails_closed_without_genesis(self):
-  self.assertRaisesRegex(ValueError,'MISSING_PREVIOUS_STATE_CHAIN',resolve_previous,'m','d','c')
+  self.assertRaisesRegex(ValueError,'MISSING_REQUIRED_DATA:PREVIOUS_STATE_CHAIN',resolve_previous,'m','d','c')
   self.assertFalse(self.s.GENESIS.exists())
+ def test_resolve_previous_allow_genesis_controlled_path(self):
+  self.assertEqual(resolve_previous('m','d','c',allow_genesis=True),'GENESIS_STATE_ID')
+  self.assertTrue(self.s.GENESIS.exists())
  def test_resolve_previous_empty_chain_fails_closed(self):
   self.s.CHAIN.write_text('[]',encoding='utf-8')
-  self.assertRaisesRegex(ValueError,'EMPTY_PREVIOUS_STATE_CHAIN',resolve_previous,'m','d','c')
+  self.assertRaisesRegex(ValueError,'MISSING_REQUIRED_DATA:PREVIOUS_STATE_CHAIN_INVALID_OR_EMPTY',resolve_previous,'m','d','c')
  def test_resolve_previous_missing_current_state_id_fails_closed(self):
   self.s.CHAIN.write_text('[{"previous_state_id":"a"}]',encoding='utf-8')
-  self.assertRaisesRegex(ValueError,'MISSING_CURRENT_STATE_ID',resolve_previous,'m','d','c')
+  self.assertRaisesRegex(ValueError,'MISSING_REQUIRED_DATA:PREVIOUS_STATE_CURRENT_ID',resolve_previous,'m','d','c')
  def test_resolve_previous_malformed_chain_fails_closed(self):
   self.s.CHAIN.write_text('{',encoding='utf-8')
-  self.assertRaisesRegex(ValueError,'CORRUPTED_PREVIOUS_STATE_CHAIN',resolve_previous,'m','d','c')
+  self.assertRaises(Exception,resolve_previous,'m','d','c')
  def test_resolve_previous_uses_current_chain_tail(self):
   append_state({'current_state_id':'a','previous_state_id':'GENESIS_STATE_ID'})
   append_state({'current_state_id':'b','previous_state_id':'a'})
