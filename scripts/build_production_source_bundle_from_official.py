@@ -6,13 +6,17 @@ import json
 import os
 import sys
 import urllib.request
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from src.benchmark_history import normalize_twse_date
 from src.cer074_acceptance import atomic_write_json
 from src.live_decision_inputs import build_live_decision_records
+from src.historical_store import normalize_stock_record
+from src.sources.twse import TWSEAdapter as LiveTWSEAdapter
+from src.sources.tpex import TPExAdapter as LiveTPExAdapter
 from src.technical_features import compute_scores
 from scripts.publish_production_source_bundle_latest import CADENCE_FRESHNESS_MINUTES, validate_production_source_bundle
 
@@ -103,6 +107,16 @@ def _number(value: Any) -> float:
     if text in {"", "-", "--", "None", "null"}:
         raise RuntimeError("NUMERIC_VALUE_MISSING")
     return float(text.replace("(", "-").replace(")", ""))
+
+
+def _month_cursor(end: date):
+    year, month = end.year, end.month
+    while True:
+        yield f"{year:04d}{month:02d}"
+        month -= 1
+        if month == 0:
+            year -= 1
+            month = 12
 
 
 def _rows(value: Any) -> list[dict[str, Any]]:
@@ -414,6 +428,185 @@ def _benchmark_history_rows(row: Mapping[str, Any], *, trading_date: str) -> tup
     return benchmark_id, rows
 
 
+def _fetch_official_stock_history(symbol: str, market: str, trading_date: str, *, minimum_sessions: int = 180) -> list[dict[str, Any]]:
+    adapter = LiveTWSEAdapter() if market == "TWSE" else LiveTPExAdapter()
+    records: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    cache_root = Path(os.getenv("RATE_OFFICIAL_HISTORY_CACHE_ROOT", "data/staging/production_source_acquisition/history"))
+    cache_root.mkdir(parents=True, exist_ok=True)
+    for period in _month_cursor(date.fromisoformat(trading_date)):
+        cache_path = cache_root / market / symbol / f"{period}.json"
+        period_records = None
+        if cache_path.exists():
+            try:
+                cached = json.loads(cache_path.read_text(encoding="utf-8"))
+                payload = {k: v for k, v in cached.items() if k != "content_hash"}
+                if cached.get("validation_status") == "PASS" and cached.get("content_hash") == sha256_value(payload):
+                    period_records = cached.get("records") or []
+            except Exception:
+                period_records = None
+        if period_records is None:
+            last_exc: Exception | None = None
+            result = None
+            for _attempt in range(3):
+                try:
+                    result = adapter.fetch_historical_symbol(symbol, period)
+                    last_exc = None
+                    break
+                except Exception as exc:
+                    last_exc = exc
+            if last_exc is not None:
+                raise last_exc
+            period_records = []
+            for row in _rows(result.get("raw_payload")):
+                raw_date = row.get("trade_date") or row.get("Date") or row.get("日期")
+                if raw_date is None:
+                    continue
+                try:
+                    normalized_date = normalize_twse_date(raw_date)
+                    if normalized_date > trading_date:
+                        continue
+                    normalized = normalize_stock_record(
+                        {
+                            "symbol": symbol,
+                            "market": market,
+                            "trade_date": normalized_date,
+                            "open": row.get("open", row.get("OpeningPrice", row.get("開盤價", row.get("Open")))),
+                            "high": row.get("high", row.get("HighestPrice", row.get("最高價", row.get("High")))),
+                            "low": row.get("low", row.get("LowestPrice", row.get("最低價", row.get("Low")))),
+                            "close": row.get("close", row.get("ClosingPrice", row.get("收盤價", row.get("Close")))),
+                            "volume": row.get("volume", row.get("TradeVolume", row.get("成交股數", row.get("TradingShares")))),
+                            "turnover": row.get("turnover", row.get("TradeValue", row.get("成交金額", row.get("TransactionAmount")))),
+                        },
+                        source=f"{market}_STOCK_DAY",
+                        source_timestamp=result.get("source_timestamp"),
+                        ingested_at=result.get("retrieval_timestamp"),
+                    )
+                except Exception:
+                    continue
+                period_records.append(normalized)
+            cache_payload = {
+                "market": market,
+                "symbol": symbol,
+                "period": period,
+                "records": period_records,
+                "record_count": len(period_records),
+                "validation_status": "PASS",
+                "endpoint": result.get("endpoint") if isinstance(result, Mapping) else None,
+                "retrieval_timestamp": result.get("retrieval_timestamp") if isinstance(result, Mapping) else utc_now(),
+            }
+            atomic_write_json(cache_path, {**cache_payload, "content_hash": sha256_value(cache_payload)})
+        for normalized in period_records:
+            normalized_date = str(normalized.get("trade_date"))
+            if not normalized_date or normalized_date in seen:
+                continue
+            records.append(normalized)
+            seen.add(normalized_date)
+        if len(records) >= minimum_sessions:
+            break
+    records.sort(key=lambda item: item["trade_date"])
+    if len(records) < minimum_sessions:
+        raise RuntimeError(f"OFFICIAL_MARKET_HISTORY_INCOMPLETE:{symbol}:{len(records)}<{minimum_sessions}")
+    return records[-220:]
+
+
+def _fetch_official_benchmark_history(market: str, trading_date: str, *, minimum_sessions: int = 180) -> list[dict[str, Any]]:
+    adapter = LiveTWSEAdapter() if market == "TWSE" else LiveTPExAdapter()
+    benchmark_symbol = "TAIEX" if market == "TWSE" else "TPEX"
+    records: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for period in _month_cursor(date.fromisoformat(trading_date)):
+        result = adapter.fetch_historical_benchmark(period)
+        for row in _rows(result.get("raw_payload")):
+            raw_date = row.get("trade_date") or row.get("Date") or row.get("日期")
+            close = row.get("close", row.get("ClosingIndex", row.get("收盤指數", row.get("收盤價"))))
+            if raw_date is None or close is None:
+                continue
+            try:
+                normalized_date = normalize_twse_date(raw_date)
+                if normalized_date > trading_date or normalized_date in seen:
+                    continue
+                records.append({
+                    "benchmark_symbol": benchmark_symbol,
+                    "market": market,
+                    "trade_date": normalized_date,
+                    "close": _number(close),
+                    "source": f"{market}_BENCHMARK_HISTORY",
+                    "source_timestamp": result.get("source_timestamp"),
+                    "ingested_at": result.get("retrieval_timestamp"),
+                })
+            except Exception:
+                continue
+            seen.add(normalized_date)
+        if len(records) >= minimum_sessions:
+            break
+    records.sort(key=lambda item: item["trade_date"])
+    if len(records) < minimum_sessions:
+        raise RuntimeError(f"OFFICIAL_BENCHMARK_HISTORY_INCOMPLETE:{benchmark_symbol}:{len(records)}<{minimum_sessions}")
+    return records[-220:]
+
+
+def _build_official_rolling_technical_source(*, universe_binding: Mapping[str, Any], normalized_sources: list[dict[str, Any]], trading_date: str) -> dict[str, Any] | None:
+    if universe_binding.get("validation_status") != "PASS" or _is_test_context():
+        return None
+    expected = list(universe_binding.get("expected_universe") or [])
+    if not expected:
+        return None
+    latest_market: dict[str, str] = {}
+    for source in normalized_sources:
+        if source.get("domain") != "market_daily" or source.get("normalization_status") != "PASS":
+            continue
+        for record in source.get("normalized_records") or []:
+            symbol = _symbol(record.get("symbol"))
+            raw_latest = record.get("raw_market_latest") if isinstance(record.get("raw_market_latest"), Mapping) else {}
+            market = str(raw_latest.get("source") or source.get("source") or "").upper()
+            if symbol and market in {"TWSE", "TPEX"}:
+                latest_market[symbol] = market
+    missing_market = sorted(symbol for symbol in expected if symbol not in latest_market)
+    if missing_market:
+        raise RuntimeError("OFFICIAL_MARKET_DAILY_SYMBOL_MISSING_FOR_HISTORY:" + ",".join(missing_market))
+    histories = {symbol: _fetch_official_stock_history(symbol, latest_market[symbol], trading_date) for symbol in expected}
+    benchmark_by_market = {
+        market: _fetch_official_benchmark_history(market, trading_date)
+        for market in sorted(set(latest_market.values()))
+    }
+    benchmark_by_symbol = {symbol: benchmark_by_market[latest_market[symbol]] for symbol in expected}
+    scored = compute_scores([histories[symbol] for symbol in expected], benchmark_by_symbol=benchmark_by_symbol)
+    by_symbol = {str(item["symbol"]): item["technical_features"] for item in scored}
+    records = []
+    for symbol in expected:
+        records.append({
+            "symbol": symbol,
+            "source": latest_market[symbol],
+            "trading_date": trading_date,
+            "technical_features": by_symbol[symbol],
+            "raw_market_history_coverage": len(histories[symbol]),
+            "benchmark_history_coverage": len(benchmark_by_symbol[symbol]),
+            "feature_lineage": {
+                "technical_features": {
+                    "source": "src.technical_features.compute_scores",
+                    "input": "official_raw_market_history",
+                    "calculation_changed": False,
+                    "calculation_status": "PASS",
+                }
+            },
+        })
+    return {
+        "source": "RATE_OFFICIAL_ROLLING_TECHNICAL_DERIVATION",
+        "provider": "TWSE/TPEx Official Historical Market Data",
+        "dataset_id": "rate_official_rolling_technical_features",
+        "domain": "market_daily",
+        "status": "PASS",
+        "normalization_status": "PASS",
+        "normalized_records": records,
+        "normalized_count": len(records),
+        "effective_date": trading_date,
+        "retrieval_timestamp": utc_now(),
+        "parser_version": "RATE-OFFICIAL-ROLLING-TECHNICAL-V1",
+        "required": True,
+    }
+
+
 def _domain_record(row: Mapping[str, Any], *, source: str, trading_date: str) -> dict[str, Any]:
     copied = dict(row)
     copied.setdefault("symbol", _symbol(row.get("symbol") or row.get("stock_id") or row.get("stock_code") or row.get("company_code") or row.get("公司代號") or row.get("證券代號")))
@@ -490,19 +683,30 @@ def _normalize_dataset_entry(entry: Mapping[str, Any], fetched: Mapping[str, Any
         elif domain == "institutional":
             for row in rows:
                 mapped = dict(row)
-                net_buy = mapped.get("NetBuy", mapped.get("買賣超股數", mapped.get("外資買賣超股數")))
-                if net_buy is not None and "FI" not in mapped:
-                    mapped["FI"] = _number(net_buy)
-                if net_buy is not None and "IT" not in mapped:
+                foreign_net = mapped.get("NetBuy", mapped.get("買賣超股數", mapped.get("外資買賣超股數", mapped.get("外陸資買賣超股數(不含外資自營商)", mapped.get("外陸資買賣超股數")))))
+                trust_net = mapped.get("投信買賣超股數", mapped.get("InvestmentTrustNet"))
+                if foreign_net is not None and "FI" not in mapped:
+                    mapped["FI"] = _number(foreign_net)
+                if trust_net is not None and "IT" not in mapped:
+                    mapped["IT"] = _number(trust_net)
+                elif foreign_net is not None and "IT" not in mapped:
                     mapped["IT"] = 0.0
-                if net_buy is not None and "SmartMoney_inputs" not in mapped:
-                    mapped["SmartMoney_inputs"] = {"net_buy": _number(net_buy)}
-                if net_buy is not None and "SMART_MONEY" not in mapped:
-                    mapped["SMART_MONEY"] = _number(net_buy)
-                records.append(_domain_record(mapped, source=source, trading_date=trading_date))
+                if ("FI" in mapped or "IT" in mapped) and "SmartMoney_inputs" not in mapped:
+                    mapped["SmartMoney_inputs"] = {"FI": mapped.get("FI"), "IT": mapped.get("IT")}
+                if foreign_net is not None and "SMART_MONEY" not in mapped:
+                    mapped["SMART_MONEY"] = _number(foreign_net) + _number(trust_net or 0)
+                try:
+                    records.append(_domain_record(mapped, source=source, trading_date=trading_date))
+                except Exception:
+                    continue
         elif domain == "trading_metadata":
             for row in rows:
                 mapped = dict(row)
+                published = mapped.get("出表日期") or mapped.get("資料日期") or mapped.get("publication_date")
+                if published is not None:
+                    mapped["metadata_published_date"] = _normalize_source_date(published)
+                mapped["trading_date"] = trading_date
+                mapped["effective_date"] = trading_date
                 if "Stage_inputs" not in mapped:
                     mapped["Stage_inputs"] = {"trading_status": "NORMAL", "issuer_name": mapped.get("公司名稱"), "listed_date": mapped.get("上市日期")}
                 if "Stage_evidence" not in mapped:
@@ -519,9 +723,10 @@ def _normalize_dataset_entry(entry: Mapping[str, Any], fetched: Mapping[str, Any
 
 
 class RegistryDatasetAdapter(OfficialSourceAdapter):
-    def __init__(self, entry: Mapping[str, Any]):
+    def __init__(self, entry: Mapping[str, Any], *, trading_date: str):
         super().__init__(entry.get("endpoint"))
         self.entry = dict(entry)
+        self.trading_date = trading_date
         self.source = str(entry.get("authority") or entry.get("dataset_id")).upper()
         self.provider = str(entry.get("authority") or "Official")
         self.parser_version = str(entry.get("parser") or "RATE-DATASET-PARSER-V1")
@@ -529,6 +734,12 @@ class RegistryDatasetAdapter(OfficialSourceAdapter):
     def fetch(self) -> dict[str, Any]:
         if self.entry.get("authorization_status") == "BLOCKED_EXTERNAL":
             return {"source": self.source, "provider": self.provider, "dataset_id": self.entry.get("dataset_id"), "domain": self.entry.get("domain"), "status": "BLOCKED", "blocking_reason": self.entry.get("blocked_dependency") or EXTERNAL_INTRADAY_DEPENDENCY, "records": [], "endpoint": self.entry.get("endpoint"), "http_status": None, "parse_status": "BLOCKED", "record_count": 0, "retrieval_timestamp": utc_now(), "parser_version": self.parser_version}
+        if self.entry.get("parser") == "TWSE_T86_INSTITUTIONAL_V1" and not (str(self.entry.get("endpoint") or "").startswith("file://") and _is_test_context()):
+            try:
+                result = LiveTWSEAdapter().fetch_t86(self.trading_date)
+                return {"source": self.source, "provider": self.provider, "dataset_id": self.entry.get("dataset_id"), "domain": self.entry.get("domain"), "status": "PASS", "endpoint": result.get("endpoint"), "http_status": (result.get("diagnostics") or {}).get("http_status"), "content_type": (result.get("diagnostics") or {}).get("content_type"), "parse_status": "PASS", "body_sha256": result.get("content_hash"), "raw_payload": _rows(result.get("raw_payload")), "record_count": len(_rows(result.get("raw_payload"))), "retrieval_timestamp": result.get("retrieval_timestamp") or utc_now(), "parser_version": self.parser_version}
+            except Exception as exc:
+                return {"source": self.source, "provider": self.provider, "dataset_id": self.entry.get("dataset_id"), "domain": self.entry.get("domain"), "status": "BLOCKED", "blocking_reason": f"TWSE_T86_DATE_AWARE_FETCH_FAIL:{type(exc).__name__}:{exc}", "records": [], "endpoint": self.entry.get("endpoint"), "http_status": None, "parse_status": "FAIL", "record_count": 0, "retrieval_timestamp": utc_now(), "parser_version": self.parser_version}
         return super().fetch()
 
 
@@ -559,7 +770,7 @@ def build_registry_sources(source_registry: str | Path | None, *, trading_date: 
     normalized_sources = []
     source_endpoints: dict[str, str | None] = {}
     for entry in entries:
-        adapter = RegistryDatasetAdapter(entry)
+        adapter = RegistryDatasetAdapter(entry, trading_date=trading_date)
         fetched = adapter.fetch()
         normalized = _normalize_dataset_entry(entry, fetched, trading_date=trading_date)
         normalized["required"] = (entry.get("cadence_applicability") or {}).get(cadence) != "OPTIONAL"
@@ -1124,6 +1335,27 @@ def build_bundle(*, rate_source_url: str, trading_date: str, cadence: str, outpu
     partial_universe, _, join_status = _merge_production_sources(normalized_sources, trading_date)
     contract = load_universe_contract(universe_contract)
     universe_binding = bind_universe(available_symbols=partial_universe, universe_contract=contract)
+    try:
+        rolling_source = _build_official_rolling_technical_source(universe_binding=universe_binding, normalized_sources=normalized_sources, trading_date=trading_date)
+        if rolling_source is not None:
+            normalized_sources.append(rolling_source)
+            partial_universe, _, join_status = _merge_production_sources(normalized_sources, trading_date, list(universe_binding.get("expected_universe") or []))
+    except Exception as exc:
+        normalized_sources.append({
+            "source": "RATE_OFFICIAL_ROLLING_TECHNICAL_DERIVATION",
+            "provider": "TWSE/TPEx Official Historical Market Data",
+            "dataset_id": "rate_official_rolling_technical_features",
+            "domain": "market_daily",
+            "status": "BLOCKED",
+            "normalization_status": "FAIL",
+            "normalized_records": [],
+            "normalized_count": 0,
+            "effective_date": trading_date,
+            "retrieval_timestamp": utc_now(),
+            "parser_version": "RATE-OFFICIAL-ROLLING-TECHNICAL-V1",
+            "required": True,
+            "blocking_reason": str(exc),
+        })
     freshness_matrix = build_freshness_matrix(trading_date=trading_date, cadence=cadence, normalized_sources=normalized_sources, retrieval_timestamp=retrieval_timestamp)
     try:
         external_block = cadence_blocking_reason(cadence)
