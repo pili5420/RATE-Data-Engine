@@ -15,6 +15,7 @@ HISTORICAL_PAGE_URL = "https://www.tpex.org.tw/en-us/mainboard/trading/info/stoc
 HISTORICAL_ENDPOINT = "https://www.tpex.org.tw/www/en-us/afterTrading/tradingStock"
 HISTORICAL_RESULT_ENDPOINT = "https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote_result.php?l=zh-tw&o=json&d={period}&s=0,asc,0"
 BENCHMARK_ENDPOINT = "https://www.tpex.org.tw/openapi/v1/tpex_index"
+CURRENT_DAILY_ENDPOINT = f"{BASE}/tpex_mainboard_daily_close_quotes"
 # The OpenAPI product above is a latest-month snapshot.  TPEx's official
 # historical index page exposes the month-scoped JSON contract below.
 INDEX_HISTORY_PAGE_URL = "https://www.tpex.org.tw/zh-tw/indices/stock-index/industrial/inxh.html"
@@ -86,6 +87,60 @@ def _resilient_json(endpoint: str, retries: int = 3, *, method: str = "GET", for
     if location:
         detail += ":LOCATION_PRESENT"
     raise RuntimeError(f"TPEX_HISTORICAL_RETRIEVAL_FAILED:{detail}") from last
+
+def _retryable_http_error(exc: HTTPError) -> bool:
+    return getattr(exc, "code", None) in {408, 429, 500, 502, 503, 504}
+
+def _resilient_tpex_current_daily_json(endpoint: str = CURRENT_DAILY_ENDPOINT, retries: int = 3):
+    last = None
+    diagnostics = {}
+    for attempt in range(retries):
+        try:
+            req = Request(endpoint, headers={
+                "User-Agent": "RATE-Data-Engine/1.0",
+                "Accept": "application/json",
+            })
+            with urlopen(req, timeout=30) as response:
+                body = response.read()
+                status = getattr(response, "status", None)
+                if status is None:
+                    status = response.getcode()
+                content_type = response.headers.get("Content-Type", "")
+            diagnostics = {
+                "http_status": status,
+                "content_type": content_type,
+                "response_bytes": len(body),
+                "body_sha256": hashlib.sha256(body).hexdigest(),
+                "attempt_count": attempt + 1,
+                "parse_status": "NOT_RUN",
+                "official_endpoint": endpoint,
+            }
+            if status != 200:
+                raise RuntimeError(f"TPEX_CURRENT_DAILY_HTTP_{status}")
+            if not body:
+                raise RuntimeError("TPEX_CURRENT_DAILY_EMPTY_RESPONSE")
+            payload = json.loads(body.decode("utf-8-sig"))
+            rows = payload if isinstance(payload, list) else payload.get("records") if isinstance(payload, dict) else None
+            if not isinstance(rows, list) or not rows:
+                raise RuntimeError("TPEX_CURRENT_DAILY_STRUCTURAL_VALIDATION_FAILED")
+            diagnostics["parse_status"] = "PASS"
+            diagnostics["record_count"] = len(rows)
+            return {"payload": payload, "body_sha256": diagnostics["body_sha256"], "diagnostics": diagnostics}
+        except HTTPError as exc:
+            last = exc
+            diagnostics = {"http_status": getattr(exc, "code", None), "attempt_count": attempt + 1, "parse_status": "FAIL", "official_endpoint": endpoint}
+            if not _retryable_http_error(exc):
+                break
+            if attempt + 1 < retries:
+                time.sleep(2 ** attempt)
+        except (IncompleteRead, ConnectionError, TimeoutError, URLError, json.JSONDecodeError, RuntimeError) as exc:
+            last = exc
+            diagnostics = {**diagnostics, "attempt_count": attempt + 1, "parse_status": "FAIL", "official_endpoint": endpoint}
+            if attempt + 1 < retries:
+                time.sleep(2 ** attempt)
+    detail = type(last).__name__ if last is not None else "UNKNOWN"
+    raise RuntimeError(f"TPEX_CURRENT_DAILY_RETRIEVAL_FAILED:{detail}") from last
+
 class TPExAdapter:
     provider = "TPEx Official OpenAPI"
     def __init__(self):
@@ -167,7 +222,12 @@ class TPExAdapter:
         endpoint = BASE + "/" + path
         payload, digest = fetch_json(endpoint)
         return provenance(domain, self.provider, endpoint, digest, payload)
-    def fetch_daily(self): return self._fetch("tpex_mainboard_daily_close_quotes", "market_daily")
+    def fetch_daily(self):
+        endpoint = CURRENT_DAILY_ENDPOINT
+        result = _resilient_tpex_current_daily_json(endpoint)
+        out = provenance("market_daily", self.provider, endpoint, result["body_sha256"], result["payload"])
+        out["diagnostics"] = result["diagnostics"]
+        return out
     def fetch_quotes(self): return self._fetch("tpex_mainboard_quotes", "market_intraday")
     def fetch_symbol_master(self):
         """Return the official OTC market symbol master used for classification."""
