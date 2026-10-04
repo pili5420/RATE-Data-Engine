@@ -23,6 +23,8 @@ jobs:
           python-version: "3.12"
       - name: Compile bounded history materialization
         run: python -m py_compile scripts/materialize_production_history_store.py tests/test_rate_production_history_materialization.py
+      - name: Smoke test production materializer module entrypoint
+        run: python -m scripts.materialize_production_history_store --help
       - name: Run bounded history and production-source regression
         env:
           RATE_DETERMINISTIC_TEST: "1"
