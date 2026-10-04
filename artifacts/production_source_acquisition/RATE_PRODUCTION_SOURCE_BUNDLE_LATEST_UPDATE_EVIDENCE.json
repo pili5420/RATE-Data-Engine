@@ -1,0 +1,63 @@
+{
+  "artifact": "RATE_PRODUCTION_SOURCE_BUNDLE_LATEST_UPDATE_EVIDENCE",
+  "cadence": "19:30",
+  "current_snapshot_hash": "fd607785935a4d9fa26bfd4b099c8df665feed052fc1fc947d34f6ea77244a77",
+  "current_snapshot_id": "rate-source-snapshot-a8d2427c8aab195c3af1debf",
+  "immutable_bundle_path": "artifacts/production_source_snapshots/2026-10-02/1930/rate-source-snapshot-a8d2427c8aab195c3af1debf/RATE_PRODUCTION_SOURCE_BUNDLE.json",
+  "immutable_snapshot_path": "artifacts/production_source_snapshots/2026-10-02/1930/rate-source-snapshot-a8d2427c8aab195c3af1debf/RATE_PRODUCTION_SOURCE_BUNDLE_SNAPSHOT.json",
+  "input_snapshot_id": "rate-input-snapshot-34bd983351548d132c6cf737",
+  "latest_path": "artifacts/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json",
+  "latest_updated": true,
+  "manifest_validation": {
+    "errors": [],
+    "ledger_mutation_allowed": false,
+    "portfolio_mutation_allowed": false,
+    "state_mutation_allowed": false,
+    "validation_status": "PASS"
+  },
+  "previous_snapshot_id": "rate-source-snapshot-a8d2427c8aab195c3af1debf",
+  "production_snapshot_id": "rate-source-snapshot-a8d2427c8aab195c3af1debf",
+  "publish_result": "PASS",
+  "snapshot_id": "rate-source-snapshot-a8d2427c8aab195c3af1debf",
+  "source_bundle_path": "artifacts\\production_source_acquisition\\RATE_PRODUCTION_SOURCE_BUNDLE.json",
+  "thin_work_manifest_latest_path": "artifacts/RATE_THIN_WORK_PRODUCTION_BUNDLE_MANIFEST_LATEST.json",
+  "thin_work_manifest_path": "artifacts/production_source_snapshots/2026-10-02/1930/rate-source-snapshot-a8d2427c8aab195c3af1debf/RATE_THIN_WORK_PRODUCTION_BUNDLE_MANIFEST_V1.json",
+  "thin_work_manifest_sha256": "24e97f7336a8bbbb59e5887e44dc71a3de1e113eabbc97c03cdbead251f40043",
+  "trading_date": "2026-10-02",
+  "validation": {
+    "checks": {
+      "cadence": true,
+      "completeness": true,
+      "freshness": true,
+      "official_source": true,
+      "production_snapshot_id": true,
+      "provenance": true,
+      "schema_version": true,
+      "source_bundle_validation": true,
+      "trading_date": true,
+      "validation_status": true
+    },
+    "coverage": "30/30",
+    "freshness": {
+      "age_minutes": 5.557375616666667,
+      "checks": {
+        "cadence_freshness_window": true,
+        "not_future_dated": true,
+        "retrieval_timestamp_parseable": true,
+        "source_trading_date_matches": true,
+        "stale_previous_day_rejected": true
+      },
+      "max_age_minutes": 180,
+      "retrieval_timestamp": "2026-10-04T06:07:16.633546Z",
+      "source_trading_date": "2026-10-02",
+      "status": "PASS"
+    },
+    "record_count": 30,
+    "required_record_count": 30,
+    "retrieval_timestamp": "2026-10-04T06:07:16.633546Z",
+    "validation_status": "PASS"
+  },
+  "validation_status": "PASS",
+  "workflow_job_id": "7007",
+  "workflow_run_id": "1000000007"
+}

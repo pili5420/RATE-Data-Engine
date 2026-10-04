@@ -1,0 +1,135 @@
+{
+  "artifact": "RATE_PRODUCTION_SOURCE_FRESHNESS_MATRIX",
+  "blocking_reasons": [],
+  "cadence": "19:30",
+  "datasets": [
+    {
+      "blocking_reason": null,
+      "cadence_applicability": "NOT_APPLICABLE",
+      "dataset_name": "market_intraday",
+      "frequency": "intraday",
+      "freshness_contract": "CADENCE_FRESHNESS_MINUTES",
+      "freshness_status": "NOT_APPLICABLE",
+      "max_age_minutes": 180,
+      "required": true,
+      "required_for_this_run": false,
+      "retrieval_timestamps": [],
+      "source_authority": "Authorized TWSE Intraday Feed"
+    },
+    {
+      "blocking_reason": null,
+      "cadence_applicability": "REQUIRED",
+      "dataset_name": "market_price_volume",
+      "frequency": "intraday/daily",
+      "freshness_contract": "CADENCE_FRESHNESS_MINUTES",
+      "freshness_status": "PASS",
+      "max_age_minutes": 180,
+      "required": true,
+      "required_for_this_run": true,
+      "retrieval_timestamps": [
+        "2026-10-04T06:07:16.842986Z",
+        "2026-10-04T06:07:17.119276Z",
+        "2026-10-04T06:07:22.243325Z"
+      ],
+      "source_authority": "TWSE/TPEx"
+    },
+    {
+      "blocking_reason": null,
+      "cadence_applicability": "REQUIRED",
+      "dataset_name": "volume",
+      "frequency": "intraday/daily",
+      "freshness_contract": "CADENCE_FRESHNESS_MINUTES",
+      "freshness_status": "PASS",
+      "max_age_minutes": 180,
+      "required": true,
+      "required_for_this_run": true,
+      "retrieval_timestamps": [
+        "2026-10-04T06:07:16.842986Z",
+        "2026-10-04T06:07:17.119276Z",
+        "2026-10-04T06:07:22.243325Z"
+      ],
+      "source_authority": "TWSE/TPEx"
+    },
+    {
+      "blocking_reason": null,
+      "cadence_applicability": "REQUIRED",
+      "dataset_name": "institutional_smart_money",
+      "frequency": "daily",
+      "freshness_contract": "LATEST_OFFICIAL_AVAILABLE",
+      "freshness_status": "PASS",
+      "max_age_minutes": null,
+      "required": true,
+      "required_for_this_run": true,
+      "retrieval_timestamps": [
+        "2026-10-04T06:07:17.300762Z",
+        "2026-10-04T06:07:17.935066Z"
+      ],
+      "source_authority": "TWSE/TPEx"
+    },
+    {
+      "blocking_reason": null,
+      "cadence_applicability": "REQUIRED",
+      "dataset_name": "large_holder",
+      "frequency": "weekly",
+      "freshness_contract": "LATEST_PUBLISHED_PERIOD",
+      "freshness_status": "PASS",
+      "max_age_minutes": null,
+      "required": true,
+      "required_for_this_run": true,
+      "retrieval_timestamps": [
+        "2026-10-04T06:07:19.107633Z"
+      ],
+      "source_authority": "TDCC"
+    },
+    {
+      "blocking_reason": null,
+      "cadence_applicability": "REQUIRED",
+      "dataset_name": "fundamental",
+      "frequency": "monthly/quarterly",
+      "freshness_contract": "LATEST_PUBLISHED_PERIOD",
+      "freshness_status": "PASS",
+      "max_age_minutes": null,
+      "required": true,
+      "required_for_this_run": true,
+      "retrieval_timestamps": [
+        "2026-10-04T06:07:19.565860Z",
+        "2026-10-04T06:07:19.748395Z"
+      ],
+      "source_authority": "MOPS"
+    },
+    {
+      "blocking_reason": null,
+      "cadence_applicability": "REQUIRED",
+      "dataset_name": "trading_metadata",
+      "frequency": "event/as-published",
+      "freshness_contract": "CURRENT_TRADING_STATUS",
+      "freshness_status": "PASS",
+      "max_age_minutes": null,
+      "required": true,
+      "required_for_this_run": true,
+      "retrieval_timestamps": [
+        "2026-10-04T06:07:20.333805Z",
+        "2026-10-04T06:07:21.596029Z"
+      ],
+      "source_authority": "TWSE/TPEx"
+    },
+    {
+      "blocking_reason": null,
+      "cadence_applicability": "REQUIRED",
+      "dataset_name": "benchmark_market_structure",
+      "frequency": "intraday/daily",
+      "freshness_contract": "EXACT_TRADING_DATE_ALIGNED",
+      "freshness_status": "PASS",
+      "max_age_minutes": null,
+      "required": true,
+      "required_for_this_run": true,
+      "retrieval_timestamps": [
+        "2026-10-04T06:07:17.251892Z"
+      ],
+      "source_authority": "TWSE/TPEx"
+    }
+  ],
+  "generated_at": "2026-10-04T06:07:16.633546Z",
+  "trading_date": "2026-10-02",
+  "validation_status": "PASS"
+}

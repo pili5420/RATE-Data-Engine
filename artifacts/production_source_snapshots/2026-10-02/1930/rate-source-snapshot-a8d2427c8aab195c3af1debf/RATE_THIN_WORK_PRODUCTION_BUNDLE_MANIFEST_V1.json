@@ -1,0 +1,51 @@
+{
+  "authorized_intraday_feed_status": "NOT_APPLICABLE",
+  "blocked_dependencies": [],
+  "cadence": "19:30",
+  "commit_sha": "b41031a5774698ca5a8511c47f8182c3aece610f",
+  "contract_validation": {
+    "errors": [],
+    "ledger_mutation_allowed": false,
+    "portfolio_mutation_allowed": false,
+    "state_mutation_allowed": false,
+    "validation_status": "PASS"
+  },
+  "datasets_missing": [],
+  "datasets_present": [
+    "benchmark",
+    "fundamental",
+    "institutional",
+    "large_holder",
+    "market_daily",
+    "trading_metadata"
+  ],
+  "event": "workflow_dispatch",
+  "freshness_status": "PASS",
+  "generated_at": "2026-10-04T06:12:50.173821Z",
+  "input_snapshot_id": "rate-input-snapshot-34bd983351548d132c6cf737",
+  "manifest_sha256": "24e97f7336a8bbbb59e5887e44dc71a3de1e113eabbc97c03cdbead251f40043",
+  "market_date": "2026-10-02",
+  "payload_references": [
+    {
+      "artifact": "RATE_PRODUCTION_SOURCE_BUNDLE",
+      "path": "artifacts/production_source_snapshots/2026-10-02/1930/rate-source-snapshot-a8d2427c8aab195c3af1debf/RATE_PRODUCTION_SOURCE_BUNDLE.json",
+      "sha256": "d59a08f9a672f1ac8d87a8d10c55c363b63dae986b74100a7e2e958c359cd0fa"
+    }
+  ],
+  "previous_state_requirement": "REQUIRED",
+  "production_snapshot_id": "rate-source-snapshot-a8d2427c8aab195c3af1debf",
+  "required_datasets": [
+    "benchmark",
+    "fundamental",
+    "institutional",
+    "large_holder",
+    "market_daily",
+    "trading_metadata"
+  ],
+  "run_id": "1000000007",
+  "snapshot_type": "PRODUCTION_BUNDLE",
+  "source_status": "PASS",
+  "system": "RATE",
+  "validation_status": "PASS",
+  "version": "RATE-THIN-WORK-PRODUCTION-BUNDLE-MANIFEST-V1"
+}

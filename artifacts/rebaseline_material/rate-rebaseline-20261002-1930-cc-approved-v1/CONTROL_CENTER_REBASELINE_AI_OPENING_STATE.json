@@ -1,0 +1,13 @@
+{
+  "artifact": "CONTROL_CENTER_REBASELINE_AI_OPENING_STATE",
+  "cash": 1000000,
+  "currency": "TWD",
+  "historical_pnl_carried_forward": false,
+  "historical_recovery": false,
+  "historical_transactions_carried_forward": false,
+  "nav": 1000000,
+  "opening_capital": 1000000,
+  "opening_state_type": "CONTROL_CENTER_REBASELINE_OPENING_STATE",
+  "positions": [],
+  "source_type": "AI_PAPER_PORTFOLIO_REBASELINE_OPENING_STATE"
+}

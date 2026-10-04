@@ -1,0 +1,20 @@
+{
+  "ai_opening_state_binding": "PASS",
+  "artifact": "RATE_PRODUCTION_REBASELINE_MATERIAL_DRY_RUN_EVIDENCE",
+  "authorization_created": false,
+  "baseline_id": "rate-rebaseline-20261002-1930-cc-approved-v1",
+  "bootstrap_dispatched": false,
+  "canonical_cross_binding": "PASS",
+  "identity_determinism": "PASS",
+  "latest_touched": false,
+  "ledger_boundary_binding": "PASS",
+  "live_namespace_touched": false,
+  "manifest_sha256": "c152dc16e2c84da822a76150caef50d7b775decf6a3d58b597f392cf8fe6532d",
+  "material_root": "artifacts/rebaseline_material/rate-rebaseline-20261002-1930-cc-approved-v1",
+  "material_status": "REBASELINE_MATERIAL_READY_FOR_CONTROL_CENTER_REVIEW",
+  "production_source_binding": "PASS",
+  "roy_opening_state_binding": "PASS",
+  "state_hash": "9bae27caa6bea1ec16a0c6b306216822537fc286dd60f8d0671a6ceb062ee722",
+  "state_id": "rate-state-9bae27caa6bea1ec16a0c6b3",
+  "validation_status": "PASS"
+}

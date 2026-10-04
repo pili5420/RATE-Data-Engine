@@ -1,0 +1,43 @@
+{
+  "artifact": "RATE_TPEX_INDEX_HISTORY_EVIDENCE",
+  "benchmark_digest": "d705369825bbf6ff6a86ac983873b888320578e1cf6ec5fa65751ababa4118f6",
+  "benchmark_symbol": "TPEX",
+  "cache_hits": 1,
+  "checkpoint_content_hash": "88e9783725df6f846f2e613b2741483cff240c7a734842ee7f178bc1cf8d3bce",
+  "deterministic_digest": true,
+  "earliest_date": "2025-11-06",
+  "endpoint": "https://www.tpex.org.tw/www/zh-tw/indexInfo/inx",
+  "endpoint_contract": "MONTH_SCOPED_HISTORICAL_PAGE",
+  "generated_at": "2026-10-04T06:12:49.554478Z",
+  "latest_date": "2026-10-02",
+  "market": "TPEX",
+  "monthly_periods": [
+    "202511",
+    "202512",
+    "202601",
+    "202602",
+    "202603",
+    "202604",
+    "202605",
+    "202606",
+    "202607",
+    "202608",
+    "202609",
+    "202610"
+  ],
+  "monthly_periods_used_this_run": [
+    "202610"
+  ],
+  "normalized_sha256": "ceba430c0c874eaa18efdaab089c4babb16794f74da7fc79c1f64d0c3020901e",
+  "official_lineage": "PASS",
+  "production_state_modified": "NO",
+  "raw_sha256": "0bd698518d95894caa326860c2e71ecb2bb99fdc92fde364e0ee0aa80e60c030",
+  "record_count": 220,
+  "redundant_requests": 0,
+  "request_count": 0,
+  "source_authority": "TPEx Official",
+  "source_dataset": "TPEx Index Historical Data",
+  "source_url": "https://www.tpex.org.tw/zh-tw/indices/stock-index/industrial/inxh.html",
+  "status": "PASS",
+  "validation_status": "PASS"
+}

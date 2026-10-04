@@ -1,0 +1,120 @@
+{
+  "artifact": "RATE_PRODUCTION_FEATURE_INPUT_CONTRACT",
+  "calculation_changes": "NONE",
+  "decision_runtime_continuity_changes": "NONE",
+  "feature_inputs": [
+    {
+      "calculation_changed": false,
+      "existing_calculation_owner": "src/technical_features.py:technical_record",
+      "feature_name": "PT",
+      "required_history_window": "120 sessions",
+      "required_raw_fields": [
+        "close",
+        "MA60"
+      ],
+      "source_authority": "TWSE/TPEx official historical market data"
+    },
+    {
+      "calculation_changed": false,
+      "existing_calculation_owner": "src/technical_features.py:technical_record",
+      "feature_name": "PV",
+      "required_history_window": "20 sessions",
+      "required_raw_fields": [
+        "volume"
+      ],
+      "source_authority": "TWSE/TPEx official historical market data"
+    },
+    {
+      "calculation_changed": false,
+      "existing_calculation_owner": "src/technical_features.py:technical_record",
+      "feature_name": "MO",
+      "required_history_window": "20 sessions",
+      "required_raw_fields": [
+        "close"
+      ],
+      "source_authority": "TWSE/TPEx official historical market data"
+    },
+    {
+      "calculation_changed": false,
+      "existing_calculation_owner": "src/technical_features.py:compute_scores",
+      "feature_name": "RS",
+      "required_history_window": "5 sessions",
+      "required_raw_fields": [
+        "symbol close",
+        "benchmark close"
+      ],
+      "source_authority": "TWSE/TPEx official historical market and benchmark data"
+    },
+    {
+      "calculation_changed": false,
+      "existing_calculation_owner": "src/technical_features.py:technical_record",
+      "feature_name": "H5",
+      "required_history_window": "5 sessions",
+      "required_raw_fields": [
+        "high",
+        "low",
+        "close"
+      ],
+      "source_authority": "TWSE/TPEx official historical market data"
+    },
+    {
+      "calculation_changed": false,
+      "existing_calculation_owner": "src/technical_features.py:technical_record",
+      "feature_name": "H20",
+      "required_history_window": "20 sessions",
+      "required_raw_fields": [
+        "high",
+        "low",
+        "close"
+      ],
+      "source_authority": "TWSE/TPEx official historical market data"
+    },
+    {
+      "calculation_changed": false,
+      "existing_calculation_owner": "src/technical_features.py:technical_record",
+      "feature_name": "H60",
+      "required_history_window": "60 sessions",
+      "required_raw_fields": [
+        "high",
+        "low",
+        "close"
+      ],
+      "source_authority": "TWSE/TPEx official historical market data"
+    },
+    {
+      "calculation_changed": false,
+      "existing_calculation_owner": "src/technical_features.py:technical_record",
+      "feature_name": "H120",
+      "required_history_window": "120 sessions",
+      "required_raw_fields": [
+        "high",
+        "low",
+        "close"
+      ],
+      "source_authority": "TWSE/TPEx official historical market data"
+    },
+    {
+      "calculation_changed": false,
+      "existing_calculation_owner": "src/technical_features.py:compute_scores",
+      "feature_name": "RelativeStrength",
+      "required_history_window": "5 sessions",
+      "required_raw_fields": [
+        "symbol close",
+        "benchmark close"
+      ],
+      "source_authority": "TWSE/TPEx official historical market and benchmark data"
+    },
+    {
+      "calculation_changed": false,
+      "existing_calculation_owner": "src/technical_features.py:technical_record",
+      "feature_name": "Liquidity",
+      "required_history_window": "20 sessions",
+      "required_raw_fields": [
+        "volume"
+      ],
+      "source_authority": "TWSE/TPEx official historical market data"
+    }
+  ],
+  "strategy_changes": "NONE",
+  "validation_status": "PASS"
+}
