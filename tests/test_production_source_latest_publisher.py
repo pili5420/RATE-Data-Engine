@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from scripts.publish_production_source_bundle_latest import load_json, publish_latest
+from src.thin_work_manifest import validate_shadow_manifest
 
 
 class ProductionSourceLatestPublisherTests(unittest.TestCase):
@@ -27,6 +28,9 @@ class ProductionSourceLatestPublisherTests(unittest.TestCase):
             "source_bundle_validation": status,
             "trading_date": "2026-09-21",
             "source_provenance": {"source": "AUTHORIZED_LIVE", "retrieval_timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")},
+            "source_status": status,
+            "freshness_status": status,
+            "production_snapshot_id": "rate-source-snapshot-test",
             "coverage": "30/30",
             "decision_records": records,
             "records": records,
@@ -45,15 +49,30 @@ class ProductionSourceLatestPublisherTests(unittest.TestCase):
             self.assertIn(key, latest)
         self.assertEqual(latest["workflow_run_id"], "run-1")
         self.assertTrue((self.root / latest["immutable_snapshot_path"].replace("artifacts/test-production-source-latest/", "")).exists() or Path(latest["immutable_snapshot_path"]).exists())
+        manifest_latest = load_json(self.root / "RATE_THIN_WORK_PRODUCTION_BUNDLE_MANIFEST_LATEST.json")
+        manifest = load_json(manifest_latest["manifest_path"])
+        self.assertEqual(manifest["production_snapshot_id"], latest["production_snapshot_id"])
+        self.assertEqual(manifest["run_id"], "run-1")
+        self.assertEqual(validate_shadow_manifest(manifest, root=Path("."), expected_run_id="run-1", expected_production_snapshot_id=latest["production_snapshot_id"])["validation_status"], "PASS")
 
-    def test_second_pass_links_previous_snapshot_id(self):
+    def test_second_eod_pass_links_previous_snapshot_id(self):
         self.write_bundle(self.bundle())
         first = publish_latest(source_bundle_path=self.bundle_path, trading_date="2026-09-21", cadence="07:30", artifacts_root=self.root, workflow_run_id="run-1", workflow_job_id="job-1", evidence_output=self.evidence_path)
-        second = publish_latest(source_bundle_path=self.bundle_path, trading_date="2026-09-21", cadence="09:30", artifacts_root=self.root, workflow_run_id="run-2", workflow_job_id="job-2", evidence_output=self.evidence_path)
+        second = publish_latest(source_bundle_path=self.bundle_path, trading_date="2026-09-21", cadence="19:30", artifacts_root=self.root, workflow_run_id="run-2", workflow_job_id="job-2", evidence_output=self.evidence_path)
         latest = load_json(self.root / "RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json")
         self.assertEqual(second["previous_snapshot_id"], first["snapshot_id"])
         self.assertEqual(latest["previous_snapshot_id"], first["snapshot_id"])
-        self.assertEqual(latest["cadence"], "09:30")
+        self.assertEqual(latest["cadence"], "19:30")
+
+    def test_intraday_without_authorized_feed_does_not_overwrite_latest(self):
+        self.write_bundle(self.bundle())
+        publish_latest(source_bundle_path=self.bundle_path, trading_date="2026-09-21", cadence="07:30", artifacts_root=self.root, workflow_run_id="run-1", workflow_job_id="job-1", evidence_output=self.evidence_path)
+        before = load_json(self.root / "RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json")
+        ev = publish_latest(source_bundle_path=self.bundle_path, trading_date="2026-09-21", cadence="09:30", artifacts_root=self.root, workflow_run_id="run-2", workflow_job_id="job-2", evidence_output=self.evidence_path)
+        after = load_json(self.root / "RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json")
+        self.assertEqual(ev["publish_result"], "BLOCKED")
+        self.assertEqual(ev["blocking_reason"], "THIN_WORK_MANIFEST_VALIDATION_NOT_PASS")
+        self.assertEqual(before["snapshot_id"], after["snapshot_id"])
 
     def test_fail_does_not_overwrite_latest(self):
         self.write_bundle(self.bundle())
@@ -76,6 +95,15 @@ class ProductionSourceLatestPublisherTests(unittest.TestCase):
         after = load_json(self.root / "RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json")
         self.assertEqual(ev["publish_result"], "BLOCKED")
         self.assertEqual(before["snapshot_id"], after["snapshot_id"])
+
+    def test_missing_production_snapshot_id_does_not_publish(self):
+        bundle = self.bundle()
+        del bundle["production_snapshot_id"]
+        self.write_bundle(bundle)
+        ev = publish_latest(source_bundle_path=self.bundle_path, trading_date="2026-09-21", cadence="07:30", artifacts_root=self.root, workflow_run_id="run-1", workflow_job_id="job-1", evidence_output=self.evidence_path)
+        self.assertEqual(ev["publish_result"], "BLOCKED")
+        self.assertEqual(ev["blocking_reason"], "SOURCE_BUNDLE_VALIDATION_NOT_PASS")
+        self.assertFalse((self.root / "RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json").exists())
 
 
 if __name__ == "__main__":

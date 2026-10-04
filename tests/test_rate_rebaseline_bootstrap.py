@@ -91,18 +91,26 @@ class RateRebaselineBootstrapTests(unittest.TestCase):
     def portfolio_material(self):
         roy = {
             "source_type": "CONTROL_CENTER_APPROVED_ROY_PORTFOLIO_OPENING_STATE",
+            "opening_state_type": "CONTROL_CENTER_REBASELINE_OPENING_STATE",
             "currency": "TWD",
+            "positions_count": 10,
             "positions": [
-                {"symbol": "台積電", "quantity": 40, "average_cost": 867.72, "currency": "TWD",
-                 "market_value": 37600, "total_cost": 34708.8},
-                {"symbol": "聯發科", "quantity": 12, "average_cost": 1250.0, "currency": "TWD",
-                 "market_value": 15720, "total_cost": 15000.0},
+                {"symbol": "00632R", "security_name": "元大台灣50反1", "quantity": 5000, "average_cost": 10.04, "currency": "TWD"},
+                {"symbol": "00673R", "security_name": "期元大 S&P 原油反1", "quantity": 39750, "average_cost": 28.25, "currency": "TWD"},
+                {"symbol": "2330", "security_name": "台積電", "quantity": 40, "average_cost": 867.72, "currency": "TWD"},
+                {"symbol": "2337", "security_name": "旺宏", "quantity": 1500, "average_cost": 172.81, "currency": "TWD"},
+                {"symbol": "2383", "security_name": "台光電", "quantity": 20, "average_cost": 1581.35, "currency": "TWD"},
+                {"symbol": "2412", "security_name": "中華電", "quantity": 1000, "average_cost": 118.60, "currency": "TWD"},
+                {"symbol": "3231", "security_name": "緯創", "quantity": 1000, "average_cost": 199.17, "currency": "TWD"},
+                {"symbol": "6139", "security_name": "亞翔", "quantity": 20, "average_cost": 773.65, "currency": "TWD"},
+                {"symbol": "6278", "security_name": "台表科", "quantity": 50, "average_cost": 219.18, "currency": "TWD"},
+                {"symbol": "6442", "security_name": "光聖", "quantity": 70, "average_cost": 1851.56, "currency": "TWD"},
             ],
             "totals": {
                 "cash": 179523,
                 "opening_nav": 1509636,
                 "stock_market_value": 1330113,
-                "stock_total_cost": 1298708.8,
+                "stock_total_cost": 1972438,
             },
         }
         ai = {

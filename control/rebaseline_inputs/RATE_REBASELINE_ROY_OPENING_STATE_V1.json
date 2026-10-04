@@ -1,0 +1,91 @@
+{
+  "artifact": "CONTROL_CENTER_REBASELINE_ROY_OPENING_STATE",
+  "broker_screenshot_hash_available": false,
+  "control_center_approved": true,
+  "currency": "TWD",
+  "default_zero_balance_used": false,
+  "opening_state_type": "CONTROL_CENTER_REBASELINE_OPENING_STATE",
+  "positions": [
+    {
+      "average_cost": 10.04,
+      "currency": "TWD",
+      "quantity": 5000,
+      "security_name": "元大台灣50反1",
+      "symbol": "00632R"
+    },
+    {
+      "average_cost": 28.25,
+      "currency": "TWD",
+      "quantity": 39750,
+      "security_name": "期元大 S&P 原油反1",
+      "symbol": "00673R"
+    },
+    {
+      "average_cost": 867.72,
+      "currency": "TWD",
+      "quantity": 40,
+      "security_name": "台積電",
+      "symbol": "2330"
+    },
+    {
+      "average_cost": 172.81,
+      "currency": "TWD",
+      "quantity": 1500,
+      "security_name": "旺宏",
+      "symbol": "2337"
+    },
+    {
+      "average_cost": 1581.35,
+      "currency": "TWD",
+      "quantity": 20,
+      "security_name": "台光電",
+      "symbol": "2383"
+    },
+    {
+      "average_cost": 118.6,
+      "currency": "TWD",
+      "quantity": 1000,
+      "security_name": "中華電",
+      "symbol": "2412"
+    },
+    {
+      "average_cost": 199.17,
+      "currency": "TWD",
+      "quantity": 1000,
+      "security_name": "緯創",
+      "symbol": "3231"
+    },
+    {
+      "average_cost": 773.65,
+      "currency": "TWD",
+      "quantity": 20,
+      "security_name": "亞翔",
+      "symbol": "6139"
+    },
+    {
+      "average_cost": 219.18,
+      "currency": "TWD",
+      "quantity": 50,
+      "security_name": "台表科",
+      "symbol": "6278"
+    },
+    {
+      "average_cost": 1851.56,
+      "currency": "TWD",
+      "quantity": 70,
+      "security_name": "光聖",
+      "symbol": "6442"
+    }
+  ],
+  "positions_count": 10,
+  "schema_version": "RATE-REBASELINE-ROY-OPENING-STATE-V1",
+  "source_type": "CONTROL_CENTER_APPROVED_ROY_PORTFOLIO_OPENING_STATE",
+  "synthetic_position_created": false,
+  "totals": {
+    "cash": 179523,
+    "opening_nav": 1509636,
+    "stock_market_value": 1330113,
+    "stock_total_cost": 1972438
+  },
+  "validation_status": "PASS"
+}

@@ -1,0 +1,21 @@
+{
+  "artifact": "RATE_EXTERNAL_PRODUCTION_DEPENDENCIES",
+  "schema_version": "RATE-EXTERNAL-PRODUCTION-DEPENDENCIES-V1",
+  "dependencies": [
+    {
+      "dependency_id": "EXTERNAL_AUTHORIZED_INTRADAY_FEED_DEPENDENCY",
+      "domain": "market_intraday",
+      "affected_cadences": ["09:30", "12:00"],
+      "scope": "TWSE listed-equity intraday production coverage",
+      "status": "BLOCKED_EXTERNAL",
+      "engineering_resolution_available": false,
+      "control_center_decision": "KEEP_REQUIRED_DO_NOT_DEGRADE",
+      "required_resolution": "AUTHORIZED_TWSE_INTRADAY_PRODUCTION_FEED",
+      "fallback_allowed": false,
+      "soak_credit_allowed_while_blocked": false,
+      "cer081_completion_allowed_while_blocked": false,
+      "production_acceptance_allowed_while_blocked": false
+    }
+  ],
+  "validation_status": "PASS"
+}

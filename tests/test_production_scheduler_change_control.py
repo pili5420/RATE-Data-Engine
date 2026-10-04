@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -33,7 +34,19 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
         }), encoding="utf-8")
 
     def _technical_source(self, seed: int = 1):
-        return {"technical_features": {key: float(seed + index) for index, key in enumerate(("PT", "PV", "MO", "RS", "H5", "H20", "H60", "H120", "RelativeStrength", "Liquidity"))}}
+        return {
+            "technical_features": {key: float(seed + index) for index, key in enumerate(("PT", "PV", "MO", "RS", "H5", "H20", "H60", "H120", "RelativeStrength", "Liquidity"))},
+            "FI": {"net_buy": seed},
+            "IT": {"trust_net_buy": seed + 1},
+            "SmartMoney_inputs": {"foreign_institutional": seed},
+            "SMART_MONEY": float(seed + 2),
+            "LH": {"large_holder_ratio": 40 + seed},
+            "Fundamental": {"eps": 1.0 + seed / 100},
+            "Stage_inputs": {"listed_market": "TWSE"},
+            "Stage_evidence": {"metadata_source": "official"},
+            "Rotation_inputs": {"benchmark": "TAIEX"},
+            "Rotation": float(seed),
+        }
 
     def _official_dataset(self, trading_date: str = "2026-09-21", count: int = 30, malformed_join: bool = False):
         symbols = [str(1000 + idx) for idx in range(count)]
@@ -106,7 +119,23 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
             source_url = self._write_official_dataset(root, self._official_dataset())
             output = root / "RATE_PRODUCTION_SOURCE_BUNDLE.json"
             evidence = root / "RATE_PRODUCTION_OFFICIAL_SOURCE_INGESTION_EVIDENCE.json"
-            result = build_bundle(rate_source_url=source_url, trading_date="2026-09-21", cadence="09:30", output=output, evidence_output=evidence)
+            universe_contract = root / "RATE_PRODUCTION_UNIVERSE_CONTRACT.json"
+            universe_contract.write_text(json.dumps({"artifact": "RATE_PRODUCTION_UNIVERSE_CONTRACT", "contract_purpose": "PRODUCTION_SOURCE_ACQUISITION_BINDING", "validation_status": "PASS", "required_count": 30, "approved_universe": [str(1000 + idx) for idx in range(30)]}, ensure_ascii=False), encoding="utf-8")
+            old_context = os.environ.get("RATE_SOURCE_TEST_CONTEXT")
+            old_freshness = os.environ.get("RATE_SOURCE_TEST_FRESHNESS_CONTRACTS")
+            os.environ["RATE_SOURCE_TEST_CONTEXT"] = "1"
+            os.environ["RATE_SOURCE_TEST_FRESHNESS_CONTRACTS"] = "1"
+            try:
+                result = build_bundle(rate_source_url=source_url, trading_date="2026-09-21", cadence="19:30", output=output, evidence_output=evidence, universe_contract=universe_contract)
+            finally:
+                if old_context is None:
+                    os.environ.pop("RATE_SOURCE_TEST_CONTEXT", None)
+                else:
+                    os.environ["RATE_SOURCE_TEST_CONTEXT"] = old_context
+                if old_freshness is None:
+                    os.environ.pop("RATE_SOURCE_TEST_FRESHNESS_CONTRACTS", None)
+                else:
+                    os.environ["RATE_SOURCE_TEST_FRESHNESS_CONTRACTS"] = old_freshness
             bundle = json.loads(output.read_text(encoding="utf-8"))
             self.assertEqual(result["validation_status"], "PASS")
             self.assertEqual(bundle["validation_status"], "PASS")
@@ -115,7 +144,7 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
             self.assertEqual(len(bundle["records"]), 30)
             self.assertEqual(len(bundle["decision_records"]), 30)
             self.assertEqual(bundle["trading_date"], "2026-09-21")
-            self.assertEqual(bundle["cadence"], "09:30")
+            self.assertEqual(bundle["cadence"], "19:30")
             self.assertEqual(bundle["source_provenance"]["source"], "RATE_OFFICIAL_TW_MARKET_DATA_SSOT")
             self.assertEqual(bundle["source_provenance"]["fixture_fallback"], "FORBIDDEN")
             self.assertEqual(bundle["source_provenance"]["historical_acceptance_bundle_fallback"], "FORBIDDEN")
@@ -148,7 +177,21 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
                 source_url = self._write_official_dataset(case_root, dataset)
                 output = case_root / "bundle.json"
                 evidence = case_root / "evidence.json"
-                result = build_bundle(rate_source_url=source_url, trading_date="2026-09-21", cadence="12:00", output=output, evidence_output=evidence)
+                old_context = os.environ.get("RATE_SOURCE_TEST_CONTEXT")
+                old_freshness = os.environ.get("RATE_SOURCE_TEST_FRESHNESS_CONTRACTS")
+                os.environ["RATE_SOURCE_TEST_CONTEXT"] = "1"
+                os.environ["RATE_SOURCE_TEST_FRESHNESS_CONTRACTS"] = "1"
+                try:
+                    result = build_bundle(rate_source_url=source_url, trading_date="2026-09-21", cadence="12:00", output=output, evidence_output=evidence)
+                finally:
+                    if old_context is None:
+                        os.environ.pop("RATE_SOURCE_TEST_CONTEXT", None)
+                    else:
+                        os.environ["RATE_SOURCE_TEST_CONTEXT"] = old_context
+                    if old_freshness is None:
+                        os.environ.pop("RATE_SOURCE_TEST_FRESHNESS_CONTRACTS", None)
+                    else:
+                        os.environ["RATE_SOURCE_TEST_FRESHNESS_CONTRACTS"] = old_freshness
                 bundle = json.loads(output.read_text(encoding="utf-8"))
                 self.assertEqual(result["validation_status"], "BLOCKED", name)
                 self.assertEqual(bundle["validation_status"], "BLOCKED", name)
