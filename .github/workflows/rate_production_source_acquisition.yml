@@ -55,6 +55,7 @@ jobs:
         env:
           GITHUB_SHA: ${{ github.sha }}
           RATE_UNIVERSE_CONTRACT_PATH: ${{ inputs.universe_contract_path }}
+          RATE_OFFICIAL_HISTORY_STORE_ROOT: data/staging/step5a_history
         run: |
           args=(
             scripts/build_production_source_bundle_from_official.py
@@ -107,6 +108,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: RATE_PRODUCTION_SOURCE_ACQUISITION_${{ inputs.trading_date }}_${{ inputs.cadence }}_${{ github.run_id }}
+          name: RATE_PRODUCTION_SOURCE_ACQUISITION_${{ inputs.trading_date }}_${{ github.run_id }}
           path: artifacts/production_source_acquisition/*.json
           if-no-files-found: error
