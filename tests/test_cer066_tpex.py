@@ -98,6 +98,37 @@ class Cer066TPExTests(unittest.TestCase):
         result=index_bootstrap.bootstrap(trading_date="2026-09-18", checkpoint=cp, history_root=self.root/"history", output=ev, max_months=22, adapter=_IndexAdapter())
         self.assertEqual(result["status"], "PASS"); self.assertEqual(result["endpoint_contract"], "MONTH_SCOPED_HISTORICAL_PAGE"); self.assertEqual(result["redundant_requests"], 0); self.assertEqual(result["request_count"], len(set(_IndexAdapter.calls)))
         self.assertGreaterEqual(result["record_count"], 180)
+        checkpoint = json.loads(cp.read_text(encoding="utf-8"))
+        self.assertEqual(checkpoint["artifact"], "RATE_TPEX_BENCHMARK_HISTORY_CHECKPOINT_V1")
+        self.assertEqual(checkpoint["benchmark_id"], "TPEX")
+        self.assertEqual(checkpoint["source_authority"], "TPEx Official")
+        self.assertEqual(checkpoint["validation_status"], "PASS")
+        self.assertEqual(checkpoint["date_order"], "PASS")
+        self.assertEqual(checkpoint["duplicate_dates"], 0)
+        self.assertEqual(checkpoint["future_dates"], 0)
+        self.assertEqual(checkpoint["close_values"], "PASS")
+        self.assertEqual(checkpoint["trading_date_alignment"], "PASS")
+        self.assertEqual(checkpoint["official_lineage"], "PASS")
+        self.assertFalse(checkpoint["synthetic_interpolation"])
+        self.assertFalse(checkpoint["missing_date_forward_fill"])
+        self.assertGreaterEqual(checkpoint["session_count"], 180)
+        self.assertRegex(checkpoint["raw_sha256"], r"^[0-9a-f]{64}$")
+        self.assertRegex(checkpoint["normalized_sha256"], r"^[0-9a-f]{64}$")
+
+    def test_index_contract_parses_official_zh_tw_response_fields(self):
+        period = "202609"
+        result = {
+            "source_timestamp": "x",
+            "retrieval_timestamp": "x",
+            "raw_payload": {"tables": [{
+                "fields": ["日期", "開市", "最高", "最低", "收市", "漲/跌"],
+                "data": [["2026/09/01", "402.12", "412.90", "402.12", "410.77", "9.07"]],
+            }]},
+        }
+        rows = index_bootstrap._normalize(result, period)
+        self.assertEqual(rows[0]["trade_date"], "2026-09-01")
+        self.assertEqual(rows[0]["open"], 402.12)
+        self.assertEqual(rows[0]["close"], 410.77)
 
     def test_benchmark_digest_ignores_lineage_timestamps(self):
         base={"benchmark_symbol":"TPEX","market":"TPEX","trade_date":"2026-09-16","close":405.0,"source":"x"}

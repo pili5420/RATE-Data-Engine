@@ -1,0 +1,17 @@
+{
+  "artifact": "RATE_PRODUCTION_REBASELINE_MANIFEST",
+  "baseline_id": "rate-rebaseline-20261002-1930-cc-approved-v1",
+  "baseline_type": "CONTROL_CENTER_REBASELINE",
+  "files": {
+    "CONTROL_CENTER_REBASELINE_AI_OPENING_STATE.json": "d6bb9021e2164fa150807c637d47b1fa3430cdeea171038a42b00115b32e4f35",
+    "CONTROL_CENTER_REBASELINE_ROY_OPENING_STATE.json": "c09dcf4252c46b35ccfd5f84c584dfa1bc6f0ed341cba51cb31f77787c3b02d6",
+    "RATE_LEDGER_REBASELINE_BOUNDARY.json": "aa265a6831552b33a5b1793bd1c1247e693e6b74d254813ecbf2821b91ed8071",
+    "RATE_PRODUCTION_REBASELINE_DECISION_STATE.json": "516785869b7023b968a825bb183f46cef7d7d589bc90d0f83e674d9de52c2402",
+    "RATE_PRODUCTION_SOURCE_BUNDLE.json": "8880bff186eebb4673e9d429ce61eafb8375ce93f80b437bb1a6d723fd80a096"
+  },
+  "selected_cadence": "19:30",
+  "selected_trading_date": "2026-10-02",
+  "state_hash": "9bae27caa6bea1ec16a0c6b306216822537fc286dd60f8d0671a6ceb062ee722",
+  "state_id": "rate-state-9bae27caa6bea1ec16a0c6b3",
+  "validation_status": "PASS"
+}

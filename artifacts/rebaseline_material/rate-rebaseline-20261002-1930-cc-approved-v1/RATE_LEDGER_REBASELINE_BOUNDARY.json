@@ -1,0 +1,16 @@
+{
+  "ai_paper_portfolio_reference": "CONTROL_CENTER_REBASELINE_AI_OPENING_STATE.json",
+  "artifact": "RATE_LEDGER_REBASELINE_BOUNDARY",
+  "event_type": "REBASELINE_OPENING_BALANCE",
+  "historical_recovery_status": "HISTORICAL_RECOVERY_SOURCE_IRRECOVERABLE",
+  "historical_terminal_reference": {
+    "cadence": "19:30",
+    "state_hash": "656e460995324fb4a3eb7b3033b754752997c8cb761d414083a2148eb150b5c7",
+    "state_id": "rate-state-656e460995324fb4a3eb7b30",
+    "trading_date": "2026-09-18"
+  },
+  "historical_transaction_reconstruction": "PROHIBITED",
+  "ledger_continuity_mode": "POST_REBASELINE_ONLY",
+  "pre_rebaseline_transaction_history": "UNAVAILABLE",
+  "roy_portfolio_reference": "CONTROL_CENTER_REBASELINE_ROY_OPENING_STATE.json"
+}

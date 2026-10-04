@@ -1,0 +1,207 @@
+{
+  "artifact": "RATE_PRODUCTION_OFFICIAL_SOURCE_REGISTRY",
+  "schema_version": "RATE-PRODUCTION-OFFICIAL-SOURCE-REGISTRY-V1",
+  "validation_status": "PASS",
+  "fallback_allowed": false,
+  "datasets": [
+    {
+      "dataset_id": "twse_market_daily",
+      "domain": "market_daily",
+      "authority": "TWSE",
+      "endpoint": "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL",
+      "response_type": "json",
+      "parser": "TWSE_MARKET_DAILY_RAW_V1",
+      "frequency": "daily",
+      "freshness_contract": "CADENCE_FRESHNESS_MINUTES",
+      "cadence_applicability": {
+        "07:30": "REQUIRED",
+        "09:30": "REQUIRED",
+        "12:00": "REQUIRED",
+        "19:30": "REQUIRED"
+      },
+      "authorization_status": "PASS",
+      "fallback_allowed": false
+    },
+    {
+      "dataset_id": "tpex_market_daily",
+      "domain": "market_daily",
+      "authority": "TPEX",
+      "endpoint": "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes",
+      "response_type": "json",
+      "parser": "TPEX_MARKET_DAILY_RAW_V1",
+      "frequency": "daily",
+      "freshness_contract": "CADENCE_FRESHNESS_MINUTES",
+      "cadence_applicability": {
+        "07:30": "REQUIRED",
+        "09:30": "REQUIRED",
+        "12:00": "REQUIRED",
+        "19:30": "REQUIRED"
+      },
+      "authorization_status": "PASS",
+      "fallback_allowed": false
+    },
+    {
+      "dataset_id": "twse_benchmark",
+      "domain": "benchmark",
+      "authority": "TWSE",
+      "endpoint": "https://openapi.twse.com.tw/v1/exchangeReport/MI_INDEX",
+      "response_type": "json",
+      "parser": "TWSE_BENCHMARK_RAW_V1",
+      "frequency": "daily",
+      "freshness_contract": "EXACT_TRADING_DATE_ALIGNED",
+      "cadence_applicability": {
+        "07:30": "REQUIRED",
+        "09:30": "REQUIRED",
+        "12:00": "REQUIRED",
+        "19:30": "REQUIRED"
+      },
+      "authorization_status": "PASS",
+      "fallback_allowed": false
+    },
+    {
+      "dataset_id": "twse_institutional",
+      "domain": "institutional",
+      "authority": "TWSE",
+      "endpoint": "https://www.twse.com.tw/rwd/zh/fund/T86?response=json",
+      "response_type": "json",
+      "parser": "TWSE_T86_INSTITUTIONAL_V1",
+      "frequency": "daily",
+      "freshness_contract": "LATEST_OFFICIAL_AVAILABLE",
+      "cadence_applicability": {
+        "07:30": "REQUIRED",
+        "09:30": "REQUIRED",
+        "12:00": "REQUIRED",
+        "19:30": "REQUIRED"
+      },
+      "authorization_status": "PASS",
+      "fallback_allowed": false
+    },
+    {
+      "dataset_id": "tpex_institutional",
+      "domain": "institutional",
+      "authority": "TPEX",
+      "endpoint": "https://www.tpex.org.tw/www/zh-tw/insti/dailyTrade",
+      "response_type": "json",
+      "parser": "TPEX_INSTITUTIONAL_DAILY_V1",
+      "frequency": "daily",
+      "freshness_contract": "LATEST_OFFICIAL_AVAILABLE",
+      "cadence_applicability": {
+        "07:30": "REQUIRED",
+        "09:30": "REQUIRED",
+        "12:00": "REQUIRED",
+        "19:30": "REQUIRED"
+      },
+      "authorization_status": "PASS",
+      "fallback_allowed": false
+    },
+    {
+      "dataset_id": "tdcc_large_holder",
+      "domain": "large_holder",
+      "authority": "TDCC",
+      "endpoint": "https://openapi.tdcc.com.tw/v1/opendata/1-5",
+      "response_type": "json",
+      "parser": "TDCC_LARGE_HOLDER_OPENDATA_V1",
+      "frequency": "weekly",
+      "freshness_contract": "LATEST_PUBLISHED_PERIOD",
+      "cadence_applicability": {
+        "07:30": "REQUIRED",
+        "09:30": "REQUIRED",
+        "12:00": "REQUIRED",
+        "19:30": "REQUIRED"
+      },
+      "authorization_status": "PASS",
+      "fallback_allowed": false
+    },
+    {
+      "dataset_id": "twse_fundamental_revenue",
+      "domain": "fundamental",
+      "authority": "TWSE",
+      "endpoint": "https://openapi.twse.com.tw/v1/opendata/t187ap05_L",
+      "response_type": "json",
+      "parser": "TWSE_MOPS_REVENUE_V1",
+      "frequency": "monthly",
+      "freshness_contract": "LATEST_PUBLISHED_PERIOD",
+      "cadence_applicability": {
+        "07:30": "REQUIRED",
+        "09:30": "REQUIRED",
+        "12:00": "REQUIRED",
+        "19:30": "REQUIRED"
+      },
+      "authorization_status": "PASS",
+      "fallback_allowed": false
+    },
+    {
+      "dataset_id": "tpex_fundamental_revenue",
+      "domain": "fundamental",
+      "authority": "TPEX",
+      "endpoint": "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap05_O",
+      "response_type": "json",
+      "parser": "TPEX_MOPS_REVENUE_V1",
+      "frequency": "monthly",
+      "freshness_contract": "LATEST_PUBLISHED_PERIOD",
+      "cadence_applicability": {
+        "07:30": "REQUIRED",
+        "09:30": "REQUIRED",
+        "12:00": "REQUIRED",
+        "19:30": "REQUIRED"
+      },
+      "authorization_status": "PASS",
+      "fallback_allowed": false
+    },
+    {
+      "dataset_id": "twse_trading_metadata",
+      "domain": "trading_metadata",
+      "authority": "TWSE",
+      "endpoint": "https://openapi.twse.com.tw/v1/opendata/t187ap03_L",
+      "response_type": "json",
+      "parser": "TWSE_TRADING_METADATA_V1",
+      "frequency": "daily",
+      "freshness_contract": "CURRENT_TRADING_STATUS",
+      "cadence_applicability": {
+        "07:30": "REQUIRED",
+        "09:30": "REQUIRED",
+        "12:00": "REQUIRED",
+        "19:30": "REQUIRED"
+      },
+      "authorization_status": "PASS",
+      "fallback_allowed": false
+    },
+    {
+      "dataset_id": "tpex_trading_metadata",
+      "domain": "trading_metadata",
+      "authority": "TPEX",
+      "endpoint": "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes",
+      "response_type": "json",
+      "parser": "TPEX_TRADING_METADATA_V1",
+      "frequency": "daily",
+      "freshness_contract": "CURRENT_TRADING_STATUS",
+      "cadence_applicability": {
+        "07:30": "REQUIRED",
+        "09:30": "REQUIRED",
+        "12:00": "REQUIRED",
+        "19:30": "REQUIRED"
+      },
+      "authorization_status": "PASS",
+      "fallback_allowed": false
+    },
+    {
+      "dataset_id": "authorized_market_intraday",
+      "domain": "market_intraday",
+      "authority": "AUTHORIZED_TWSE_INTRADAY_FEED",
+      "endpoint": null,
+      "response_type": "json",
+      "parser": "AUTHORIZED_INTRADAY_FEED_V1",
+      "frequency": "intraday",
+      "freshness_contract": "CADENCE_FRESHNESS_MINUTES",
+      "cadence_applicability": {
+        "07:30": "NOT_APPLICABLE",
+        "09:30": "BLOCKED_EXTERNAL",
+        "12:00": "BLOCKED_EXTERNAL",
+        "19:30": "NOT_APPLICABLE"
+      },
+      "authorization_status": "BLOCKED_EXTERNAL",
+      "blocked_dependency": "EXTERNAL_AUTHORIZED_INTRADAY_FEED_DEPENDENCY",
+      "fallback_allowed": false
+    }
+  ]
+}

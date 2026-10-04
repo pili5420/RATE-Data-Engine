@@ -1,0 +1,112 @@
+name: RATE Production Official Source Acquisition
+
+on:
+  workflow_dispatch:
+    inputs:
+      trading_date:
+        description: Legal Taiwan trading date YYYY-MM-DD for source acquisition
+        required: true
+      cadence:
+        description: Production cadence
+        required: true
+        type: choice
+        options:
+          - "07:30"
+          - "09:30"
+          - "12:00"
+          - "19:30"
+      universe_contract_path:
+        description: Optional Control Center-approved production universe contract path committed on main
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  source-acquisition:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    env:
+      SCHEDULED_SOAK_CREDIT: "false"
+      ACCEPTANCE_COUNTER_RESET: "false"
+      EXECUTION_SCOPE: "PRODUCTION_SOURCE_ACQUISITION"
+      EXECUTION_AUTHORITY: "MAIN_ONLY"
+      VALIDATED_MAIN_SHA: ${{ github.sha }}
+      GITHUB_EVENT_NAME: ${{ github.event_name }}
+      GITHUB_REF: ${{ github.ref }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Stage formal source contract artifacts
+        run: |
+          mkdir -p artifacts/production_source_acquisition
+          cp config/RATE_PRODUCTION_SOURCE_CADENCE_APPLICABILITY.json artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_CADENCE_APPLICABILITY.json
+          cp config/RATE_EXTERNAL_PRODUCTION_DEPENDENCIES.json artifacts/production_source_acquisition/RATE_EXTERNAL_PRODUCTION_DEPENDENCIES.json
+          cp config/RATE_PRODUCTION_OFFICIAL_SOURCE_REGISTRY_V1.json artifacts/production_source_acquisition/RATE_PRODUCTION_OFFICIAL_SOURCE_REGISTRY_V1.json
+
+      - name: Build official production source bundle only
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          RATE_UNIVERSE_CONTRACT_PATH: ${{ inputs.universe_contract_path }}
+        run: |
+          args=(
+            scripts/build_production_source_bundle_from_official.py
+            --trading-date "${{ inputs.trading_date }}"
+            --cadence "${{ inputs.cadence }}"
+            --source-registry config/RATE_PRODUCTION_OFFICIAL_SOURCE_REGISTRY_V1.json
+            --output artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_BUNDLE.json
+            --evidence-output artifacts/production_source_acquisition/RATE_PRODUCTION_OFFICIAL_SOURCE_ACQUISITION_EVIDENCE.json
+            --requirement-matrix-output artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_REQUIREMENT_MATRIX.json
+            --universe-binding-output artifacts/production_source_acquisition/RATE_PRODUCTION_UNIVERSE_BINDING.json
+            --freshness-matrix-output artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_FRESHNESS_MATRIX.json
+            --feature-input-contract-output artifacts/production_source_acquisition/RATE_PRODUCTION_FEATURE_INPUT_CONTRACT.json
+          )
+          if [ -n "$RATE_UNIVERSE_CONTRACT_PATH" ]; then
+            args+=(--universe-contract "$RATE_UNIVERSE_CONTRACT_PATH")
+          fi
+          python "${args[@]}"
+
+      - name: Materialize Production bundle and Thin Work manifest
+        if: success()
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: >-
+          python scripts/publish_production_source_bundle_latest.py
+          --source-bundle artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_BUNDLE.json
+          --trading-date "${{ inputs.trading_date }}"
+          --cadence "${{ inputs.cadence }}"
+          --artifacts-root artifacts
+          --workflow-run-id "${{ github.run_id }}"
+          --workflow-job-id "${{ github.job }}"
+          --evidence-output artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST_UPDATE_EVIDENCE.json
+
+      - name: Commit authoritative Production source bundle and manifest
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifacts/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json
+          git add artifacts/RATE_THIN_WORK_PRODUCTION_BUNDLE_MANIFEST_LATEST.json
+          git add artifacts/production_source_snapshots
+          if git diff --cached --quiet; then
+            echo "No production materialization changes."
+          else
+            git commit -m "Materialize RATE production input bundle ${{ inputs.trading_date }} ${{ inputs.cadence }}"
+            git push origin "HEAD:${{ github.ref_name }}"
+          fi
+
+      - name: Upload source acquisition evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_PRODUCTION_SOURCE_ACQUISITION_${{ inputs.trading_date }}_${{ inputs.cadence }}_${{ github.run_id }}
+          path: artifacts/production_source_acquisition/*.json
+          if-no-files-found: error

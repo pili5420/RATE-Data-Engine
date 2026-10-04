@@ -176,11 +176,13 @@ def _validate_roy_binding(roy, decision):
             "REBASELINE_ROY_STATE_BINDING_MISMATCH")
     require(roy.get("currency") == "TWD", "REBASELINE_ROY_STATE_BINDING_MISMATCH")
     positions = roy.get("positions")
-    require(isinstance(positions, list) and positions, "REBASELINE_ROY_STATE_BINDING_MISMATCH")
+    require(roy.get("positions_count") == 10 and isinstance(positions, list) and len(positions) == 10,
+            "REBASELINE_ROY_OPENING_STATE_INVALID")
     for position in positions:
-        for key in ("symbol", "quantity", "average_cost", "currency"):
-            require(key in position, "REBASELINE_ROY_STATE_BINDING_MISMATCH")
-        require(position.get("synthetic") is not True, "REBASELINE_ROY_STATE_BINDING_MISMATCH")
+        for key in ("symbol", "security_name", "quantity", "average_cost", "currency"):
+            require(key in position, "REBASELINE_ROY_OPENING_STATE_INVALID")
+        require(position.get("synthetic") is not True and position.get("currency") == "TWD",
+                "REBASELINE_ROY_OPENING_STATE_INVALID")
     totals = roy.get("totals") or {}
     for key in ("cash", "opening_nav", "stock_market_value", "stock_total_cost"):
         require(key in totals, "REBASELINE_ROY_STATE_BINDING_MISMATCH")

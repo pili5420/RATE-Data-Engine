@@ -1,0 +1,203 @@
+{
+  "artifact": "RATE_PRODUCTION_REBASELINE_DECISION_STATE",
+  "baseline_id": "rate-rebaseline-20261002-1930-cc-approved-v1",
+  "decision": {
+    "ai_paper_portfolio": {
+      "cash": 1000000,
+      "currency": "TWD",
+      "historical_pnl_carried_forward": false,
+      "historical_recovery": false,
+      "historical_transactions_carried_forward": false,
+      "nav": 1000000,
+      "opening_capital": 1000000,
+      "opening_state_type": "CONTROL_CENTER_REBASELINE_OPENING_STATE",
+      "positions": [],
+      "source_type": "AI_PAPER_PORTFOLIO_REBASELINE_OPENING_STATE"
+    },
+    "baseline_id": "rate-rebaseline-20261002-1930-cc-approved-v1",
+    "baseline_type": "CONTROL_CENTER_REBASELINE",
+    "baseline_version": "V1",
+    "cadence": "19:30",
+    "execution_scope": "PRODUCTION",
+    "historical_account_state_recoverable": false,
+    "historical_chain_break_acknowledged": true,
+    "historical_predecessor_reference": {
+      "cadence": "19:30",
+      "state_hash": "656e460995324fb4a3eb7b3033b754752997c8cb761d414083a2148eb150b5c7",
+      "state_id": "rate-state-656e460995324fb4a3eb7b30",
+      "trading_date": "2026-09-18"
+    },
+    "previous_state_resolution": "CONTROL_CENTER_REBASELINE",
+    "production_evidence_state": {
+      "cadence": "19:30",
+      "completeness": "PASS",
+      "coverage": "30/30",
+      "fixture_fallback": "FORBIDDEN",
+      "freshness": "PASS",
+      "historical_acceptance_bundle_fallback": "FORBIDDEN",
+      "input_snapshot_ids": [
+        "rate-source-input-1131ed13afd88383858cebc3",
+        "rate-source-input-46172f7b3380301bef0d513d",
+        "rate-source-input-609ad08ad0b1bdc8e78e30f6",
+        "rate-source-input-8bbdeed85ae416bc3a5119f5",
+        "rate-source-input-916929a3b80f2e22e735291e",
+        "rate-source-input-98322ae9e8e34ffb7180c280",
+        "rate-source-input-a75c55e02389a6a1b1f30733",
+        "rate-source-input-cad5fad676042688f735b7c4",
+        "rate-source-input-d2b9beeeea8c5bf347c45380",
+        "rate-source-input-fe8bc541d2e9f75ef83e3f20",
+        "rate-source-input-fff5d1366c4ef8482a33e99e"
+      ],
+      "recovery_fallback": "FORBIDDEN",
+      "source_provenance": {
+        "cadence_applicability": {
+          "artifact": "RATE_PRODUCTION_SOURCE_CADENCE_APPLICABILITY_EVIDENCE",
+          "cadence": "19:30",
+          "domains": {
+            "market_daily": {
+              "applicability": "REQUIRED",
+              "freshness_mode": "EXACT_TRADING_DATE_ALIGNED"
+            },
+            "market_intraday": {
+              "applicability": "NOT_APPLICABLE"
+            }
+          },
+          "external_dependency": null,
+          "validation_status": "PASS"
+        },
+        "cer073_live_fallback": "FORBIDDEN",
+        "execution_authority": "DEVELOPMENT_LIVE_PROBE",
+        "execution_scope": "PRODUCTION_SOURCE_ACQUISITION",
+        "fixture_fallback": "FORBIDDEN",
+        "historical_acceptance_bundle_fallback": "FORBIDDEN",
+        "local_cache_fallback": "FORBIDDEN",
+        "local_desktop_dependency": "FORBIDDEN",
+        "manual_data_fallback": "FORBIDDEN",
+        "production_evidence_authoritative": false,
+        "recovery_fallback": "FORBIDDEN",
+        "retrieval_timestamp": "2026-10-04T06:07:16.633546Z",
+        "source": "RATE_OFFICIAL_TW_MARKET_DATA_SSOT",
+        "source_acquisition_independent_from_previous_state": true,
+        "stale_snapshot_fallback": "FORBIDDEN",
+        "synthetic_fallback": "FORBIDDEN",
+        "third_party_fallback": "FORBIDDEN",
+        "trading_date": "2026-10-02"
+      },
+      "source_snapshot_id": "rate-source-snapshot-a8d2427c8aab195c3af1debf",
+      "stale_snapshot_fallback": "FORBIDDEN",
+      "synthetic_fallback": "FORBIDDEN",
+      "trading_date": "2026-10-02",
+      "validation_status": "PASS"
+    },
+    "production_source_bundle_sha256": "8880bff186eebb4673e9d429ce61eafb8375ce93f80b437bb1a6d723fd80a096",
+    "roy_portfolio": {
+      "broker_screenshot_hash_available": false,
+      "control_center_approved": true,
+      "currency": "TWD",
+      "default_zero_balance_used": false,
+      "opening_state_type": "CONTROL_CENTER_REBASELINE_OPENING_STATE",
+      "positions": [
+        {
+          "average_cost": 10.04,
+          "currency": "TWD",
+          "quantity": 5000,
+          "security_name": "元大台灣50反1",
+          "symbol": "00632R"
+        },
+        {
+          "average_cost": 28.25,
+          "currency": "TWD",
+          "quantity": 39750,
+          "security_name": "期元大 S&P 原油反1",
+          "symbol": "00673R"
+        },
+        {
+          "average_cost": 867.72,
+          "currency": "TWD",
+          "quantity": 40,
+          "security_name": "台積電",
+          "symbol": "2330"
+        },
+        {
+          "average_cost": 172.81,
+          "currency": "TWD",
+          "quantity": 1500,
+          "security_name": "旺宏",
+          "symbol": "2337"
+        },
+        {
+          "average_cost": 1581.35,
+          "currency": "TWD",
+          "quantity": 20,
+          "security_name": "台光電",
+          "symbol": "2383"
+        },
+        {
+          "average_cost": 118.6,
+          "currency": "TWD",
+          "quantity": 1000,
+          "security_name": "中華電",
+          "symbol": "2412"
+        },
+        {
+          "average_cost": 199.17,
+          "currency": "TWD",
+          "quantity": 1000,
+          "security_name": "緯創",
+          "symbol": "3231"
+        },
+        {
+          "average_cost": 773.65,
+          "currency": "TWD",
+          "quantity": 20,
+          "security_name": "亞翔",
+          "symbol": "6139"
+        },
+        {
+          "average_cost": 219.18,
+          "currency": "TWD",
+          "quantity": 50,
+          "security_name": "台表科",
+          "symbol": "6278"
+        },
+        {
+          "average_cost": 1851.56,
+          "currency": "TWD",
+          "quantity": 70,
+          "security_name": "光聖",
+          "symbol": "6442"
+        }
+      ],
+      "positions_count": 10,
+      "schema_version": "RATE-REBASELINE-ROY-OPENING-STATE-V1",
+      "source_type": "CONTROL_CENTER_APPROVED_ROY_PORTFOLIO_OPENING_STATE",
+      "synthetic_position_created": false,
+      "totals": {
+        "cash": 179523,
+        "opening_nav": 1509636,
+        "stock_market_value": 1330113,
+        "stock_total_cost": 1972438
+      },
+      "validation_status": "PASS"
+    },
+    "trading_date": "2026-10-02",
+    "transaction_ledger": {
+      "ai_paper_portfolio_reference": "CONTROL_CENTER_REBASELINE_AI_OPENING_STATE.json",
+      "event_type": "REBASELINE_OPENING_BALANCE",
+      "historical_recovery_status": "HISTORICAL_RECOVERY_SOURCE_IRRECOVERABLE",
+      "historical_terminal_reference": {
+        "cadence": "19:30",
+        "state_hash": "656e460995324fb4a3eb7b3033b754752997c8cb761d414083a2148eb150b5c7",
+        "state_id": "rate-state-656e460995324fb4a3eb7b30",
+        "trading_date": "2026-09-18"
+      },
+      "historical_transaction_reconstruction": "PROHIBITED",
+      "ledger_continuity_mode": "POST_REBASELINE_ONLY",
+      "pre_rebaseline_transaction_history": "UNAVAILABLE",
+      "roy_portfolio_reference": "CONTROL_CENTER_REBASELINE_ROY_OPENING_STATE.json"
+    }
+  },
+  "state_hash": "9bae27caa6bea1ec16a0c6b306216822537fc286dd60f8d0671a6ceb062ee722",
+  "state_id": "rate-state-9bae27caa6bea1ec16a0c6b3",
+  "validation_status": "PASS"
+}

@@ -1,0 +1,15 @@
+{
+  "artifact": "RATE_THIN_WORK_PRODUCTION_BUNDLE_MANIFEST_LATEST",
+  "commit_sha": "b41031a5774698ca5a8511c47f8182c3aece610f",
+  "manifest_path": "artifacts/production_source_snapshots/2026-10-02/1930/rate-source-snapshot-a8d2427c8aab195c3af1debf/RATE_THIN_WORK_PRODUCTION_BUNDLE_MANIFEST_V1.json",
+  "manifest_sha256": "24e97f7336a8bbbb59e5887e44dc71a3de1e113eabbc97c03cdbead251f40043",
+  "payload_reference": {
+    "artifact": "RATE_PRODUCTION_SOURCE_BUNDLE",
+    "path": "artifacts/production_source_snapshots/2026-10-02/1930/rate-source-snapshot-a8d2427c8aab195c3af1debf/RATE_PRODUCTION_SOURCE_BUNDLE.json",
+    "sha256": "d59a08f9a672f1ac8d87a8d10c55c363b63dae986b74100a7e2e958c359cd0fa"
+  },
+  "production_snapshot_id": "rate-source-snapshot-a8d2427c8aab195c3af1debf",
+  "run_id": "1000000007",
+  "schema_version": "RATE-THIN-WORK-PRODUCTION-BUNDLE-MANIFEST-LATEST-V1",
+  "validation_status": "PASS"
+}

@@ -1,0 +1,155 @@
+{
+  "artifact": "RATE_PRODUCTION_SOURCE_REQUIREMENT_MATRIX",
+  "cadence": "19:30",
+  "requirements": [
+    {
+      "cadence_applicability": "NOT_APPLICABLE",
+      "contract_source": "RATE_PRODUCTION_SOURCE_CADENCE_APPLICABILITY.json; Control Center KEEP_REQUIRED_DO_NOT_DEGRADE",
+      "coverage_status": "NOT_APPLICABLE",
+      "dataset_name": "market_intraday",
+      "frequency": "intraday",
+      "freshness_status": "NOT_APPLICABLE",
+      "normalization_status": "NOT_APPLICABLE",
+      "official_endpoint": [],
+      "required": true,
+      "required_for_this_run": false,
+      "source_authority": "Authorized TWSE Intraday Feed",
+      "symbol_join_status": "NOT_APPLICABLE",
+      "symbols_expected": 30,
+      "symbols_joined": 30
+    },
+    {
+      "cadence_applicability": "REQUIRED",
+      "contract_source": "src/live_decision_inputs.py:TECHNICAL_REQUIRED; tests/test_production_scheduler_change_control.py",
+      "coverage_status": "PASS",
+      "dataset_name": "market_price_volume",
+      "frequency": "intraday/daily",
+      "freshness_status": "PASS",
+      "normalization_status": "PASS",
+      "official_endpoint": [
+        "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL",
+        "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes"
+      ],
+      "required": true,
+      "required_for_this_run": true,
+      "source_authority": "TWSE/TPEx",
+      "symbol_join_status": "PASS",
+      "symbols_expected": 30,
+      "symbols_joined": 30
+    },
+    {
+      "cadence_applicability": "REQUIRED",
+      "contract_source": "src/technical_features.py:technical_record volume/liquidity inputs",
+      "coverage_status": "PASS",
+      "dataset_name": "volume",
+      "frequency": "intraday/daily",
+      "freshness_status": "PASS",
+      "normalization_status": "PASS",
+      "official_endpoint": [
+        "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL",
+        "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes"
+      ],
+      "required": true,
+      "required_for_this_run": true,
+      "source_authority": "TWSE/TPEx",
+      "symbol_join_status": "PASS",
+      "symbols_expected": 30,
+      "symbols_joined": 30
+    },
+    {
+      "cadence_applicability": "REQUIRED",
+      "contract_source": "src/live_decision_inputs.py optional wire-through plus CER081 formal source gates",
+      "coverage_status": "PASS",
+      "dataset_name": "institutional_smart_money",
+      "frequency": "daily",
+      "freshness_status": "PASS",
+      "normalization_status": "PASS",
+      "official_endpoint": [
+        "https://www.twse.com.tw/rwd/zh/fund/T86?response=json",
+        "https://www.tpex.org.tw/www/zh-tw/insti/dailyTrade"
+      ],
+      "required": true,
+      "required_for_this_run": true,
+      "source_authority": "TWSE/TPEx",
+      "symbol_join_status": "PASS",
+      "symbols_expected": 30,
+      "symbols_joined": 30
+    },
+    {
+      "cadence_applicability": "REQUIRED",
+      "contract_source": "Control Center V2; CER081/source completeness gates",
+      "coverage_status": "PASS",
+      "dataset_name": "large_holder",
+      "frequency": "weekly",
+      "freshness_status": "PASS",
+      "normalization_status": "PASS",
+      "official_endpoint": [
+        "https://openapi.tdcc.com.tw/v1/opendata/1-5"
+      ],
+      "required": true,
+      "required_for_this_run": true,
+      "source_authority": "TDCC",
+      "symbol_join_status": "PASS",
+      "symbols_expected": 30,
+      "symbols_joined": 30
+    },
+    {
+      "cadence_applicability": "REQUIRED",
+      "contract_source": "Control Center V2; CER081/source completeness gates",
+      "coverage_status": "PASS",
+      "dataset_name": "fundamental",
+      "frequency": "monthly/quarterly",
+      "freshness_status": "PASS",
+      "normalization_status": "PASS",
+      "official_endpoint": [
+        "https://openapi.twse.com.tw/v1/opendata/t187ap05_L",
+        "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap05_O"
+      ],
+      "required": true,
+      "required_for_this_run": true,
+      "source_authority": "MOPS",
+      "symbol_join_status": "PASS",
+      "symbols_expected": 30,
+      "symbols_joined": 30
+    },
+    {
+      "cadence_applicability": "REQUIRED",
+      "contract_source": "Control Center V2; production source bundle required_missing history",
+      "coverage_status": "PASS",
+      "dataset_name": "trading_metadata",
+      "frequency": "event/as-published",
+      "freshness_status": "PASS",
+      "normalization_status": "PASS",
+      "official_endpoint": [
+        "https://openapi.twse.com.tw/v1/opendata/t187ap03_L",
+        "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes"
+      ],
+      "required": true,
+      "required_for_this_run": true,
+      "source_authority": "TWSE/TPEx",
+      "symbol_join_status": "PASS",
+      "symbols_expected": 30,
+      "symbols_joined": 30
+    },
+    {
+      "cadence_applicability": "REQUIRED",
+      "contract_source": "src/technical_features.py RelativeStrength benchmark input",
+      "coverage_status": "PASS",
+      "dataset_name": "benchmark_market_structure",
+      "frequency": "intraday/daily",
+      "freshness_status": "PASS",
+      "normalization_status": "PASS",
+      "official_endpoint": [
+        "https://openapi.twse.com.tw/v1/exchangeReport/MI_INDEX"
+      ],
+      "required": true,
+      "required_for_this_run": true,
+      "source_authority": "TWSE/TPEx",
+      "symbol_join_status": "PASS",
+      "symbols_expected": 30,
+      "symbols_joined": 30
+    }
+  ],
+  "trading_date": "2026-10-02",
+  "validation_status": "PASS"
+}

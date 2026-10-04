@@ -84,6 +84,27 @@ class RateThinWorkManifestTests(unittest.TestCase):
         self.assertFalse(result["portfolio_mutation_allowed"])
         self.assertFalse(result["ledger_mutation_allowed"])
 
+    def test_eod_manifest_does_not_require_intraday_when_not_applicable(self):
+        source = dict(self.source)
+        source["required_datasets"] = ["market_daily", "institutional", "large_holder", "fundamental", "benchmark", "trading_metadata"]
+        source["datasets_present"] = list(source["required_datasets"])
+        source["domains"] = [{"domain": item} for item in source["required_datasets"]]
+        source["authorized_intraday_feed"] = "NOT_APPLICABLE"
+        self.write_source(source)
+        for cadence in ("07:30", "19:30"):
+            with self.subTest(cadence=cadence):
+                manifest = self.manifest(cadence=cadence)
+                self.assertNotIn("market_intraday", manifest["required_datasets"])
+                self.assertEqual(manifest["datasets_missing"], [])
+                self.assertEqual(manifest["blocked_dependencies"], [])
+                self.assertEqual(validate_shadow_manifest(manifest, root=self.tmp, now=self.now)["validation_status"], "PASS")
+
+    def test_manifest_with_contract_validation_evidence_revalidates(self):
+        manifest = self.manifest()
+        validation = validate_shadow_manifest(manifest, root=self.tmp, now=self.now)
+        stored = {**manifest, "contract_validation": validation}
+        self.assertEqual(validate_shadow_manifest(stored, root=self.tmp, now=self.now)["validation_status"], "PASS")
+
     def test_intraday_without_authorized_feed_blocks_without_fallback(self):
         source = dict(self.source)
         source["authorized_intraday_feed"] = "BLOCKED"
