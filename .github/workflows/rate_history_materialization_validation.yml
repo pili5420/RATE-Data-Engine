@@ -15,7 +15,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -23,7 +23,14 @@ jobs:
           python-version: "3.12"
       - name: Compile bounded history materialization
         run: python -m py_compile scripts/materialize_production_history_store.py tests/test_rate_production_history_materialization.py
-      - name: Run bounded history materialization regression
+      - name: Run bounded history and production-source regression
         env:
           RATE_DETERMINISTIC_TEST: "1"
-        run: python -m unittest tests.test_rate_production_history_materialization tests.test_historical_store -v
+        run: >-
+          python -m unittest
+          tests.test_rate_production_history_materialization
+          tests.test_historical_store
+          tests.test_rate_production_source_acquisition
+          tests.test_production_scheduler_change_control
+          tests.test_cer057_tpex
+          -v
