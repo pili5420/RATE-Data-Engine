@@ -28,6 +28,7 @@ jobs:
   source-acquisition:
     if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       SCHEDULED_SOAK_CREDIT: "false"
       ACCEPTANCE_COUNTER_RESET: "false"
@@ -36,6 +37,10 @@ jobs:
       VALIDATED_MAIN_SHA: ${{ github.sha }}
       GITHUB_EVENT_NAME: ${{ github.event_name }}
       GITHUB_REF: ${{ github.ref }}
+      RATE_OFFICIAL_HISTORY_STORE_ROOT: data/staging/step5a_history
+      RATE_OFFICIAL_HISTORY_MAX_MONTHS: "12"
+      RATE_OFFICIAL_HISTORY_MIN_SESSIONS: "180"
+      RATE_OFFICIAL_HISTORY_MAX_RUNTIME_SECONDS: "900"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -51,11 +56,27 @@ jobs:
           cp config/RATE_EXTERNAL_PRODUCTION_DEPENDENCIES.json artifacts/production_source_acquisition/RATE_EXTERNAL_PRODUCTION_DEPENDENCIES.json
           cp config/RATE_PRODUCTION_OFFICIAL_SOURCE_REGISTRY_V1.json artifacts/production_source_acquisition/RATE_PRODUCTION_OFFICIAL_SOURCE_REGISTRY_V1.json
 
+      - name: Materialize bounded official history store
+        env:
+          RATE_UNIVERSE_CONTRACT_PATH: ${{ inputs.universe_contract_path }}
+        run: |
+          universe_contract="$RATE_UNIVERSE_CONTRACT_PATH"
+          if [ -z "$universe_contract" ]; then
+            universe_contract="config/RATE_PRODUCTION_UNIVERSE_CONTRACT_V1.json"
+          fi
+          python scripts/materialize_production_history_store.py \
+            --trading-date "${{ inputs.trading_date }}" \
+            --universe-contract "$universe_contract" \
+            --history-root "$RATE_OFFICIAL_HISTORY_STORE_ROOT" \
+            --evidence-output artifacts/production_source_acquisition/RATE_PRODUCTION_HISTORY_STORE_MATERIALIZATION_EVIDENCE.json \
+            --max-months "$RATE_OFFICIAL_HISTORY_MAX_MONTHS" \
+            --minimum-sessions "$RATE_OFFICIAL_HISTORY_MIN_SESSIONS" \
+            --max-runtime-seconds "$RATE_OFFICIAL_HISTORY_MAX_RUNTIME_SECONDS"
+
       - name: Build official production source bundle only
         env:
           GITHUB_SHA: ${{ github.sha }}
           RATE_UNIVERSE_CONTRACT_PATH: ${{ inputs.universe_contract_path }}
-          RATE_OFFICIAL_HISTORY_STORE_ROOT: data/staging/step5a_history
         run: |
           args=(
             scripts/build_production_source_bundle_from_official.py
@@ -72,7 +93,14 @@ jobs:
           if [ -n "$RATE_UNIVERSE_CONTRACT_PATH" ]; then
             args+=(--universe-contract "$RATE_UNIVERSE_CONTRACT_PATH")
           fi
-          python "${args[@]}"
+          set +e
+          timeout --signal=TERM --kill-after=30s 1200s python "${args[@]}"
+          rc=$?
+          set -e
+          if [ "$rc" -eq 124 ]; then
+            echo "::error::RATE_PRODUCTION_SOURCE_BUILD_RUNTIME_HARD_LIMIT_REACHED"
+          fi
+          exit "$rc"
 
       - name: Materialize Production bundle and Thin Work manifest
         if: success()
@@ -94,6 +122,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/staging/step5a_history
           git add artifacts/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json
           git add artifacts/RATE_THIN_WORK_PRODUCTION_BUNDLE_MANIFEST_LATEST.json
           git add artifacts/production_source_snapshots
