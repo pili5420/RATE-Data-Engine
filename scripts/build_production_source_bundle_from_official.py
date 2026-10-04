@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.benchmark_history import normalize_twse_date
 from src.cer074_acceptance import atomic_write_json
 from src.live_decision_inputs import build_live_decision_records
-from src.historical_store import normalize_stock_record
+from src.historical_store import PersistentHistoricalStore, normalize_stock_record
 from src.sources.twse import TWSEAdapter as LiveTWSEAdapter
 from src.sources.tpex import TPExAdapter as LiveTPExAdapter
 from src.technical_features import compute_scores
@@ -428,7 +428,52 @@ def _benchmark_history_rows(row: Mapping[str, Any], *, trading_date: str) -> tup
     return benchmark_id, rows
 
 
-def _fetch_official_stock_history(symbol: str, market: str, trading_date: str, *, minimum_sessions: int = 180) -> list[dict[str, Any]]:
+def _seed_history_root() -> Path:
+    return Path(os.getenv("RATE_OFFICIAL_HISTORY_STORE_ROOT", "data/staging/history"))
+
+
+def _append_live_market_row(records: list[dict[str, Any]], live_row: Mapping[str, Any] | None, trading_date: str) -> list[dict[str, Any]]:
+    out = list(records)
+    if live_row and str(live_row.get("trade_date")) == trading_date:
+        keyed = {(str(row.get("symbol")), str(row.get("trade_date"))): row for row in out}
+        key = (str(live_row.get("symbol")), str(live_row.get("trade_date")))
+        if key in keyed and keyed[key] != dict(live_row):
+            raise RuntimeError(f"OFFICIAL_HISTORY_LIVE_ROW_CONFLICT:{key[0]}:{key[1]}")
+        keyed[key] = dict(live_row)
+        out = sorted(keyed.values(), key=lambda row: row["trade_date"])
+    return out
+
+
+def _load_persisted_stock_history(symbol: str, market: str, trading_date: str, live_row: Mapping[str, Any] | None, *, minimum_sessions: int) -> list[dict[str, Any]] | None:
+    store = PersistentHistoricalStore(_seed_history_root())
+    records = [row for row in store.load_stock(symbol) if str(row.get("market")) == market and str(row.get("trade_date")) <= trading_date]
+    records = _append_live_market_row(records, live_row, trading_date)
+    if len(records) >= minimum_sessions:
+        return records[-220:]
+    return None
+
+
+def _load_persisted_benchmark_history(market: str, trading_date: str, live_rows: list[Mapping[str, Any]], *, minimum_sessions: int) -> list[dict[str, Any]] | None:
+    benchmark_symbol = "TAIEX" if market == "TWSE" else "TPEX"
+    store = PersistentHistoricalStore(_seed_history_root())
+    records = [row for row in store.load_benchmark(benchmark_symbol) if str(row.get("trade_date")) <= trading_date]
+    latest_rows = [row for row in live_rows if str(row.get("benchmark_symbol")) == benchmark_symbol and str(row.get("trade_date")) == trading_date]
+    if latest_rows:
+        keyed = {str(row.get("trade_date")): row for row in records}
+        key = str(latest_rows[-1].get("trade_date"))
+        if key in keyed and keyed[key] != dict(latest_rows[-1]):
+            raise RuntimeError(f"OFFICIAL_BENCHMARK_LIVE_ROW_CONFLICT:{benchmark_symbol}:{key}")
+        keyed[key] = dict(latest_rows[-1])
+        records = sorted(keyed.values(), key=lambda row: row["trade_date"])
+    if len(records) >= minimum_sessions:
+        return records[-220:]
+    return None
+
+
+def _fetch_official_stock_history(symbol: str, market: str, trading_date: str, *, live_row: Mapping[str, Any] | None = None, minimum_sessions: int = 180) -> list[dict[str, Any]]:
+    persisted = _load_persisted_stock_history(symbol, market, trading_date, live_row, minimum_sessions=minimum_sessions)
+    if persisted is not None:
+        return persisted
     adapter = LiveTWSEAdapter() if market == "TWSE" else LiveTPExAdapter()
     records: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -510,7 +555,10 @@ def _fetch_official_stock_history(symbol: str, market: str, trading_date: str, *
     return records[-220:]
 
 
-def _fetch_official_benchmark_history(market: str, trading_date: str, *, minimum_sessions: int = 180) -> list[dict[str, Any]]:
+def _fetch_official_benchmark_history(market: str, trading_date: str, *, live_rows: list[Mapping[str, Any]] | None = None, minimum_sessions: int = 180) -> list[dict[str, Any]]:
+    persisted = _load_persisted_benchmark_history(market, trading_date, live_rows or [], minimum_sessions=minimum_sessions)
+    if persisted is not None:
+        return persisted
     adapter = LiveTWSEAdapter() if market == "TWSE" else LiveTPExAdapter()
     benchmark_symbol = "TAIEX" if market == "TWSE" else "TPEX"
     records: list[dict[str, Any]] = []
@@ -553,21 +601,29 @@ def _build_official_rolling_technical_source(*, universe_binding: Mapping[str, A
     if not expected:
         return None
     latest_market: dict[str, str] = {}
+    live_market_rows: dict[str, dict[str, Any]] = {}
+    live_benchmark_rows: list[dict[str, Any]] = []
     for source in normalized_sources:
-        if source.get("domain") != "market_daily" or source.get("normalization_status") != "PASS":
+        if source.get("normalization_status") != "PASS":
             continue
-        for record in source.get("normalized_records") or []:
-            symbol = _symbol(record.get("symbol"))
-            raw_latest = record.get("raw_market_latest") if isinstance(record.get("raw_market_latest"), Mapping) else {}
-            market = str(raw_latest.get("source") or source.get("source") or "").upper()
-            if symbol and market in {"TWSE", "TPEX"}:
-                latest_market[symbol] = market
+        if source.get("domain") == "benchmark":
+            for record in source.get("normalized_records") or []:
+                if record.get("benchmark_history"):
+                    live_benchmark_rows.extend(record["benchmark_history"])
+        if source.get("domain") == "market_daily":
+            for record in source.get("normalized_records") or []:
+                symbol = _symbol(record.get("symbol"))
+                raw_latest = record.get("raw_market_latest") if isinstance(record.get("raw_market_latest"), Mapping) else {}
+                market = str(raw_latest.get("source") or source.get("source") or "").upper()
+                if symbol and market in {"TWSE", "TPEX"}:
+                    latest_market[symbol] = market
+                    live_market_rows[symbol] = dict(raw_latest)
     missing_market = sorted(symbol for symbol in expected if symbol not in latest_market)
     if missing_market:
         raise RuntimeError("OFFICIAL_MARKET_DAILY_SYMBOL_MISSING_FOR_HISTORY:" + ",".join(missing_market))
-    histories = {symbol: _fetch_official_stock_history(symbol, latest_market[symbol], trading_date) for symbol in expected}
+    histories = {symbol: _fetch_official_stock_history(symbol, latest_market[symbol], trading_date, live_row=live_market_rows.get(symbol)) for symbol in expected}
     benchmark_by_market = {
-        market: _fetch_official_benchmark_history(market, trading_date)
+        market: _fetch_official_benchmark_history(market, trading_date, live_rows=live_benchmark_rows)
         for market in sorted(set(latest_market.values()))
     }
     benchmark_by_symbol = {symbol: benchmark_by_market[latest_market[symbol]] for symbol in expected}
@@ -582,6 +638,7 @@ def _build_official_rolling_technical_source(*, universe_binding: Mapping[str, A
             "technical_features": by_symbol[symbol],
             "raw_market_history_coverage": len(histories[symbol]),
             "benchmark_history_coverage": len(benchmark_by_symbol[symbol]),
+            "initial_history_seed_used": True,
             "feature_lineage": {
                 "technical_features": {
                     "source": "src.technical_features.compute_scores",
