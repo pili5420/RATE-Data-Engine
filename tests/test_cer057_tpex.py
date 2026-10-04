@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import unittest
 import sys
 from pathlib import Path
@@ -49,6 +50,67 @@ class CER057TPExTests(unittest.TestCase):
         with patch.object(tpex, "urlopen", side_effect=IncompleteRead(b"{")), patch.object(tpex.time, "sleep"):
             with self.assertRaisesRegex(RuntimeError, "TPEX_HISTORICAL_RETRIEVAL_FAILED"):
                 tpex._resilient_json("https://example.invalid", retries=2)
+
+    def test_current_daily_truncated_then_valid_passes(self):
+        calls = []
+        valid = b'[{"SecuritiesCompanyCode":"6274","Date":"1151002","LatestPrice":"100"}]'
+        def fake(req, timeout=30):
+            calls.append(req.full_url)
+            if len(calls) == 1:
+                return _Response(b'[{"SecuritiesCompanyCode":"6274"')
+            return _Response(valid)
+        with patch.object(tpex, "urlopen", side_effect=fake), patch.object(tpex.time, "sleep"):
+            result = tpex.TPExAdapter().fetch_daily()
+        self.assertEqual(result["endpoint"], tpex.CURRENT_DAILY_ENDPOINT)
+        self.assertEqual(result["diagnostics"]["http_status"], 200)
+        self.assertEqual(result["diagnostics"]["parse_status"], "PASS")
+        self.assertEqual(result["diagnostics"]["attempt_count"], 2)
+        self.assertEqual(result["diagnostics"]["record_count"], 1)
+        self.assertEqual(calls, [tpex.CURRENT_DAILY_ENDPOINT, tpex.CURRENT_DAILY_ENDPOINT])
+
+    def test_current_daily_first_two_fail_third_valid_passes(self):
+        calls = []
+        valid = b'[{"SecuritiesCompanyCode":"6274","Date":"1151002","LatestPrice":"100"}]'
+        def fake(req, timeout=30):
+            calls.append(req.full_url)
+            if len(calls) < 3:
+                return _Response(b'[{"SecuritiesCompanyCode":"6274"')
+            return _Response(valid)
+        with patch.object(tpex, "urlopen", side_effect=fake), patch.object(tpex.time, "sleep"):
+            result = tpex.TPExAdapter().fetch_daily()
+        self.assertEqual(result["diagnostics"]["attempt_count"], 3)
+        self.assertEqual(result["diagnostics"]["parse_status"], "PASS")
+        self.assertEqual(calls, [tpex.CURRENT_DAILY_ENDPOINT] * 3)
+
+    def test_current_daily_all_invalid_fails_closed_without_fallback(self):
+        calls = []
+        def fake(req, timeout=30):
+            calls.append(req.full_url)
+            return _Response(b'[{"SecuritiesCompanyCode":"6274"')
+        with patch.object(tpex, "urlopen", side_effect=fake), patch.object(tpex.time, "sleep"):
+            with self.assertRaisesRegex(RuntimeError, "TPEX_CURRENT_DAILY_RETRIEVAL_FAILED"):
+                tpex.TPExAdapter().fetch_daily()
+        self.assertEqual(calls, [tpex.CURRENT_DAILY_ENDPOINT] * 3)
+        self.assertNotIn(tpex.HISTORICAL_ENDPOINT, calls)
+        self.assertNotIn(tpex.LEGACY_DIAGNOSTIC_REFERENCE, calls)
+
+    def test_current_daily_does_not_modify_historical_store_seed(self):
+        root = Path("artifacts/test-current-daily-history-store")
+        shutil.rmtree(root, ignore_errors=True)
+        seed = root / "benchmark" / "TPEX.json"
+        seed.parent.mkdir(parents=True, exist_ok=True)
+        seed.write_text(json.dumps({"seed": "approved"}), encoding="utf-8")
+        before = seed.read_text(encoding="utf-8")
+        valid = b'[{"SecuritiesCompanyCode":"6274","Date":"1151002","LatestPrice":"100"}]'
+        try:
+            with patch.dict(os.environ, {"RATE_OFFICIAL_HISTORY_STORE_ROOT": str(root)}), \
+                 patch.object(tpex, "urlopen", return_value=_Response(valid)), \
+                 patch.object(tpex.time, "sleep"):
+                result = tpex.TPExAdapter().fetch_daily()
+            self.assertEqual(result["diagnostics"]["parse_status"], "PASS")
+            self.assertEqual(seed.read_text(encoding="utf-8"), before)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
 
     def test_benchmark_contract(self):
         adapter = tpex.TPExAdapter()

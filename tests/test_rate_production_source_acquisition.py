@@ -5,6 +5,7 @@ import os
 import shutil
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts.build_production_source_bundle_from_official import (
     TWSEAdapter,
@@ -17,6 +18,7 @@ from scripts.build_production_source_bundle_from_official import (
     load_external_dependencies,
     load_source_registry,
     parse_source_urls,
+    RegistryDatasetAdapter,
     source_snapshot_id,
     _normalize_source_date,
 )
@@ -192,6 +194,9 @@ class RateProductionSourceAcquisitionTests(unittest.TestCase):
         self.assertIn('SCHEDULED_SOAK_CREDIT: "false"', text)
         self.assertIn('ACCEPTANCE_COUNTER_RESET: "false"', text)
         self.assertIn('EXECUTION_AUTHORITY: "MAIN_ONLY"', text)
+        self.assertIn("RATE_OFFICIAL_HISTORY_STORE_ROOT: data/staging/step5a_history", text)
+        self.assertIn("RATE_PRODUCTION_SOURCE_ACQUISITION_${{ inputs.trading_date }}_${{ github.run_id }}", text)
+        self.assertNotIn("RATE_PRODUCTION_SOURCE_ACQUISITION_${{ inputs.trading_date }}_${{ inputs.cadence }}_${{ github.run_id }}", text)
 
 
     def test_cadence_applicability_rules_preserve_intraday_requirement(self):
@@ -234,6 +239,23 @@ class RateProductionSourceAcquisitionTests(unittest.TestCase):
         self.assertEqual(intraday["cadence_applicability"]["19:30"], "NOT_APPLICABLE")
         self.assertEqual(intraday["cadence_applicability"]["09:30"], "BLOCKED_EXTERNAL")
         self.assertEqual(intraday["blocked_dependency"], "EXTERNAL_AUTHORIZED_INTRADAY_FEED_DEPENDENCY")
+
+    def test_tpex_current_daily_registry_path_uses_hardened_official_transport(self):
+        entry = next(item for item in load_source_registry("config/RATE_PRODUCTION_OFFICIAL_SOURCE_REGISTRY_V1.json")["datasets"] if item["dataset_id"] == "tpex_market_daily")
+        rows = [{"SecuritiesCompanyCode": "6274", "Date": self.trading_date, **self._complete_fields(0)}]
+        result = {
+            "endpoint": "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes",
+            "raw_payload": rows,
+            "content_hash": "digest",
+            "diagnostics": {"http_status": 200, "content_type": "application/json", "parse_status": "PASS", "attempt_count": 2, "response_bytes": 100},
+        }
+        with patch("scripts.build_production_source_bundle_from_official.LiveTPExAdapter.fetch_daily", return_value=result) as fetch_daily:
+            fetched = RegistryDatasetAdapter(entry, trading_date=self.trading_date).fetch()
+        self.assertEqual(fetch_daily.call_count, 1)
+        self.assertEqual(fetched["status"], "PASS")
+        self.assertEqual(fetched["endpoint"], result["endpoint"])
+        self.assertEqual(fetched["attempt_count"], 2)
+        self.assertEqual(fetched["parse_status"], "PASS")
 
     def test_registry_eod_raw_market_rows_enter_existing_feature_pipeline(self):
         symbols = [str(1000 + idx) for idx in range(30)]
