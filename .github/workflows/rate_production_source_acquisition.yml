@@ -64,7 +64,7 @@ jobs:
           if [ -z "$universe_contract" ]; then
             universe_contract="config/RATE_PRODUCTION_UNIVERSE_CONTRACT_V1.json"
           fi
-          python scripts/materialize_production_history_store.py \
+          python -m scripts.materialize_production_history_store \
             --trading-date "${{ inputs.trading_date }}" \
             --universe-contract "$universe_contract" \
             --history-root "$RATE_OFFICIAL_HISTORY_STORE_ROOT" \
