@@ -12,10 +12,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from scripts.build_live_source_bundle import _atomic_write_json, _month_cursor
 from src.benchmark_history import benchmark_digest, normalize_benchmark, validate_benchmark
 from src.historical_store import PersistentHistoricalStore
-from src.sources.tpex import TPExAdapter, normalize_tpex_date
+from src.sources.tpex import INDEX_HISTORY_ENDPOINT, INDEX_HISTORY_PAGE_URL, TPExAdapter, normalize_tpex_date
 
 TARGET_RECORDS = 220
 CHECKPOINT_SCHEMA = "RATE-TPEX-INDEX-HISTORY-CHECKPOINT-V1"
+CHECKPOINT_ARTIFACT = "RATE_TPEX_BENCHMARK_HISTORY_CHECKPOINT_V1"
+SOURCE_AUTHORITY = "TPEx Official"
 
 
 def _now():
@@ -39,6 +41,61 @@ def _load_checkpoint(path):
 def _save_checkpoint(path, cp):
     cp["schema_version"] = CHECKPOINT_SCHEMA; cp["last_updated"] = _now(); cp["content_hash"] = _checkpoint_digest(cp)
     _atomic_write_json(path, cp)
+
+
+def _checkpoint_records(cp):
+    by_date = {}
+    for entry in cp.get("periods", {}).values():
+        for row in entry.get("records", []):
+            key = row["trade_date"]
+            if key in by_date and by_date[key] != row:
+                raise RuntimeError(f"TPEX_INDEX_DATE_CONFLICT:{key}")
+            by_date[key] = row
+    return sorted(by_date.values(), key=lambda row: row["trade_date"])
+
+
+def _checkpoint_hashes(records, cp):
+    raw_seed = {
+        "period_hashes": {
+            period: entry.get("content_hash")
+            for period, entry in sorted((cp.get("periods") or {}).items())
+        },
+        "source_url": INDEX_HISTORY_PAGE_URL,
+    }
+    raw_sha = hashlib.sha256(json.dumps(raw_seed, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    normalized_sha = hashlib.sha256(json.dumps(records, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    return raw_sha, normalized_sha
+
+
+def _apply_contract_metadata(cp, *, records, trading_date, validation_status):
+    dates = [row.get("trade_date") for row in records]
+    duplicate_count = len(dates) - len(set(dates))
+    future_count = sum(1 for value in dates if value and value > trading_date)
+    close_values_pass = all(isinstance(row.get("close"), (int, float)) and row.get("close") > 0 for row in records)
+    raw_sha, normalized_sha = _checkpoint_hashes(records, cp)
+    cp.update({
+        "artifact": CHECKPOINT_ARTIFACT,
+        "benchmark_id": "TPEX",
+        "source_authority": SOURCE_AUTHORITY,
+        "source_url": INDEX_HISTORY_PAGE_URL,
+        "source_endpoint": INDEX_HISTORY_ENDPOINT,
+        "historical_product": "Historical Data of TPEx Index (Monthly)",
+        "retrieval_timestamp": cp.get("last_updated") or _now(),
+        "first_date": records[0]["trade_date"] if records else None,
+        "last_date": records[-1]["trade_date"] if records else None,
+        "session_count": len(records),
+        "raw_sha256": raw_sha,
+        "normalized_sha256": normalized_sha,
+        "validation_status": validation_status,
+        "date_order": "PASS" if dates == sorted(dates) else "FAIL",
+        "duplicate_dates": duplicate_count,
+        "future_dates": future_count,
+        "close_values": "PASS" if close_values_pass else "FAIL",
+        "trading_date_alignment": "PASS" if records and records[-1]["trade_date"] <= trading_date else "FAIL",
+        "official_lineage": "PASS" if all((entry.get("validation_status") == "PASS") for entry in cp.get("periods", {}).values()) else "FAIL",
+        "synthetic_interpolation": False,
+        "missing_date_forward_fill": False,
+    })
 
 
 def _rows(payload):
@@ -89,16 +146,10 @@ def bootstrap(*, trading_date: str, checkpoint: Path, history_root: Path, output
                 canonical = json.dumps(records, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
                 cp["periods"][period] = {"period": period, "records": records, "record_count": len(records), "source": result.get("endpoint"), "source_timestamp": result.get("source_timestamp"), "retrieval_timestamp": result.get("retrieval_timestamp"), "content_hash": hashlib.sha256(canonical).hexdigest(), "validation_status": "PASS"}
                 _save_checkpoint(checkpoint, cp); request_count += 1
-            all_records = [row for entry in cp.get("periods", {}).values() for row in entry.get("records", [])]
-            by_date = {}
-            for row in all_records:
-                key = row["trade_date"]
-                if key in by_date and by_date[key] != row:
-                    raise RuntimeError(f"TPEX_INDEX_DATE_CONFLICT:{key}")
-                by_date[key] = row
-            if len(by_date) >= TARGET_RECORDS:
+            ordered = _checkpoint_records(cp)
+            if len(ordered) >= TARGET_RECORDS:
                 break
-        ordered = sorted(by_date.values(), key=lambda row: row["trade_date"]) if 'by_date' in locals() else []
+        ordered = _checkpoint_records(cp)
         validate_benchmark(ordered, "TPEX")
         if len(ordered) < 180:
             raise RuntimeError(f"DATA_INCOMPLETE:TPEX_INDEX_HISTORY:{len(ordered)}<180")
@@ -107,7 +158,9 @@ def bootstrap(*, trading_date: str, checkpoint: Path, history_root: Path, output
         if len(persisted) < 180:
             raise RuntimeError(f"DATA_INCOMPLETE:TPEX_INDEX_PERSISTED_HISTORY:{len(persisted)}<180")
         digest = benchmark_digest(persisted)
-        payload = {"artifact": "RATE_TPEX_INDEX_HISTORY_EVIDENCE", "status": "PASS", "benchmark_symbol": "TPEX", "market": "TPEX", "source_dataset": "TPEx Index Historical Data", "endpoint_contract": "MONTH_SCOPED_HISTORICAL_PAGE", "endpoint": "https://www.tpex.org.tw/www/en-us/indexInfo/inx", "monthly_periods": sorted(cp.get("periods", {}).keys()), "monthly_periods_used_this_run": periods_used, "request_count": request_count, "cache_hits": cache_hits, "redundant_requests": 0, "record_count": len(persisted), "earliest_date": persisted[0]["trade_date"], "latest_date": persisted[-1]["trade_date"], "benchmark_digest": digest, "deterministic_digest": benchmark_digest(persisted) == digest, "validation_status": "PASS", "production_state_modified": "NO", "generated_at": _now(), "checkpoint_content_hash": cp.get("content_hash")}
+        _apply_contract_metadata(cp, records=persisted, trading_date=trading_date, validation_status="PASS")
+        _save_checkpoint(checkpoint, cp)
+        payload = {"artifact": "RATE_TPEX_INDEX_HISTORY_EVIDENCE", "status": "PASS", "benchmark_symbol": "TPEX", "market": "TPEX", "source_authority": SOURCE_AUTHORITY, "source_dataset": "TPEx Index Historical Data", "source_url": INDEX_HISTORY_PAGE_URL, "endpoint_contract": "MONTH_SCOPED_HISTORICAL_PAGE", "endpoint": INDEX_HISTORY_ENDPOINT, "monthly_periods": sorted(cp.get("periods", {}).keys()), "monthly_periods_used_this_run": periods_used, "request_count": request_count, "cache_hits": cache_hits, "redundant_requests": 0, "record_count": len(persisted), "earliest_date": persisted[0]["trade_date"], "latest_date": persisted[-1]["trade_date"], "benchmark_digest": digest, "deterministic_digest": benchmark_digest(persisted) == digest, "validation_status": "PASS", "production_state_modified": "NO", "generated_at": _now(), "checkpoint_content_hash": cp.get("content_hash"), "raw_sha256": cp.get("raw_sha256"), "normalized_sha256": cp.get("normalized_sha256"), "official_lineage": cp.get("official_lineage")}
     except Exception as exc:
         payload = {"artifact": "RATE_TPEX_INDEX_HISTORY_EVIDENCE", "status": "FAIL", "benchmark_symbol": "TPEX", "market": "TPEX", "endpoint_contract": "MONTH_SCOPED_HISTORICAL_PAGE", "request_count": request_count, "cache_hits": cache_hits, "redundant_requests": 0, "record_count": 0, "benchmark_digest": None, "deterministic_digest": False, "validation_status": "FAIL", "blocking_reason": str(exc), "production_state_modified": "NO", "generated_at": _now(), "checkpoint_content_hash": cp.get("content_hash")}
     _atomic_write_json(output, payload); return payload
