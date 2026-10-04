@@ -24,10 +24,10 @@ def normalize_benchmark(record, *, benchmark_symbol, market, source, source_time
                 return value
         return None
     raw_date = pick('trade_date', 'Date', '日期', '日期')
-    raw_open = pick('open', 'OpeningIndex', 'Open', '開盤指數', '開盤')
+    raw_open = pick('open', 'OpeningIndex', 'Open', '開盤指數', '開盤', '開市')
     raw_high = pick('high', 'HighestIndex', 'High', '最高指數', '最高')
     raw_low = pick('low', 'LowestIndex', 'Low', '最低指數', '最低')
-    raw_close = pick('close', 'ClosingIndex', 'Close', '收盤指數', '收盤')
+    raw_close = pick('close', 'ClosingIndex', 'Close', '收盤指數', '收盤', '收市')
     out={'benchmark_symbol':benchmark_symbol,'market':market,'trade_date':normalize_twse_date(raw_date),
          'open':_number(raw_open,'open') if raw_open not in (None,'','-','--') else None,
          'high':_number(raw_high,'high') if raw_high not in (None,'','-','--') else None,

@@ -17,7 +17,8 @@ HISTORICAL_RESULT_ENDPOINT = "https://www.tpex.org.tw/web/stock/aftertrading/dai
 BENCHMARK_ENDPOINT = "https://www.tpex.org.tw/openapi/v1/tpex_index"
 # The OpenAPI product above is a latest-month snapshot.  TPEx's official
 # historical index page exposes the month-scoped JSON contract below.
-INDEX_HISTORY_ENDPOINT = "https://www.tpex.org.tw/www/en-us/indexInfo/inx?date={yyyy_mm_slash}&response=json"
+INDEX_HISTORY_PAGE_URL = "https://www.tpex.org.tw/zh-tw/indices/stock-index/industrial/inxh.html"
+INDEX_HISTORY_ENDPOINT = "https://www.tpex.org.tw/www/zh-tw/indexInfo/inx"
 LEGACY_DIAGNOSTIC_REFERENCE = "https://www.tpex.org.tw/web/stock/3insti/3insti.php?l=zh-tw&o=json&d={period}"
 INSTITUTIONAL_HISTORY_ENDPOINT = LEGACY_DIAGNOSTIC_REFERENCE
 INSTITUTIONAL_DAILY_OFFICIAL_PAGE = "https://www.tpex.org.tw/zh-tw/mainboard/trading/major-institutional/detail/day.html"
@@ -195,9 +196,15 @@ class TPExAdapter:
     def fetch_historical_benchmark(self, period: str):
         template = os.getenv('TPEX_BENCHMARK_HISTORY_ENDPOINT', INDEX_HISTORY_ENDPOINT)
         endpoint = template.format(period=_roc_period(period), yyyy_mm=period, yyyy_mm_slash=_period_date(period))
-        payload, digest, diagnostics = _resilient_json(endpoint)
+        payload, digest, diagnostics = _resilient_json(
+            endpoint, method="POST",
+            form={"date": _period_date(period), "response": "json", "id": ""})
         out = provenance('benchmark_history', self.provider, endpoint, digest, payload)
         out['benchmark_symbol'] = 'TPEX'; out['benchmark_name'] = 'TPEx Index'; out['diagnostics'] = diagnostics
+        out['request_method'] = 'POST'
+        out['request_params'] = {'date': _period_date(period), 'response': 'json', 'id': ''}
+        out['product_page'] = INDEX_HISTORY_PAGE_URL
+        out['historical_product'] = 'Historical Data of TPEx Index (Monthly)'
         return out
     def fetch_institutional_history(self, symbol: str, period: str):
         raise RuntimeError('TPEX_LEGACY_INSTITUTIONAL_ROUTE_DISABLED:USE_FETCH_INSTITUTIONAL_DAILY')

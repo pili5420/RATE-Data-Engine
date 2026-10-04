@@ -99,6 +99,21 @@ class Cer066TPExTests(unittest.TestCase):
         self.assertEqual(result["status"], "PASS"); self.assertEqual(result["endpoint_contract"], "MONTH_SCOPED_HISTORICAL_PAGE"); self.assertEqual(result["redundant_requests"], 0); self.assertEqual(result["request_count"], len(set(_IndexAdapter.calls)))
         self.assertGreaterEqual(result["record_count"], 180)
 
+    def test_index_contract_parses_official_zh_tw_response_fields(self):
+        period = "202609"
+        result = {
+            "source_timestamp": "x",
+            "retrieval_timestamp": "x",
+            "raw_payload": {"tables": [{
+                "fields": ["日期", "開市", "最高", "最低", "收市", "漲/跌"],
+                "data": [["2026/09/01", "402.12", "412.90", "402.12", "410.77", "9.07"]],
+            }]},
+        }
+        rows = index_bootstrap._normalize(result, period)
+        self.assertEqual(rows[0]["trade_date"], "2026-09-01")
+        self.assertEqual(rows[0]["open"], 402.12)
+        self.assertEqual(rows[0]["close"], 410.77)
+
     def test_benchmark_digest_ignores_lineage_timestamps(self):
         base={"benchmark_symbol":"TPEX","market":"TPEX","trade_date":"2026-09-16","close":405.0,"source":"x"}
         self.assertEqual(benchmark_digest([{**base,"source_timestamp":"a","ingested_at":"a"}]), benchmark_digest([{**base,"source_timestamp":"b","ingested_at":"b"}]))

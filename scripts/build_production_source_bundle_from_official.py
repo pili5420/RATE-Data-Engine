@@ -135,6 +135,20 @@ def _rows(value: Any) -> list[dict[str, Any]]:
                     row["trading_date"] = value["trading_date"]
                 rows.append(row)
         return rows
+    tables = value.get("tables")
+    if isinstance(tables, list):
+        rows = []
+        for table in tables:
+            if not isinstance(table, Mapping):
+                continue
+            fields = table.get("fields") if isinstance(table.get("fields"), list) else None
+            data = table.get("data") if isinstance(table.get("data"), list) else []
+            for row in data:
+                if isinstance(row, dict):
+                    rows.append(row)
+                elif fields and isinstance(row, list):
+                    rows.append(dict(zip(fields, row)))
+        return rows
     for key in ("records", "data", "decision_input_records", "normalized_records", "rows"):
         rows = value.get(key)
         if isinstance(rows, list):
@@ -631,11 +645,17 @@ def _build_official_rolling_technical_source(*, universe_binding: Mapping[str, A
     by_symbol = {str(item["symbol"]): item["technical_features"] for item in scored}
     records = []
     for symbol in expected:
+        benchmark_symbol = "TAIEX" if latest_market[symbol] == "TWSE" else "TPEX"
         records.append({
             "symbol": symbol,
             "source": latest_market[symbol],
             "trading_date": trading_date,
             "technical_features": by_symbol[symbol],
+            "Rotation_inputs": {
+                "benchmark": benchmark_symbol,
+                "benchmark_market": latest_market[symbol],
+                "benchmark_history_coverage": len(benchmark_by_symbol[symbol]),
+            },
             "raw_market_history_coverage": len(histories[symbol]),
             "benchmark_history_coverage": len(benchmark_by_symbol[symbol]),
             "initial_history_seed_used": True,
@@ -666,7 +686,7 @@ def _build_official_rolling_technical_source(*, universe_binding: Mapping[str, A
 
 def _domain_record(row: Mapping[str, Any], *, source: str, trading_date: str) -> dict[str, Any]:
     copied = dict(row)
-    copied.setdefault("symbol", _symbol(row.get("symbol") or row.get("stock_id") or row.get("stock_code") or row.get("company_code") or row.get("公司代號") or row.get("證券代號")))
+    copied.setdefault("symbol", _symbol(row.get("symbol") or row.get("stock_id") or row.get("stock_code") or row.get("company_code") or row.get("公司代號") or row.get("證券代號") or row.get("代號")))
     official_date = next((value for key, value in row.items() if "資料日期" in str(key)), None)
     copied.setdefault("effective_date", _normalize_source_date(row.get("effective_date") or row.get("published_date") or row.get("publication_date") or row.get("trading_date") or row.get("出表日期") or official_date or trading_date))
     return _normalize_record(copied, source, trading_date)
@@ -740,7 +760,7 @@ def _normalize_dataset_entry(entry: Mapping[str, Any], fetched: Mapping[str, Any
         elif domain == "institutional":
             for row in rows:
                 mapped = dict(row)
-                foreign_net = mapped.get("NetBuy", mapped.get("買賣超股數", mapped.get("外資買賣超股數", mapped.get("外陸資買賣超股數(不含外資自營商)", mapped.get("外陸資買賣超股數")))))
+                foreign_net = mapped.get("NetBuy", mapped.get("買賣超股數", mapped.get("外資買賣超股數", mapped.get("外陸資買賣超股數(不含外資自營商)", mapped.get("外陸資買賣超股數", mapped.get("三大法人買賣超股數合計"))))))
                 trust_net = mapped.get("投信買賣超股數", mapped.get("InvestmentTrustNet"))
                 if foreign_net is not None and "FI" not in mapped:
                     mapped["FI"] = _number(foreign_net)
@@ -765,7 +785,12 @@ def _normalize_dataset_entry(entry: Mapping[str, Any], fetched: Mapping[str, Any
                 mapped["trading_date"] = trading_date
                 mapped["effective_date"] = trading_date
                 if "Stage_inputs" not in mapped:
-                    mapped["Stage_inputs"] = {"trading_status": "NORMAL", "issuer_name": mapped.get("公司名稱"), "listed_date": mapped.get("上市日期")}
+                    mapped["Stage_inputs"] = {
+                        "trading_status": "NORMAL",
+                        "issuer_name": mapped.get("公司名稱") or mapped.get("CompanyName"),
+                        "listed_date": mapped.get("上市日期"),
+                        "listed_market": source,
+                    }
                 if "Stage_evidence" not in mapped:
                     mapped["Stage_evidence"] = {"metadata_source": "official_machine_readable", "parser": entry.get("parser")}
                 records.append(_domain_record(mapped, source=source, trading_date=trading_date))
@@ -797,6 +822,13 @@ class RegistryDatasetAdapter(OfficialSourceAdapter):
                 return {"source": self.source, "provider": self.provider, "dataset_id": self.entry.get("dataset_id"), "domain": self.entry.get("domain"), "status": "PASS", "endpoint": result.get("endpoint"), "http_status": (result.get("diagnostics") or {}).get("http_status"), "content_type": (result.get("diagnostics") or {}).get("content_type"), "parse_status": "PASS", "body_sha256": result.get("content_hash"), "raw_payload": _rows(result.get("raw_payload")), "record_count": len(_rows(result.get("raw_payload"))), "retrieval_timestamp": result.get("retrieval_timestamp") or utc_now(), "parser_version": self.parser_version}
             except Exception as exc:
                 return {"source": self.source, "provider": self.provider, "dataset_id": self.entry.get("dataset_id"), "domain": self.entry.get("domain"), "status": "BLOCKED", "blocking_reason": f"TWSE_T86_DATE_AWARE_FETCH_FAIL:{type(exc).__name__}:{exc}", "records": [], "endpoint": self.entry.get("endpoint"), "http_status": None, "parse_status": "FAIL", "record_count": 0, "retrieval_timestamp": utc_now(), "parser_version": self.parser_version}
+        if self.entry.get("parser") == "TPEX_INSTITUTIONAL_DAILY_V1" and not (str(self.entry.get("endpoint") or "").startswith("file://") and _is_test_context()):
+            try:
+                result = LiveTPExAdapter().fetch_institutional_daily(self.trading_date)
+                rows = _rows(result.get("raw_payload"))
+                return {"source": self.source, "provider": self.provider, "dataset_id": self.entry.get("dataset_id"), "domain": self.entry.get("domain"), "status": "PASS", "endpoint": result.get("endpoint"), "http_status": (result.get("diagnostics") or {}).get("http_status"), "content_type": (result.get("diagnostics") or {}).get("content_type"), "parse_status": "PASS", "body_sha256": result.get("content_hash"), "raw_payload": rows, "record_count": len(rows), "retrieval_timestamp": result.get("retrieval_timestamp") or utc_now(), "parser_version": self.parser_version}
+            except Exception as exc:
+                return {"source": self.source, "provider": self.provider, "dataset_id": self.entry.get("dataset_id"), "domain": self.entry.get("domain"), "status": "BLOCKED", "blocking_reason": f"TPEX_INSTITUTIONAL_DATE_AWARE_FETCH_FAIL:{type(exc).__name__}:{exc}", "records": [], "endpoint": self.entry.get("endpoint"), "http_status": None, "parse_status": "FAIL", "record_count": 0, "retrieval_timestamp": utc_now(), "parser_version": self.parser_version}
         return super().fetch()
 
 
