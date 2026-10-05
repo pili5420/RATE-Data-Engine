@@ -14,7 +14,7 @@ from scripts import build_production_source_bundle_from_official as builder
 
 class Response:
     status = 200
-    def __init__(self, body=b'[{"SecuritiesCompanyCode":"6274"}]', length=None):
+    def __init__(self, body=b'[{"SecuritiesCompanyCode":"6274","Date":"1151002"}]', length=None):
         self.body = body
         self.headers = {"Content-Type": "application/json", "Date": "Fri, 02 Oct 2026 08:00:00 GMT"}
         if length is not None:
