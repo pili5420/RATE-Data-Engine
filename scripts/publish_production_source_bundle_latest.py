@@ -21,6 +21,13 @@ CADENCE_FRESHNESS_MINUTES = {"07:30": 180, "09:30": 45, "12:00": 90, "19:30": 18
 REQUIRED_DECISION_RECORD_COUNT = 30
 EOD_REQUIRED_DATASETS = ["benchmark", "fundamental", "institutional", "large_holder", "market_daily", "trading_metadata"]
 INTRADAY_REQUIRED_DATASETS = [*EOD_REQUIRED_DATASETS, "market_intraday"]
+DELIVERY_TARGET_KINDS = {
+    "production_bundle_snapshot",
+    "production_bundle_immutable",
+    "thin_work_manifest",
+    "production_bundle_latest",
+    "thin_work_manifest_latest",
+}
 
 
 def canonical(value: Any) -> str:
@@ -46,6 +53,59 @@ def atomic_write_json(path: Path, value: Any) -> None:
             os.unlink(tmp)
         except FileNotFoundError:
             pass
+
+
+def canonical_delivery_target(path: str | Path) -> str:
+    return Path(path).as_posix()
+
+
+def build_delivery_targets(
+    *,
+    snapshot_path: Path,
+    immutable_bundle_path: Path,
+    manifest_path: Path,
+    latest_path: Path,
+    manifest_latest_path: Path,
+) -> list[dict[str, str]]:
+    return [
+        {"kind": "production_bundle_snapshot", "path": canonical_delivery_target(snapshot_path)},
+        {"kind": "production_bundle_immutable", "path": canonical_delivery_target(immutable_bundle_path)},
+        {"kind": "thin_work_manifest", "path": canonical_delivery_target(manifest_path)},
+        {"kind": "production_bundle_latest", "path": canonical_delivery_target(latest_path)},
+        {"kind": "thin_work_manifest_latest", "path": canonical_delivery_target(manifest_latest_path)},
+    ]
+
+
+def validate_delivery_targets(delivery_targets: list[Mapping[str, Any]]) -> dict:
+    errors: list[str] = []
+    seen: dict[str, dict[str, Any]] = {}
+    duplicate_pairs: list[dict[str, Any]] = []
+    for index, target in enumerate(delivery_targets):
+        kind = str(target.get("kind") or "")
+        path = target.get("path")
+        if kind not in DELIVERY_TARGET_KINDS:
+            errors.append(f"INVALID_DELIVERY_TARGET_KIND:{kind or '<missing>'}")
+        if not path:
+            errors.append(f"MISSING_DELIVERY_TARGET_PATH:{kind or index}")
+            continue
+        canonical_path = canonical_delivery_target(str(path))
+        if canonical_path in seen:
+            duplicate_pairs.append({
+                "error": "DUPLICATE_DELIVERY_TARGET",
+                "canonical_path": canonical_path,
+                "first": seen[canonical_path],
+                "second": {"index": index, "kind": kind, "path": str(path)},
+            })
+        else:
+            seen[canonical_path] = {"index": index, "kind": kind, "path": str(path)}
+    if duplicate_pairs:
+        errors.append("DUPLICATE_DELIVERY_TARGET")
+    return {
+        "validation_status": "PASS" if not errors else "FAIL",
+        "errors": errors,
+        "duplicate_pairs": duplicate_pairs,
+        "target_count": len(delivery_targets),
+    }
 
 
 def load_json(path: str | Path) -> Any:
@@ -198,6 +258,21 @@ def publish_latest(*, source_bundle_path: str | Path, trading_date: str, cadence
     immutable_bundle_path = snapshot_dir / "RATE_PRODUCTION_SOURCE_BUNDLE.json"
     manifest_path = snapshot_dir / MANIFEST_FILE_NAME
     manifest_latest_path = root / MANIFEST_LATEST_NAME
+    delivery_targets = build_delivery_targets(
+        snapshot_path=snapshot_path,
+        immutable_bundle_path=immutable_bundle_path,
+        manifest_path=manifest_path,
+        latest_path=latest_path,
+        manifest_latest_path=manifest_latest_path,
+    )
+    delivery_target_validation = validate_delivery_targets(delivery_targets)
+    evidence["delivery_targets"] = delivery_targets
+    evidence["delivery_target_validation"] = delivery_target_validation
+    if delivery_target_validation["validation_status"] != "PASS":
+        evidence["blocking_reason"] = "DUPLICATE_DELIVERY_TARGET" if "DUPLICATE_DELIVERY_TARGET" in delivery_target_validation["errors"] else "DELIVERY_TARGET_VALIDATION_NOT_PASS"
+        if evidence_output:
+            atomic_write_json(Path(evidence_output), evidence)
+        return evidence
     atomic_write_json(immutable_bundle_path, snapshot["bundle"])
     manifest = build_shadow_manifest(
         production_artifact_path=immutable_bundle_path,
@@ -265,6 +340,8 @@ def publish_latest(*, source_bundle_path: str | Path, trading_date: str, cadence
         "thin_work_manifest_latest_path": str(manifest_latest_path).replace("\\", "/"),
         "thin_work_manifest_sha256": manifest["manifest_sha256"],
         "manifest_validation": manifest_validation,
+        "delivery_targets": delivery_targets,
+        "delivery_target_validation": delivery_target_validation,
         "latest_updated": True,
         "publish_result": "PASS",
     })

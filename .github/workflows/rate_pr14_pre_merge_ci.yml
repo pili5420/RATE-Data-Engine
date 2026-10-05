@@ -1,0 +1,43 @@
+name: RATE PR14 Pre-Merge CI
+
+on:
+  pull_request:
+    paths:
+      - "scripts/publish_production_source_bundle_latest.py"
+      - "src/thin_work_manifest.py"
+      - "tests/test_production_source_latest_publisher.py"
+      - "tests/test_thin_work_manifest.py"
+      - "tests/test_rate_production_source_acquisition.py"
+      - "tests/test_production_scheduler_change_control.py"
+      - "tests/test_production_integration.py"
+      - "tests/test_state_engine.py"
+      - ".github/workflows/rate_pr14_pre_merge_ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Delivery target verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run PR14 delivery target regression
+        env:
+          RATE_DETERMINISTIC_TEST: "1"
+        run: >-
+          python -m unittest
+          tests.test_production_source_latest_publisher
+          tests.test_thin_work_manifest
+          tests.test_rate_production_source_acquisition
+          tests.test_production_scheduler_change_control
+          tests.test_production_integration
+          tests.test_state_engine
+          -v
