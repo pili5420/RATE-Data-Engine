@@ -1,6 +1,8 @@
 
 import json
 import shutil
+import subprocess
+import sys
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
@@ -63,6 +65,11 @@ class ProductionSourceLatestPublisherTests(unittest.TestCase):
         self.assertEqual(manifest["production_snapshot_id"], latest["production_snapshot_id"])
         self.assertEqual(manifest["run_id"], "run-1")
         self.assertEqual(validate_shadow_manifest(manifest, root=Path("."), expected_run_id="run-1", expected_production_snapshot_id=latest["production_snapshot_id"])["validation_status"], "PASS")
+
+    def test_direct_script_execution_imports_repository_modules(self):
+        result = subprocess.run([sys.executable, "scripts/publish_production_source_bundle_latest.py", "--help"], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--source-bundle", result.stdout)
 
     def test_normal_1930_publication_has_unique_delivery_targets(self):
         self.write_bundle(self.bundle())

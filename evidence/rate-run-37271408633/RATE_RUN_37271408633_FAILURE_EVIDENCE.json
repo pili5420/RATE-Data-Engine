@@ -1,0 +1,73 @@
+{
+  "artifact": "RATE_RUN_37271408633_FAILURE_EVIDENCE",
+  "repository": "pili5420/RATE-Data-Engine",
+  "run_id": "37271408633",
+  "job_id": "111639010546",
+  "job_name": "source-acquisition",
+  "head_branch": "main",
+  "head_sha": "640886b5555a334e79860efcc1cacb278f9949e6",
+  "classification": {
+    "case": "B",
+    "defect_id": "RATE-PROD-PUBLISH-002",
+    "defect_type": "DETERMINISTIC_ENGINEERING_DEFECT",
+    "not_duplicate_delivery_target": true,
+    "not_nodejs_deprecation": true,
+    "not_transient_external_source_failure": true
+  },
+  "exact_failed_step": {
+    "number": 7,
+    "name": "Materialize Production bundle and Thin Work manifest",
+    "conclusion": "failure",
+    "started_at": "2026-10-05T06:23:07Z",
+    "completed_at": "2026-10-05T06:23:07Z"
+  },
+  "command": "python scripts/publish_production_source_bundle_latest.py --source-bundle artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_BUNDLE.json --trading-date \"2026-10-02\" --cadence \"19:30\" --artifacts-root artifacts --workflow-run-id \"37271408633\" --workflow-job-id \"source-acquisition\" --evidence-output artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST_UPDATE_EVIDENCE.json",
+  "exact_error": "ModuleNotFoundError: No module named 'src'",
+  "stack_trace": [
+    "Traceback (most recent call last):",
+    "  File \"/home/runner/work/RATE-Data-Engine/RATE-Data-Engine/scripts/publish_production_source_bundle_latest.py\", line 13, in <module>",
+    "    from src.thin_work_manifest import build_shadow_manifest, validate_shadow_manifest",
+    "ModuleNotFoundError: No module named 'src'"
+  ],
+  "exit_code": 1,
+  "immediate_failing_function": "module import: scripts/publish_production_source_bundle_latest.py imports src.thin_work_manifest before repository root is present on sys.path during direct script execution",
+  "input_material": {
+    "source_bundle": "artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_BUNDLE.json",
+    "trading_date": "2026-10-02",
+    "cadence": "19:30",
+    "artifacts_root": "artifacts",
+    "workflow_run_id": "37271408633",
+    "workflow_job_id": "source-acquisition",
+    "evidence_output": "artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST_UPDATE_EVIDENCE.json"
+  },
+  "upstream_gate_status": {
+    "stage_formal_source_contract_artifacts": "success",
+    "materialize_bounded_official_history_store": "success",
+    "build_official_production_source_bundle_only": "success"
+  },
+  "production_bundle_status": {
+    "validation_status": "PASS",
+    "source_status": "PASS",
+    "freshness_status": "PASS",
+    "freshness_matrix_validation_status": "PASS",
+    "production_snapshot_id": "rate-source-snapshot-5ce46fd0c2cec16831b0a916"
+  },
+  "thin_work_manifest_status": {
+    "status": "NOT_MATERIALIZED",
+    "reason": "publish script failed during import before manifest construction"
+  },
+  "authoritative_artifacts_committed_to_main": false,
+  "commit_step_status": "skipped",
+  "uploaded_artifact": {
+    "name": "RATE_PRODUCTION_SOURCE_ACQUISITION_2026-10-02_37271408633",
+    "artifact_id": "11328524229",
+    "digest": "sha256:de1ed9d75623e69ec6b76da100bb87186e3ed08f8792f357a9ff487b7382bbdd",
+    "uploaded_file_count": 11
+  },
+  "artifact_note": "Uploaded RATE_PRODUCTION_SOURCE_BUNDLE_LATEST_UPDATE_EVIDENCE.json exists in the artifact bundle but has production_snapshot_id rate-source-snapshot-a8d2427c8aab195c3af1debf, which does not match this run's production bundle snapshot rate-source-snapshot-5ce46fd0c2cec16831b0a916. Because the failed step exited during import, this file is not evidence of successful publication for run 37271408633.",
+  "nodejs_deprecation_warning": {
+    "observed": true,
+    "classification": "NON_BLOCKING_MAINTENANCE_DEBT",
+    "production_failure": false
+  }
+}
