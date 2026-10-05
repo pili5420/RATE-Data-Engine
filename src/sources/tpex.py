@@ -1,5 +1,6 @@
 from __future__ import annotations
 from .base import fetch_json, provenance
+from .tpex_transport import fetch_official_json, TPExJSONTransportError
 import base64, hashlib, html, json, os, re, time
 from datetime import date, datetime, timezone
 from urllib.request import Request, urlopen, build_opener, HTTPRedirectHandler
@@ -92,54 +93,10 @@ def _retryable_http_error(exc: HTTPError) -> bool:
     return getattr(exc, "code", None) in {408, 429, 500, 502, 503, 504}
 
 def _resilient_tpex_current_daily_json(endpoint: str = CURRENT_DAILY_ENDPOINT, retries: int = 3):
-    last = None
-    diagnostics = {}
-    for attempt in range(retries):
-        try:
-            req = Request(endpoint, headers={
-                "User-Agent": "RATE-Data-Engine/1.0",
-                "Accept": "application/json",
-            })
-            with urlopen(req, timeout=30) as response:
-                body = response.read()
-                status = getattr(response, "status", None)
-                if status is None:
-                    status = response.getcode()
-                content_type = response.headers.get("Content-Type", "")
-            diagnostics = {
-                "http_status": status,
-                "content_type": content_type,
-                "response_bytes": len(body),
-                "body_sha256": hashlib.sha256(body).hexdigest(),
-                "attempt_count": attempt + 1,
-                "parse_status": "NOT_RUN",
-                "official_endpoint": endpoint,
-            }
-            if status != 200:
-                raise RuntimeError(f"TPEX_CURRENT_DAILY_HTTP_{status}")
-            if not body:
-                raise RuntimeError("TPEX_CURRENT_DAILY_EMPTY_RESPONSE")
-            payload = json.loads(body.decode("utf-8-sig"))
-            rows = payload if isinstance(payload, list) else payload.get("records") if isinstance(payload, dict) else None
-            if not isinstance(rows, list) or not rows:
-                raise RuntimeError("TPEX_CURRENT_DAILY_STRUCTURAL_VALIDATION_FAILED")
-            diagnostics["parse_status"] = "PASS"
-            diagnostics["record_count"] = len(rows)
-            return {"payload": payload, "body_sha256": diagnostics["body_sha256"], "diagnostics": diagnostics}
-        except HTTPError as exc:
-            last = exc
-            diagnostics = {"http_status": getattr(exc, "code", None), "attempt_count": attempt + 1, "parse_status": "FAIL", "official_endpoint": endpoint}
-            if not _retryable_http_error(exc):
-                break
-            if attempt + 1 < retries:
-                time.sleep(2 ** attempt)
-        except (IncompleteRead, ConnectionError, TimeoutError, URLError, json.JSONDecodeError, RuntimeError) as exc:
-            last = exc
-            diagnostics = {**diagnostics, "attempt_count": attempt + 1, "parse_status": "FAIL", "official_endpoint": endpoint}
-            if attempt + 1 < retries:
-                time.sleep(2 ** attempt)
-    detail = type(last).__name__ if last is not None else "UNKNOWN"
-    raise RuntimeError(f"TPEX_CURRENT_DAILY_RETRIEVAL_FAILED:{detail}") from last
+    request = Request(endpoint, headers={
+        "User-Agent": "RATE-Data-Engine/1.0", "Accept": "application/json"})
+    return fetch_official_json(request, opener=urlopen, attempts=retries,
+        blocking_reason="TPEX_CURRENT_DAILY_RETRIEVAL_FAILED")
 
 class TPExAdapter:
     provider = "TPEx Official OpenAPI"
@@ -362,100 +319,38 @@ class TPExDailyTransportError(RuntimeError):
 
 
 def _resilient_tpex_daily_json(endpoint: str, params: dict, retries: int = 3):
-    """Current dailyTrade transport with bounded transient retries and diagnostics."""
-    body = urlencode(params).encode("utf-8")
-    history = []
-    for attempt in range(1, retries + 1):
-        redirects = _RedirectCounter()
-        request = Request(endpoint, data=body, headers={
-            "User-Agent": "RATE-Data-Engine/1.0 (+https://github.com/pili5420/RATE-Data-Engine)",
-            "Accept": "application/json",
-            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-        }, method="POST")
-        opener = build_opener(redirects)
-        response_body = b""
-        status = None
-        headers = None
-        final_url = endpoint
-        try:
-            with opener.open(request, timeout=30) as response:
-                response_body = response.read()
-                status = response.status
-                headers = response.headers
-                final_url = response.geturl()
-        except HTTPError as exc:
-            status, headers = exc.code, exc.headers
-            final_url = exc.geturl() or endpoint
-            try:
-                response_body = exc.read(4096)
-            except Exception:
-                response_body = b""
-            diagnostic = {
-                "requested_url": endpoint, "request_path": Request(endpoint).full_url,
-                "request_method": "POST", "request_params": params,
-                "http_status": status, "final_url": final_url, "redirect_count": redirects.count,
-                "content_type": headers.get("Content-Type", "") if headers else "",
-                "content_length": headers.get("Content-Length") if headers else None,
-                "response_bytes": len(response_body), "body_sha256": hashlib.sha256(response_body).hexdigest(),
-                "body_prefix_class": _body_prefix_class(response_body),
-                "first_safe_body_characters": _safe_body_prefix(response_body), "attempt": attempt,
-            }
-            history.append(diagnostic)
-            if status == 429 or 500 <= status < 600:
-                if attempt < retries:
-                    time.sleep(min(2 ** (attempt - 1), 8))
-                    continue
-            diagnostic["attempt_history"] = history
-            raise TPExDailyTransportError(f"TPEX_INSTITUTIONAL_DAILY_HTTP_{status}", diagnostic) from exc
-        except (IncompleteRead, ConnectionError, TimeoutError, URLError, OSError) as exc:
-            partial = getattr(exc, "partial", b"")
-            response_body = partial if isinstance(partial, bytes) else b""
-            diagnostic = {"requested_url": endpoint, "request_method": "POST", "request_params": params,
-                "http_status": None, "final_url": final_url, "redirect_count": redirects.count,
-                "content_type": "", "content_length": None, "response_bytes": len(response_body),
-                "body_sha256": hashlib.sha256(response_body).hexdigest(),
-                "body_prefix_class": _body_prefix_class(response_body),
-                "first_safe_body_characters": _safe_body_prefix(response_body), "attempt": attempt,
-                "transport_exception": type(exc).__name__}
-            history.append(diagnostic)
-            if attempt < retries:
-                time.sleep(min(2 ** (attempt - 1), 8))
-                continue
-            diagnostic["attempt_history"] = history
-            raise TPExDailyTransportError(f"TPEX_INSTITUTIONAL_DAILY_TRANSPORT_FAILED:{type(exc).__name__}", diagnostic) from exc
-        diagnostic = {
-            "requested_url": endpoint, "request_path": Request(endpoint).full_url,
+    redirects = _RedirectCounter()
+    request = Request(endpoint, data=urlencode(params).encode("utf-8"), headers={
+        "User-Agent": "RATE-Data-Engine/1.0 (+https://github.com/pili5420/RATE-Data-Engine)",
+        "Accept": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+    }, method="POST")
+    opener = build_opener(redirects)
+    try:
+        result = fetch_official_json(request, opener=opener.open, attempts=retries,
+            blocking_reason="TPEX_INSTITUTIONAL_DAILY_TRANSPORT_FAILED")
+    except TPExJSONTransportError as exc:
+        diagnostic = {**exc.diagnostics, "requested_url": endpoint,
             "request_method": "POST", "request_params": params,
-            "http_status": status, "final_url": final_url, "redirect_count": redirects.count,
-            "content_type": headers.get("Content-Type", "") if headers else "",
-            "content_length": headers.get("Content-Length") if headers else None,
-            "response_bytes": len(response_body), "body_sha256": hashlib.sha256(response_body).hexdigest(),
-            "body_prefix_class": _body_prefix_class(response_body),
-            "first_safe_body_characters": _safe_body_prefix(response_body), "attempt": attempt,
-            "http_date": headers.get("Date") if headers else None,
-        }
-        history.append(diagnostic)
-        if not response_body:
-            diagnostic["json_decode_status"] = "FAIL:EMPTY"
-            raise TPExDailyTransportError("TPEX_INSTITUTIONAL_DAILY_EMPTY_RESPONSE", diagnostic)
-        try:
-            payload = json.loads(response_body.decode("utf-8-sig"))
-        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            diagnostic["json_decode_status"] = "FAIL:" + type(exc).__name__
-            diagnostic["attempt_history"] = history
-            raise TPExDailyTransportError("TPEX_INSTITUTIONAL_DAILY_NON_JSON_RESPONSE", diagnostic) from exc
-        diagnostic["json_decode_status"] = "PASS"
-        diagnostic["top_level_keys"] = list(payload.keys()) if isinstance(payload, dict) else []
-        tables = payload.get("tables", []) if isinstance(payload, dict) else []
-        diagnostic["table_count"] = len(tables) if isinstance(tables, list) else 0
-        first_table = tables[0] if tables and isinstance(tables[0], dict) else {}
-        fields = first_table.get("fields") or (payload.get("fields") if isinstance(payload, dict) else []) or []
-        data = first_table.get("data") or (payload.get("data") if isinstance(payload, dict) else []) or []
-        diagnostic["response_field_names"] = list(fields) if isinstance(fields, list) else []
-        diagnostic["table_title"] = first_table.get("title") or first_table.get("subtitle") or first_table.get("name")
-        diagnostic["record_count"] = len(data) if isinstance(data, list) else 0
-        diagnostic["response_date"] = first_table.get("date") or (payload.get("date") if isinstance(payload, dict) else None)
-        diagnostic["response_date_location"] = "tables[0].date" if first_table.get("date") else ("date" if diagnostic["response_date"] else None)
-        diagnostic["attempt_history"] = history
-        return {"payload": payload, "body_sha256": diagnostic["body_sha256"], "diagnostics": diagnostic}
-    raise RuntimeError("TPEX_INSTITUTIONAL_DAILY_RETRIES_EXHAUSTED")
+            "redirect_count": redirects.count,
+            "json_decode_status": "FAIL:" + str(exc.diagnostics.get("exception_type")),
+            "body_prefix_class": _body_prefix_class(str(exc.diagnostics.get("first_safe_body_characters") or "").encode())}
+        raise TPExDailyTransportError(str(exc), diagnostic) from exc
+    payload = result["payload"]
+    diagnostic = result["diagnostics"]
+    diagnostic.update({"requested_url": endpoint, "request_path": request.full_url,
+        "request_method": "POST", "request_params": params,
+        "redirect_count": redirects.count, "json_decode_status": "PASS",
+        "content_length": diagnostic.get("content_length_header"),
+        "body_prefix_class": _body_prefix_class(diagnostic["first_safe_body_characters"].encode()),
+        "attempt_history": diagnostic["attempts"],
+        "top_level_keys": list(payload) if isinstance(payload, dict) else []})
+    tables = payload.get("tables", []) if isinstance(payload, dict) else []
+    diagnostic["table_count"] = len(tables) if isinstance(tables, list) else 0
+    first_table = tables[0] if tables and isinstance(tables[0], dict) else {}
+    fields = first_table.get("fields") or (payload.get("fields") if isinstance(payload, dict) else []) or []
+    diagnostic["response_field_names"] = list(fields) if isinstance(fields, list) else []
+    diagnostic["table_title"] = first_table.get("title") or first_table.get("subtitle") or first_table.get("name")
+    diagnostic["response_date"] = first_table.get("date") or (payload.get("date") if isinstance(payload, dict) else None)
+    diagnostic["response_date_location"] = "tables[0].date" if first_table.get("date") else ("date" if diagnostic["response_date"] else None)
+    return result

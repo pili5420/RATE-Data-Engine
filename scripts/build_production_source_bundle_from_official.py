@@ -17,6 +17,7 @@ from src.live_decision_inputs import build_live_decision_records
 from src.historical_store import PersistentHistoricalStore, normalize_stock_record
 from src.sources.twse import TWSEAdapter as LiveTWSEAdapter
 from src.sources.tpex import TPExAdapter as LiveTPExAdapter
+from src.sources.tpex_transport import fetch_official_json
 from src.technical_features import compute_scores
 from scripts.publish_production_source_bundle_latest import CADENCE_FRESHNESS_MINUTES, validate_production_source_bundle
 
@@ -195,6 +196,10 @@ def _host_allowed(source: str, url: str) -> bool:
 
 def fetch_url(url: str, timeout: int = 20) -> dict[str, Any]:
     request = urllib.request.Request(url, headers={"User-Agent": "RATE-Production-Source-Acquisition/1.0", "Accept": "application/json,text/plain,*/*"})
+    if url == "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap05_O":
+        result = fetch_official_json(request, opener=urllib.request.urlopen)
+        return {"url": url, **result["diagnostics"], "retrieval_timestamp": utc_now(),
+                "json_parse_status": "PASS", "raw_payload": result["payload"]}
     with urllib.request.urlopen(request, timeout=timeout) as response:
         body = response.read(20_000_000)
         content_type = response.headers.get("content-type", "")
@@ -263,9 +268,10 @@ class OfficialSourceAdapter:
             if raw is None:
                 raise RuntimeError("SOURCE_PARSE_FAIL")
             parsed = self.parse_raw(raw)
-            return {"source": self.source, "provider": self.provider, "status": "PASS", "endpoint": self.url, "http_status": result.get("http_status"), "content_type": result.get("content_type"), "parse_status": "PASS", "body_sha256": result.get("body_sha256"), "raw_payload": parsed, "record_count": len(parsed), "retrieval_timestamp": result.get("retrieval_timestamp"), "parser_version": self.parser_version}
+            transport = {key: result[key] for key in ("attempt_count", "attempts", "final_attempt", "response_bytes", "content_length_header", "fallback_used") if key in result}
+            return {**transport, "source": self.source, "provider": self.provider, "status": "PASS", "endpoint": self.url, "http_status": result.get("http_status"), "content_type": result.get("content_type"), "parse_status": "PASS", "body_sha256": result.get("body_sha256"), "raw_payload": parsed, "record_count": len(parsed), "retrieval_timestamp": result.get("retrieval_timestamp"), "parser_version": self.parser_version}
         except Exception as exc:
-            return {"source": self.source, "provider": self.provider, "status": "BLOCKED", "blocking_reason": f"{self.source}_FETCH_OR_PARSE_FAIL:{type(exc).__name__}:{exc}", "records": [], "endpoint": self.url, "http_status": None, "parse_status": "FAIL", "record_count": 0, "retrieval_timestamp": utc_now(), "parser_version": self.parser_version}
+            return {"source": self.source, "provider": self.provider, "status": "BLOCKED", "blocking_reason": f"{self.source}_FETCH_OR_PARSE_FAIL:{type(exc).__name__}:{exc}", "records": [], "endpoint": self.url, "http_status": None, "parse_status": "FAIL", "record_count": 0, "retrieval_timestamp": utc_now(), "parser_version": self.parser_version, **getattr(exc, "diagnostics", {})}
 
     def parse_raw(self, raw: Any) -> list[dict[str, Any]]:
         rows = _rows(raw)
@@ -826,9 +832,9 @@ class RegistryDatasetAdapter(OfficialSourceAdapter):
             try:
                 result = LiveTPExAdapter().fetch_institutional_daily(self.trading_date)
                 rows = _rows(result.get("raw_payload"))
-                return {"source": self.source, "provider": self.provider, "dataset_id": self.entry.get("dataset_id"), "domain": self.entry.get("domain"), "status": "PASS", "endpoint": result.get("endpoint"), "http_status": (result.get("diagnostics") or {}).get("http_status"), "content_type": (result.get("diagnostics") or {}).get("content_type"), "parse_status": "PASS", "body_sha256": result.get("content_hash"), "raw_payload": rows, "record_count": len(rows), "retrieval_timestamp": result.get("retrieval_timestamp") or utc_now(), "parser_version": self.parser_version}
+                return {"source": self.source, "provider": self.provider, "dataset_id": self.entry.get("dataset_id"), "domain": self.entry.get("domain"), "status": "PASS", "endpoint": result.get("endpoint"), "http_status": (result.get("diagnostics") or {}).get("http_status"), "content_type": (result.get("diagnostics") or {}).get("content_type"), "parse_status": "PASS", "body_sha256": result.get("content_hash"), "raw_payload": rows, "record_count": len(rows), "retrieval_timestamp": result.get("retrieval_timestamp") or utc_now(), "parser_version": self.parser_version, **{key: (result.get("diagnostics") or {})[key] for key in ("attempt_count", "attempts", "final_attempt", "response_bytes", "content_length_header", "fallback_used") if key in (result.get("diagnostics") or {})}}
             except Exception as exc:
-                return {"source": self.source, "provider": self.provider, "dataset_id": self.entry.get("dataset_id"), "domain": self.entry.get("domain"), "status": "BLOCKED", "blocking_reason": f"TPEX_INSTITUTIONAL_DATE_AWARE_FETCH_FAIL:{type(exc).__name__}:{exc}", "records": [], "endpoint": self.entry.get("endpoint"), "http_status": None, "parse_status": "FAIL", "record_count": 0, "retrieval_timestamp": utc_now(), "parser_version": self.parser_version}
+                return {"source": self.source, "provider": self.provider, "dataset_id": self.entry.get("dataset_id"), "domain": self.entry.get("domain"), "status": "BLOCKED", "blocking_reason": f"TPEX_INSTITUTIONAL_DATE_AWARE_FETCH_FAIL:{type(exc).__name__}:{exc}", "records": [], "endpoint": self.entry.get("endpoint"), "http_status": None, "parse_status": "FAIL", "record_count": 0, "retrieval_timestamp": utc_now(), "parser_version": self.parser_version, **getattr(exc, "diagnostics", {})}
         if self.entry.get("parser") in {"TPEX_MARKET_DAILY_RAW_V1", "TPEX_TRADING_METADATA_V1"} and not (str(self.entry.get("endpoint") or "").startswith("file://") and _is_test_context()):
             try:
                 result = LiveTPExAdapter().fetch_daily()
@@ -836,9 +842,9 @@ class RegistryDatasetAdapter(OfficialSourceAdapter):
                 diagnostics = result.get("diagnostics") or {}
                 if not rows:
                     raise RuntimeError("TPEX_CURRENT_DAILY_NO_RECORDS")
-                return {"source": self.source, "provider": self.provider, "dataset_id": self.entry.get("dataset_id"), "domain": self.entry.get("domain"), "status": "PASS", "endpoint": result.get("endpoint"), "http_status": diagnostics.get("http_status"), "content_type": diagnostics.get("content_type"), "parse_status": diagnostics.get("parse_status") or "PASS", "body_sha256": result.get("content_hash"), "attempt_count": diagnostics.get("attempt_count"), "response_bytes": diagnostics.get("response_bytes"), "raw_payload": rows, "record_count": len(rows), "retrieval_timestamp": result.get("retrieval_timestamp") or utc_now(), "parser_version": self.parser_version}
+                return {"source": self.source, "provider": self.provider, "dataset_id": self.entry.get("dataset_id"), "domain": self.entry.get("domain"), "status": "PASS", "endpoint": result.get("endpoint"), "http_status": diagnostics.get("http_status"), "content_type": diagnostics.get("content_type"), "parse_status": diagnostics.get("parse_status") or "PASS", "body_sha256": result.get("content_hash"), "attempt_count": diagnostics.get("attempt_count"), "response_bytes": diagnostics.get("response_bytes"), "raw_payload": rows, "record_count": len(rows), "retrieval_timestamp": result.get("retrieval_timestamp") or utc_now(), "parser_version": self.parser_version, **{key: (result.get("diagnostics") or {})[key] for key in ("attempt_count", "attempts", "final_attempt", "response_bytes", "content_length_header", "fallback_used") if key in (result.get("diagnostics") or {})}}
             except Exception as exc:
-                return {"source": self.source, "provider": self.provider, "dataset_id": self.entry.get("dataset_id"), "domain": self.entry.get("domain"), "status": "BLOCKED", "blocking_reason": f"TPEX_CURRENT_DAILY_RETRIEVAL_FAILED:{type(exc).__name__}:{exc}", "records": [], "endpoint": self.entry.get("endpoint"), "http_status": None, "parse_status": "FAIL", "record_count": 0, "retrieval_timestamp": utc_now(), "parser_version": self.parser_version}
+                return {"source": self.source, "provider": self.provider, "dataset_id": self.entry.get("dataset_id"), "domain": self.entry.get("domain"), "status": "BLOCKED", "blocking_reason": f"TPEX_CURRENT_DAILY_RETRIEVAL_FAILED:{type(exc).__name__}:{exc}", "records": [], "endpoint": self.entry.get("endpoint"), "http_status": None, "parse_status": "FAIL", "record_count": 0, "retrieval_timestamp": utc_now(), "parser_version": self.parser_version, **getattr(exc, "diagnostics", {})}
         return super().fetch()
 
 

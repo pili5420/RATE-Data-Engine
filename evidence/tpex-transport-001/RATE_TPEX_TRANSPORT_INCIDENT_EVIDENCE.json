@@ -1,0 +1,39 @@
+{
+  "defect_id": "RATE-PROD-TPEX-TRANSPORT-001",
+  "main_sha": "998957fdbbad9eaedc925a0b3ec5c3cb7df1b8c4",
+  "classification": ["INCOMPLETE_READ", "PARTIAL_HTTP_BODY", "TRUNCATED_JSON_RESPONSE", "TRANSIENT_TPEX_TRANSPORT_FAILURE"],
+  "replay_classification": "STRUCTURAL_REPLAY",
+  "evidence_limitations": "Archived artifacts and full job logs were inspected. Failed response bodies and per-attempt telemetry were not retained by the old implementation. Null means unavailable, not zero. Truncated JSON classification is supported by Unterminated string; exact wire truncation cannot be reconstructed without the raw body.",
+  "existing_policy": {"current_daily_max_attempts": 3, "current_daily_backoff_seconds": [1, 2], "current_daily_socket_timeout_seconds": 30, "revenue_max_attempts": 1, "revenue_socket_timeout_seconds": 20, "observed_per_attempt_timing": null},
+  "proposed_policy": {"max_attempts":3,"backoff_seconds":[1,2],"attempt_deadline_seconds":30,"request_total_budget_seconds":95,"production_required_tpex_json_requests":4,"combined_json_budget_seconds":380,"workflow_hard_limit_seconds":1800,"institutional_schema_html_timeout_seconds_unchanged":20,"notes":"No increase in attempt count. Deadline-aware chunk reads bound slow bodies; each request restarts from an empty body. Existing 30-minute workflow timeout remains the overall acquisition hard limit. No eventual external availability guarantee.","source_build_hard_limit_seconds":1200},
+  "incidents": [
+    {
+      "run_id": "37282858561", "job_id": "111674760547",
+      "failed_step": "Build official production source bundle only",
+      "bundle_sha256": "9d9a6c78baf65b625496e1a7d1632fc7eb329eccdab3db9b96b49c41856bb2e4",
+      "full_log_sha256": "29901e6eade6d0fca7a6f90a2bd280c286849134bd425fe3ae8486ba35f74b86",
+      "exit_code": 1, "bundle_validation_status": "BLOCKED", "bundle_blocking_reason": "REQUIRED_DATASET_JOIN_INCOMPLETE",
+      "publication": "SKIPPED", "main_commit": "SKIPPED",
+      "sources": [
+        {"dataset_id": "tpex_market_daily", "endpoint": "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes", "attempt_number": null, "exception_type": "IncompleteRead", "http_status": null, "bytes_received": null, "content_length": null, "body_sha256": null, "parse_status": "FAIL", "final_outcome": "BLOCKED", "retry_timing_backoff": null, "retrieval_timestamp": "2026-10-05T08:28:04.654963Z", "blocking_reason": "TPEX_CURRENT_DAILY_RETRIEVAL_FAILED:RuntimeError:TPEX_CURRENT_DAILY_RETRIEVAL_FAILED:IncompleteRead"},
+        {"dataset_id": "tpex_institutional", "endpoint": "https://www.tpex.org.tw/www/zh-tw/insti/dailyTrade", "attempt_number": null, "exception_type": null, "http_status": 200, "bytes_received": null, "content_length": null, "body_sha256": "dd5ec8507a75208bd64576f850462c21d4f6d33a909997cc5d0b4c0fcc50cafa", "parse_status": "PASS", "final_outcome": "PASS", "retry_timing_backoff": null},
+        {"dataset_id": "tpex_fundamental_revenue", "endpoint": "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap05_O", "attempt_number": null, "exception_type": null, "http_status": 200, "bytes_received": null, "content_length": null, "body_sha256": "f00e3fdd7060db0db943b79dc53d732df940d038ef208a1b075363e06660bd92", "parse_status": "PASS", "final_outcome": "PASS", "retry_timing_backoff": null},
+        {"dataset_id": "tpex_trading_metadata", "endpoint": "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes", "attempt_number": 1, "exception_type": null, "http_status": 200, "bytes_received": 4727516, "content_length": null, "body_sha256": "98a26351473abf0800816db90f608c5f7006fac9293f4ef54163295f0d94025b", "parse_status": "PASS", "final_outcome": "PASS", "retry_timing_backoff": null, "record_count": 12060}
+      ]
+    },
+    {
+      "run_id": "37295383164", "job_id": "111715257323",
+      "failed_step": "Build official production source bundle only",
+      "bundle_sha256": "de082d248995c28d6d04bdad58b8d5627547547bf41b87bf7c7b715d70906445",
+      "full_log_sha256": "fabb49e22add1d8806e085bbf3b80d6a3c184308e75e1770bb90af4c37cd3cdc",
+      "exit_code": 1, "bundle_validation_status": "BLOCKED", "bundle_blocking_reason": "REQUIRED_DATASET_JOIN_INCOMPLETE",
+      "publication": "SKIPPED", "main_commit": "SKIPPED",
+      "sources": [
+        {"dataset_id": "tpex_market_daily", "endpoint": "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes", "attempt_number": null, "exception_type": "IncompleteRead", "http_status": null, "bytes_received": null, "content_length": null, "body_sha256": null, "parse_status": "FAIL", "final_outcome": "BLOCKED", "retry_timing_backoff": null, "retrieval_timestamp": "2026-10-05T10:21:19.069328Z", "blocking_reason": "TPEX_CURRENT_DAILY_RETRIEVAL_FAILED:RuntimeError:TPEX_CURRENT_DAILY_RETRIEVAL_FAILED:IncompleteRead"},
+        {"dataset_id": "tpex_institutional", "endpoint": "https://www.tpex.org.tw/www/zh-tw/insti/dailyTrade", "attempt_number": null, "exception_type": null, "http_status": 200, "bytes_received": null, "content_length": null, "body_sha256": "dd5ec8507a75208bd64576f850462c21d4f6d33a909997cc5d0b4c0fcc50cafa", "parse_status": "PASS", "final_outcome": "PASS", "retry_timing_backoff": null},
+        {"dataset_id": "tpex_fundamental_revenue", "endpoint": "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap05_O", "attempt_number": null, "exception_type": "JSONDecodeError", "http_status": null, "bytes_received": null, "content_length": null, "body_sha256": null, "parse_status": "FAIL", "final_outcome": "BLOCKED", "retry_timing_backoff": null, "retrieval_timestamp": "2026-10-05T10:22:38.824358Z", "blocking_reason": "TPEX_FETCH_OR_PARSE_FAIL:JSONDecodeError:Unterminated string starting at: line 619 column 177 (char 198555)"},
+        {"dataset_id": "tpex_trading_metadata", "endpoint": "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes", "attempt_number": 3, "exception_type": null, "http_status": 200, "bytes_received": 4727518, "content_length": null, "body_sha256": "42a417e335f2d6eee69645f5328914f8fc3427da5cd1a8803aa77f6d39cbdba9", "parse_status": "PASS", "final_outcome": "PASS", "retry_timing_backoff": null, "record_count": 12060, "retrieval_timestamp": "2026-10-05T10:24:17.976122Z"}
+      ]
+    }
+  ]
+}
