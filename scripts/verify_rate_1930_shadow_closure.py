@@ -53,6 +53,8 @@ def main():
                               history_root=history_root, evidence_output=ROOT / "history_evidence.json",
                               max_months=12, minimum_sessions=180, max_runtime_seconds=900)
         report["history"] = history
+        print(json.dumps({"stage": "history", "status": history["status"],
+                          "symbols_materialized": history["symbols_materialized"]}), flush=True)
         if history["status"] != "PASS" or history["symbols_materialized"] != 30:
             raise RuntimeError("HISTORY_MATERIALIZATION_NOT_PASS")
         material, path, file_hash = load_material(history_root, DATE, TPEx_SYMBOLS)
@@ -68,6 +70,8 @@ def main():
                                    requirement_matrix_output=ROOT / "requirements.json",
                                    universe_binding_output=ROOT / "universe.json")
         report["source_acquisition"] = acquisition["validation_status"]
+        print(json.dumps({"stage": "source_acquisition", "status": acquisition["validation_status"],
+                          "coverage": acquisition["coverage"], "blocking_reason": acquisition.get("blocking_reason")}), flush=True)
         bundle = json.loads((ROOT / "bundle.json").read_text())
         report["coverage"] = acquisition["coverage"]
         report["blocking_reason"] = acquisition.get("blocking_reason")

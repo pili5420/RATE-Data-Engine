@@ -850,7 +850,8 @@ class RegistryDatasetAdapter(OfficialSourceAdapter):
                         result = historical_market_daily(trading_date=self.trading_date,
                                                          history_root=root, symbols=TPEx_SYMBOLS)
                     else:
-                        result = select_market_daily(LiveTPExAdapter().fetch_daily(), trading_date=self.trading_date,
+                        result = LiveTPExAdapter().fetch_daily()
+                        result = select_market_daily(result, trading_date=self.trading_date,
                                                      history_root=root, symbols=TPEx_SYMBOLS)
                 else:
                     result = LiveTPExAdapter().fetch_daily()
@@ -860,7 +861,8 @@ class RegistryDatasetAdapter(OfficialSourceAdapter):
                     raise RuntimeError("TPEX_CURRENT_DAILY_NO_RECORDS")
                 return {"source": self.source, "provider": self.provider, "dataset_id": self.entry.get("dataset_id"), "domain": self.entry.get("domain"), "status": "PASS", **{key: result[key] for key in ("market_daily_source_mode", "requested_trading_date", "source_effective_date", "current_official_date", "historical_authority_classification", "historical_material_id", "historical_material_hash", "historical_material_file_sha256", "historical_material_path", "historical_provenance", "current_official_probe") if key in result}, "endpoint": result.get("endpoint"), "http_status": diagnostics.get("http_status"), "content_type": diagnostics.get("content_type"), "parse_status": diagnostics.get("parse_status") or "PASS", "body_sha256": result.get("content_hash"), "attempt_count": diagnostics.get("attempt_count"), "response_bytes": diagnostics.get("response_bytes"), "raw_payload": rows, "record_count": len(rows), "retrieval_timestamp": result.get("retrieval_timestamp") or utc_now(), "parser_version": self.parser_version, **{key: (result.get("diagnostics") or {})[key] for key in ("attempt_count", "attempts", "final_attempt", "response_bytes", "content_length_header", "fallback_used") if key in (result.get("diagnostics") or {})}}
             except TPExDateBindingError as exc:
-                return {"source": self.source, "provider": self.provider, "dataset_id": self.entry.get("dataset_id"), "domain": self.entry.get("domain"), "status": "BLOCKED", "blocking_reason": "TPEX_MARKET_DAILY_DATE_BINDING_FAILED:" + str(exc), "records": [], "endpoint": self.entry.get("endpoint"), "parse_status": "FAIL", "normalization_status": "FAIL", "record_count": 0, "retrieval_timestamp": utc_now(), "parser_version": self.parser_version, **exc.diagnostics}
+                probe = {"current_official_probe": {"endpoint": result["endpoint"], "body_sha256": result["content_hash"], "diagnostics": result.get("diagnostics")}} if result else {}
+                return {"source": self.source, "provider": self.provider, "dataset_id": self.entry.get("dataset_id"), "domain": self.entry.get("domain"), "status": "BLOCKED", "blocking_reason": "TPEX_MARKET_DAILY_DATE_BINDING_FAILED:" + str(exc), "records": [], "endpoint": self.entry.get("endpoint"), "parse_status": "PASS" if result else "FAIL", "normalization_status": "FAIL", "record_count": 0, "retrieval_timestamp": result["retrieval_timestamp"] if result else utc_now(), "parser_version": self.parser_version, **probe, **exc.diagnostics}
             except Exception as exc:
                 return {"source": self.source, "provider": self.provider, "dataset_id": self.entry.get("dataset_id"), "domain": self.entry.get("domain"), "status": "BLOCKED", "blocking_reason": f"TPEX_CURRENT_DAILY_RETRIEVAL_FAILED:{type(exc).__name__}:{exc}", "records": [], "endpoint": self.entry.get("endpoint"), "http_status": None, "parse_status": "FAIL", "record_count": 0, "retrieval_timestamp": utc_now(), "parser_version": self.parser_version, **getattr(exc, "diagnostics", {})}
         return super().fetch()
