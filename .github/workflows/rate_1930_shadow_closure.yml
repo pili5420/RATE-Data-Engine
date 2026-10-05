@@ -1,0 +1,57 @@
+name: RATE 19:30 Production Shadow E2E Closure
+
+on:
+  push:
+    branches: [fix/rate-1930-shadow-closure]
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Full production contract regressions
+        run: >-
+          python -m unittest
+          tests.test_tpex_date_binding tests.test_tpex_transport
+          tests.test_cer057_tpex tests.test_cer066_tpex
+          tests.test_cer072_institutional_history
+          tests.test_rate_production_source_acquisition
+          tests.test_production_scheduler_change_control
+          tests.test_production_source_latest_publisher
+          tests.test_thin_work_manifest tests.test_production_integration
+          tests.test_state_engine tests.test_rate_production_history_materialization
+          tests.test_source_bundle tests.test_cer073_final_source_bundle_closure
+          tests.test_cer059_transport tests.test_cer060_transport -v
+  official-shadow:
+    needs: regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      EXECUTION_AUTHORITY: PR_SHADOW
+      SCHEDULED_SOAK_CREDIT: "false"
+      ACCEPTANCE_COUNTER_RESET: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Real official acquisition and isolated publication
+        run: python -m scripts.verify_rate_1930_shadow_closure
+      - name: Upload all shadow material and diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_1930_SHADOW_${{ github.run_id }}
+          path: artifacts/1930_shadow
+          if-no-files-found: error

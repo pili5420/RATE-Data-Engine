@@ -9,6 +9,7 @@ import urllib.request
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
+from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.benchmark_history import normalize_twse_date
@@ -18,7 +19,7 @@ from src.historical_store import PersistentHistoricalStore, normalize_stock_reco
 from src.sources.twse import TWSEAdapter as LiveTWSEAdapter
 from src.sources.tpex import TPExAdapter as LiveTPExAdapter
 from src.sources.tpex_transport import fetch_official_json
-from src.sources.tpex_date_binding import select_market_daily, TPExDateBindingError
+from src.sources.tpex_date_binding import select_market_daily, historical_market_daily, material_path, TPExDateBindingError
 from src.technical_features import compute_scores
 from scripts.publish_production_source_bundle_latest import CADENCE_FRESHNESS_MINUTES, validate_production_source_bundle
 
@@ -812,10 +813,11 @@ def _normalize_dataset_entry(entry: Mapping[str, Any], fetched: Mapping[str, Any
 
 
 class RegistryDatasetAdapter(OfficialSourceAdapter):
-    def __init__(self, entry: Mapping[str, Any], *, trading_date: str):
+    def __init__(self, entry: Mapping[str, Any], *, trading_date: str, cadence: str | None = None):
         super().__init__(entry.get("endpoint"))
         self.entry = dict(entry)
         self.trading_date = trading_date
+        self.cadence = cadence
         self.source = str(entry.get("authority") or entry.get("dataset_id")).upper()
         self.provider = str(entry.get("authority") or "Official")
         self.parser_version = str(entry.get("parser") or "RATE-DATASET-PARSER-V1")
@@ -837,19 +839,28 @@ class RegistryDatasetAdapter(OfficialSourceAdapter):
             except Exception as exc:
                 return {"source": self.source, "provider": self.provider, "dataset_id": self.entry.get("dataset_id"), "domain": self.entry.get("domain"), "status": "BLOCKED", "blocking_reason": f"TPEX_INSTITUTIONAL_DATE_AWARE_FETCH_FAIL:{type(exc).__name__}:{exc}", "records": [], "endpoint": self.entry.get("endpoint"), "http_status": None, "parse_status": "FAIL", "record_count": 0, "retrieval_timestamp": utc_now(), "parser_version": self.parser_version, **getattr(exc, "diagnostics", {})}
         if self.entry.get("parser") in {"TPEX_MARKET_DAILY_RAW_V1", "TPEX_TRADING_METADATA_V1"} and not (str(self.entry.get("endpoint") or "").startswith("file://") and _is_test_context()):
+            result = None
             try:
-                result = LiveTPExAdapter().fetch_daily()
                 if self.entry.get("parser") == "TPEX_MARKET_DAILY_RAW_V1":
                     from scripts.bootstrap_tpex_history import TPEx_SYMBOLS
-                    result = select_market_daily(result, trading_date=self.trading_date,
-                                                 history_root=_seed_history_root(), symbols=TPEx_SYMBOLS)
+                    root = _seed_history_root()
+                    historical_target = (date.fromisoformat(self.trading_date)
+                                         < datetime.now(ZoneInfo("Asia/Taipei")).date())
+                    if self.cadence == "19:30" and (historical_target or material_path(root, self.trading_date).exists()):
+                        result = historical_market_daily(trading_date=self.trading_date,
+                                                         history_root=root, symbols=TPEx_SYMBOLS)
+                    else:
+                        result = select_market_daily(LiveTPExAdapter().fetch_daily(), trading_date=self.trading_date,
+                                                     history_root=root, symbols=TPEx_SYMBOLS)
+                else:
+                    result = LiveTPExAdapter().fetch_daily()
                 rows = _rows(result.get("raw_payload"))
                 diagnostics = result.get("diagnostics") or {}
                 if not rows:
                     raise RuntimeError("TPEX_CURRENT_DAILY_NO_RECORDS")
                 return {"source": self.source, "provider": self.provider, "dataset_id": self.entry.get("dataset_id"), "domain": self.entry.get("domain"), "status": "PASS", **{key: result[key] for key in ("market_daily_source_mode", "requested_trading_date", "source_effective_date", "current_official_date", "historical_authority_classification", "historical_material_id", "historical_material_hash", "historical_material_file_sha256", "historical_material_path", "historical_provenance", "current_official_probe") if key in result}, "endpoint": result.get("endpoint"), "http_status": diagnostics.get("http_status"), "content_type": diagnostics.get("content_type"), "parse_status": diagnostics.get("parse_status") or "PASS", "body_sha256": result.get("content_hash"), "attempt_count": diagnostics.get("attempt_count"), "response_bytes": diagnostics.get("response_bytes"), "raw_payload": rows, "record_count": len(rows), "retrieval_timestamp": result.get("retrieval_timestamp") or utc_now(), "parser_version": self.parser_version, **{key: (result.get("diagnostics") or {})[key] for key in ("attempt_count", "attempts", "final_attempt", "response_bytes", "content_length_header", "fallback_used") if key in (result.get("diagnostics") or {})}}
             except TPExDateBindingError as exc:
-                return {"source": self.source, "provider": self.provider, "dataset_id": self.entry.get("dataset_id"), "domain": self.entry.get("domain"), "status": "BLOCKED", "blocking_reason": "TPEX_MARKET_DAILY_DATE_BINDING_FAILED:" + str(exc), "records": [], "endpoint": self.entry.get("endpoint"), "parse_status": "PASS", "normalization_status": "FAIL", "record_count": 0, "retrieval_timestamp": result["retrieval_timestamp"], "parser_version": self.parser_version, "current_official_probe": {"endpoint": result["endpoint"], "body_sha256": result["content_hash"], "diagnostics": result.get("diagnostics")}, **exc.diagnostics}
+                return {"source": self.source, "provider": self.provider, "dataset_id": self.entry.get("dataset_id"), "domain": self.entry.get("domain"), "status": "BLOCKED", "blocking_reason": "TPEX_MARKET_DAILY_DATE_BINDING_FAILED:" + str(exc), "records": [], "endpoint": self.entry.get("endpoint"), "parse_status": "FAIL", "normalization_status": "FAIL", "record_count": 0, "retrieval_timestamp": utc_now(), "parser_version": self.parser_version, **exc.diagnostics}
             except Exception as exc:
                 return {"source": self.source, "provider": self.provider, "dataset_id": self.entry.get("dataset_id"), "domain": self.entry.get("domain"), "status": "BLOCKED", "blocking_reason": f"TPEX_CURRENT_DAILY_RETRIEVAL_FAILED:{type(exc).__name__}:{exc}", "records": [], "endpoint": self.entry.get("endpoint"), "http_status": None, "parse_status": "FAIL", "record_count": 0, "retrieval_timestamp": utc_now(), "parser_version": self.parser_version, **getattr(exc, "diagnostics", {})}
         return super().fetch()
@@ -882,7 +893,7 @@ def build_registry_sources(source_registry: str | Path | None, *, trading_date: 
     normalized_sources = []
     source_endpoints: dict[str, str | None] = {}
     for entry in entries:
-        adapter = RegistryDatasetAdapter(entry, trading_date=trading_date)
+        adapter = RegistryDatasetAdapter(entry, trading_date=trading_date, cadence=cadence)
         fetched = adapter.fetch()
         normalized = _normalize_dataset_entry(entry, fetched, trading_date=trading_date)
         normalized["required"] = (entry.get("cadence_applicability") or {}).get(cadence) != "OPTIONAL"
