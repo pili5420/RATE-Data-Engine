@@ -52,6 +52,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: RATE_1930_SHADOW_${{ github.run_id }}
+          name: RATE_1930_SHADOW_${{ github.run_id }}_${{ github.run_attempt }}
           path: artifacts/1930_shadow
           if-no-files-found: error

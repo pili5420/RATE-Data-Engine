@@ -39,7 +39,8 @@ def main():
     os.environ["RATE_OFFICIAL_HISTORY_STORE_ROOT"] = str(history_root)
     os.environ["RATE_OFFICIAL_HISTORY_CACHE_ROOT"] = str(ROOT / "history_cache")
     report = {"artifact": "RATE_1930_PRODUCTION_SHADOW_E2E_CLOSURE",
-              "run_id": os.getenv("GITHUB_RUN_ID"), "commit_sha": os.getenv("GITHUB_SHA"),
+              "run_id": os.getenv("GITHUB_RUN_ID"), "run_attempt": os.getenv("GITHUB_RUN_ATTEMPT"),
+              "commit_sha": os.getenv("GITHUB_SHA"),
               "github_ref": os.getenv("GITHUB_REF"), "execution_authority": "PR_SHADOW",
               "trading_date": DATE, "cadence": "19:30",
               "authoritative_main_commit": False, "validation_status": "BLOCKED"}
@@ -72,7 +73,7 @@ def main():
         report["source_acquisition"] = acquisition["validation_status"]
         print(json.dumps({"stage": "source_acquisition", "status": acquisition["validation_status"],
                           "coverage": acquisition["coverage"], "blocking_reason": acquisition.get("blocking_reason")}), flush=True)
-        bundle = json.loads((ROOT / "bundle.json").read_text())
+        bundle = json.loads((ROOT / "bundle.json").read_text(encoding="utf-8"))
         report["coverage"] = acquisition["coverage"]
         report["blocking_reason"] = acquisition.get("blocking_reason")
         report["sources"] = acquisition["sources"]
