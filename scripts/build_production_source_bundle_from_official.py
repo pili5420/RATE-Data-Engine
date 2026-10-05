@@ -1136,6 +1136,7 @@ def build_freshness_matrix(*, trading_date: str, cadence: str, normalized_source
         "trading_date": trading_date,
         "cadence": cadence,
         "generated_at": retrieval_timestamp,
+        "freshness_evaluated_at": retrieval_timestamp,
         "datasets": dataset_rows,
         "blocking_reasons": sorted(set(blocking_reasons)),
     }
@@ -1416,7 +1417,8 @@ def _blocked_bundle(*, trading_date: str, cadence: str, retrieval_timestamp: str
 def build_bundle(*, rate_source_url: str, trading_date: str, cadence: str, output: str | Path, evidence_output: str | Path, requirement_matrix_output: str | Path | None = None, universe_contract: str | Path | None = None, universe_binding_output: str | Path | None = None, freshness_matrix_output: str | Path | None = None, feature_input_contract_output: str | Path | None = None, source_registry: str | Path | None = None) -> dict[str, Any]:
     if cadence not in CADENCES:
         raise RuntimeError("CADENCE_INVALID")
-    retrieval_timestamp = utc_now()
+    acquisition_started_at = utc_now()
+    retrieval_timestamp = acquisition_started_at
     registry_entries: list[dict[str, Any]] = []
     if source_registry or not rate_source_url:
         normalized_sources, url_map, registry_entries = build_registry_sources(source_registry, trading_date=trading_date, cadence=cadence)
@@ -1455,7 +1457,9 @@ def build_bundle(*, rate_source_url: str, trading_date: str, cadence: str, outpu
             "required": True,
             "blocking_reason": str(exc),
         })
-    freshness_matrix = build_freshness_matrix(trading_date=trading_date, cadence=cadence, normalized_sources=normalized_sources, retrieval_timestamp=retrieval_timestamp)
+    freshness_evaluation_timestamp = utc_now()
+    freshness_matrix = build_freshness_matrix(trading_date=trading_date, cadence=cadence, normalized_sources=normalized_sources, retrieval_timestamp=freshness_evaluation_timestamp)
+    freshness_matrix["acquisition_started_at"] = acquisition_started_at
     try:
         external_block = cadence_blocking_reason(cadence)
         if external_block:
@@ -1495,6 +1499,8 @@ def build_bundle(*, rate_source_url: str, trading_date: str, cadence: str, outpu
         "validated_main_sha": os.getenv("VALIDATED_MAIN_SHA") or os.getenv("GITHUB_SHA"),
         "github_ref": os.getenv("GITHUB_REF"),
         "github_event_name": os.getenv("GITHUB_EVENT_NAME"),
+        "acquisition_started_at": acquisition_started_at,
+        "freshness_evaluated_at": freshness_evaluation_timestamp,
         "execution_scope": "PRODUCTION_SOURCE_ACQUISITION",
         "execution_authority": os.getenv("EXECUTION_AUTHORITY") or ("TEST_CONTEXT" if _is_test_context() else "DEVELOPMENT_LIVE_PROBE"),
         "probe_authority": "TEST_CONTEXT" if _is_test_context() else ("MAIN_ONLY" if os.getenv("EXECUTION_AUTHORITY") == "MAIN_ONLY" else "DEVELOPMENT_LIVE_PROBE"),

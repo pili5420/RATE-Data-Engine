@@ -13,6 +13,7 @@ from scripts.build_production_source_bundle_from_official import (
     TDCCAdapter,
     MOPSAdapter,
     build_bundle,
+    build_freshness_matrix,
     cadence_blocking_reason,
     cadence_domain_rule,
     load_external_dependencies,
@@ -166,6 +167,19 @@ class RateProductionSourceAcquisitionTests(unittest.TestCase):
         path.write_text(json.dumps(registry, ensure_ascii=False), encoding="utf-8")
         return str(path)
 
+    def _freshness_sources(self, retrieval_timestamp: str):
+        return [
+            {"source": "TWSE", "domain": "market_daily", "normalization_status": "PASS", "retrieval_timestamp": retrieval_timestamp},
+            {"source": "TPEX", "domain": "market_daily", "normalization_status": "PASS", "retrieval_timestamp": retrieval_timestamp},
+            {"source": "RATE_OFFICIAL_ROLLING_TECHNICAL_DERIVATION", "domain": "market_daily", "normalization_status": "PASS", "retrieval_timestamp": retrieval_timestamp},
+            {"source": "TWSE", "domain": "benchmark", "normalization_status": "PASS", "retrieval_timestamp": retrieval_timestamp},
+            {"source": "TWSE", "domain": "institutional", "normalization_status": "PASS", "retrieval_timestamp": retrieval_timestamp},
+            {"source": "TPEX", "domain": "institutional", "normalization_status": "PASS", "retrieval_timestamp": retrieval_timestamp},
+            {"source": "TDCC", "domain": "large_holder", "normalization_status": "PASS", "retrieval_timestamp": retrieval_timestamp},
+            {"source": "MOPS", "domain": "fundamental", "normalization_status": "PASS", "retrieval_timestamp": retrieval_timestamp},
+            {"source": "TWSE", "domain": "trading_metadata", "normalization_status": "PASS", "retrieval_timestamp": retrieval_timestamp},
+        ]
+
     def test_source_acquisition_does_not_require_previous_live_state(self):
         context = resolve_context(cadence="09:30", event_name="schedule", dispatch_trading_date=None, state_root=self.root / "no-live-state")
         if context["runtime_mode"] == "RUN":
@@ -214,6 +228,62 @@ class RateProductionSourceAcquisitionTests(unittest.TestCase):
         self.assertFalse(dep["soak_credit_allowed_while_blocked"])
         self.assertFalse(dep["cer081_completion_allowed_while_blocked"])
         self.assertFalse(dep["production_acceptance_allowed_while_blocked"])
+
+    def test_freshness_uses_post_acquisition_evaluation_time_for_late_sources(self):
+        acquisition_started_at = "2026-10-05T04:37:42Z"
+        late_source_time = "2026-10-05T04:39:20Z"
+        freshness_evaluated_at = "2026-10-05T04:39:21Z"
+        matrix = build_freshness_matrix(
+            trading_date="2026-10-02",
+            cadence="19:30",
+            normalized_sources=self._freshness_sources(late_source_time),
+            retrieval_timestamp=freshness_evaluated_at,
+        )
+        self.assertEqual(matrix["validation_status"], "PASS")
+        self.assertEqual(matrix["freshness_evaluated_at"], freshness_evaluated_at)
+        self.assertNotIn("SOURCE_FUTURE_DATED", matrix["blocking_reasons"])
+        self.assertGreater((119), 60)
+        self.assertLess(late_source_time, freshness_evaluated_at)
+        self.assertLess(acquisition_started_at, late_source_time)
+
+    def test_freshness_true_future_source_still_fails_closed(self):
+        matrix = build_freshness_matrix(
+            trading_date="2026-10-02",
+            cadence="19:30",
+            normalized_sources=self._freshness_sources("2026-10-05T04:41:30Z"),
+            retrieval_timestamp="2026-10-05T04:39:21Z",
+        )
+        self.assertEqual(matrix["validation_status"], "BLOCKED")
+        self.assertIn("SOURCE_FUTURE_DATED", matrix["blocking_reasons"])
+
+    def test_run_37263982229_structural_slow_acquisition_freshness_matrix_passes(self):
+        sources = self._freshness_sources("2026-10-05T04:38:03.202222Z")
+        sources.extend([
+            {"source": "TWSE", "domain": "market_daily", "normalization_status": "PASS", "retrieval_timestamp": "2026-10-05T04:37:51.772825Z"},
+            {"source": "TPEX", "domain": "market_daily", "normalization_status": "PASS", "retrieval_timestamp": "2026-10-05T04:38:00.924804Z"},
+            {"source": "RATE_OFFICIAL_ROLLING_TECHNICAL_DERIVATION", "domain": "market_daily", "normalization_status": "PASS", "retrieval_timestamp": "2026-10-05T04:39:20.702424Z"},
+            {"source": "TWSE", "domain": "trading_metadata", "normalization_status": "PASS", "retrieval_timestamp": "2026-10-05T04:39:11.836222Z"},
+            {"source": "TPEX", "domain": "trading_metadata", "normalization_status": "PASS", "retrieval_timestamp": "2026-10-05T04:39:20.390935Z"},
+        ])
+        matrix = build_freshness_matrix(
+            trading_date="2026-10-02",
+            cadence="19:30",
+            normalized_sources=sources,
+            retrieval_timestamp="2026-10-05T04:39:21.000000Z",
+        )
+        self.assertEqual(matrix["validation_status"], "PASS")
+        self.assertEqual(matrix["freshness_evaluated_at"], "2026-10-05T04:39:21.000000Z")
+        self.assertNotIn("SOURCE_FUTURE_DATED", matrix["blocking_reasons"])
+
+    def test_freshness_stale_source_still_fails_closed(self):
+        matrix = build_freshness_matrix(
+            trading_date="2026-10-02",
+            cadence="19:30",
+            normalized_sources=self._freshness_sources("2026-10-05T00:00:00Z"),
+            retrieval_timestamp="2026-10-05T04:39:21Z",
+        )
+        self.assertEqual(matrix["validation_status"], "BLOCKED")
+        self.assertIn("SOURCE_STALE", matrix["blocking_reasons"])
 
     def test_source_specific_adapters_valid_real_schema_payloads_normalize_pass(self):
         cases = [
