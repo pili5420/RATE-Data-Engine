@@ -1,17 +1,17 @@
 {
   "artifact": "RATE_PRODUCTION_SOURCE_BUNDLE_LATEST",
   "cadence": "19:30",
-  "immutable_bundle_path": "artifacts/production_source_snapshots/2026-10-02/1930/rate-source-snapshot-a8d2427c8aab195c3af1debf/RATE_PRODUCTION_SOURCE_BUNDLE.json",
-  "immutable_snapshot_path": "artifacts/production_source_snapshots/2026-10-02/1930/rate-source-snapshot-a8d2427c8aab195c3af1debf/RATE_PRODUCTION_SOURCE_BUNDLE_SNAPSHOT.json",
-  "input_snapshot_id": "rate-input-snapshot-34bd983351548d132c6cf737",
+  "immutable_bundle_path": "artifacts/production_source_snapshots/2026-10-02/1930/rate-source-snapshot-3bbe73c100b02f32a57d6443/RATE_PRODUCTION_SOURCE_BUNDLE.json",
+  "immutable_snapshot_path": "artifacts/production_source_snapshots/2026-10-02/1930/rate-source-snapshot-3bbe73c100b02f32a57d6443/RATE_PRODUCTION_SOURCE_BUNDLE_SNAPSHOT.json",
+  "input_snapshot_id": "rate-input-snapshot-6204bcd8d0f4da477857e3ae",
   "previous_snapshot_id": "rate-source-snapshot-a8d2427c8aab195c3af1debf",
-  "production_snapshot_id": "rate-source-snapshot-a8d2427c8aab195c3af1debf",
-  "retrieval_timestamp": "2026-10-04T06:07:16.633546Z",
+  "production_snapshot_id": "rate-source-snapshot-3bbe73c100b02f32a57d6443",
+  "retrieval_timestamp": "2026-10-05T16:09:02.742583Z",
   "schema_version": "RATE-PRODUCTION-SOURCE-LATEST-V1",
-  "snapshot_id": "rate-source-snapshot-a8d2427c8aab195c3af1debf",
-  "source_bundle_hash": "fd607785935a4d9fa26bfd4b099c8df665feed052fc1fc947d34f6ea77244a77",
+  "snapshot_id": "rate-source-snapshot-3bbe73c100b02f32a57d6443",
+  "source_bundle_hash": "f999d33a73e1b042143f900f7a8edde4aff640a773297bc01aa0677d3e1777f4",
   "trading_date": "2026-10-02",
   "validation_status": "PASS",
-  "workflow_job_id": "7007",
-  "workflow_run_id": "1000000007"
+  "workflow_job_id": "source-acquisition",
+  "workflow_run_id": "37337863008"
 }

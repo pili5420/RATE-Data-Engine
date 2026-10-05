@@ -1,0 +1,564 @@
+{
+  "artifact": "RATE_TPEX_DATE_BOUND_OFFICIAL_HISTORY_V1",
+  "entries": [
+    {
+      "record": {
+        "close": 1620.0,
+        "high": 1685.0,
+        "ingested_at": "2026-10-05T16:03:57.383120Z",
+        "low": 1530.0,
+        "market": "TPEX",
+        "open": 1540.0,
+        "source": "TPEX_HISTORICAL_STOCK",
+        "source_timestamp": "2026-10-05T16:03:57.383120Z",
+        "symbol": "6274",
+        "trade_date": "2026-10-02",
+        "turnover": 19992007.0,
+        "volume": 12357.0
+      },
+      "source_evidence": {
+        "content_hash": "7578de56615ddbbc5028c9c42e8d412a9b2bff8e5f8207629543eb4ef41c6931",
+        "diagnostics": {
+          "attempt": 1,
+          "content_type": "application/json;charset=UTF-8",
+          "http_status": 200,
+          "response_bytes": 946
+        },
+        "domain": "market_daily_history",
+        "endpoint": "https://www.tpex.org.tw/www/en-us/afterTrading/tradingStock",
+        "historical_product": "Daily Stock Info / Historical Data of Individual Mainboard Stock",
+        "product_page": "https://www.tpex.org.tw/en-us/mainboard/trading/info/stock-pricing.html",
+        "provider": "TPEx Official OpenAPI",
+        "raw_payload": {
+          "code": "6274",
+          "date": "20261001",
+          "flagField": "Trade unit",
+          "name": "TAIWAN UNION TECHNOLOGY CO.,LTD.",
+          "showListPriceLink": false,
+          "showListPriceNote": false,
+          "stat": "ok",
+          "tables": [
+            {
+              "data": [
+                [
+                  "2026/10/01",
+                  "4,683",
+                  "7,128,084",
+                  "1,530.00",
+                  "1,540.00",
+                  "1,500.00",
+                  "1,535.00",
+                  "15.00",
+                  "10,807"
+                ],
+                [
+                  "2026/10/02",
+                  "12,357",
+                  "19,992,007",
+                  "1,540.00",
+                  "1,685.00",
+                  "1,530.00",
+                  "1,620.00",
+                  "85.00",
+                  "26,577"
+                ],
+                [
+                  "2026/10/05",
+                  "12,194",
+                  "21,297,201",
+                  "1,695.00",
+                  "1,780.00",
+                  "1,680.00",
+                  "1,780.00",
+                  "160.00",
+                  "27,959"
+                ]
+              ],
+              "date": "20261001",
+              "fields": [
+                "Date",
+                "Trade unit",
+                "Trade Amt.(NTD1000)",
+                "Open",
+                "High",
+                "Low",
+                "Close",
+                "Change(%)",
+                "No. of Transactions"
+              ],
+              "notes": [
+                "If the last digit of the 6-digit alphanumeric ETF security code is K or C, it is traded in foreign currency. The minimum trading unit should be 100 units or integer multiples. Please refer to its prospectus."
+              ],
+              "subtitle": "6274 TAIWAN UNION TECHNOLOGY CO.,LTD. 2026/10",
+              "summary": [],
+              "title": "Daily Stock Info",
+              "totalCount": 3
+            }
+          ]
+        },
+        "record_count": 1,
+        "request_method": "POST",
+        "request_params": {
+          "code": "6274",
+          "date": "2026/10/01",
+          "response": "json"
+        },
+        "retrieval_timestamp": "2026-10-05T16:03:57.383120Z",
+        "source_timestamp": "2026-10-05T16:03:57.383120Z",
+        "source_type": "OFFICIAL_PRIMARY"
+      },
+      "source_payload_hash": "308736e1215fc1539361d5d204eaa5422d7ad25eabcc4680ac31ff6c71e6f6a5",
+      "symbol": "6274"
+    },
+    {
+      "record": {
+        "close": 2925.0,
+        "high": 2925.0,
+        "ingested_at": "2026-10-05T16:03:58.958594Z",
+        "low": 2735.0,
+        "market": "TPEX",
+        "open": 2780.0,
+        "source": "TPEX_HISTORICAL_STOCK",
+        "source_timestamp": "2026-10-05T16:03:58.958594Z",
+        "symbol": "3081",
+        "trade_date": "2026-10-02",
+        "turnover": 13251354.0,
+        "volume": 4649.0
+      },
+      "source_evidence": {
+        "content_hash": "0100f8a4f800cbe26fb65abcab7457711338432af320b32fee67cf953477831d",
+        "diagnostics": {
+          "attempt": 1,
+          "content_type": "application/json;charset=UTF-8",
+          "http_status": 200,
+          "response_bytes": 953
+        },
+        "domain": "market_daily_history",
+        "endpoint": "https://www.tpex.org.tw/www/en-us/afterTrading/tradingStock",
+        "historical_product": "Daily Stock Info / Historical Data of Individual Mainboard Stock",
+        "product_page": "https://www.tpex.org.tw/en-us/mainboard/trading/info/stock-pricing.html",
+        "provider": "TPEx Official OpenAPI",
+        "raw_payload": {
+          "code": "3081",
+          "date": "20261001",
+          "flagField": "Trade unit",
+          "name": "LandMark Optoelectronics Corporation",
+          "showListPriceLink": false,
+          "showListPriceNote": false,
+          "stat": "ok",
+          "tables": [
+            {
+              "data": [
+                [
+                  "2026/10/01",
+                  "1,922",
+                  "5,094,110",
+                  "2,690.00",
+                  "2,720.00",
+                  "2,605.00",
+                  "2,660.00",
+                  "-35.00",
+                  "12,954"
+                ],
+                [
+                  "2026/10/02",
+                  "4,649",
+                  "13,251,354",
+                  "2,780.00",
+                  "2,925.00",
+                  "2,735.00",
+                  "2,925.00",
+                  "265.00",
+                  "16,866"
+                ],
+                [
+                  "2026/10/05",
+                  "7,079",
+                  "21,282,319",
+                  "3,000.00",
+                  "3,105.00",
+                  "2,900.00",
+                  "3,000.00",
+                  "75.00",
+                  "25,424"
+                ]
+              ],
+              "date": "20261001",
+              "fields": [
+                "Date",
+                "Trade unit",
+                "Trade Amt.(NTD1000)",
+                "Open",
+                "High",
+                "Low",
+                "Close",
+                "Change(%)",
+                "No. of Transactions"
+              ],
+              "notes": [
+                "If the last digit of the 6-digit alphanumeric ETF security code is K or C, it is traded in foreign currency. The minimum trading unit should be 100 units or integer multiples. Please refer to its prospectus."
+              ],
+              "subtitle": "3081 LandMark Optoelectronics Corporation 2026/10",
+              "summary": [],
+              "title": "Daily Stock Info",
+              "totalCount": 3
+            }
+          ]
+        },
+        "record_count": 1,
+        "request_method": "POST",
+        "request_params": {
+          "code": "3081",
+          "date": "2026/10/01",
+          "response": "json"
+        },
+        "retrieval_timestamp": "2026-10-05T16:03:58.958594Z",
+        "source_timestamp": "2026-10-05T16:03:58.958594Z",
+        "source_type": "OFFICIAL_PRIMARY"
+      },
+      "source_payload_hash": "e0c77d7262cfcc8847eb4aed03efa0f9982114364ca0869d88a70375fe6a2739",
+      "symbol": "3081"
+    },
+    {
+      "record": {
+        "close": 1355.0,
+        "high": 1385.0,
+        "ingested_at": "2026-10-05T16:03:59.498345Z",
+        "low": 1290.0,
+        "market": "TPEX",
+        "open": 1290.0,
+        "source": "TPEX_HISTORICAL_STOCK",
+        "source_timestamp": "2026-10-05T16:03:59.498345Z",
+        "symbol": "6187",
+        "trade_date": "2026-10-02",
+        "turnover": 3271723.0,
+        "volume": 2437.0
+      },
+      "source_evidence": {
+        "content_hash": "2d1012361b882b98b07a5c6f13b456a756a77d921546994508f9c070d0d22b0f",
+        "diagnostics": {
+          "attempt": 1,
+          "content_type": "application/json;charset=UTF-8",
+          "http_status": 200,
+          "response_bytes": 921
+        },
+        "domain": "market_daily_history",
+        "endpoint": "https://www.tpex.org.tw/www/en-us/afterTrading/tradingStock",
+        "historical_product": "Daily Stock Info / Historical Data of Individual Mainboard Stock",
+        "product_page": "https://www.tpex.org.tw/en-us/mainboard/trading/info/stock-pricing.html",
+        "provider": "TPEx Official OpenAPI",
+        "raw_payload": {
+          "code": "6187",
+          "date": "20261001",
+          "flagField": "Trade unit",
+          "name": "ALL RING TECH CO., LTD",
+          "showListPriceLink": false,
+          "showListPriceNote": false,
+          "stat": "ok",
+          "tables": [
+            {
+              "data": [
+                [
+                  "2026/10/01",
+                  "1,700",
+                  "2,172,858",
+                  "1,300.00",
+                  "1,325.00",
+                  "1,260.00",
+                  "1,275.00",
+                  "-35.00",
+                  "5,018"
+                ],
+                [
+                  "2026/10/02",
+                  "2,437",
+                  "3,271,723",
+                  "1,290.00",
+                  "1,385.00",
+                  "1,290.00",
+                  "1,355.00",
+                  "80.00",
+                  "6,650"
+                ],
+                [
+                  "2026/10/05",
+                  "4,889",
+                  "7,092,341",
+                  "1,400.00",
+                  "1,490.00",
+                  "1,390.00",
+                  "1,490.00",
+                  "135.00",
+                  "11,367"
+                ]
+              ],
+              "date": "20261001",
+              "fields": [
+                "Date",
+                "Trade unit",
+                "Trade Amt.(NTD1000)",
+                "Open",
+                "High",
+                "Low",
+                "Close",
+                "Change(%)",
+                "No. of Transactions"
+              ],
+              "notes": [
+                "If the last digit of the 6-digit alphanumeric ETF security code is K or C, it is traded in foreign currency. The minimum trading unit should be 100 units or integer multiples. Please refer to its prospectus."
+              ],
+              "subtitle": "6187 ALL RING TECH CO., LTD 2026/10",
+              "summary": [],
+              "title": "Daily Stock Info",
+              "totalCount": 3
+            }
+          ]
+        },
+        "record_count": 1,
+        "request_method": "POST",
+        "request_params": {
+          "code": "6187",
+          "date": "2026/10/01",
+          "response": "json"
+        },
+        "retrieval_timestamp": "2026-10-05T16:03:59.498345Z",
+        "source_timestamp": "2026-10-05T16:03:59.498345Z",
+        "source_type": "OFFICIAL_PRIMARY"
+      },
+      "source_payload_hash": "00496b074595ad3e916c45eabb4c402e93cd84d60940675cd8c931db4a805d29",
+      "symbol": "6187"
+    },
+    {
+      "record": {
+        "close": 3070.0,
+        "high": 3120.0,
+        "ingested_at": "2026-10-05T16:04:00.227526Z",
+        "low": 3000.0,
+        "market": "TPEX",
+        "open": 3000.0,
+        "source": "TPEX_HISTORICAL_STOCK",
+        "source_timestamp": "2026-10-05T16:04:00.227526Z",
+        "symbol": "6510",
+        "trade_date": "2026-10-02",
+        "turnover": 1744773.0,
+        "volume": 570.0
+      },
+      "source_evidence": {
+        "content_hash": "0a978635b28a10ac881b9f0549e5f779662b57e50494315febcfc1bb0e769a5a",
+        "diagnostics": {
+          "attempt": 1,
+          "content_type": "application/json;charset=UTF-8",
+          "http_status": 200,
+          "response_bytes": 947
+        },
+        "domain": "market_daily_history",
+        "endpoint": "https://www.tpex.org.tw/www/en-us/afterTrading/tradingStock",
+        "historical_product": "Daily Stock Info / Historical Data of Individual Mainboard Stock",
+        "product_page": "https://www.tpex.org.tw/en-us/mainboard/trading/info/stock-pricing.html",
+        "provider": "TPEx Official OpenAPI",
+        "raw_payload": {
+          "code": "6510",
+          "date": "20261001",
+          "flagField": "Trade unit",
+          "name": "Chunghwa Precision Test Tech. Co., Ltd",
+          "showListPriceLink": false,
+          "showListPriceNote": false,
+          "stat": "ok",
+          "tables": [
+            {
+              "data": [
+                [
+                  "2026/10/01",
+                  "1,063",
+                  "3,222,856",
+                  "3,065.00",
+                  "3,155.00",
+                  "2,960.00",
+                  "3,000.00",
+                  "-65.00",
+                  "8,204"
+                ],
+                [
+                  "2026/10/02",
+                  "570",
+                  "1,744,773",
+                  "3,000.00",
+                  "3,120.00",
+                  "3,000.00",
+                  "3,070.00",
+                  "70.00",
+                  "3,595"
+                ],
+                [
+                  "2026/10/05",
+                  "972",
+                  "3,023,008",
+                  "3,145.00",
+                  "3,180.00",
+                  "3,060.00",
+                  "3,105.00",
+                  "35.00",
+                  "4,957"
+                ]
+              ],
+              "date": "20261001",
+              "fields": [
+                "Date",
+                "Trade unit",
+                "Trade Amt.(NTD1000)",
+                "Open",
+                "High",
+                "Low",
+                "Close",
+                "Change(%)",
+                "No. of Transactions"
+              ],
+              "notes": [
+                "If the last digit of the 6-digit alphanumeric ETF security code is K or C, it is traded in foreign currency. The minimum trading unit should be 100 units or integer multiples. Please refer to its prospectus."
+              ],
+              "subtitle": "6510 Chunghwa Precision Test Tech. Co., Ltd 2026/10",
+              "summary": [],
+              "title": "Daily Stock Info",
+              "totalCount": 3
+            }
+          ]
+        },
+        "record_count": 1,
+        "request_method": "POST",
+        "request_params": {
+          "code": "6510",
+          "date": "2026/10/01",
+          "response": "json"
+        },
+        "retrieval_timestamp": "2026-10-05T16:04:00.227526Z",
+        "source_timestamp": "2026-10-05T16:04:00.227526Z",
+        "source_type": "OFFICIAL_PRIMARY"
+      },
+      "source_payload_hash": "f3781d632839d80603200988231995596cdc88d876cf930ee2e492a64fc395f5",
+      "symbol": "6510"
+    },
+    {
+      "record": {
+        "close": 187.5,
+        "high": 187.5,
+        "ingested_at": "2026-10-05T16:04:00.479011Z",
+        "low": 184.0,
+        "market": "TPEX",
+        "open": 185.0,
+        "source": "TPEX_HISTORICAL_STOCK",
+        "source_timestamp": "2026-10-05T16:04:00.479011Z",
+        "symbol": "3227",
+        "trade_date": "2026-10-02",
+        "turnover": 154554.0,
+        "volume": 831.0
+      },
+      "source_evidence": {
+        "content_hash": "7e6bea8ba1163a5aef6791345ad3a4eb2ae13aa2b471cc9170430342f4b37a2b",
+        "diagnostics": {
+          "attempt": 1,
+          "content_type": "application/json;charset=UTF-8",
+          "http_status": 200,
+          "response_bytes": 869
+        },
+        "domain": "market_daily_history",
+        "endpoint": "https://www.tpex.org.tw/www/en-us/afterTrading/tradingStock",
+        "historical_product": "Daily Stock Info / Historical Data of Individual Mainboard Stock",
+        "product_page": "https://www.tpex.org.tw/en-us/mainboard/trading/info/stock-pricing.html",
+        "provider": "TPEx Official OpenAPI",
+        "raw_payload": {
+          "code": "3227",
+          "date": "20261001",
+          "flagField": "Trade unit",
+          "name": "PixArt Imaging Inc.",
+          "showListPriceLink": false,
+          "showListPriceNote": false,
+          "stat": "ok",
+          "tables": [
+            {
+              "data": [
+                [
+                  "2026/10/01",
+                  "616",
+                  "114,038",
+                  "184.50",
+                  "186.00",
+                  "184.00",
+                  "185.50",
+                  "0.50",
+                  "792"
+                ],
+                [
+                  "2026/10/02",
+                  "831",
+                  "154,554",
+                  "185.00",
+                  "187.50",
+                  "184.00",
+                  "187.50",
+                  "2.00",
+                  "983"
+                ],
+                [
+                  "2026/10/05",
+                  "959",
+                  "180,657",
+                  "189.00",
+                  "190.00",
+                  "187.50",
+                  "188.50",
+                  "1.00",
+                  "1,337"
+                ]
+              ],
+              "date": "20261001",
+              "fields": [
+                "Date",
+                "Trade unit",
+                "Trade Amt.(NTD1000)",
+                "Open",
+                "High",
+                "Low",
+                "Close",
+                "Change(%)",
+                "No. of Transactions"
+              ],
+              "notes": [
+                "If the last digit of the 6-digit alphanumeric ETF security code is K or C, it is traded in foreign currency. The minimum trading unit should be 100 units or integer multiples. Please refer to its prospectus."
+              ],
+              "subtitle": "3227 PixArt Imaging Inc. 2026/10",
+              "summary": [],
+              "title": "Daily Stock Info",
+              "totalCount": 3
+            }
+          ]
+        },
+        "record_count": 1,
+        "request_method": "POST",
+        "request_params": {
+          "code": "3227",
+          "date": "2026/10/01",
+          "response": "json"
+        },
+        "retrieval_timestamp": "2026-10-05T16:04:00.479011Z",
+        "source_timestamp": "2026-10-05T16:04:00.479011Z",
+        "source_type": "OFFICIAL_PRIMARY"
+      },
+      "source_payload_hash": "ffb49eb869477323737874f0687766d8cc4af2cb4101f9be7759d4c22eb0f601",
+      "symbol": "3227"
+    }
+  ],
+  "fallback_used": false,
+  "historical_material_hash": "db17495273ab62d596deec24ba915dcd758f5811aff7dc3c45585662f1d8c7fd",
+  "historical_material_id": "rate-tpex-date-bound-db17495273ab62d596deec24",
+  "requested_trading_date": "2026-10-02",
+  "required_symbols": [
+    "6274",
+    "3081",
+    "6187",
+    "6510",
+    "3227"
+  ],
+  "source_authority": "TPEx Official",
+  "source_effective_date": "2026-10-02",
+  "validation_status": "PASS"
+}
