@@ -99,6 +99,29 @@ def load_material(root, trading_date, symbols):
     return obj, path, hashlib.sha256(body).hexdigest()
 
 
+def historical_market_daily(*, trading_date, history_root, symbols):
+    """Consume canonical exact-date material without a current endpoint prerequisite."""
+    try:
+        material, path, file_hash = load_material(history_root, trading_date, symbols)
+    except Exception as exc:
+        raise TPExDateBindingError(str(exc), {
+            "requested_trading_date": trading_date,
+            "market_daily_source_mode": "DATE_BOUND_OFFICIAL_HISTORY", "fallback_used": False}) from exc
+    entries = material["entries"]
+    return {"endpoint": HISTORICAL_ENDPOINT, "raw_payload": [e["record"] for e in entries],
+            "content_hash": file_hash,
+            "retrieval_timestamp": max(e["source_evidence"]["retrieval_timestamp"] for e in entries),
+            "market_daily_source_mode": "DATE_BOUND_OFFICIAL_HISTORY",
+            "historical_authority_classification": "DATE_BOUND_AUTHORITATIVE_OFFICIAL_HISTORY",
+            "historical_material_id": material["historical_material_id"],
+            "historical_material_hash": material["historical_material_hash"],
+            "historical_material_file_sha256": file_hash,
+            "historical_material_path": str(path), "historical_provenance": entries,
+            "requested_trading_date": trading_date, "source_effective_date": trading_date,
+            "diagnostics": {"http_status": 200, "parse_status": "PASS", "fallback_used": False,
+                            "record_count": len(entries)}}
+
+
 def select_market_daily(current_result, *, trading_date, history_root, symbols):
     date.fromisoformat(trading_date)
     rows = current_result.get("raw_payload") or []
@@ -112,26 +135,13 @@ def select_market_daily(current_result, *, trading_date, history_root, symbols):
     if trading_date > current_date:
         raise RuntimeError("TPEX_RAW_TRADING_DATE_MISMATCH")
     try:
-        material, path, file_hash = load_material(history_root, trading_date, symbols)
+        selected = historical_market_daily(trading_date=trading_date, history_root=history_root, symbols=symbols)
     except Exception as exc:
         raise TPExDateBindingError(str(exc), {
             "requested_trading_date": trading_date, "current_official_date": current_date,
             "market_daily_source_mode": "DATE_BOUND_OFFICIAL_HISTORY", "fallback_used": False}) from exc
-    entries = material["entries"]
-    retrieval = max(e["source_evidence"]["retrieval_timestamp"] for e in entries)
-    return {"endpoint": HISTORICAL_ENDPOINT, "raw_payload": [e["record"] for e in entries],
-            "content_hash": file_hash,
-            "retrieval_timestamp": retrieval,
-            "market_daily_source_mode": "DATE_BOUND_OFFICIAL_HISTORY",
-            "historical_authority_classification": "DATE_BOUND_AUTHORITATIVE_OFFICIAL_HISTORY",
-            "historical_material_id": material["historical_material_id"],
-            "historical_material_hash": material["historical_material_hash"],
-            "historical_material_file_sha256": file_hash,
-            "historical_material_path": str(path), "historical_provenance": entries,
-            "requested_trading_date": trading_date, "source_effective_date": trading_date,
+    return {**selected,
             "current_official_date": current_date,
             "current_official_probe": {"endpoint": current_result["endpoint"],
                 "body_sha256": current_result["content_hash"],
-                "diagnostics": current_result.get("diagnostics")},
-            "diagnostics": {"http_status": 200, "parse_status": "PASS", "fallback_used": False,
-                            "record_count": len(entries)}}
+                "diagnostics": current_result.get("diagnostics")}}

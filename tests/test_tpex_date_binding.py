@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import unittest
+from http.client import IncompleteRead
 from pathlib import Path
 from unittest.mock import patch
 
@@ -183,6 +184,77 @@ class TPExDateBindingTests(unittest.TestCase):
             result = builder.RegistryDatasetAdapter(self.entry, trading_date="2026-10-02").fetch()
         self.assertEqual(result["status"], "BLOCKED")
         loader.assert_not_called()
+
+    def test_run_37327588428_historical_eod_never_probes_current(self):
+        self.save()
+        failures = [IncompleteRead(b"partial"), IncompleteRead(b"partial"), TimeoutError()]
+        with patch.dict(os.environ, {"RATE_OFFICIAL_HISTORY_STORE_ROOT": str(self.root)}), patch.object(builder.LiveTPExAdapter, "fetch_daily", side_effect=failures) as current:
+            fetched = builder.RegistryDatasetAdapter(self.entry, trading_date="2026-10-02", cadence="19:30").fetch()
+            normalized = builder._normalize_dataset_entry(self.entry, fetched, "2026-10-02")
+        current.assert_not_called()
+        self.assertEqual(fetched["status"], "PASS")
+        self.assertEqual(fetched["market_daily_source_mode"], "DATE_BOUND_OFFICIAL_HISTORY")
+        self.assertEqual(normalized["normalization_status"], "PASS")
+        self.assertCountEqual([r["symbol"] for r in normalized["normalized_records"]], TPEx_SYMBOLS)
+        self.assertNotIn("current_official_probe", fetched)
+        self.assertFalse(fetched["fallback_used"])
+        twse = {"domain": "market_daily", "source": "TWSE", "normalization_status": "PASS", "normalized_records": [
+            {"symbol": s, "raw_market_latest": {"symbol": s, "source": "TWSE", "trade_date": "2026-10-02"}}
+            for s in APPROVED_UNIVERSE if s not in TPEx_SYMBOLS]}
+        scores = [{"symbol": s, "technical_features": {key: 1 for key in builder.TECHNICAL_REQUIRED}} for s in APPROVED_UNIVERSE]
+        with patch.object(builder, "_is_test_context", return_value=False), patch.object(builder, "_fetch_official_stock_history", return_value=[]) as history, patch.object(builder, "_fetch_official_benchmark_history", return_value=[]), patch.object(builder, "compute_scores", return_value=scores):
+            rolling = builder._build_official_rolling_technical_source(
+                universe_binding={"validation_status": "PASS", "expected_universe": APPROVED_UNIVERSE},
+                normalized_sources=[twse, normalized], trading_date="2026-10-02")
+        self.assertEqual(rolling["status"], "PASS")
+        self.assertEqual(history.call_count, 30)
+        self.assertEqual(len(rolling["normalized_records"]), 30)
+        self.assertCountEqual([r["symbol"] for r in rolling["normalized_records"]], APPROVED_UNIVERSE)
+
+    def test_historical_eod_invalid_material_never_switches_to_current(self):
+        for defect in ("missing", "corrupt", "validation", "identity", "hash", "provenance"):
+            with self.subTest(defect=defect):
+                material = self.save()
+                if defect == "missing":
+                    self.path.unlink()
+                elif defect == "corrupt":
+                    self.path.write_text('{"partial":')
+                else:
+                    if defect == "validation":
+                        material["validation_status"] = "FAIL"
+                    elif defect == "identity":
+                        material["requested_trading_date"] = "2026-10-05"
+                    elif defect == "hash":
+                        material["entries"][0]["source_payload_hash"] = "0" * 64
+                    else:
+                        material["entries"][0]["source_evidence"]["endpoint"] = "https://example.invalid"
+                    self.rehash(material)
+                with patch.dict(os.environ, {"RATE_OFFICIAL_HISTORY_STORE_ROOT": str(self.root)}), patch.object(builder.LiveTPExAdapter, "fetch_daily") as current, patch.object(builder, "atomic_write_json") as writer:
+                    fetched = builder.RegistryDatasetAdapter(self.entry, trading_date="2026-10-02", cadence="19:30").fetch()
+                current.assert_not_called()
+                writer.assert_not_called()
+                self.assertEqual(fetched["status"], "BLOCKED")
+                self.assertIn("TPEX_MARKET_DAILY_DATE_BINDING_FAILED", fetched["blocking_reason"])
+                self.assertFalse(fetched["fallback_used"])
+
+    def test_current_day_eod_without_historical_target_keeps_current_semantics(self):
+        with patch.dict(os.environ, {"RATE_OFFICIAL_HISTORY_STORE_ROOT": str(self.root)}), patch.object(builder, "datetime") as clock, patch.object(builder.LiveTPExAdapter, "fetch_daily", return_value=current_result("1151002")) as current:
+            from datetime import date
+            clock.now.return_value.date.return_value = date(2026, 10, 2)
+            fetched = builder.RegistryDatasetAdapter(self.entry, trading_date="2026-10-02", cadence="19:30").fetch()
+        current.assert_called_once()
+        self.assertEqual(fetched["status"], "PASS")
+        self.assertEqual(fetched["market_daily_source_mode"], "CURRENT_OFFICIAL_DAILY")
+
+    def test_trading_metadata_keeps_its_independent_official_acquisition(self):
+        self.save()
+        entry = next(e for e in json.loads(Path("config/RATE_PRODUCTION_OFFICIAL_SOURCE_REGISTRY_V1.json").read_text())["datasets"]
+                     if e["parser"] == "TPEX_TRADING_METADATA_V1")
+        with patch.dict(os.environ, {"RATE_OFFICIAL_HISTORY_STORE_ROOT": str(self.root)}), patch.object(builder.LiveTPExAdapter, "fetch_daily", return_value=current_result()) as current:
+            fetched = builder.RegistryDatasetAdapter(entry, trading_date="2026-10-02", cadence="19:30").fetch()
+        current.assert_called_once()
+        self.assertEqual(fetched["status"], "PASS")
+        self.assertNotIn("market_daily_source_mode", fetched)
 
     def test_corrupted_or_validation_fail_material_fails_closed(self):
         self.save()
