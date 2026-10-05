@@ -1,0 +1,46 @@
+{
+  "defect_id": "RATE-PROD-TPEX-DATE-BINDING-001",
+  "classification": "HISTORICAL_TRADING_DATE_TO_CURRENT_DAILY_SOURCE_BINDING",
+  "run_id": "37316684164",
+  "job_id": "111785080159",
+  "main_sha": "2cedf531ecb2668a7e9a975be2dcedcef5a282b8",
+  "failed_step": "Build official production source bundle only",
+  "exit_code": 1,
+  "requested_trading_date": "2026-10-02",
+  "current_payload_date_raw": "1151005",
+  "current_payload_date": "2026-10-05",
+  "current_payload_date_evidence": "Archived source attempts[0].first_safe_body_characters contains Date=1151005. The complete current response body was not archived.",
+  "market_daily": {
+    "endpoint": "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes",
+    "http_status": 200, "parse_status": "PASS", "attempt_count": 1,
+    "response_bytes": 4727518, "record_count": 12060, "fallback_used": false,
+    "body_sha256": "42a417e335f2d6eee69645f5328914f8fc3427da5cd1a8803aa77f6d39cbdba9",
+    "normalization_status": "FAIL",
+    "blocking_reason": "tpex_market_daily_NO_NORMALIZED_RECORDS"
+  },
+  "rolling_technical_blocker": "OFFICIAL_MARKET_DAILY_SYMBOL_MISSING_FOR_HISTORY:3081,3227,6187,6274,6510",
+  "bundle_blocking_reason": "REQUIRED_DATASET_JOIN_INCOMPLETE",
+  "coverage": "0/30", "production_snapshot_id": null,
+  "affected_symbols": ["3081", "3227", "6187", "6274", "6510"],
+  "history_materialization": {
+    "status": "PASS", "symbols_materialized": 30,
+    "history_root": "data/staging/step5a_history",
+    "five_tpex_sessions_each": 180, "five_tpex_latest_trade_date": "2026-10-01",
+    "current_trading_date_persisted": false,
+    "exact_requested_date_in_retained_store": false,
+    "reason": "Canonical technical-history materialization deliberately retains trade_date < requested trading_date.",
+    "raw_monthly_history_archived": false,
+    "notes": "PASS history evidence does not prove an exact 2026-10-02 daily input. Raw monthly source bodies/store files were not uploaded. No exact material replay or authoritative new MAIN acceptance is claimed."
+  },
+  "publication": "SKIPPED", "authoritative_commit": "SKIPPED",
+  "bundle_artifact_sha256": "a2e0163d0bbbd2799804cfcf9106f06adb4e33ebef7d96ed56178a24eac5e44e",
+  "history_evidence_sha256": "0902ff611af3edf33c5a6bc98fad8ab2bd5f9f1747c5e9173f8b171b786e7eeb",
+  "full_job_log_sha256": "d2173bd58e056d4b3151f54b64fd0a60048559dc124cf2590d263f03d5999134",
+  "replay_classification": "STRUCTURAL_REPLAY",
+  "fix": {
+    "exact_date_material": "data/staging/step5a_history/market_daily_date_bound/2026-10-02.json",
+    "authority": "https://www.tpex.org.tw/www/en-us/afterTrading/tradingStock",
+    "selection": "Successful current official response establishes the official date before any date normalization. Equality selects CURRENT_OFFICIAL_DAILY; earlier requested date selects validated exact-date material. A failed current request cannot switch to history.",
+    "materialization": "Add separate exact-date evidence from the existing approved monthly acquisition/normalizer. Technical history remains strictly prior-date; transport policy is unchanged. Missing or invalid exact-date material fails closed without reading LATEST or previous bundles."
+  }
+}

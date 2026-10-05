@@ -25,6 +25,8 @@ from src.benchmark_history import normalize_twse_date
 from src.historical_store import MAX_SESSIONS, PersistentHistoricalStore, normalize_benchmark_record, normalize_stock_record
 from src.sources.tpex import TPExAdapter, normalize_tpex_date
 from src.sources.twse import TWSEAdapter
+from src.sources.tpex_date_binding import build_material, material_path
+from src.cer074_acceptance import atomic_write_json
 
 DEFAULT_MAX_MONTHS = 12
 DEFAULT_MIN_SESSIONS = 180
@@ -272,6 +274,19 @@ def materialize(
     tpex_adapter = tpex_adapter or TPExAdapter()
     rows = []
     benchmark_rows = []
+    # Keep exact-date daily input separate from the strictly prior technical history.
+    date_bound_path = material_path(history_root, trading_date)
+    try:
+        date_bound_sources = {}
+        for symbol in TPEx_SYMBOLS:
+            _check_deadline(started, max_runtime_seconds)
+            date_bound_sources[symbol] = tpex_adapter.fetch_historical_symbol(symbol, periods[0])
+        _check_deadline(started, max_runtime_seconds)
+        date_bound_material = build_material(trading_date, date_bound_sources, TPEx_SYMBOLS)
+    except Exception as exc:
+        date_bound_material = {"validation_status": "FAIL_CLOSED", "requested_trading_date": trading_date,
+                               "blocking_reason": str(exc), "fallback_used": False}
+    atomic_write_json(date_bound_path, date_bound_material)
     try:
         for symbol in symbols:
             _check_deadline(started, max_runtime_seconds)
@@ -324,6 +339,11 @@ def materialize(
         "elapsed_seconds": round(time.monotonic() - started, 3),
         "stock_rows": rows,
         "benchmark_rows": benchmark_rows,
+        "date_bound_market_daily": {"path": str(date_bound_path),
+            "validation_status": date_bound_material["validation_status"],
+            "historical_material_id": date_bound_material.get("historical_material_id"),
+            "historical_material_hash": date_bound_material.get("historical_material_hash"),
+            "blocking_reason": date_bound_material.get("blocking_reason")},
         "fallback_used": False,
         "alternate_provider_used": False,
         "fixture_used": False,

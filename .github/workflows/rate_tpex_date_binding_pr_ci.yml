@@ -1,0 +1,47 @@
+name: RATE TPEx Date Binding PR Verification
+
+on:
+  pull_request:
+    paths:
+      - "src/sources/tpex_date_binding.py"
+      - "scripts/materialize_production_history_store.py"
+      - "scripts/build_production_source_bundle_from_official.py"
+      - "tests/test_tpex_date_binding.py"
+      - ".github/workflows/rate_tpex_date_binding_pr_ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-date-binding:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run date binding and production regressions
+        env:
+          RATE_DETERMINISTIC_TEST: "1"
+        run: >-
+          python -m unittest
+          tests.test_tpex_date_binding
+          tests.test_tpex_transport
+          tests.test_cer057_tpex
+          tests.test_cer066_tpex
+          tests.test_cer072_institutional_history
+          tests.test_rate_production_source_acquisition
+          tests.test_production_scheduler_change_control
+          tests.test_production_source_latest_publisher
+          tests.test_thin_work_manifest
+          tests.test_production_integration
+          tests.test_state_engine
+          tests.test_rate_production_history_materialization
+          tests.test_source_bundle
+          tests.test_cer073_final_source_bundle_closure
+          tests.test_cer059_transport
+          tests.test_cer060_transport
+          -v
