@@ -5,6 +5,7 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
+import scripts.publish_production_source_bundle_latest as publisher
 from scripts.publish_production_source_bundle_latest import (
     build_delivery_targets,
     load_json,
@@ -85,12 +86,33 @@ class ProductionSourceLatestPublisherTests(unittest.TestCase):
         self.assertIn("DUPLICATE_DELIVERY_TARGET", validation["errors"])
         self.assertEqual(validation["duplicate_pairs"][0]["canonical_path"], targets[1]["path"])
 
-    def test_run_37213072716_construction_case_no_duplicate_targets(self):
+    def test_artificial_duplicate_publish_fails_closed_without_latest_update(self):
+        self.write_bundle(self.bundle())
+        original_builder = publisher.build_delivery_targets
+
+        def duplicate_builder(**kwargs):
+            targets = original_builder(**kwargs)
+            targets.append({"kind": "thin_work_manifest", "path": targets[1]["path"]})
+            return targets
+
+        publisher.build_delivery_targets = duplicate_builder
+        try:
+            ev = publish_latest(source_bundle_path=self.bundle_path, trading_date="2026-09-21", cadence="19:30", artifacts_root=self.root, workflow_run_id="run-duplicate", workflow_job_id="job-duplicate", evidence_output=self.evidence_path)
+        finally:
+            publisher.build_delivery_targets = original_builder
+        self.assertNotEqual(ev["publish_result"], "PASS")
+        self.assertEqual(ev["blocking_reason"], "DUPLICATE_DELIVERY_TARGET")
+        self.assertEqual(ev["delivery_target_validation"]["validation_status"], "FAIL")
+        self.assertFalse((self.root / "RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json").exists())
+
+    def test_run_37213072716_structural_replay_construction_case_no_duplicate_targets(self):
+        replay_classification = "STRUCTURAL_REPLAY"
         bundle = self.bundle()
         bundle["trading_date"] = "2026-10-02"
         bundle["production_snapshot_id"] = "rate-source-snapshot-1b200fe6d2f0360447fe1926"
         self.write_bundle(bundle)
         ev = publish_latest(source_bundle_path=self.bundle_path, trading_date="2026-10-02", cadence="19:30", artifacts_root=self.root, workflow_run_id="37213072716", workflow_job_id="source-acquisition", evidence_output=self.evidence_path)
+        self.assertEqual(replay_classification, "STRUCTURAL_REPLAY")
         self.assertEqual(ev["publish_result"], "PASS")
         self.assertEqual(ev["production_snapshot_id"], "rate-source-snapshot-1b200fe6d2f0360447fe1926")
         self.assertEqual(ev["delivery_target_validation"]["validation_status"], "PASS")
