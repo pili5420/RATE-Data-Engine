@@ -1,0 +1,34 @@
+name: RATE Rebaseline Authorization V2 Integrity
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "control/rebaseline_authorizations/CC-RATE-REBASELINE-20261002-1930-V2/**"
+      - "tests/test_rebaseline_authorization_v2.py"
+      - ".github/workflows/rate_rebaseline_authorization_v2_pr_ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Read-only authorization integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      RATE_AUTHORIZATION_CI_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify approved bindings, tamper rejection, and no mutations
+        run: python -B -m unittest tests.test_rebaseline_authorization_v2 -v
+      - name: Confirm verification did not write tracked production files
+        run: git diff --exit-code
