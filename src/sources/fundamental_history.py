@@ -311,6 +311,20 @@ def _revenue_archive_identity(html, market, requested_period, endpoint, final_ur
     return {**identity, "final_url": final_url}
 
 
+class EPSPeriodNotAvailable(RuntimeError):
+    """Official MOPS response proves the requested leading EPS quarter is not published yet."""
+    def __init__(self, period):
+        self.period = period
+        super().__init__(f"FUNDAMENTAL_EPS_PERIOD_NOT_AVAILABLE:{period}")
+
+
+def _eps_official_no_data(html):
+    visible = re.sub(r"<script\\b[^>]*>.*?</script>|<style\\b[^>]*>.*?</style>", " ", html,
+                     flags=re.IGNORECASE | re.DOTALL)
+    visible = _plain(re.sub(r"<[^>]+>", " ", visible))
+    return re.search(r"查詢\\s*無\\s*資料\\s*!?", visible) is not None
+
+
 def discover_eps_identity(html):
     plain=_plain(re.sub(r"<[^>]+>"," ",html))
     snippets=[]
@@ -467,6 +481,12 @@ class MOPSHistoricalFundamentalAdapter:
         req=Request(MOPS_EPS_ENDPOINT,data=body,method="POST",headers={"User-Agent":"RATE-Data-Engine/1.0",
             "Content-Type":"application/x-www-form-urlencoded","Referer":MOPS_EPS_PAGE})
         html,diag=self._open(req,"eps",period)
+        if self.warmup_evidence_root is not None and diag["final_url"] != MOPS_EPS_ENDPOINT:
+            raise RuntimeError("FUNDAMENTAL_EPS_ENDPOINT_BINDING_INVALID")
+        if self.warmup_evidence_root is not None and _eps_official_no_data(html):
+            diag.update({"availability_status":"OFFICIAL_PERIOD_NOT_AVAILABLE",
+                         "period_identity_source":"OFFICIAL_NO_DATA_RESPONSE"})
+            raise EPSPeriodNotAvailable(period)
         identity=discover_eps_identity(html)
         diag.update({"period_identity_candidates":identity})
         if identity["year"] is None or identity["quarter"] is None:
@@ -478,8 +498,6 @@ class MOPSHistoricalFundamentalAdapter:
         if not rows: raise RuntimeError("FUNDAMENTAL_EPS_SCHEMA_MISSING")
         diag.update({"schema_header":schemas,"returned_period":period,"official_disclosure_date":disclosure,
                      "period_identity_source":identity["identity_source"]})
-        if self.warmup_evidence_root is not None and diag["final_url"] != MOPS_EPS_ENDPOINT:
-            raise RuntimeError("FUNDAMENTAL_EPS_ENDPOINT_BINDING_INVALID")
         result = []
         for row in rows:
             try:
