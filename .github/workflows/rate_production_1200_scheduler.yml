@@ -38,6 +38,7 @@ jobs:
   production-1200:
     runs-on: ubuntu-latest
     env:
+      EXECUTION_AUTHORITY: MAIN_ONLY
       RATE_LIVE_E2E_ENABLED: PRODUCTION_SCHEDULER
       RATE_SOURCE_URL: "https://openapi.twse.com.tw/v1;https://www.tpex.org.tw/openapi/v1;https://www.tdcc.com.tw/portal/zh/smWeb/qryStock;https://mops.twse.com.tw/mops/web/ajax_t05st10_ifrs"
       RATE_PRODUCTION_CADENCE: "12:00"
@@ -66,6 +67,7 @@ jobs:
         run: |
           mkdir -p artifacts/production_1200 artifacts/production_runtime
           python scripts/resolve_production_runtime_context.py \
+            --phase2 \
             --cadence "12:00" \
             --event-name "${{ github.event_name }}" \
             --dispatch-trading-date "${{ inputs.trading_date }}" \
@@ -84,6 +86,9 @@ jobs:
         if: ${{ github.event_name != 'push' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
         run: >
           python scripts/build_production_source_bundle_from_official.py
+          --phase2
+          --state-root artifacts/production_state
+          --history-root data/production/full_market_history
           --trading-date "${{ env.RATE_PRODUCTION_TRADING_DATE }}"
           --cadence "${{ env.RATE_PRODUCTION_CADENCE }}"
           --rate-source-url "$RATE_SOURCE_URL"
@@ -97,25 +102,14 @@ jobs:
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
         run: >
-          python scripts/run_cer077_incremental_1200_acceptance.py
+          python scripts/run_phase2_production.py
+          --cadence "12:00"
+          --canonical-state-root artifacts/production_state
+          --expected-previous-state-evidence "$RATE_PREVIOUS_STATE_EVIDENCE_PATH"
           --source-bundle artifacts/production_1200/RATE_PRODUCTION_SOURCE_BUNDLE.json
-          --cer074-persisted-evidence "$RATE_PREVIOUS_STATE_EVIDENCE_PATH" --cer075-persisted-evidence "$RATE_PREVIOUS_STATE_EVIDENCE_PATH" --cer076-persisted-evidence "$RATE_PREVIOUS_STATE_EVIDENCE_PATH"
           --output-dir artifacts/production_1200
           --state-root data/production/scheduler_1200
           --actions-job-id "$ACTIONS_JOB_ID"
-
-      - name: Publish live production state pointer
-        if: ${{ success() && github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
-        run: >
-          python scripts/publish_production_state_latest.py
-          --persist-evidence artifacts/production_1200/RATE_CER077_PERSIST_RESULT_EVIDENCE.json
-          --trading-date "${{ env.RATE_PRODUCTION_TRADING_DATE }}"
-          --cadence "12:00"
-          --artifacts-root artifacts
-          --state-root data/production/scheduler_1200
-          --workflow-run-id "${{ github.run_id }}"
-          --workflow-job-id "$ACTIONS_JOB_ID"
-          --evidence-output artifacts/production_1200/RATE_PRODUCTION_STATE_LIVE_UPDATE_EVIDENCE.json
 
       - name: Publish immutable production source bundle latest
         if: ${{ success() && github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
@@ -132,13 +126,28 @@ jobs:
           --workflow-job-id "$ACTIONS_JOB_ID"
           --evidence-output artifacts/production_1200/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST_UPDATE_EVIDENCE.json
 
+      - name: Publish live production state pointer
+        if: ${{ success() && github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
+        run: >
+          python scripts/publish_production_state_latest.py
+          --phase2
+          --source-bundle artifacts/production_1200/RATE_PRODUCTION_SOURCE_BUNDLE.json
+          --persist-evidence artifacts/production_1200/RATE_CER077_PERSIST_RESULT_EVIDENCE.json
+          --trading-date "${{ env.RATE_PRODUCTION_TRADING_DATE }}"
+          --cadence "12:00"
+          --artifacts-root artifacts
+          --state-root data/production/scheduler_1200
+          --workflow-run-id "${{ github.run_id }}"
+          --workflow-job-id "$ACTIONS_JOB_ID"
+          --evidence-output artifacts/production_1200/RATE_PRODUCTION_STATE_LIVE_UPDATE_EVIDENCE.json
+
       - name: Commit authorized production pointers
         if: ${{ success() && github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add artifacts/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json artifacts/production_source_snapshots artifacts/RATE_PRODUCTION_STATE_LATEST.json artifacts/production_state/live
+          git add artifacts/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json artifacts/RATE_THIN_WORK_PRODUCTION_BUNDLE_MANIFEST_LATEST.json artifacts/production_source_snapshots artifacts/RATE_PRODUCTION_STATE_LATEST.json artifacts/production_state/live
           if git diff --cached --quiet; then
             echo "authorized_pointer_commit=NO_CHANGES"
           else
@@ -162,4 +171,3 @@ jobs:
           name: RATE_PRODUCTION_1200_SCHEDULER_ARTIFACTS
           path: artifacts/production_1200/*.json
           if-no-files-found: warn
-
