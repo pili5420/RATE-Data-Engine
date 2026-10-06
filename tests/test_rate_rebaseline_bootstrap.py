@@ -248,6 +248,9 @@ class RateRebaselineBootstrapTests(unittest.TestCase):
             "authorization_id": self.authorization_id,
             "authorization_status": "APPROVED",
             "approved_by": "CONTROL_CENTER",
+            "authority_scope": "RATE_EXACT_MAIN_REBASELINE_BOOTSTRAP_ONLY",
+            "candidate_only": False,
+            "dispatch_allowed": True,
             "baseline_type": "CONTROL_CENTER_REBASELINE",
             "previous_state_resolution": "CONTROL_CENTER_REBASELINE",
             "baseline_id": self.baseline_id,
@@ -403,6 +406,20 @@ class RateRebaselineBootstrapTests(unittest.TestCase):
         self.assertEqual(loaded["state"]["current_state_id"], self.paths["state_id"])
         second = self.bootstrap()
         self.assertEqual(second["blocking_reason"], "REBASELINE_AUTHORIZATION_ALREADY_CONSUMED")
+
+    def test_dispatch_policy_blocks_before_material_loading_and_live_writes(self):
+        cases = [
+            ({"dispatch_allowed": False}, "REBASELINE_DISPATCH_NOT_ALLOWED"),
+            ({"dispatch_allowed": "true"}, "REBASELINE_DISPATCH_NOT_ALLOWED"),
+            ({"candidate_only": True}, "REBASELINE_CANDIDATE_ONLY_FORBIDDEN"),
+            ({"authority_scope": "OTHER"}, "REBASELINE_AUTHORITY_SCOPE_INVALID"),
+        ]
+        for override, reason in cases:
+            with self.subTest(policy=override):
+                self.authorization_manifest(**override)
+                self.assert_blocked(reason)
+                self.assertFalse((self.artifacts / "production_state/live").exists())
+                self.assertFalse((self.artifacts / "RATE_PRODUCTION_STATE_LATEST.json").exists())
 
     def test_unauthorized_schedule_non_main_and_missing_authorization_blocked(self):
         self.assert_blocked("REBASELINE_BOOTSTRAP_AUTHORIZATION_REQUIRED", event_name="schedule")

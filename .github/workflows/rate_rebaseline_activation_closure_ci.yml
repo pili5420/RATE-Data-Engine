@@ -1,0 +1,55 @@
+name: RATE Rebaseline Activation Closure
+
+on:
+  push:
+    branches: [fix/rate-rebaseline-activation-closure]
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/rate_production_rebaseline_bootstrap.yml"
+      - ".github/workflows/rate_rebaseline_activation_closure_ci.yml"
+      - "scripts/bootstrap_production_rebaseline_state.py"
+      - "control/rebaseline_authorizations/CC-RATE-REBASELINE-20261002-1930-V3/**"
+      - "tests/test_rate_rebaseline_bootstrap.py"
+      - "tests/test_rebaseline_activation_closure.py"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Syntax and fail-closed activation preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      RATE_ACTIVATION_CI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install YAML parser for contract tests
+        run: python -m pip install PyYAML==6.0.3
+      - name: Validate GitHub workflow syntax without executing it
+        run: >-
+          go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          -shellcheck= -pyflakes=
+          .github/workflows/rate_production_rebaseline_bootstrap.yml
+          .github/workflows/rate_rebaseline_activation_closure_ci.yml
+      - name: Run policy and isolated production regression tests
+        run: >-
+          python -B -m unittest
+          tests.test_rebaseline_activation_closure
+          tests.test_rate_rebaseline_bootstrap
+          tests.test_rate_eod_rebaseline_material
+          tests.test_rate_soak_005
+          tests.test_production_scheduler_change_control
+          tests.test_state_engine
+          tests.test_production_integration -v
+      - name: Confirm no tracked production material mutation
+        run: git diff --exit-code
