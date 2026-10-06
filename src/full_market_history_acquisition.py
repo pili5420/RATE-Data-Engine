@@ -59,20 +59,37 @@ class ReceiptAdapter:
 
 def acquire_fundamentals(symbols, market, plan, workspace, started, *, evidence_root=None, authority=None):
     from scripts.materialize_production_history_store import _finite_periods
-    from .sources.fundamental_history import FundamentalHistoryStoreV2, MOPSHistoricalFundamentalAdapter
+    from .sources.fundamental_history import EPSPeriodNotAvailable, FundamentalHistoryStoreV2, MOPSHistoricalFundamentalAdapter
     store = FundamentalHistoryStoreV2(Path(workspace) / "fundamental")
     adapter = MOPSHistoricalFundamentalAdapter(warmup_evidence_root=evidence_root if evidence_root is not None else workspace,
         evidence_context={"plan_id": plan["plan_id"], "acquisition_runtime_authority": authority or plan["runtime_authority"]})
     months = [p[:4] + "-" + p[4:] for p in _finite_periods(plan["as_of"], 7)][1:]
     asof = date.fromisoformat(plan["completed_through"])
     ordinal = asof.year * 4 + (asof.month - 1) // 3 - 1
-    periods = [(n // 4, n % 4 + 1) for n in range(ordinal, ordinal - 10, -1)]
+    target_eps_periods = contract()["eps_quarters"] + 2
+    # Preserve the existing ten available-quarter acquisition window, but allow
+    # exactly one leading quarter to be officially not-yet-published. A no-data
+    # response after history has started is a real gap and remains fail-closed.
+    periods = [(n // 4, n % 4 + 1) for n in range(ordinal, ordinal - target_eps_periods - 1, -1)]
     revenues, eps = [], []
     budget = contract()["max_shard_seconds"]
     for month in months:
         revenues.extend(retry(lambda: adapter.fetch_revenue_period(market, month), started=started, budget=budget))
+    available_eps_periods = 0
+    leading_unavailable = 0
     for year, quarter in periods:
-        eps.extend(retry(lambda: adapter.fetch_eps_period(market, year, quarter), started=started, budget=budget))
+        try:
+            rows = retry(lambda: adapter.fetch_eps_period(market, year, quarter), started=started, budget=budget)
+        except EPSPeriodNotAvailable as exc:
+            if available_eps_periods or leading_unavailable:
+                raise RuntimeError("FUNDAMENTAL_EPS_HISTORY_GAP") from exc
+            leading_unavailable += 1
+            continue
+        eps.extend(rows)
+        available_eps_periods += 1
+        if available_eps_periods == target_eps_periods:
+            break
+    require(available_eps_periods == target_eps_periods, "FUNDAMENTAL_EPS_HISTORY_INSUFFICIENT")
     selected = store.select_asof(store.upsert(revenues, eps), symbols, plan["completed_through"])
     result = {}
     for symbol in symbols:
