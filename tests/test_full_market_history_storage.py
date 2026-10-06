@@ -109,7 +109,7 @@ class HistoryStorageTests(unittest.TestCase):
                "GITHUB_ACTIONS": "true", "GITHUB_RUN_ATTEMPT": "1"}
         run = {"id": 100, "head_sha": "a" * 40, "head_branch": "main", "event": "workflow_dispatch", "run_attempt": 1,
                "path": ".github/workflows/rate_full_market_history_bootstrap.yml", "status": "in_progress"}
-        for change in (None, "head_sha", "head_branch", "event", "path", "run_attempt", "status"):
+        for change in (None, "id", "head_sha", "head_branch", "event", "path", "run_attempt"):
             response = {**run}
             if change: response[change] = "INVALID"
             with self.subTest(change=change), patch.dict(os.environ, env, clear=True), \
