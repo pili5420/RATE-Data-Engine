@@ -28,27 +28,27 @@
         "revenue_yoy": 166.4840985505344,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 72.41,
+      "Liquidity": 75.86,
       "M7_inputs": {
         "FI": -21168811.0,
         "IT": -1344988.0,
         "LH": 170.31,
-        "MO": 49.95,
+        "MO": 52.96,
         "PT": 100.0,
-        "PV": 35.15,
-        "RS": 66.03
+        "PV": 31.42,
+        "RS": 75.34
       },
       "MHE_inputs": {
-        "H120": 65.52,
-        "H20": 51.72,
-        "H5": 32.75,
-        "H60": 82.76
+        "H120": 68.97,
+        "H20": 75.86,
+        "H5": 81.03,
+        "H60": 79.31
       },
-      "RelativeStrength": 66.03,
+      "RelativeStrength": 75.34,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -22513799.0,
@@ -81,27 +81,27 @@
         "revenue_yoy": 132.48393122185607,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 27.59,
+      "Liquidity": 13.79,
       "M7_inputs": {
         "FI": 215199.0,
         "IT": 0.0,
         "LH": 163.77,
-        "MO": 71.02,
-        "PT": 68.0,
-        "PV": 99.56,
-        "RS": 74.31
+        "MO": 76.69,
+        "PT": 88.0,
+        "PV": 59.47,
+        "RS": 79.31
       },
       "MHE_inputs": {
-        "H120": 96.55,
-        "H20": 67.24,
-        "H5": 87.94,
-        "H60": 67.24
+        "H120": 89.66,
+        "H20": 81.03,
+        "H5": 94.82,
+        "H60": 55.17
       },
-      "RelativeStrength": 74.31,
+      "RelativeStrength": 79.31,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TPEX",
-        "benchmark_history_coverage": 220,
+        "benchmark_history_coverage": 219,
         "benchmark_market": "TPEX"
       },
       "SMART_MONEY": 215199.0,
@@ -134,27 +134,27 @@
         "revenue_yoy": 111.0204372171911,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 79.31,
+      "Liquidity": 86.21,
       "M7_inputs": {
         "FI": 6606.0,
         "IT": -96854.0,
         "LH": 165.24,
-        "MO": 90.49,
+        "MO": 85.89,
         "PT": 100.0,
-        "PV": 55.45,
+        "PV": 59.13,
         "RS": 100.0
       },
       "MHE_inputs": {
         "H120": 100.0,
         "H20": 100.0,
-        "H5": 93.1,
+        "H5": 6.89,
         "H60": 100.0
       },
       "RelativeStrength": 100.0,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -90248.0,
@@ -187,27 +187,27 @@
         "revenue_yoy": 50.35813251850269,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 86.21,
+      "Liquidity": 72.41,
       "M7_inputs": {
         "FI": -604228.0,
         "IT": -510319.0,
         "LH": 161.16,
-        "MO": 1.06,
+        "MO": 40.11,
         "PT": 0.0,
-        "PV": 42.13,
+        "PV": 23.77,
         "RS": 0.0
       },
       "MHE_inputs": {
         "H120": 0.0,
         "H20": 0.0,
-        "H5": 3.45,
+        "H5": 29.31,
         "H60": 0.0
       },
       "RelativeStrength": 0.0,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -1114547.0,
@@ -240,27 +240,27 @@
         "revenue_yoy": 6.865708582371952,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 62.07,
+      "Liquidity": 51.72,
       "M7_inputs": {
         "FI": 1579056.0,
         "IT": 136226.0,
         "LH": 158.94,
-        "MO": 38.78,
-        "PT": 41.0,
-        "PV": 32.44,
-        "RS": 44.31
+        "MO": 28.9,
+        "PT": 21.0,
+        "PV": 23.86,
+        "RS": 24.31
       },
       "MHE_inputs": {
         "H120": 6.9,
-        "H20": 55.17,
-        "H5": 29.31,
-        "H60": 58.62
+        "H20": 17.24,
+        "H5": 43.11,
+        "H60": 46.55
       },
-      "RelativeStrength": 44.31,
+      "RelativeStrength": 24.31,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 1715282.0,
@@ -293,27 +293,27 @@
         "revenue_yoy": 31.577957840545338,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 51.72,
+      "Liquidity": 58.62,
       "M7_inputs": {
         "FI": -2588097.0,
         "IT": -799000.0,
         "LH": 163.48000000000002,
-        "MO": 77.44,
-        "PT": 80.0,
-        "PV": 56.99,
-        "RS": 55.0
+        "MO": 71.11,
+        "PT": 88.0,
+        "PV": 65.33,
+        "RS": 43.1
       },
       "MHE_inputs": {
-        "H120": 29.31,
-        "H20": 93.1,
-        "H5": 87.94,
-        "H60": 32.75
+        "H120": 32.75,
+        "H20": 81.03,
+        "H5": 8.62,
+        "H60": 12.06
       },
-      "RelativeStrength": 55.0,
+      "RelativeStrength": 43.1,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -3387097.0,
@@ -346,27 +346,27 @@
         "revenue_yoy": 23.54138354194384,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 17.24,
+      "Liquidity": 20.69,
       "M7_inputs": {
         "FI": 36127.0,
         "IT": 0.0,
         "LH": 147.59,
-        "MO": 56.82,
-        "PT": 15.0,
-        "PV": 35.39,
-        "RS": 32.24
+        "MO": 71.99,
+        "PT": 35.0,
+        "PV": 53.06,
+        "RS": 46.2
       },
       "MHE_inputs": {
         "H120": 22.41,
-        "H20": 34.48,
-        "H5": 53.45,
-        "H60": 39.66
+        "H20": 72.41,
+        "H5": 60.34,
+        "H60": 34.48
       },
-      "RelativeStrength": 32.24,
+      "RelativeStrength": 46.2,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 36127.0,
@@ -399,27 +399,27 @@
         "revenue_yoy": 180.9018539007475,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 24.14,
+      "Liquidity": 10.34,
       "M7_inputs": {
         "FI": 79335.0,
         "IT": 0.0,
         "LH": 144.98,
-        "MO": 27.64,
-        "PT": 65.0,
-        "PV": 97.25,
-        "RS": 69.83
+        "MO": 17.85,
+        "PT": 80.0,
+        "PV": 29.58,
+        "RS": 51.55
       },
       "MHE_inputs": {
-        "H120": 81.03,
-        "H20": 44.83,
-        "H5": 50.0,
-        "H60": 93.1
+        "H120": 55.17,
+        "H20": 3.45,
+        "H5": 48.28,
+        "H60": 96.55
       },
-      "RelativeStrength": 69.83,
+      "RelativeStrength": 51.55,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TPEX",
-        "benchmark_history_coverage": 220,
+        "benchmark_history_coverage": 219,
         "benchmark_market": "TPEX"
       },
       "SMART_MONEY": 79335.0,
@@ -452,27 +452,27 @@
         "revenue_yoy": 103.06092173798378,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 10.34,
+      "Liquidity": 3.45,
       "M7_inputs": {
         "FI": 9383.0,
         "IT": 0.0,
         "LH": 152.85,
-        "MO": 49.18,
-        "PT": 100.0,
-        "PV": 96.13,
-        "RS": 78.1
+        "MO": 35.69,
+        "PT": 80.0,
+        "PV": 53.52,
+        "RS": 65.86
       },
       "MHE_inputs": {
-        "H120": 72.41,
-        "H20": 74.13,
-        "H5": 67.24,
+        "H120": 77.59,
+        "H20": 34.48,
+        "H5": 91.38,
         "H60": 86.21
       },
-      "RelativeStrength": 78.1,
+      "RelativeStrength": 65.86,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TPEX",
-        "benchmark_history_coverage": 220,
+        "benchmark_history_coverage": 219,
         "benchmark_market": "TPEX"
       },
       "SMART_MONEY": 9383.0,
@@ -505,27 +505,27 @@
         "revenue_yoy": 76.38825024031777,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 65.52,
+      "Liquidity": 68.97,
       "M7_inputs": {
         "FI": -624682.0,
         "IT": -11191.0,
         "LH": 176.23,
-        "MO": 51.59,
+        "MO": 46.68,
         "PT": 44.0,
-        "PV": 55.91,
-        "RS": 48.62
+        "PV": 55.67,
+        "RS": 23.97
       },
       "MHE_inputs": {
-        "H120": 37.93,
-        "H20": 82.76,
-        "H5": 63.8,
-        "H60": 18.96
+        "H120": 27.59,
+        "H20": 20.69,
+        "H5": 50.0,
+        "H60": 27.59
       },
-      "RelativeStrength": 48.62,
+      "RelativeStrength": 23.97,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -635873.0,
@@ -563,22 +563,22 @@
         "FI": 365309.0,
         "IT": 56000.0,
         "LH": 155.18,
-        "MO": 43.57,
-        "PT": 41.0,
-        "PV": 44.55,
-        "RS": 43.27
+        "MO": 24.24,
+        "PT": 36.0,
+        "PV": 26.91,
+        "RS": 26.38
       },
       "MHE_inputs": {
         "H120": 3.45,
-        "H20": 72.41,
-        "H5": 25.87,
-        "H60": 36.2
+        "H20": 27.59,
+        "H5": 51.72,
+        "H60": 41.38
       },
-      "RelativeStrength": 43.27,
+      "RelativeStrength": 26.38,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 421309.0,
@@ -611,27 +611,27 @@
         "revenue_yoy": 54.340256925995845,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 82.76,
+      "Liquidity": 79.31,
       "M7_inputs": {
         "FI": -341979.0,
         "IT": -275034.0,
         "LH": 168.36,
-        "MO": 55.57,
+        "MO": 50.08,
         "PT": 100.0,
-        "PV": 52.56,
-        "RS": 85.52
+        "PV": 58.35,
+        "RS": 77.59
       },
       "MHE_inputs": {
-        "H120": 70.69,
-        "H20": 86.21,
-        "H5": 37.93,
-        "H60": 96.55
+        "H120": 81.03,
+        "H20": 68.97,
+        "H5": 50.0,
+        "H60": 87.94
       },
-      "RelativeStrength": 85.52,
+      "RelativeStrength": 77.59,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -617013.0,
@@ -669,22 +669,22 @@
         "FI": -412823.0,
         "IT": 110723.0,
         "LH": 169.9,
-        "MO": 29.79,
-        "PT": 8.0,
-        "PV": 48.72,
-        "RS": 16.55
+        "MO": 32.93,
+        "PT": 23.0,
+        "PV": 52.34,
+        "RS": 12.59
       },
       "MHE_inputs": {
-        "H120": 34.48,
-        "H20": 12.06,
-        "H5": 43.11,
-        "H60": 6.9
+        "H120": 36.2,
+        "H20": 6.9,
+        "H5": 53.45,
+        "H60": 3.45
       },
-      "RelativeStrength": 16.55,
+      "RelativeStrength": 12.59,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -302100.0,
@@ -717,27 +717,27 @@
         "revenue_yoy": 273.61017160561573,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 68.97,
+      "Liquidity": 65.52,
       "M7_inputs": {
         "FI": 75675.0,
         "IT": 6000.0,
         "LH": 134.86,
-        "MO": 27.02,
-        "PT": 29.0,
-        "PV": 47.2,
-        "RS": 39.83
+        "MO": 36.81,
+        "PT": 44.0,
+        "PV": 32.72,
+        "RS": 25.52
       },
       "MHE_inputs": {
-        "H120": 51.72,
-        "H20": 31.03,
-        "H5": 56.89,
-        "H60": 43.11
+        "H120": 53.45,
+        "H20": 10.34,
+        "H5": 46.55,
+        "H60": 24.14
       },
-      "RelativeStrength": 39.83,
+      "RelativeStrength": 25.52,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 81675.0,
@@ -775,22 +775,22 @@
         "FI": 5229662.0,
         "IT": 657113.0,
         "LH": 178.82,
-        "MO": 84.86,
-        "PT": 80.0,
-        "PV": 30.72,
-        "RS": 90.52
+        "MO": 89.31,
+        "PT": 100.0,
+        "PV": 56.67,
+        "RS": 92.76
       },
       "MHE_inputs": {
-        "H120": 93.1,
-        "H20": 89.66,
-        "H5": 100.0,
-        "H60": 89.66
+        "H120": 87.94,
+        "H20": 96.55,
+        "H5": 98.28,
+        "H60": 93.1
       },
-      "RelativeStrength": 90.52,
+      "RelativeStrength": 92.76,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 5886775.0,
@@ -823,27 +823,27 @@
         "revenue_yoy": 129.84671742960728,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 75.86,
+      "Liquidity": 82.76,
       "M7_inputs": {
         "FI": 2087.0,
         "IT": 133705.0,
         "LH": 168.22,
-        "MO": 23.52,
-        "PT": 32.0,
-        "PV": 48.78,
-        "RS": 42.41
+        "MO": 22.07,
+        "PT": 47.0,
+        "PV": 55.65,
+        "RS": 37.76
       },
       "MHE_inputs": {
-        "H120": 81.03,
-        "H20": 15.51,
-        "H5": 13.79,
-        "H60": 46.55
+        "H120": 77.59,
+        "H20": 13.79,
+        "H5": 62.07,
+        "H60": 37.93
       },
-      "RelativeStrength": 42.41,
+      "RelativeStrength": 37.76,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 135792.0,
@@ -876,27 +876,27 @@
         "revenue_yoy": 51.978131522564816,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 58.62,
+      "Liquidity": 62.07,
       "M7_inputs": {
         "FI": -15146584.0,
         "IT": 223181.0,
         "LH": 169.46,
-        "MO": 44.9,
-        "PT": 88.0,
-        "PV": 42.96,
-        "RS": 45.69
+        "MO": 48.43,
+        "PT": 65.0,
+        "PV": 52.89,
+        "RS": 56.03
       },
       "MHE_inputs": {
-        "H120": 44.83,
-        "H20": 37.93,
-        "H5": 17.24,
-        "H60": 55.17
+        "H120": 46.55,
+        "H20": 51.72,
+        "H5": 25.86,
+        "H60": 70.69
       },
-      "RelativeStrength": 45.69,
+      "RelativeStrength": 56.03,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -14923403.0,
@@ -934,22 +934,22 @@
         "FI": -5913974.0,
         "IT": 253678.0,
         "LH": 187.53,
-        "MO": 56.44,
+        "MO": 55.96,
         "PT": 100.0,
-        "PV": 54.45,
-        "RS": 57.24
+        "PV": 63.33,
+        "RS": 60.0
       },
       "MHE_inputs": {
-        "H120": 55.17,
-        "H20": 46.55,
-        "H5": 46.55,
-        "H60": 70.69
+        "H120": 50.0,
+        "H20": 65.52,
+        "H5": 44.83,
+        "H60": 65.52
       },
-      "RelativeStrength": 57.24,
+      "RelativeStrength": 60.0,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -5660296.0,
@@ -982,27 +982,27 @@
         "revenue_yoy": 98.42707910183296,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 37.93,
+      "Liquidity": 41.38,
       "M7_inputs": {
         "FI": 1334911.0,
         "IT": 332281.0,
         "LH": 173.81,
-        "MO": 62.79,
+        "MO": 57.82,
         "PT": 100.0,
-        "PV": 62.86,
-        "RS": 70.86
+        "PV": 56.53,
+        "RS": 69.48
       },
       "MHE_inputs": {
         "H120": 74.13,
-        "H20": 63.8,
-        "H5": 67.25,
+        "H20": 62.07,
+        "H5": 48.27,
         "H60": 75.86
       },
-      "RelativeStrength": 70.86,
+      "RelativeStrength": 69.48,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 1667192.0,
@@ -1040,22 +1040,22 @@
         "FI": -5999455.0,
         "IT": -275561.0,
         "LH": 173.51,
-        "MO": 17.74,
+        "MO": 19.65,
         "PT": 8.0,
-        "PV": 29.6,
-        "RS": 23.28
+        "PV": 32.95,
+        "RS": 30.69
       },
       "MHE_inputs": {
-        "H120": 58.62,
-        "H20": 3.45,
-        "H5": 6.9,
-        "H60": 22.41
+        "H120": 56.89,
+        "H20": 24.14,
+        "H5": 10.34,
+        "H60": 20.69
       },
-      "RelativeStrength": 23.28,
+      "RelativeStrength": 30.69,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -6275016.0,
@@ -1088,27 +1088,27 @@
         "revenue_yoy": 45.05455923264947,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 13.79,
+      "Liquidity": 17.24,
       "M7_inputs": {
         "FI": 11642.0,
         "IT": 0.0,
         "LH": 143.92000000000002,
-        "MO": 35.94,
+        "MO": 43.83,
         "PT": 0.0,
-        "PV": 24.83,
-        "RS": 13.79
+        "PV": 32.2,
+        "RS": 21.03
       },
       "MHE_inputs": {
-        "H120": 12.06,
-        "H20": 6.9,
-        "H5": 22.41,
-        "H60": 25.87
+        "H120": 10.34,
+        "H20": 31.03,
+        "H5": 24.14,
+        "H60": 17.24
       },
-      "RelativeStrength": 13.79,
+      "RelativeStrength": 21.03,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 11642.0,
@@ -1146,22 +1146,22 @@
         "FI": 2135571.0,
         "IT": -10224141.0,
         "LH": 168.57,
-        "MO": 43.5,
+        "MO": 53.18,
         "PT": 68.0,
-        "PV": 47.58,
-        "RS": 36.21
+        "PV": 42.12,
+        "RS": 63.96
       },
       "MHE_inputs": {
-        "H120": 86.21,
-        "H20": 27.59,
-        "H5": 82.76,
-        "H60": 10.34
+        "H120": 91.38,
+        "H20": 58.62,
+        "H5": 81.03,
+        "H60": 55.17
       },
-      "RelativeStrength": 36.21,
+      "RelativeStrength": 63.96,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -8088570.0,
@@ -1199,22 +1199,22 @@
         "FI": 3598903.0,
         "IT": 7000.0,
         "LH": 140.68,
-        "MO": 43.55,
+        "MO": 49.06,
         "PT": 15.0,
-        "PV": 51.46,
-        "RS": 13.79
+        "PV": 48.56,
+        "RS": 23.79
       },
       "MHE_inputs": {
-        "H120": 18.96,
-        "H20": 20.69,
-        "H5": 50.0,
-        "H60": 3.45
+        "H120": 13.79,
+        "H20": 44.83,
+        "H5": 62.07,
+        "H60": 8.62
       },
-      "RelativeStrength": 13.79,
+      "RelativeStrength": 23.79,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 3605903.0,
@@ -1252,22 +1252,22 @@
         "FI": 7170950.0,
         "IT": 1136582.0,
         "LH": 183.57,
-        "MO": 44.49,
+        "MO": 46.5,
         "PT": 80.0,
-        "PV": 39.54,
-        "RS": 68.11
+        "PV": 44.91,
+        "RS": 75.17
       },
       "MHE_inputs": {
-        "H120": 89.66,
-        "H20": 43.11,
-        "H5": 79.31,
-        "H60": 79.31
+        "H120": 96.55,
+        "H20": 55.17,
+        "H5": 63.79,
+        "H60": 84.48
       },
-      "RelativeStrength": 68.11,
+      "RelativeStrength": 75.17,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 8307532.0,
@@ -1300,27 +1300,27 @@
         "revenue_yoy": 29.883694137526195,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 20.69,
+      "Liquidity": 27.59,
       "M7_inputs": {
         "FI": 925129.0,
         "IT": 0.0,
         "LH": 132.71,
-        "MO": 87.5,
+        "MO": 87.93,
         "PT": 88.0,
-        "PV": 71.0,
-        "RS": 75.86
+        "PV": 87.45,
+        "RS": 72.07
       },
       "MHE_inputs": {
-        "H120": 62.07,
-        "H20": 96.55,
-        "H5": 96.55,
-        "H60": 63.8
+        "H120": 63.8,
+        "H20": 93.1,
+        "H5": 81.03,
+        "H60": 58.62
       },
-      "RelativeStrength": 75.86,
+      "RelativeStrength": 72.07,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 925129.0,
@@ -1353,27 +1353,27 @@
         "revenue_yoy": 26.33031651680444,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 41.38,
+      "Liquidity": 34.48,
       "M7_inputs": {
         "FI": -1178728.0,
         "IT": 211017.0,
         "LH": 171.93,
-        "MO": 40.47,
-        "PT": 85.0,
-        "PV": 45.93,
-        "RS": 44.66
+        "MO": 41.54,
+        "PT": 65.0,
+        "PV": 61.98,
+        "RS": 54.48
       },
       "MHE_inputs": {
-        "H120": 48.28,
-        "H20": 24.14,
-        "H5": 10.34,
-        "H60": 67.25
+        "H120": 60.34,
+        "H20": 48.28,
+        "H5": 20.69,
+        "H60": 62.07
       },
-      "RelativeStrength": 44.66,
+      "RelativeStrength": 54.48,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -967711.0,
@@ -1406,27 +1406,27 @@
         "revenue_yoy": 54.27157903895514,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 3.45,
+      "Liquidity": 6.9,
       "M7_inputs": {
         "FI": 6159.0,
         "IT": 0.0,
         "LH": 152.82999999999998,
-        "MO": 48.41,
-        "PT": 49.0,
-        "PV": 26.87,
-        "RS": 55.86
+        "MO": 25.64,
+        "PT": 41.0,
+        "PV": 36.85,
+        "RS": 48.79
       },
       "MHE_inputs": {
-        "H120": 17.24,
-        "H20": 79.31,
+        "H120": 22.41,
+        "H20": 41.38,
         "H5": 0.0,
-        "H60": 41.38
+        "H60": 63.79
       },
-      "RelativeStrength": 55.86,
+      "RelativeStrength": 48.79,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TPEX",
-        "benchmark_history_coverage": 220,
+        "benchmark_history_coverage": 219,
         "benchmark_market": "TPEX"
       },
       "SMART_MONEY": 6159.0,
@@ -1459,27 +1459,27 @@
         "revenue_yoy": 98.21291582397657,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 34.48,
+      "Liquidity": 37.93,
       "M7_inputs": {
         "FI": -559126.0,
         "IT": -231266.0,
         "LH": 183.29000000000002,
-        "MO": 72.88,
-        "PT": 36.0,
-        "PV": 56.35,
-        "RS": 43.79
+        "MO": 84.08,
+        "PT": 56.0,
+        "PV": 55.53,
+        "RS": 57.07
       },
       "MHE_inputs": {
-        "H120": 15.51,
-        "H20": 58.62,
-        "H5": 75.86,
+        "H120": 18.96,
+        "H20": 89.66,
+        "H5": 72.41,
         "H60": 50.0
       },
-      "RelativeStrength": 43.79,
+      "RelativeStrength": 57.07,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -790392.0,
@@ -1512,27 +1512,27 @@
         "revenue_yoy": 5.328654064265897,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 6.9,
+      "Liquidity": 24.14,
       "M7_inputs": {
         "FI": 422795.0,
         "IT": 65549.0,
         "LH": 131.99,
-        "MO": 75.03,
+        "MO": 78.19,
         "PT": 88.0,
-        "PV": 69.99,
-        "RS": 42.76
+        "PV": 76.8,
+        "RS": 55.69
       },
       "MHE_inputs": {
         "H120": 41.38,
-        "H20": 67.25,
-        "H5": 70.69,
-        "H60": 15.51
+        "H20": 86.21,
+        "H5": 44.83,
+        "H60": 31.03
       },
-      "RelativeStrength": 42.76,
+      "RelativeStrength": 55.69,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 488344.0,
@@ -1570,22 +1570,22 @@
         "FI": 4902.0,
         "IT": 0.0,
         "LH": 138.42000000000002,
-        "MO": 37.36,
-        "PT": 0.0,
-        "PV": 98.27,
-        "RS": 21.55
+        "MO": 51.03,
+        "PT": 23.0,
+        "PV": 42.13,
+        "RS": 29.48
       },
       "MHE_inputs": {
-        "H120": 29.31,
-        "H20": 13.79,
-        "H5": 27.59,
-        "H60": 20.69
+        "H120": 32.76,
+        "H20": 37.93,
+        "H5": 44.83,
+        "H60": 10.34
       },
-      "RelativeStrength": 21.55,
+      "RelativeStrength": 29.48,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TPEX",
-        "benchmark_history_coverage": 220,
+        "benchmark_history_coverage": 219,
         "benchmark_market": "TPEX"
       },
       "SMART_MONEY": 4902.0,
@@ -1770,6 +1770,7 @@
   "fixture_fallback": "FORBIDDEN",
   "freshness": "PASS",
   "freshness_matrix": {
+    "acquisition_started_at": "2026-10-05T16:09:02.742583Z",
     "artifact": "RATE_PRODUCTION_SOURCE_FRESHNESS_MATRIX",
     "blocking_reasons": [],
     "cadence": "19:30",
@@ -1798,9 +1799,9 @@
         "required": true,
         "required_for_this_run": true,
         "retrieval_timestamps": [
-          "2026-10-04T06:07:16.842986Z",
-          "2026-10-04T06:07:17.119276Z",
-          "2026-10-04T06:07:22.243325Z"
+          "2026-10-05T16:09:04.440440Z",
+          "2026-10-05T16:04:00.479011Z",
+          "2026-10-05T16:09:29.981810Z"
         ],
         "source_authority": "TWSE/TPEx"
       },
@@ -1815,9 +1816,9 @@
         "required": true,
         "required_for_this_run": true,
         "retrieval_timestamps": [
-          "2026-10-04T06:07:16.842986Z",
-          "2026-10-04T06:07:17.119276Z",
-          "2026-10-04T06:07:22.243325Z"
+          "2026-10-05T16:09:04.440440Z",
+          "2026-10-05T16:04:00.479011Z",
+          "2026-10-05T16:09:29.981810Z"
         ],
         "source_authority": "TWSE/TPEx"
       },
@@ -1832,8 +1833,8 @@
         "required": true,
         "required_for_this_run": true,
         "retrieval_timestamps": [
-          "2026-10-04T06:07:17.300762Z",
-          "2026-10-04T06:07:17.935066Z"
+          "2026-10-05T16:09:06.069009Z",
+          "2026-10-05T16:09:08.574252Z"
         ],
         "source_authority": "TWSE/TPEx"
       },
@@ -1848,7 +1849,7 @@
         "required": true,
         "required_for_this_run": true,
         "retrieval_timestamps": [
-          "2026-10-04T06:07:19.107633Z"
+          "2026-10-05T16:09:12.594096Z"
         ],
         "source_authority": "TDCC"
       },
@@ -1863,8 +1864,8 @@
         "required": true,
         "required_for_this_run": true,
         "retrieval_timestamps": [
-          "2026-10-04T06:07:19.565860Z",
-          "2026-10-04T06:07:19.748395Z"
+          "2026-10-05T16:09:14.563782Z",
+          "2026-10-05T16:09:15.205040Z"
         ],
         "source_authority": "MOPS"
       },
@@ -1879,8 +1880,8 @@
         "required": true,
         "required_for_this_run": true,
         "retrieval_timestamps": [
-          "2026-10-04T06:07:20.333805Z",
-          "2026-10-04T06:07:21.596029Z"
+          "2026-10-05T16:09:26.937272Z",
+          "2026-10-05T16:09:29.668990Z"
         ],
         "source_authority": "TWSE/TPEx"
       },
@@ -1895,30 +1896,31 @@
         "required": true,
         "required_for_this_run": true,
         "retrieval_timestamps": [
-          "2026-10-04T06:07:17.251892Z"
+          "2026-10-05T16:09:05.170150Z"
         ],
         "source_authority": "TWSE/TPEx"
       }
     ],
-    "generated_at": "2026-10-04T06:07:16.633546Z",
+    "freshness_evaluated_at": "2026-10-05T16:09:30.016393Z",
+    "generated_at": "2026-10-05T16:09:30.016393Z",
     "trading_date": "2026-10-02",
     "validation_status": "PASS"
   },
   "freshness_status": "PASS",
   "historical_acceptance_bundle_fallback": "FORBIDDEN",
-  "input_snapshot_id": "rate-input-snapshot-34bd983351548d132c6cf737",
+  "input_snapshot_id": "rate-input-snapshot-6204bcd8d0f4da477857e3ae",
   "input_snapshot_ids": [
     "rate-source-input-1131ed13afd88383858cebc3",
+    "rate-source-input-157a590ead0441768083770f",
     "rate-source-input-46172f7b3380301bef0d513d",
+    "rate-source-input-580b4d67dad6a10ec4721a04",
     "rate-source-input-609ad08ad0b1bdc8e78e30f6",
-    "rate-source-input-8bbdeed85ae416bc3a5119f5",
+    "rate-source-input-7ca71ca5463472a1a18f9a2c",
     "rate-source-input-916929a3b80f2e22e735291e",
-    "rate-source-input-98322ae9e8e34ffb7180c280",
-    "rate-source-input-a75c55e02389a6a1b1f30733",
-    "rate-source-input-cad5fad676042688f735b7c4",
+    "rate-source-input-9ada20e27ceba9ac522810a0",
     "rate-source-input-d2b9beeeea8c5bf347c45380",
-    "rate-source-input-fe8bc541d2e9f75ef83e3f20",
-    "rate-source-input-fff5d1366c4ef8482a33e99e"
+    "rate-source-input-d757bd14563c44889b85cb05",
+    "rate-source-input-fe8bc541d2e9f75ef83e3f20"
   ],
   "local_cache_fallback": "FORBIDDEN",
   "local_desktop_dependency": "FORBIDDEN",
@@ -1939,7 +1941,7 @@
     },
     "coverage": "30/30",
     "freshness": {
-      "age_minutes": 0.09569001666666667,
+      "age_minutes": 0.45531115,
       "checks": {
         "cadence_freshness_window": true,
         "not_future_dated": true,
@@ -1948,13 +1950,13 @@
         "stale_previous_day_rejected": true
       },
       "max_age_minutes": 180,
-      "retrieval_timestamp": "2026-10-04T06:07:16.633546Z",
+      "retrieval_timestamp": "2026-10-05T16:09:02.742583Z",
       "source_trading_date": "2026-10-02",
       "status": "PASS"
     },
     "record_count": 30,
     "required_record_count": 30,
-    "retrieval_timestamp": "2026-10-04T06:07:16.633546Z",
+    "retrieval_timestamp": "2026-10-05T16:09:02.742583Z",
     "validation_status": "PASS"
   },
   "official_source_transformation": {
@@ -4751,26 +4753,19 @@
         "700206",
         "700207",
         "700208",
-        "700231",
         "700257",
         "700258",
-        "700259",
-        "700260",
         "700261",
         "700262",
         "700263",
         "700264",
         "700267",
         "700269",
-        "700270",
         "700271",
         "700273",
-        "700274",
         "700275",
         "700276",
-        "700277",
         "700279",
-        "700300",
         "700330",
         "700342",
         "700343",
@@ -5076,11 +5071,7 @@
         "703482",
         "703483",
         "703515",
-        "703520",
-        "703528",
-        "703535",
         "703581",
-        "703589",
         "703604",
         "703616",
         "703617",
@@ -6281,12 +6272,9 @@
         "706963",
         "706965",
         "706966",
-        "706967",
         "706968",
         "706969",
         "706970",
-        "706971",
-        "706972",
         "706973",
         "706975",
         "706976",
@@ -6302,20 +6290,9 @@
         "706986",
         "706987",
         "706988",
-        "706989",
-        "706990",
-        "706991",
-        "706994",
-        "706995",
-        "706996",
-        "706997",
-        "706998",
         "706999",
         "707000",
-        "707001",
-        "707002",
         "707003",
-        "707004",
         "707006",
         "707007",
         "707008",
@@ -14930,6 +14907,7 @@
         "715728",
         "715729",
         "715730",
+        "715731",
         "715732",
         "715733",
         "715734",
@@ -15000,6 +14978,8 @@
         "715799",
         "715800",
         "715801",
+        "715802",
+        "715803",
         "715804",
         "715805",
         "715806",
@@ -15016,6 +14996,8 @@
         "715817",
         "715818",
         "715819",
+        "715820",
+        "715821",
         "715822",
         "715823",
         "715824",
@@ -15028,7 +15010,161 @@
         "715831",
         "715832",
         "715833",
-        "72400U",
+        "715834",
+        "715835",
+        "715836",
+        "715837",
+        "715838",
+        "715839",
+        "715840",
+        "715841",
+        "715842",
+        "715843",
+        "715844",
+        "715845",
+        "715846",
+        "715847",
+        "715848",
+        "715849",
+        "715850",
+        "715851",
+        "715852",
+        "715853",
+        "715854",
+        "715855",
+        "715856",
+        "715857",
+        "715858",
+        "715859",
+        "715860",
+        "715861",
+        "715862",
+        "715863",
+        "715864",
+        "715865",
+        "715866",
+        "715867",
+        "715868",
+        "715869",
+        "715870",
+        "715871",
+        "715872",
+        "715873",
+        "715874",
+        "715875",
+        "715876",
+        "715877",
+        "715878",
+        "715879",
+        "715880",
+        "715881",
+        "715882",
+        "715883",
+        "715884",
+        "715885",
+        "715886",
+        "715887",
+        "715888",
+        "715889",
+        "715890",
+        "715891",
+        "715892",
+        "715893",
+        "715894",
+        "715895",
+        "715896",
+        "715897",
+        "715898",
+        "715899",
+        "715900",
+        "715901",
+        "715902",
+        "715903",
+        "715904",
+        "715905",
+        "715906",
+        "715907",
+        "715908",
+        "715909",
+        "715910",
+        "715911",
+        "715912",
+        "715913",
+        "715914",
+        "715915",
+        "715916",
+        "715917",
+        "715918",
+        "715919",
+        "715920",
+        "715921",
+        "715922",
+        "715923",
+        "715924",
+        "715925",
+        "715926",
+        "715927",
+        "715928",
+        "715929",
+        "715930",
+        "715931",
+        "715932",
+        "715933",
+        "715934",
+        "715935",
+        "715936",
+        "715937",
+        "715938",
+        "715939",
+        "715940",
+        "715941",
+        "715942",
+        "715943",
+        "715944",
+        "715945",
+        "715946",
+        "715947",
+        "715948",
+        "715949",
+        "715950",
+        "715951",
+        "715952",
+        "715953",
+        "715954",
+        "715955",
+        "715956",
+        "715957",
+        "715958",
+        "715959",
+        "715960",
+        "715961",
+        "715962",
+        "715963",
+        "715964",
+        "715965",
+        "715966",
+        "715967",
+        "715968",
+        "715969",
+        "715970",
+        "715971",
+        "715972",
+        "715973",
+        "715974",
+        "715975",
+        "715976",
+        "715977",
+        "715978",
+        "715979",
+        "715980",
+        "715981",
+        "715982",
+        "715983",
+        "715984",
+        "715985",
+        "715986",
+        "715987",
+        "715988",
         "72414U",
         "72479U",
         "72485U",
@@ -15096,9 +15232,6 @@
         "72841U",
         "72842U",
         "72843U",
-        "72846U",
-        "72847U",
-        "72848U",
         "72849U",
         "72850U",
         "728516",
@@ -15442,10 +15575,12 @@
         "73170U",
         "73171U",
         "73172U",
+        "73173U",
+        "73174U",
+        "73175U",
         "732269",
         "732272",
         "732332",
-        "732545",
         "732586",
         "732653",
         "733025",
@@ -16948,7 +17083,7 @@
       ],
       "approved_universe_count": 30,
       "artifact": "RATE_PRODUCTION_UNIVERSE_BINDING",
-      "available_symbol_count": 15015,
+      "available_symbol_count": 15148,
       "binding_mode": "AUTHORITATIVE_CONTRACT_EXACT_30",
       "blocking_reason": null,
       "contract_sha256": "57772eb40b16431f4b9e89395b2a98c2b8cd6d526e626a1860355c1b403a12e7",
@@ -17511,24 +17646,579 @@
           "response_type": "json"
         },
         "required": true,
-        "retrieval_timestamp": "2026-10-04T06:07:16.842986Z",
+        "retrieval_timestamp": "2026-10-05T16:09:04.440440Z",
         "source": "TWSE",
         "status": "PASS"
       },
       {
-        "body_sha256": "28ab13974843bd20a0c87d85a56074d5e17ea09eae077fbd3be3b3973d7f7a26",
-        "content_type": "application/json",
+        "attempt_count": null,
+        "body_sha256": "6ec823f05e5dd125e3af761c4bf1f41746a41522befd796ba58a2e8a193686d2",
+        "content_type": null,
         "dataset_id": "tpex_market_daily",
         "domain": "market_daily",
         "effective_date": "2026-10-02",
-        "endpoint": "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes",
+        "endpoint": "https://www.tpex.org.tw/www/en-us/afterTrading/tradingStock",
+        "fallback_used": false,
+        "historical_authority_classification": "DATE_BOUND_AUTHORITATIVE_OFFICIAL_HISTORY",
+        "historical_material_file_sha256": "6ec823f05e5dd125e3af761c4bf1f41746a41522befd796ba58a2e8a193686d2",
+        "historical_material_hash": "db17495273ab62d596deec24ba915dcd758f5811aff7dc3c45585662f1d8c7fd",
+        "historical_material_id": "rate-tpex-date-bound-db17495273ab62d596deec24",
+        "historical_material_path": "data/staging/step5a_history/market_daily_date_bound/2026-10-02.json",
+        "historical_provenance": [
+          {
+            "record": {
+              "close": 1620.0,
+              "high": 1685.0,
+              "ingested_at": "2026-10-05T16:03:57.383120Z",
+              "low": 1530.0,
+              "market": "TPEX",
+              "open": 1540.0,
+              "source": "TPEX_HISTORICAL_STOCK",
+              "source_timestamp": "2026-10-05T16:03:57.383120Z",
+              "symbol": "6274",
+              "trade_date": "2026-10-02",
+              "turnover": 19992007.0,
+              "volume": 12357.0
+            },
+            "source_evidence": {
+              "content_hash": "7578de56615ddbbc5028c9c42e8d412a9b2bff8e5f8207629543eb4ef41c6931",
+              "diagnostics": {
+                "attempt": 1,
+                "content_type": "application/json;charset=UTF-8",
+                "http_status": 200,
+                "response_bytes": 946
+              },
+              "domain": "market_daily_history",
+              "endpoint": "https://www.tpex.org.tw/www/en-us/afterTrading/tradingStock",
+              "historical_product": "Daily Stock Info / Historical Data of Individual Mainboard Stock",
+              "product_page": "https://www.tpex.org.tw/en-us/mainboard/trading/info/stock-pricing.html",
+              "provider": "TPEx Official OpenAPI",
+              "raw_payload": {
+                "code": "6274",
+                "date": "20261001",
+                "flagField": "Trade unit",
+                "name": "TAIWAN UNION TECHNOLOGY CO.,LTD.",
+                "showListPriceLink": false,
+                "showListPriceNote": false,
+                "stat": "ok",
+                "tables": [
+                  {
+                    "data": [
+                      [
+                        "2026/10/01",
+                        "4,683",
+                        "7,128,084",
+                        "1,530.00",
+                        "1,540.00",
+                        "1,500.00",
+                        "1,535.00",
+                        "15.00",
+                        "10,807"
+                      ],
+                      [
+                        "2026/10/02",
+                        "12,357",
+                        "19,992,007",
+                        "1,540.00",
+                        "1,685.00",
+                        "1,530.00",
+                        "1,620.00",
+                        "85.00",
+                        "26,577"
+                      ],
+                      [
+                        "2026/10/05",
+                        "12,194",
+                        "21,297,201",
+                        "1,695.00",
+                        "1,780.00",
+                        "1,680.00",
+                        "1,780.00",
+                        "160.00",
+                        "27,959"
+                      ]
+                    ],
+                    "date": "20261001",
+                    "fields": [
+                      "Date",
+                      "Trade unit",
+                      "Trade Amt.(NTD1000)",
+                      "Open",
+                      "High",
+                      "Low",
+                      "Close",
+                      "Change(%)",
+                      "No. of Transactions"
+                    ],
+                    "notes": [
+                      "If the last digit of the 6-digit alphanumeric ETF security code is K or C, it is traded in foreign currency. The minimum trading unit should be 100 units or integer multiples. Please refer to its prospectus."
+                    ],
+                    "subtitle": "6274 TAIWAN UNION TECHNOLOGY CO.,LTD. 2026/10",
+                    "summary": [],
+                    "title": "Daily Stock Info",
+                    "totalCount": 3
+                  }
+                ]
+              },
+              "record_count": 1,
+              "request_method": "POST",
+              "request_params": {
+                "code": "6274",
+                "date": "2026/10/01",
+                "response": "json"
+              },
+              "retrieval_timestamp": "2026-10-05T16:03:57.383120Z",
+              "source_timestamp": "2026-10-05T16:03:57.383120Z",
+              "source_type": "OFFICIAL_PRIMARY"
+            },
+            "source_payload_hash": "308736e1215fc1539361d5d204eaa5422d7ad25eabcc4680ac31ff6c71e6f6a5",
+            "symbol": "6274"
+          },
+          {
+            "record": {
+              "close": 2925.0,
+              "high": 2925.0,
+              "ingested_at": "2026-10-05T16:03:58.958594Z",
+              "low": 2735.0,
+              "market": "TPEX",
+              "open": 2780.0,
+              "source": "TPEX_HISTORICAL_STOCK",
+              "source_timestamp": "2026-10-05T16:03:58.958594Z",
+              "symbol": "3081",
+              "trade_date": "2026-10-02",
+              "turnover": 13251354.0,
+              "volume": 4649.0
+            },
+            "source_evidence": {
+              "content_hash": "0100f8a4f800cbe26fb65abcab7457711338432af320b32fee67cf953477831d",
+              "diagnostics": {
+                "attempt": 1,
+                "content_type": "application/json;charset=UTF-8",
+                "http_status": 200,
+                "response_bytes": 953
+              },
+              "domain": "market_daily_history",
+              "endpoint": "https://www.tpex.org.tw/www/en-us/afterTrading/tradingStock",
+              "historical_product": "Daily Stock Info / Historical Data of Individual Mainboard Stock",
+              "product_page": "https://www.tpex.org.tw/en-us/mainboard/trading/info/stock-pricing.html",
+              "provider": "TPEx Official OpenAPI",
+              "raw_payload": {
+                "code": "3081",
+                "date": "20261001",
+                "flagField": "Trade unit",
+                "name": "LandMark Optoelectronics Corporation",
+                "showListPriceLink": false,
+                "showListPriceNote": false,
+                "stat": "ok",
+                "tables": [
+                  {
+                    "data": [
+                      [
+                        "2026/10/01",
+                        "1,922",
+                        "5,094,110",
+                        "2,690.00",
+                        "2,720.00",
+                        "2,605.00",
+                        "2,660.00",
+                        "-35.00",
+                        "12,954"
+                      ],
+                      [
+                        "2026/10/02",
+                        "4,649",
+                        "13,251,354",
+                        "2,780.00",
+                        "2,925.00",
+                        "2,735.00",
+                        "2,925.00",
+                        "265.00",
+                        "16,866"
+                      ],
+                      [
+                        "2026/10/05",
+                        "7,079",
+                        "21,282,319",
+                        "3,000.00",
+                        "3,105.00",
+                        "2,900.00",
+                        "3,000.00",
+                        "75.00",
+                        "25,424"
+                      ]
+                    ],
+                    "date": "20261001",
+                    "fields": [
+                      "Date",
+                      "Trade unit",
+                      "Trade Amt.(NTD1000)",
+                      "Open",
+                      "High",
+                      "Low",
+                      "Close",
+                      "Change(%)",
+                      "No. of Transactions"
+                    ],
+                    "notes": [
+                      "If the last digit of the 6-digit alphanumeric ETF security code is K or C, it is traded in foreign currency. The minimum trading unit should be 100 units or integer multiples. Please refer to its prospectus."
+                    ],
+                    "subtitle": "3081 LandMark Optoelectronics Corporation 2026/10",
+                    "summary": [],
+                    "title": "Daily Stock Info",
+                    "totalCount": 3
+                  }
+                ]
+              },
+              "record_count": 1,
+              "request_method": "POST",
+              "request_params": {
+                "code": "3081",
+                "date": "2026/10/01",
+                "response": "json"
+              },
+              "retrieval_timestamp": "2026-10-05T16:03:58.958594Z",
+              "source_timestamp": "2026-10-05T16:03:58.958594Z",
+              "source_type": "OFFICIAL_PRIMARY"
+            },
+            "source_payload_hash": "e0c77d7262cfcc8847eb4aed03efa0f9982114364ca0869d88a70375fe6a2739",
+            "symbol": "3081"
+          },
+          {
+            "record": {
+              "close": 1355.0,
+              "high": 1385.0,
+              "ingested_at": "2026-10-05T16:03:59.498345Z",
+              "low": 1290.0,
+              "market": "TPEX",
+              "open": 1290.0,
+              "source": "TPEX_HISTORICAL_STOCK",
+              "source_timestamp": "2026-10-05T16:03:59.498345Z",
+              "symbol": "6187",
+              "trade_date": "2026-10-02",
+              "turnover": 3271723.0,
+              "volume": 2437.0
+            },
+            "source_evidence": {
+              "content_hash": "2d1012361b882b98b07a5c6f13b456a756a77d921546994508f9c070d0d22b0f",
+              "diagnostics": {
+                "attempt": 1,
+                "content_type": "application/json;charset=UTF-8",
+                "http_status": 200,
+                "response_bytes": 921
+              },
+              "domain": "market_daily_history",
+              "endpoint": "https://www.tpex.org.tw/www/en-us/afterTrading/tradingStock",
+              "historical_product": "Daily Stock Info / Historical Data of Individual Mainboard Stock",
+              "product_page": "https://www.tpex.org.tw/en-us/mainboard/trading/info/stock-pricing.html",
+              "provider": "TPEx Official OpenAPI",
+              "raw_payload": {
+                "code": "6187",
+                "date": "20261001",
+                "flagField": "Trade unit",
+                "name": "ALL RING TECH CO., LTD",
+                "showListPriceLink": false,
+                "showListPriceNote": false,
+                "stat": "ok",
+                "tables": [
+                  {
+                    "data": [
+                      [
+                        "2026/10/01",
+                        "1,700",
+                        "2,172,858",
+                        "1,300.00",
+                        "1,325.00",
+                        "1,260.00",
+                        "1,275.00",
+                        "-35.00",
+                        "5,018"
+                      ],
+                      [
+                        "2026/10/02",
+                        "2,437",
+                        "3,271,723",
+                        "1,290.00",
+                        "1,385.00",
+                        "1,290.00",
+                        "1,355.00",
+                        "80.00",
+                        "6,650"
+                      ],
+                      [
+                        "2026/10/05",
+                        "4,889",
+                        "7,092,341",
+                        "1,400.00",
+                        "1,490.00",
+                        "1,390.00",
+                        "1,490.00",
+                        "135.00",
+                        "11,367"
+                      ]
+                    ],
+                    "date": "20261001",
+                    "fields": [
+                      "Date",
+                      "Trade unit",
+                      "Trade Amt.(NTD1000)",
+                      "Open",
+                      "High",
+                      "Low",
+                      "Close",
+                      "Change(%)",
+                      "No. of Transactions"
+                    ],
+                    "notes": [
+                      "If the last digit of the 6-digit alphanumeric ETF security code is K or C, it is traded in foreign currency. The minimum trading unit should be 100 units or integer multiples. Please refer to its prospectus."
+                    ],
+                    "subtitle": "6187 ALL RING TECH CO., LTD 2026/10",
+                    "summary": [],
+                    "title": "Daily Stock Info",
+                    "totalCount": 3
+                  }
+                ]
+              },
+              "record_count": 1,
+              "request_method": "POST",
+              "request_params": {
+                "code": "6187",
+                "date": "2026/10/01",
+                "response": "json"
+              },
+              "retrieval_timestamp": "2026-10-05T16:03:59.498345Z",
+              "source_timestamp": "2026-10-05T16:03:59.498345Z",
+              "source_type": "OFFICIAL_PRIMARY"
+            },
+            "source_payload_hash": "00496b074595ad3e916c45eabb4c402e93cd84d60940675cd8c931db4a805d29",
+            "symbol": "6187"
+          },
+          {
+            "record": {
+              "close": 3070.0,
+              "high": 3120.0,
+              "ingested_at": "2026-10-05T16:04:00.227526Z",
+              "low": 3000.0,
+              "market": "TPEX",
+              "open": 3000.0,
+              "source": "TPEX_HISTORICAL_STOCK",
+              "source_timestamp": "2026-10-05T16:04:00.227526Z",
+              "symbol": "6510",
+              "trade_date": "2026-10-02",
+              "turnover": 1744773.0,
+              "volume": 570.0
+            },
+            "source_evidence": {
+              "content_hash": "0a978635b28a10ac881b9f0549e5f779662b57e50494315febcfc1bb0e769a5a",
+              "diagnostics": {
+                "attempt": 1,
+                "content_type": "application/json;charset=UTF-8",
+                "http_status": 200,
+                "response_bytes": 947
+              },
+              "domain": "market_daily_history",
+              "endpoint": "https://www.tpex.org.tw/www/en-us/afterTrading/tradingStock",
+              "historical_product": "Daily Stock Info / Historical Data of Individual Mainboard Stock",
+              "product_page": "https://www.tpex.org.tw/en-us/mainboard/trading/info/stock-pricing.html",
+              "provider": "TPEx Official OpenAPI",
+              "raw_payload": {
+                "code": "6510",
+                "date": "20261001",
+                "flagField": "Trade unit",
+                "name": "Chunghwa Precision Test Tech. Co., Ltd",
+                "showListPriceLink": false,
+                "showListPriceNote": false,
+                "stat": "ok",
+                "tables": [
+                  {
+                    "data": [
+                      [
+                        "2026/10/01",
+                        "1,063",
+                        "3,222,856",
+                        "3,065.00",
+                        "3,155.00",
+                        "2,960.00",
+                        "3,000.00",
+                        "-65.00",
+                        "8,204"
+                      ],
+                      [
+                        "2026/10/02",
+                        "570",
+                        "1,744,773",
+                        "3,000.00",
+                        "3,120.00",
+                        "3,000.00",
+                        "3,070.00",
+                        "70.00",
+                        "3,595"
+                      ],
+                      [
+                        "2026/10/05",
+                        "972",
+                        "3,023,008",
+                        "3,145.00",
+                        "3,180.00",
+                        "3,060.00",
+                        "3,105.00",
+                        "35.00",
+                        "4,957"
+                      ]
+                    ],
+                    "date": "20261001",
+                    "fields": [
+                      "Date",
+                      "Trade unit",
+                      "Trade Amt.(NTD1000)",
+                      "Open",
+                      "High",
+                      "Low",
+                      "Close",
+                      "Change(%)",
+                      "No. of Transactions"
+                    ],
+                    "notes": [
+                      "If the last digit of the 6-digit alphanumeric ETF security code is K or C, it is traded in foreign currency. The minimum trading unit should be 100 units or integer multiples. Please refer to its prospectus."
+                    ],
+                    "subtitle": "6510 Chunghwa Precision Test Tech. Co., Ltd 2026/10",
+                    "summary": [],
+                    "title": "Daily Stock Info",
+                    "totalCount": 3
+                  }
+                ]
+              },
+              "record_count": 1,
+              "request_method": "POST",
+              "request_params": {
+                "code": "6510",
+                "date": "2026/10/01",
+                "response": "json"
+              },
+              "retrieval_timestamp": "2026-10-05T16:04:00.227526Z",
+              "source_timestamp": "2026-10-05T16:04:00.227526Z",
+              "source_type": "OFFICIAL_PRIMARY"
+            },
+            "source_payload_hash": "f3781d632839d80603200988231995596cdc88d876cf930ee2e492a64fc395f5",
+            "symbol": "6510"
+          },
+          {
+            "record": {
+              "close": 187.5,
+              "high": 187.5,
+              "ingested_at": "2026-10-05T16:04:00.479011Z",
+              "low": 184.0,
+              "market": "TPEX",
+              "open": 185.0,
+              "source": "TPEX_HISTORICAL_STOCK",
+              "source_timestamp": "2026-10-05T16:04:00.479011Z",
+              "symbol": "3227",
+              "trade_date": "2026-10-02",
+              "turnover": 154554.0,
+              "volume": 831.0
+            },
+            "source_evidence": {
+              "content_hash": "7e6bea8ba1163a5aef6791345ad3a4eb2ae13aa2b471cc9170430342f4b37a2b",
+              "diagnostics": {
+                "attempt": 1,
+                "content_type": "application/json;charset=UTF-8",
+                "http_status": 200,
+                "response_bytes": 869
+              },
+              "domain": "market_daily_history",
+              "endpoint": "https://www.tpex.org.tw/www/en-us/afterTrading/tradingStock",
+              "historical_product": "Daily Stock Info / Historical Data of Individual Mainboard Stock",
+              "product_page": "https://www.tpex.org.tw/en-us/mainboard/trading/info/stock-pricing.html",
+              "provider": "TPEx Official OpenAPI",
+              "raw_payload": {
+                "code": "3227",
+                "date": "20261001",
+                "flagField": "Trade unit",
+                "name": "PixArt Imaging Inc.",
+                "showListPriceLink": false,
+                "showListPriceNote": false,
+                "stat": "ok",
+                "tables": [
+                  {
+                    "data": [
+                      [
+                        "2026/10/01",
+                        "616",
+                        "114,038",
+                        "184.50",
+                        "186.00",
+                        "184.00",
+                        "185.50",
+                        "0.50",
+                        "792"
+                      ],
+                      [
+                        "2026/10/02",
+                        "831",
+                        "154,554",
+                        "185.00",
+                        "187.50",
+                        "184.00",
+                        "187.50",
+                        "2.00",
+                        "983"
+                      ],
+                      [
+                        "2026/10/05",
+                        "959",
+                        "180,657",
+                        "189.00",
+                        "190.00",
+                        "187.50",
+                        "188.50",
+                        "1.00",
+                        "1,337"
+                      ]
+                    ],
+                    "date": "20261001",
+                    "fields": [
+                      "Date",
+                      "Trade unit",
+                      "Trade Amt.(NTD1000)",
+                      "Open",
+                      "High",
+                      "Low",
+                      "Close",
+                      "Change(%)",
+                      "No. of Transactions"
+                    ],
+                    "notes": [
+                      "If the last digit of the 6-digit alphanumeric ETF security code is K or C, it is traded in foreign currency. The minimum trading unit should be 100 units or integer multiples. Please refer to its prospectus."
+                    ],
+                    "subtitle": "3227 PixArt Imaging Inc. 2026/10",
+                    "summary": [],
+                    "title": "Daily Stock Info",
+                    "totalCount": 3
+                  }
+                ]
+              },
+              "record_count": 1,
+              "request_method": "POST",
+              "request_params": {
+                "code": "3227",
+                "date": "2026/10/01",
+                "response": "json"
+              },
+              "retrieval_timestamp": "2026-10-05T16:04:00.479011Z",
+              "source_timestamp": "2026-10-05T16:04:00.479011Z",
+              "source_type": "OFFICIAL_PRIMARY"
+            },
+            "source_payload_hash": "ffb49eb869477323737874f0687766d8cc4af2cb4101f9be7759d4c22eb0f601",
+            "symbol": "3227"
+          }
+        ],
         "http_status": 200,
+        "market_daily_source_mode": "DATE_BOUND_OFFICIAL_HISTORY",
         "normalization_status": "PASS",
-        "normalized_count": 6443,
+        "normalized_count": 5,
         "parse_status": "PASS",
         "parser_version": "TPEX_MARKET_DAILY_RAW_V1",
         "provider": "TPEX",
-        "record_count": 11928,
+        "record_count": 5,
         "registry_entry": {
           "authority": "TPEX",
           "authorization_status": "PASS",
@@ -17546,9 +18236,12 @@
           "parser": "TPEX_MARKET_DAILY_RAW_V1",
           "response_type": "json"
         },
+        "requested_trading_date": "2026-10-02",
         "required": true,
-        "retrieval_timestamp": "2026-10-04T06:07:17.119276Z",
+        "response_bytes": null,
+        "retrieval_timestamp": "2026-10-05T16:04:00.479011Z",
         "source": "TPEX",
+        "source_effective_date": "2026-10-02",
         "status": "PASS"
       },
       {
@@ -17583,12 +18276,12 @@
           "response_type": "json"
         },
         "required": true,
-        "retrieval_timestamp": "2026-10-04T06:07:17.251892Z",
+        "retrieval_timestamp": "2026-10-05T16:09:05.170150Z",
         "source": "TWSE",
         "status": "PASS"
       },
       {
-        "body_sha256": "71e6abfcfb1d4dca82088a2fe0a47ae5ed06ea62bcceada277eef7da993b31f8",
+        "body_sha256": "bd1b21c3ddfaf0a2d79038c5883fadd915c3d9939629b81bedc13676271cfd45",
         "content_type": "application/json;charset=UTF-8",
         "dataset_id": "twse_institutional",
         "domain": "institutional",
@@ -17619,17 +18312,40 @@
           "response_type": "json"
         },
         "required": true,
-        "retrieval_timestamp": "2026-10-04T06:07:17.300762Z",
+        "retrieval_timestamp": "2026-10-05T16:09:06.069009Z",
         "source": "TWSE",
         "status": "PASS"
       },
       {
+        "attempt_count": 1,
+        "attempts": [
+          {
+            "attempt": 1,
+            "backoff_seconds": 0,
+            "body_sha256": "dd5ec8507a75208bd64576f850462c21d4f6d33a909997cc5d0b4c0fcc50cafa",
+            "completed_at": "2026-10-05T16:09:08.381778Z",
+            "content_length_header": null,
+            "content_type": "application/json;charset=UTF-8",
+            "exception_type": null,
+            "final_url": "https://www.tpex.org.tw/www/zh-tw/insti/dailyTrade",
+            "first_safe_body_characters": "{\"columnNum\":25,\"tables\":[{\"title\":\"三大法人買賣明細資訊\",\"date\":\"115/10/02\",\"fields\":[\"代號\",\"名稱\",\"買�",
+            "http_date": "Mon, 05 Oct 2026 16:09:06 GMT",
+            "http_status": 200,
+            "parse_status": "PASS",
+            "response_bytes": 147232,
+            "retry_reason": null,
+            "started_at": "2026-10-05T16:09:06.103311Z"
+          }
+        ],
         "body_sha256": "dd5ec8507a75208bd64576f850462c21d4f6d33a909997cc5d0b4c0fcc50cafa",
+        "content_length_header": null,
         "content_type": "application/json;charset=UTF-8",
         "dataset_id": "tpex_institutional",
         "domain": "institutional",
         "effective_date": "2026-10-02",
         "endpoint": "https://www.tpex.org.tw/www/zh-tw/insti/dailyTrade",
+        "fallback_used": false,
+        "final_attempt": 1,
         "http_status": 200,
         "normalization_status": "PASS",
         "normalized_count": 910,
@@ -17655,7 +18371,8 @@
           "response_type": "json"
         },
         "required": true,
-        "retrieval_timestamp": "2026-10-04T06:07:17.935066Z",
+        "response_bytes": 147232,
+        "retrieval_timestamp": "2026-10-05T16:09:08.574252Z",
         "source": "TPEX",
         "status": "PASS"
       },
@@ -17691,7 +18408,7 @@
           "response_type": "json"
         },
         "required": true,
-        "retrieval_timestamp": "2026-10-04T06:07:19.107633Z",
+        "retrieval_timestamp": "2026-10-05T16:09:12.594096Z",
         "source": "TDCC",
         "status": "PASS"
       },
@@ -17727,17 +18444,40 @@
           "response_type": "json"
         },
         "required": true,
-        "retrieval_timestamp": "2026-10-04T06:07:19.565860Z",
+        "retrieval_timestamp": "2026-10-05T16:09:14.563782Z",
         "source": "TWSE",
         "status": "PASS"
       },
       {
+        "attempt_count": 1,
+        "attempts": [
+          {
+            "attempt": 1,
+            "backoff_seconds": 0,
+            "body_sha256": "f00e3fdd7060db0db943b79dc53d732df940d038ef208a1b075363e06660bd92",
+            "completed_at": "2026-10-05T16:09:15.205010Z",
+            "content_length_header": "496547",
+            "content_type": "application/json",
+            "exception_type": null,
+            "final_url": "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap05_O",
+            "first_safe_body_characters": "[ {\"出表日期\":\"1150917\",\"資料年月\":\"11508\",\"公司代號\":\"1240\",\"公司名稱\":\"茂生農經\",\"產業別\":\"農�",
+            "http_date": "Mon, 05 Oct 2026 16:09:14 GMT",
+            "http_status": 200,
+            "parse_status": "PASS",
+            "response_bytes": 496547,
+            "retry_reason": null,
+            "started_at": "2026-10-05T16:09:14.581456Z"
+          }
+        ],
         "body_sha256": "f00e3fdd7060db0db943b79dc53d732df940d038ef208a1b075363e06660bd92",
+        "content_length_header": "496547",
         "content_type": "application/json",
         "dataset_id": "tpex_fundamental_revenue",
         "domain": "fundamental",
         "effective_date": "2026-10-02",
         "endpoint": "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap05_O",
+        "fallback_used": false,
+        "final_attempt": 1,
         "http_status": 200,
         "normalization_status": "PASS",
         "normalized_count": 888,
@@ -17763,12 +18503,13 @@
           "response_type": "json"
         },
         "required": true,
-        "retrieval_timestamp": "2026-10-04T06:07:19.748395Z",
+        "response_bytes": 496547,
+        "retrieval_timestamp": "2026-10-05T16:09:15.205040Z",
         "source": "TPEX",
         "status": "PASS"
       },
       {
-        "body_sha256": "c9028b40687aca3e9c0b733f75c67ff19baa2785d6341977c9936a9daa20b63c",
+        "body_sha256": "39ef1ef97341b0e0828dc9bdeb7a30f5badbdcee2d43fdd02c1d88f2b470995b",
         "content_type": "application/json",
         "dataset_id": "twse_trading_metadata",
         "domain": "trading_metadata",
@@ -17799,24 +18540,47 @@
           "response_type": "json"
         },
         "required": true,
-        "retrieval_timestamp": "2026-10-04T06:07:20.333805Z",
+        "retrieval_timestamp": "2026-10-05T16:09:26.937272Z",
         "source": "TWSE",
         "status": "PASS"
       },
       {
-        "body_sha256": "28ab13974843bd20a0c87d85a56074d5e17ea09eae077fbd3be3b3973d7f7a26",
+        "attempt_count": 1,
+        "attempts": [
+          {
+            "attempt": 1,
+            "backoff_seconds": 0,
+            "body_sha256": "42a417e335f2d6eee69645f5328914f8fc3427da5cd1a8803aa77f6d39cbdba9",
+            "completed_at": "2026-10-05T16:09:29.668955Z",
+            "content_length_header": "4727518",
+            "content_type": "application/json",
+            "exception_type": null,
+            "final_url": "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes",
+            "first_safe_body_characters": "[ {\"Date\":\"1151005\",\"SecuritiesCompanyCode\":\"00411A\",\"CompanyName\":\"主動統一前沿科技\",\"Close\":\"10.94\",\"Change\":\"",
+            "http_date": "Mon, 05 Oct 2026 16:09:27 GMT",
+            "http_status": 200,
+            "parse_status": "PASS",
+            "response_bytes": 4727518,
+            "retry_reason": null,
+            "started_at": "2026-10-05T16:09:26.950600Z"
+          }
+        ],
+        "body_sha256": "42a417e335f2d6eee69645f5328914f8fc3427da5cd1a8803aa77f6d39cbdba9",
+        "content_length_header": "4727518",
         "content_type": "application/json",
         "dataset_id": "tpex_trading_metadata",
         "domain": "trading_metadata",
         "effective_date": "2026-10-02",
         "endpoint": "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes",
+        "fallback_used": false,
+        "final_attempt": 1,
         "http_status": 200,
         "normalization_status": "PASS",
-        "normalized_count": 11928,
+        "normalized_count": 12060,
         "parse_status": "PASS",
         "parser_version": "TPEX_TRADING_METADATA_V1",
         "provider": "TPEX",
-        "record_count": 11928,
+        "record_count": 12060,
         "registry_entry": {
           "authority": "TPEX",
           "authorization_status": "PASS",
@@ -17835,7 +18599,8 @@
           "response_type": "json"
         },
         "required": true,
-        "retrieval_timestamp": "2026-10-04T06:07:21.596029Z",
+        "response_bytes": 4727518,
+        "retrieval_timestamp": "2026-10-05T16:09:29.668990Z",
         "source": "TPEX",
         "status": "PASS"
       },
@@ -17848,7 +18613,7 @@
         "parser_version": "RATE-OFFICIAL-ROLLING-TECHNICAL-V1",
         "provider": "TWSE/TPEx Official Historical Market Data",
         "required": true,
-        "retrieval_timestamp": "2026-10-04T06:07:22.243325Z",
+        "retrieval_timestamp": "2026-10-05T16:09:29.981810Z",
         "source": "RATE_OFFICIAL_ROLLING_TECHNICAL_DERIVATION",
         "status": "PASS"
       }
@@ -17986,6 +18751,7 @@
       "status": "PASS"
     },
     "freshness_matrix": {
+      "acquisition_started_at": "2026-10-05T16:09:02.742583Z",
       "artifact": "RATE_PRODUCTION_SOURCE_FRESHNESS_MATRIX",
       "blocking_reasons": [],
       "cadence": "19:30",
@@ -18014,9 +18780,9 @@
           "required": true,
           "required_for_this_run": true,
           "retrieval_timestamps": [
-            "2026-10-04T06:07:16.842986Z",
-            "2026-10-04T06:07:17.119276Z",
-            "2026-10-04T06:07:22.243325Z"
+            "2026-10-05T16:09:04.440440Z",
+            "2026-10-05T16:04:00.479011Z",
+            "2026-10-05T16:09:29.981810Z"
           ],
           "source_authority": "TWSE/TPEx"
         },
@@ -18031,9 +18797,9 @@
           "required": true,
           "required_for_this_run": true,
           "retrieval_timestamps": [
-            "2026-10-04T06:07:16.842986Z",
-            "2026-10-04T06:07:17.119276Z",
-            "2026-10-04T06:07:22.243325Z"
+            "2026-10-05T16:09:04.440440Z",
+            "2026-10-05T16:04:00.479011Z",
+            "2026-10-05T16:09:29.981810Z"
           ],
           "source_authority": "TWSE/TPEx"
         },
@@ -18048,8 +18814,8 @@
           "required": true,
           "required_for_this_run": true,
           "retrieval_timestamps": [
-            "2026-10-04T06:07:17.300762Z",
-            "2026-10-04T06:07:17.935066Z"
+            "2026-10-05T16:09:06.069009Z",
+            "2026-10-05T16:09:08.574252Z"
           ],
           "source_authority": "TWSE/TPEx"
         },
@@ -18064,7 +18830,7 @@
           "required": true,
           "required_for_this_run": true,
           "retrieval_timestamps": [
-            "2026-10-04T06:07:19.107633Z"
+            "2026-10-05T16:09:12.594096Z"
           ],
           "source_authority": "TDCC"
         },
@@ -18079,8 +18845,8 @@
           "required": true,
           "required_for_this_run": true,
           "retrieval_timestamps": [
-            "2026-10-04T06:07:19.565860Z",
-            "2026-10-04T06:07:19.748395Z"
+            "2026-10-05T16:09:14.563782Z",
+            "2026-10-05T16:09:15.205040Z"
           ],
           "source_authority": "MOPS"
         },
@@ -18095,8 +18861,8 @@
           "required": true,
           "required_for_this_run": true,
           "retrieval_timestamps": [
-            "2026-10-04T06:07:20.333805Z",
-            "2026-10-04T06:07:21.596029Z"
+            "2026-10-05T16:09:26.937272Z",
+            "2026-10-05T16:09:29.668990Z"
           ],
           "source_authority": "TWSE/TPEx"
         },
@@ -18111,12 +18877,13 @@
           "required": true,
           "required_for_this_run": true,
           "retrieval_timestamps": [
-            "2026-10-04T06:07:17.251892Z"
+            "2026-10-05T16:09:05.170150Z"
           ],
           "source_authority": "TWSE/TPEx"
         }
       ],
-      "generated_at": "2026-10-04T06:07:16.633546Z",
+      "freshness_evaluated_at": "2026-10-05T16:09:30.016393Z",
+      "generated_at": "2026-10-05T16:09:30.016393Z",
       "trading_date": "2026-10-02",
       "validation_status": "PASS"
     },
@@ -18128,7 +18895,7 @@
     "symbol_mapping": "PASS",
     "universe_count": 30
   },
-  "production_snapshot_id": "rate-source-snapshot-a8d2427c8aab195c3af1debf",
+  "production_snapshot_id": "rate-source-snapshot-3bbe73c100b02f32a57d6443",
   "production_sources": {
     "2313": {
       "FI": 1579056.0,
@@ -18140,7 +18907,7 @@
       "LH": 158.94,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 1715282.0,
@@ -18168,15 +18935,15 @@
       },
       "technical_features": {
         "H120": 6.9,
-        "H20": 55.17,
-        "H5": 29.31,
-        "H60": 58.62,
-        "Liquidity": 62.07,
-        "MO": 38.78,
-        "PT": 41.0,
-        "PV": 32.44,
-        "RS": 44.31,
-        "RelativeStrength": 44.31
+        "H20": 17.24,
+        "H5": 43.11,
+        "H60": 46.55,
+        "Liquidity": 51.72,
+        "MO": 28.9,
+        "PT": 21.0,
+        "PV": 23.86,
+        "RS": 24.31,
+        "RelativeStrength": 24.31
       }
     },
     "2317": {
@@ -18189,7 +18956,7 @@
       "LH": 169.46,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -14923403.0,
@@ -18216,16 +18983,16 @@
         }
       },
       "technical_features": {
-        "H120": 44.83,
-        "H20": 37.93,
-        "H5": 17.24,
-        "H60": 55.17,
-        "Liquidity": 58.62,
-        "MO": 44.9,
-        "PT": 88.0,
-        "PV": 42.96,
-        "RS": 45.69,
-        "RelativeStrength": 45.69
+        "H120": 46.55,
+        "H20": 51.72,
+        "H5": 25.86,
+        "H60": 70.69,
+        "Liquidity": 62.07,
+        "MO": 48.43,
+        "PT": 65.0,
+        "PV": 52.89,
+        "RS": 56.03,
+        "RelativeStrength": 56.03
       }
     },
     "2330": {
@@ -18238,7 +19005,7 @@
       "LH": 187.53,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -5660296.0,
@@ -18265,16 +19032,16 @@
         }
       },
       "technical_features": {
-        "H120": 55.17,
-        "H20": 46.55,
-        "H5": 46.55,
-        "H60": 70.69,
+        "H120": 50.0,
+        "H20": 65.52,
+        "H5": 44.83,
+        "H60": 65.52,
         "Liquidity": 100.0,
-        "MO": 56.44,
+        "MO": 55.96,
         "PT": 100.0,
-        "PV": 54.45,
-        "RS": 57.24,
-        "RelativeStrength": 57.24
+        "PV": 63.33,
+        "RS": 60.0,
+        "RelativeStrength": 60.0
       }
     },
     "2337": {
@@ -18287,7 +19054,7 @@
       "LH": 140.68,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 3605903.0,
@@ -18314,16 +19081,16 @@
         }
       },
       "technical_features": {
-        "H120": 18.96,
-        "H20": 20.69,
-        "H5": 50.0,
-        "H60": 3.45,
+        "H120": 13.79,
+        "H20": 44.83,
+        "H5": 62.07,
+        "H60": 8.62,
         "Liquidity": 44.83,
-        "MO": 43.55,
+        "MO": 49.06,
         "PT": 15.0,
-        "PV": 51.46,
-        "RS": 13.79,
-        "RelativeStrength": 13.79
+        "PV": 48.56,
+        "RS": 23.79,
+        "RelativeStrength": 23.79
       }
     },
     "2344": {
@@ -18336,7 +19103,7 @@
       "LH": 168.57,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -8088570.0,
@@ -18363,16 +19130,16 @@
         }
       },
       "technical_features": {
-        "H120": 86.21,
-        "H20": 27.59,
-        "H5": 82.76,
-        "H60": 10.34,
+        "H120": 91.38,
+        "H20": 58.62,
+        "H5": 81.03,
+        "H60": 55.17,
         "Liquidity": 89.66,
-        "MO": 43.5,
+        "MO": 53.18,
         "PT": 68.0,
-        "PV": 47.58,
-        "RS": 36.21,
-        "RelativeStrength": 36.21
+        "PV": 42.12,
+        "RS": 63.96,
+        "RelativeStrength": 63.96
       }
     },
     "2345": {
@@ -18385,7 +19152,7 @@
       "LH": 169.9,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -302100.0,
@@ -18412,16 +19179,16 @@
         }
       },
       "technical_features": {
-        "H120": 34.48,
-        "H20": 12.06,
-        "H5": 43.11,
-        "H60": 6.9,
+        "H120": 36.2,
+        "H20": 6.9,
+        "H5": 53.45,
+        "H60": 3.45,
         "Liquidity": 55.17,
-        "MO": 29.79,
-        "PT": 8.0,
-        "PV": 48.72,
-        "RS": 16.55,
-        "RelativeStrength": 16.55
+        "MO": 32.93,
+        "PT": 23.0,
+        "PV": 52.34,
+        "RS": 12.59,
+        "RelativeStrength": 12.59
       }
     },
     "2356": {
@@ -18434,7 +19201,7 @@
       "LH": 173.51,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -6275016.0,
@@ -18461,16 +19228,16 @@
         }
       },
       "technical_features": {
-        "H120": 58.62,
-        "H20": 3.45,
-        "H5": 6.9,
-        "H60": 22.41,
+        "H120": 56.89,
+        "H20": 24.14,
+        "H5": 10.34,
+        "H60": 20.69,
         "Liquidity": 31.03,
-        "MO": 17.74,
+        "MO": 19.65,
         "PT": 8.0,
-        "PV": 29.6,
-        "RS": 23.28,
-        "RelativeStrength": 23.28
+        "PV": 32.95,
+        "RS": 30.69,
+        "RelativeStrength": 30.69
       }
     },
     "2368": {
@@ -18483,7 +19250,7 @@
       "LH": 176.23,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -635873.0,
@@ -18510,16 +19277,16 @@
         }
       },
       "technical_features": {
-        "H120": 37.93,
-        "H20": 82.76,
-        "H5": 63.8,
-        "H60": 18.96,
-        "Liquidity": 65.52,
-        "MO": 51.59,
+        "H120": 27.59,
+        "H20": 20.69,
+        "H5": 50.0,
+        "H60": 27.59,
+        "Liquidity": 68.97,
+        "MO": 46.68,
         "PT": 44.0,
-        "PV": 55.91,
-        "RS": 48.62,
-        "RelativeStrength": 48.62
+        "PV": 55.67,
+        "RS": 23.97,
+        "RelativeStrength": 23.97
       }
     },
     "2376": {
@@ -18532,7 +19299,7 @@
       "LH": 173.81,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 1667192.0,
@@ -18560,15 +19327,15 @@
       },
       "technical_features": {
         "H120": 74.13,
-        "H20": 63.8,
-        "H5": 67.25,
+        "H20": 62.07,
+        "H5": 48.27,
         "H60": 75.86,
-        "Liquidity": 37.93,
-        "MO": 62.79,
+        "Liquidity": 41.38,
+        "MO": 57.82,
         "PT": 100.0,
-        "PV": 62.86,
-        "RS": 70.86,
-        "RelativeStrength": 70.86
+        "PV": 56.53,
+        "RS": 69.48,
+        "RelativeStrength": 69.48
       }
     },
     "2383": {
@@ -18581,7 +19348,7 @@
       "LH": 168.22,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 135792.0,
@@ -18608,16 +19375,16 @@
         }
       },
       "technical_features": {
-        "H120": 81.03,
-        "H20": 15.51,
-        "H5": 13.79,
-        "H60": 46.55,
-        "Liquidity": 75.86,
-        "MO": 23.52,
-        "PT": 32.0,
-        "PV": 48.78,
-        "RS": 42.41,
-        "RelativeStrength": 42.41
+        "H120": 77.59,
+        "H20": 13.79,
+        "H5": 62.07,
+        "H60": 37.93,
+        "Liquidity": 82.76,
+        "MO": 22.07,
+        "PT": 47.0,
+        "PV": 55.65,
+        "RS": 37.76,
+        "RelativeStrength": 37.76
       }
     },
     "2408": {
@@ -18630,7 +19397,7 @@
       "LH": 183.57,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 8307532.0,
@@ -18657,16 +19424,16 @@
         }
       },
       "technical_features": {
-        "H120": 89.66,
-        "H20": 43.11,
-        "H5": 79.31,
-        "H60": 79.31,
+        "H120": 96.55,
+        "H20": 55.17,
+        "H5": 63.79,
+        "H60": 84.48,
         "Liquidity": 96.55,
-        "MO": 44.49,
+        "MO": 46.5,
         "PT": 80.0,
-        "PV": 39.54,
-        "RS": 68.11,
-        "RelativeStrength": 68.11
+        "PV": 44.91,
+        "RS": 75.17,
+        "RelativeStrength": 75.17
       }
     },
     "2449": {
@@ -18679,7 +19446,7 @@
       "LH": 163.48000000000002,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -3387097.0,
@@ -18706,16 +19473,16 @@
         }
       },
       "technical_features": {
-        "H120": 29.31,
-        "H20": 93.1,
-        "H5": 87.94,
-        "H60": 32.75,
-        "Liquidity": 51.72,
-        "MO": 77.44,
-        "PT": 80.0,
-        "PV": 56.99,
-        "RS": 55.0,
-        "RelativeStrength": 55.0
+        "H120": 32.75,
+        "H20": 81.03,
+        "H5": 8.62,
+        "H60": 12.06,
+        "Liquidity": 58.62,
+        "MO": 71.11,
+        "PT": 88.0,
+        "PV": 65.33,
+        "RS": 43.1,
+        "RelativeStrength": 43.1
       }
     },
     "3014": {
@@ -18728,7 +19495,7 @@
       "LH": 131.99,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 488344.0,
@@ -18756,15 +19523,15 @@
       },
       "technical_features": {
         "H120": 41.38,
-        "H20": 67.25,
-        "H5": 70.69,
-        "H60": 15.51,
-        "Liquidity": 6.9,
-        "MO": 75.03,
+        "H20": 86.21,
+        "H5": 44.83,
+        "H60": 31.03,
+        "Liquidity": 24.14,
+        "MO": 78.19,
         "PT": 88.0,
-        "PV": 69.99,
-        "RS": 42.76,
-        "RelativeStrength": 42.76
+        "PV": 76.8,
+        "RS": 55.69,
+        "RelativeStrength": 55.69
       }
     },
     "3017": {
@@ -18777,7 +19544,7 @@
       "LH": 168.36,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -617013.0,
@@ -18804,16 +19571,16 @@
         }
       },
       "technical_features": {
-        "H120": 70.69,
-        "H20": 86.21,
-        "H5": 37.93,
-        "H60": 96.55,
-        "Liquidity": 82.76,
-        "MO": 55.57,
+        "H120": 81.03,
+        "H20": 68.97,
+        "H5": 50.0,
+        "H60": 87.94,
+        "Liquidity": 79.31,
+        "MO": 50.08,
         "PT": 100.0,
-        "PV": 52.56,
-        "RS": 85.52,
-        "RelativeStrength": 85.52
+        "PV": 58.35,
+        "RS": 77.59,
+        "RelativeStrength": 77.59
       }
     },
     "3034": {
@@ -18826,7 +19593,7 @@
       "LH": 171.93,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -967711.0,
@@ -18853,16 +19620,16 @@
         }
       },
       "technical_features": {
-        "H120": 48.28,
-        "H20": 24.14,
-        "H5": 10.34,
-        "H60": 67.25,
-        "Liquidity": 41.38,
-        "MO": 40.47,
-        "PT": 85.0,
-        "PV": 45.93,
-        "RS": 44.66,
-        "RelativeStrength": 44.66
+        "H120": 60.34,
+        "H20": 48.28,
+        "H5": 20.69,
+        "H60": 62.07,
+        "Liquidity": 34.48,
+        "MO": 41.54,
+        "PT": 65.0,
+        "PV": 61.98,
+        "RS": 54.48,
+        "RelativeStrength": 54.48
       }
     },
     "3035": {
@@ -18875,7 +19642,7 @@
       "LH": 132.71,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 925129.0,
@@ -18902,16 +19669,16 @@
         }
       },
       "technical_features": {
-        "H120": 62.07,
-        "H20": 96.55,
-        "H5": 96.55,
-        "H60": 63.8,
-        "Liquidity": 20.69,
-        "MO": 87.5,
+        "H120": 63.8,
+        "H20": 93.1,
+        "H5": 81.03,
+        "H60": 58.62,
+        "Liquidity": 27.59,
+        "MO": 87.93,
         "PT": 88.0,
-        "PV": 71.0,
-        "RS": 75.86,
-        "RelativeStrength": 75.86
+        "PV": 87.45,
+        "RS": 72.07,
+        "RelativeStrength": 72.07
       }
     },
     "3036": {
@@ -18924,7 +19691,7 @@
       "LH": 183.29000000000002,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -790392.0,
@@ -18951,16 +19718,16 @@
         }
       },
       "technical_features": {
-        "H120": 15.51,
-        "H20": 58.62,
-        "H5": 75.86,
+        "H120": 18.96,
+        "H20": 89.66,
+        "H5": 72.41,
         "H60": 50.0,
-        "Liquidity": 34.48,
-        "MO": 72.88,
-        "PT": 36.0,
-        "PV": 56.35,
-        "RS": 43.79,
-        "RelativeStrength": 43.79
+        "Liquidity": 37.93,
+        "MO": 84.08,
+        "PT": 56.0,
+        "PV": 55.53,
+        "RS": 57.07,
+        "RelativeStrength": 57.07
       }
     },
     "3037": {
@@ -18973,7 +19740,7 @@
       "LH": 178.82,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 5886775.0,
@@ -19000,16 +19767,16 @@
         }
       },
       "technical_features": {
-        "H120": 93.1,
-        "H20": 89.66,
-        "H5": 100.0,
-        "H60": 89.66,
+        "H120": 87.94,
+        "H20": 96.55,
+        "H5": 98.28,
+        "H60": 93.1,
         "Liquidity": 93.1,
-        "MO": 84.86,
-        "PT": 80.0,
-        "PV": 30.72,
-        "RS": 90.52,
-        "RelativeStrength": 90.52
+        "MO": 89.31,
+        "PT": 100.0,
+        "PV": 56.67,
+        "RS": 92.76,
+        "RelativeStrength": 92.76
       }
     },
     "3081": {
@@ -19022,7 +19789,7 @@
       "LH": 144.98,
       "Rotation_inputs": {
         "benchmark": "TPEX",
-        "benchmark_history_coverage": 220,
+        "benchmark_history_coverage": 219,
         "benchmark_market": "TPEX"
       },
       "SMART_MONEY": 79335.0,
@@ -19049,16 +19816,16 @@
         }
       },
       "technical_features": {
-        "H120": 81.03,
-        "H20": 44.83,
-        "H5": 50.0,
-        "H60": 93.1,
-        "Liquidity": 24.14,
-        "MO": 27.64,
-        "PT": 65.0,
-        "PV": 97.25,
-        "RS": 69.83,
-        "RelativeStrength": 69.83
+        "H120": 55.17,
+        "H20": 3.45,
+        "H5": 48.28,
+        "H60": 96.55,
+        "Liquidity": 10.34,
+        "MO": 17.85,
+        "PT": 80.0,
+        "PV": 29.58,
+        "RS": 51.55,
+        "RelativeStrength": 51.55
       }
     },
     "3227": {
@@ -19071,7 +19838,7 @@
       "LH": 138.42000000000002,
       "Rotation_inputs": {
         "benchmark": "TPEX",
-        "benchmark_history_coverage": 220,
+        "benchmark_history_coverage": 219,
         "benchmark_market": "TPEX"
       },
       "SMART_MONEY": 4902.0,
@@ -19098,16 +19865,16 @@
         }
       },
       "technical_features": {
-        "H120": 29.31,
-        "H20": 13.79,
-        "H5": 27.59,
-        "H60": 20.69,
+        "H120": 32.76,
+        "H20": 37.93,
+        "H5": 44.83,
+        "H60": 10.34,
         "Liquidity": 0.0,
-        "MO": 37.36,
-        "PT": 0.0,
-        "PV": 98.27,
-        "RS": 21.55,
-        "RelativeStrength": 21.55
+        "MO": 51.03,
+        "PT": 23.0,
+        "PV": 42.13,
+        "RS": 29.48,
+        "RelativeStrength": 29.48
       }
     },
     "3231": {
@@ -19120,7 +19887,7 @@
       "LH": 170.31,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -22513799.0,
@@ -19147,16 +19914,16 @@
         }
       },
       "technical_features": {
-        "H120": 65.52,
-        "H20": 51.72,
-        "H5": 32.75,
-        "H60": 82.76,
-        "Liquidity": 72.41,
-        "MO": 49.95,
+        "H120": 68.97,
+        "H20": 75.86,
+        "H5": 81.03,
+        "H60": 79.31,
+        "Liquidity": 75.86,
+        "MO": 52.96,
         "PT": 100.0,
-        "PV": 35.15,
-        "RS": 66.03,
-        "RelativeStrength": 66.03
+        "PV": 31.42,
+        "RS": 75.34,
+        "RelativeStrength": 75.34
       }
     },
     "3413": {
@@ -19169,7 +19936,7 @@
       "LH": 147.59,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 36127.0,
@@ -19197,15 +19964,15 @@
       },
       "technical_features": {
         "H120": 22.41,
-        "H20": 34.48,
-        "H5": 53.45,
-        "H60": 39.66,
-        "Liquidity": 17.24,
-        "MO": 56.82,
-        "PT": 15.0,
-        "PV": 35.39,
-        "RS": 32.24,
-        "RelativeStrength": 32.24
+        "H20": 72.41,
+        "H5": 60.34,
+        "H60": 34.48,
+        "Liquidity": 20.69,
+        "MO": 71.99,
+        "PT": 35.0,
+        "PV": 53.06,
+        "RS": 46.2,
+        "RelativeStrength": 46.2
       }
     },
     "3443": {
@@ -19218,7 +19985,7 @@
       "LH": 165.24,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -90248.0,
@@ -19247,12 +20014,12 @@
       "technical_features": {
         "H120": 100.0,
         "H20": 100.0,
-        "H5": 93.1,
+        "H5": 6.89,
         "H60": 100.0,
-        "Liquidity": 79.31,
-        "MO": 90.49,
+        "Liquidity": 86.21,
+        "MO": 85.89,
         "PT": 100.0,
-        "PV": 55.45,
+        "PV": 59.13,
         "RS": 100.0,
         "RelativeStrength": 100.0
       }
@@ -19267,7 +20034,7 @@
       "LH": 134.86,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 81675.0,
@@ -19294,16 +20061,16 @@
         }
       },
       "technical_features": {
-        "H120": 51.72,
-        "H20": 31.03,
-        "H5": 56.89,
-        "H60": 43.11,
-        "Liquidity": 68.97,
-        "MO": 27.02,
-        "PT": 29.0,
-        "PV": 47.2,
-        "RS": 39.83,
-        "RelativeStrength": 39.83
+        "H120": 53.45,
+        "H20": 10.34,
+        "H5": 46.55,
+        "H60": 24.14,
+        "Liquidity": 65.52,
+        "MO": 36.81,
+        "PT": 44.0,
+        "PV": 32.72,
+        "RS": 25.52,
+        "RelativeStrength": 25.52
       }
     },
     "5388": {
@@ -19316,7 +20083,7 @@
       "LH": 143.92000000000002,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 11642.0,
@@ -19343,16 +20110,16 @@
         }
       },
       "technical_features": {
-        "H120": 12.06,
-        "H20": 6.9,
-        "H5": 22.41,
-        "H60": 25.87,
-        "Liquidity": 13.79,
-        "MO": 35.94,
+        "H120": 10.34,
+        "H20": 31.03,
+        "H5": 24.14,
+        "H60": 17.24,
+        "Liquidity": 17.24,
+        "MO": 43.83,
         "PT": 0.0,
-        "PV": 24.83,
-        "RS": 13.79,
-        "RelativeStrength": 13.79
+        "PV": 32.2,
+        "RS": 21.03,
+        "RelativeStrength": 21.03
       }
     },
     "6187": {
@@ -19365,7 +20132,7 @@
       "LH": 152.85,
       "Rotation_inputs": {
         "benchmark": "TPEX",
-        "benchmark_history_coverage": 220,
+        "benchmark_history_coverage": 219,
         "benchmark_market": "TPEX"
       },
       "SMART_MONEY": 9383.0,
@@ -19392,16 +20159,16 @@
         }
       },
       "technical_features": {
-        "H120": 72.41,
-        "H20": 74.13,
-        "H5": 67.24,
+        "H120": 77.59,
+        "H20": 34.48,
+        "H5": 91.38,
         "H60": 86.21,
-        "Liquidity": 10.34,
-        "MO": 49.18,
-        "PT": 100.0,
-        "PV": 96.13,
-        "RS": 78.1,
-        "RelativeStrength": 78.1
+        "Liquidity": 3.45,
+        "MO": 35.69,
+        "PT": 80.0,
+        "PV": 53.52,
+        "RS": 65.86,
+        "RelativeStrength": 65.86
       }
     },
     "6274": {
@@ -19414,7 +20181,7 @@
       "LH": 163.77,
       "Rotation_inputs": {
         "benchmark": "TPEX",
-        "benchmark_history_coverage": 220,
+        "benchmark_history_coverage": 219,
         "benchmark_market": "TPEX"
       },
       "SMART_MONEY": 215199.0,
@@ -19441,16 +20208,16 @@
         }
       },
       "technical_features": {
-        "H120": 96.55,
-        "H20": 67.24,
-        "H5": 87.94,
-        "H60": 67.24,
-        "Liquidity": 27.59,
-        "MO": 71.02,
-        "PT": 68.0,
-        "PV": 99.56,
-        "RS": 74.31,
-        "RelativeStrength": 74.31
+        "H120": 89.66,
+        "H20": 81.03,
+        "H5": 94.82,
+        "H60": 55.17,
+        "Liquidity": 13.79,
+        "MO": 76.69,
+        "PT": 88.0,
+        "PV": 59.47,
+        "RS": 79.31,
+        "RelativeStrength": 79.31
       }
     },
     "6442": {
@@ -19463,7 +20230,7 @@
       "LH": 155.18,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 421309.0,
@@ -19491,15 +20258,15 @@
       },
       "technical_features": {
         "H120": 3.45,
-        "H20": 72.41,
-        "H5": 25.87,
-        "H60": 36.2,
+        "H20": 27.59,
+        "H5": 51.72,
+        "H60": 41.38,
         "Liquidity": 48.28,
-        "MO": 43.57,
-        "PT": 41.0,
-        "PV": 44.55,
-        "RS": 43.27,
-        "RelativeStrength": 43.27
+        "MO": 24.24,
+        "PT": 36.0,
+        "PV": 26.91,
+        "RS": 26.38,
+        "RelativeStrength": 26.38
       }
     },
     "6510": {
@@ -19512,7 +20279,7 @@
       "LH": 152.82999999999998,
       "Rotation_inputs": {
         "benchmark": "TPEX",
-        "benchmark_history_coverage": 220,
+        "benchmark_history_coverage": 219,
         "benchmark_market": "TPEX"
       },
       "SMART_MONEY": 6159.0,
@@ -19539,16 +20306,16 @@
         }
       },
       "technical_features": {
-        "H120": 17.24,
-        "H20": 79.31,
+        "H120": 22.41,
+        "H20": 41.38,
         "H5": 0.0,
-        "H60": 41.38,
-        "Liquidity": 3.45,
-        "MO": 48.41,
-        "PT": 49.0,
-        "PV": 26.87,
-        "RS": 55.86,
-        "RelativeStrength": 55.86
+        "H60": 63.79,
+        "Liquidity": 6.9,
+        "MO": 25.64,
+        "PT": 41.0,
+        "PV": 36.85,
+        "RS": 48.79,
+        "RelativeStrength": 48.79
       }
     },
     "6669": {
@@ -19561,7 +20328,7 @@
       "LH": 161.16,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -1114547.0,
@@ -19590,12 +20357,12 @@
       "technical_features": {
         "H120": 0.0,
         "H20": 0.0,
-        "H5": 3.45,
+        "H5": 29.31,
         "H60": 0.0,
-        "Liquidity": 86.21,
-        "MO": 1.06,
+        "Liquidity": 72.41,
+        "MO": 40.11,
         "PT": 0.0,
-        "PV": 42.13,
+        "PV": 23.77,
         "RS": 0.0,
         "RelativeStrength": 0.0
       }
@@ -19607,27 +20374,27 @@
         "revenue_yoy": 166.4840985505344,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 72.41,
+      "Liquidity": 75.86,
       "M7_inputs": {
         "FI": -21168811.0,
         "IT": -1344988.0,
         "LH": 170.31,
-        "MO": 49.95,
+        "MO": 52.96,
         "PT": 100.0,
-        "PV": 35.15,
-        "RS": 66.03
+        "PV": 31.42,
+        "RS": 75.34
       },
       "MHE_inputs": {
-        "H120": 65.52,
-        "H20": 51.72,
-        "H5": 32.75,
-        "H60": 82.76
+        "H120": 68.97,
+        "H20": 75.86,
+        "H5": 81.03,
+        "H60": 79.31
       },
-      "RelativeStrength": 66.03,
+      "RelativeStrength": 75.34,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -22513799.0,
@@ -19660,27 +20427,27 @@
         "revenue_yoy": 132.48393122185607,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 27.59,
+      "Liquidity": 13.79,
       "M7_inputs": {
         "FI": 215199.0,
         "IT": 0.0,
         "LH": 163.77,
-        "MO": 71.02,
-        "PT": 68.0,
-        "PV": 99.56,
-        "RS": 74.31
+        "MO": 76.69,
+        "PT": 88.0,
+        "PV": 59.47,
+        "RS": 79.31
       },
       "MHE_inputs": {
-        "H120": 96.55,
-        "H20": 67.24,
-        "H5": 87.94,
-        "H60": 67.24
+        "H120": 89.66,
+        "H20": 81.03,
+        "H5": 94.82,
+        "H60": 55.17
       },
-      "RelativeStrength": 74.31,
+      "RelativeStrength": 79.31,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TPEX",
-        "benchmark_history_coverage": 220,
+        "benchmark_history_coverage": 219,
         "benchmark_market": "TPEX"
       },
       "SMART_MONEY": 215199.0,
@@ -19713,27 +20480,27 @@
         "revenue_yoy": 111.0204372171911,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 79.31,
+      "Liquidity": 86.21,
       "M7_inputs": {
         "FI": 6606.0,
         "IT": -96854.0,
         "LH": 165.24,
-        "MO": 90.49,
+        "MO": 85.89,
         "PT": 100.0,
-        "PV": 55.45,
+        "PV": 59.13,
         "RS": 100.0
       },
       "MHE_inputs": {
         "H120": 100.0,
         "H20": 100.0,
-        "H5": 93.1,
+        "H5": 6.89,
         "H60": 100.0
       },
       "RelativeStrength": 100.0,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -90248.0,
@@ -19766,27 +20533,27 @@
         "revenue_yoy": 50.35813251850269,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 86.21,
+      "Liquidity": 72.41,
       "M7_inputs": {
         "FI": -604228.0,
         "IT": -510319.0,
         "LH": 161.16,
-        "MO": 1.06,
+        "MO": 40.11,
         "PT": 0.0,
-        "PV": 42.13,
+        "PV": 23.77,
         "RS": 0.0
       },
       "MHE_inputs": {
         "H120": 0.0,
         "H20": 0.0,
-        "H5": 3.45,
+        "H5": 29.31,
         "H60": 0.0
       },
       "RelativeStrength": 0.0,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -1114547.0,
@@ -19819,27 +20586,27 @@
         "revenue_yoy": 6.865708582371952,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 62.07,
+      "Liquidity": 51.72,
       "M7_inputs": {
         "FI": 1579056.0,
         "IT": 136226.0,
         "LH": 158.94,
-        "MO": 38.78,
-        "PT": 41.0,
-        "PV": 32.44,
-        "RS": 44.31
+        "MO": 28.9,
+        "PT": 21.0,
+        "PV": 23.86,
+        "RS": 24.31
       },
       "MHE_inputs": {
         "H120": 6.9,
-        "H20": 55.17,
-        "H5": 29.31,
-        "H60": 58.62
+        "H20": 17.24,
+        "H5": 43.11,
+        "H60": 46.55
       },
-      "RelativeStrength": 44.31,
+      "RelativeStrength": 24.31,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 1715282.0,
@@ -19872,27 +20639,27 @@
         "revenue_yoy": 31.577957840545338,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 51.72,
+      "Liquidity": 58.62,
       "M7_inputs": {
         "FI": -2588097.0,
         "IT": -799000.0,
         "LH": 163.48000000000002,
-        "MO": 77.44,
-        "PT": 80.0,
-        "PV": 56.99,
-        "RS": 55.0
+        "MO": 71.11,
+        "PT": 88.0,
+        "PV": 65.33,
+        "RS": 43.1
       },
       "MHE_inputs": {
-        "H120": 29.31,
-        "H20": 93.1,
-        "H5": 87.94,
-        "H60": 32.75
+        "H120": 32.75,
+        "H20": 81.03,
+        "H5": 8.62,
+        "H60": 12.06
       },
-      "RelativeStrength": 55.0,
+      "RelativeStrength": 43.1,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -3387097.0,
@@ -19925,27 +20692,27 @@
         "revenue_yoy": 23.54138354194384,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 17.24,
+      "Liquidity": 20.69,
       "M7_inputs": {
         "FI": 36127.0,
         "IT": 0.0,
         "LH": 147.59,
-        "MO": 56.82,
-        "PT": 15.0,
-        "PV": 35.39,
-        "RS": 32.24
+        "MO": 71.99,
+        "PT": 35.0,
+        "PV": 53.06,
+        "RS": 46.2
       },
       "MHE_inputs": {
         "H120": 22.41,
-        "H20": 34.48,
-        "H5": 53.45,
-        "H60": 39.66
+        "H20": 72.41,
+        "H5": 60.34,
+        "H60": 34.48
       },
-      "RelativeStrength": 32.24,
+      "RelativeStrength": 46.2,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 36127.0,
@@ -19978,27 +20745,27 @@
         "revenue_yoy": 180.9018539007475,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 24.14,
+      "Liquidity": 10.34,
       "M7_inputs": {
         "FI": 79335.0,
         "IT": 0.0,
         "LH": 144.98,
-        "MO": 27.64,
-        "PT": 65.0,
-        "PV": 97.25,
-        "RS": 69.83
+        "MO": 17.85,
+        "PT": 80.0,
+        "PV": 29.58,
+        "RS": 51.55
       },
       "MHE_inputs": {
-        "H120": 81.03,
-        "H20": 44.83,
-        "H5": 50.0,
-        "H60": 93.1
+        "H120": 55.17,
+        "H20": 3.45,
+        "H5": 48.28,
+        "H60": 96.55
       },
-      "RelativeStrength": 69.83,
+      "RelativeStrength": 51.55,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TPEX",
-        "benchmark_history_coverage": 220,
+        "benchmark_history_coverage": 219,
         "benchmark_market": "TPEX"
       },
       "SMART_MONEY": 79335.0,
@@ -20031,27 +20798,27 @@
         "revenue_yoy": 103.06092173798378,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 10.34,
+      "Liquidity": 3.45,
       "M7_inputs": {
         "FI": 9383.0,
         "IT": 0.0,
         "LH": 152.85,
-        "MO": 49.18,
-        "PT": 100.0,
-        "PV": 96.13,
-        "RS": 78.1
+        "MO": 35.69,
+        "PT": 80.0,
+        "PV": 53.52,
+        "RS": 65.86
       },
       "MHE_inputs": {
-        "H120": 72.41,
-        "H20": 74.13,
-        "H5": 67.24,
+        "H120": 77.59,
+        "H20": 34.48,
+        "H5": 91.38,
         "H60": 86.21
       },
-      "RelativeStrength": 78.1,
+      "RelativeStrength": 65.86,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TPEX",
-        "benchmark_history_coverage": 220,
+        "benchmark_history_coverage": 219,
         "benchmark_market": "TPEX"
       },
       "SMART_MONEY": 9383.0,
@@ -20084,27 +20851,27 @@
         "revenue_yoy": 76.38825024031777,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 65.52,
+      "Liquidity": 68.97,
       "M7_inputs": {
         "FI": -624682.0,
         "IT": -11191.0,
         "LH": 176.23,
-        "MO": 51.59,
+        "MO": 46.68,
         "PT": 44.0,
-        "PV": 55.91,
-        "RS": 48.62
+        "PV": 55.67,
+        "RS": 23.97
       },
       "MHE_inputs": {
-        "H120": 37.93,
-        "H20": 82.76,
-        "H5": 63.8,
-        "H60": 18.96
+        "H120": 27.59,
+        "H20": 20.69,
+        "H5": 50.0,
+        "H60": 27.59
       },
-      "RelativeStrength": 48.62,
+      "RelativeStrength": 23.97,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -635873.0,
@@ -20142,22 +20909,22 @@
         "FI": 365309.0,
         "IT": 56000.0,
         "LH": 155.18,
-        "MO": 43.57,
-        "PT": 41.0,
-        "PV": 44.55,
-        "RS": 43.27
+        "MO": 24.24,
+        "PT": 36.0,
+        "PV": 26.91,
+        "RS": 26.38
       },
       "MHE_inputs": {
         "H120": 3.45,
-        "H20": 72.41,
-        "H5": 25.87,
-        "H60": 36.2
+        "H20": 27.59,
+        "H5": 51.72,
+        "H60": 41.38
       },
-      "RelativeStrength": 43.27,
+      "RelativeStrength": 26.38,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 421309.0,
@@ -20190,27 +20957,27 @@
         "revenue_yoy": 54.340256925995845,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 82.76,
+      "Liquidity": 79.31,
       "M7_inputs": {
         "FI": -341979.0,
         "IT": -275034.0,
         "LH": 168.36,
-        "MO": 55.57,
+        "MO": 50.08,
         "PT": 100.0,
-        "PV": 52.56,
-        "RS": 85.52
+        "PV": 58.35,
+        "RS": 77.59
       },
       "MHE_inputs": {
-        "H120": 70.69,
-        "H20": 86.21,
-        "H5": 37.93,
-        "H60": 96.55
+        "H120": 81.03,
+        "H20": 68.97,
+        "H5": 50.0,
+        "H60": 87.94
       },
-      "RelativeStrength": 85.52,
+      "RelativeStrength": 77.59,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -617013.0,
@@ -20248,22 +21015,22 @@
         "FI": -412823.0,
         "IT": 110723.0,
         "LH": 169.9,
-        "MO": 29.79,
-        "PT": 8.0,
-        "PV": 48.72,
-        "RS": 16.55
+        "MO": 32.93,
+        "PT": 23.0,
+        "PV": 52.34,
+        "RS": 12.59
       },
       "MHE_inputs": {
-        "H120": 34.48,
-        "H20": 12.06,
-        "H5": 43.11,
-        "H60": 6.9
+        "H120": 36.2,
+        "H20": 6.9,
+        "H5": 53.45,
+        "H60": 3.45
       },
-      "RelativeStrength": 16.55,
+      "RelativeStrength": 12.59,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -302100.0,
@@ -20296,27 +21063,27 @@
         "revenue_yoy": 273.61017160561573,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 68.97,
+      "Liquidity": 65.52,
       "M7_inputs": {
         "FI": 75675.0,
         "IT": 6000.0,
         "LH": 134.86,
-        "MO": 27.02,
-        "PT": 29.0,
-        "PV": 47.2,
-        "RS": 39.83
+        "MO": 36.81,
+        "PT": 44.0,
+        "PV": 32.72,
+        "RS": 25.52
       },
       "MHE_inputs": {
-        "H120": 51.72,
-        "H20": 31.03,
-        "H5": 56.89,
-        "H60": 43.11
+        "H120": 53.45,
+        "H20": 10.34,
+        "H5": 46.55,
+        "H60": 24.14
       },
-      "RelativeStrength": 39.83,
+      "RelativeStrength": 25.52,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 81675.0,
@@ -20354,22 +21121,22 @@
         "FI": 5229662.0,
         "IT": 657113.0,
         "LH": 178.82,
-        "MO": 84.86,
-        "PT": 80.0,
-        "PV": 30.72,
-        "RS": 90.52
+        "MO": 89.31,
+        "PT": 100.0,
+        "PV": 56.67,
+        "RS": 92.76
       },
       "MHE_inputs": {
-        "H120": 93.1,
-        "H20": 89.66,
-        "H5": 100.0,
-        "H60": 89.66
+        "H120": 87.94,
+        "H20": 96.55,
+        "H5": 98.28,
+        "H60": 93.1
       },
-      "RelativeStrength": 90.52,
+      "RelativeStrength": 92.76,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 5886775.0,
@@ -20402,27 +21169,27 @@
         "revenue_yoy": 129.84671742960728,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 75.86,
+      "Liquidity": 82.76,
       "M7_inputs": {
         "FI": 2087.0,
         "IT": 133705.0,
         "LH": 168.22,
-        "MO": 23.52,
-        "PT": 32.0,
-        "PV": 48.78,
-        "RS": 42.41
+        "MO": 22.07,
+        "PT": 47.0,
+        "PV": 55.65,
+        "RS": 37.76
       },
       "MHE_inputs": {
-        "H120": 81.03,
-        "H20": 15.51,
-        "H5": 13.79,
-        "H60": 46.55
+        "H120": 77.59,
+        "H20": 13.79,
+        "H5": 62.07,
+        "H60": 37.93
       },
-      "RelativeStrength": 42.41,
+      "RelativeStrength": 37.76,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 135792.0,
@@ -20455,27 +21222,27 @@
         "revenue_yoy": 51.978131522564816,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 58.62,
+      "Liquidity": 62.07,
       "M7_inputs": {
         "FI": -15146584.0,
         "IT": 223181.0,
         "LH": 169.46,
-        "MO": 44.9,
-        "PT": 88.0,
-        "PV": 42.96,
-        "RS": 45.69
+        "MO": 48.43,
+        "PT": 65.0,
+        "PV": 52.89,
+        "RS": 56.03
       },
       "MHE_inputs": {
-        "H120": 44.83,
-        "H20": 37.93,
-        "H5": 17.24,
-        "H60": 55.17
+        "H120": 46.55,
+        "H20": 51.72,
+        "H5": 25.86,
+        "H60": 70.69
       },
-      "RelativeStrength": 45.69,
+      "RelativeStrength": 56.03,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -14923403.0,
@@ -20513,22 +21280,22 @@
         "FI": -5913974.0,
         "IT": 253678.0,
         "LH": 187.53,
-        "MO": 56.44,
+        "MO": 55.96,
         "PT": 100.0,
-        "PV": 54.45,
-        "RS": 57.24
+        "PV": 63.33,
+        "RS": 60.0
       },
       "MHE_inputs": {
-        "H120": 55.17,
-        "H20": 46.55,
-        "H5": 46.55,
-        "H60": 70.69
+        "H120": 50.0,
+        "H20": 65.52,
+        "H5": 44.83,
+        "H60": 65.52
       },
-      "RelativeStrength": 57.24,
+      "RelativeStrength": 60.0,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -5660296.0,
@@ -20561,27 +21328,27 @@
         "revenue_yoy": 98.42707910183296,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 37.93,
+      "Liquidity": 41.38,
       "M7_inputs": {
         "FI": 1334911.0,
         "IT": 332281.0,
         "LH": 173.81,
-        "MO": 62.79,
+        "MO": 57.82,
         "PT": 100.0,
-        "PV": 62.86,
-        "RS": 70.86
+        "PV": 56.53,
+        "RS": 69.48
       },
       "MHE_inputs": {
         "H120": 74.13,
-        "H20": 63.8,
-        "H5": 67.25,
+        "H20": 62.07,
+        "H5": 48.27,
         "H60": 75.86
       },
-      "RelativeStrength": 70.86,
+      "RelativeStrength": 69.48,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 1667192.0,
@@ -20619,22 +21386,22 @@
         "FI": -5999455.0,
         "IT": -275561.0,
         "LH": 173.51,
-        "MO": 17.74,
+        "MO": 19.65,
         "PT": 8.0,
-        "PV": 29.6,
-        "RS": 23.28
+        "PV": 32.95,
+        "RS": 30.69
       },
       "MHE_inputs": {
-        "H120": 58.62,
-        "H20": 3.45,
-        "H5": 6.9,
-        "H60": 22.41
+        "H120": 56.89,
+        "H20": 24.14,
+        "H5": 10.34,
+        "H60": 20.69
       },
-      "RelativeStrength": 23.28,
+      "RelativeStrength": 30.69,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -6275016.0,
@@ -20667,27 +21434,27 @@
         "revenue_yoy": 45.05455923264947,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 13.79,
+      "Liquidity": 17.24,
       "M7_inputs": {
         "FI": 11642.0,
         "IT": 0.0,
         "LH": 143.92000000000002,
-        "MO": 35.94,
+        "MO": 43.83,
         "PT": 0.0,
-        "PV": 24.83,
-        "RS": 13.79
+        "PV": 32.2,
+        "RS": 21.03
       },
       "MHE_inputs": {
-        "H120": 12.06,
-        "H20": 6.9,
-        "H5": 22.41,
-        "H60": 25.87
+        "H120": 10.34,
+        "H20": 31.03,
+        "H5": 24.14,
+        "H60": 17.24
       },
-      "RelativeStrength": 13.79,
+      "RelativeStrength": 21.03,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 11642.0,
@@ -20725,22 +21492,22 @@
         "FI": 2135571.0,
         "IT": -10224141.0,
         "LH": 168.57,
-        "MO": 43.5,
+        "MO": 53.18,
         "PT": 68.0,
-        "PV": 47.58,
-        "RS": 36.21
+        "PV": 42.12,
+        "RS": 63.96
       },
       "MHE_inputs": {
-        "H120": 86.21,
-        "H20": 27.59,
-        "H5": 82.76,
-        "H60": 10.34
+        "H120": 91.38,
+        "H20": 58.62,
+        "H5": 81.03,
+        "H60": 55.17
       },
-      "RelativeStrength": 36.21,
+      "RelativeStrength": 63.96,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -8088570.0,
@@ -20778,22 +21545,22 @@
         "FI": 3598903.0,
         "IT": 7000.0,
         "LH": 140.68,
-        "MO": 43.55,
+        "MO": 49.06,
         "PT": 15.0,
-        "PV": 51.46,
-        "RS": 13.79
+        "PV": 48.56,
+        "RS": 23.79
       },
       "MHE_inputs": {
-        "H120": 18.96,
-        "H20": 20.69,
-        "H5": 50.0,
-        "H60": 3.45
+        "H120": 13.79,
+        "H20": 44.83,
+        "H5": 62.07,
+        "H60": 8.62
       },
-      "RelativeStrength": 13.79,
+      "RelativeStrength": 23.79,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 3605903.0,
@@ -20831,22 +21598,22 @@
         "FI": 7170950.0,
         "IT": 1136582.0,
         "LH": 183.57,
-        "MO": 44.49,
+        "MO": 46.5,
         "PT": 80.0,
-        "PV": 39.54,
-        "RS": 68.11
+        "PV": 44.91,
+        "RS": 75.17
       },
       "MHE_inputs": {
-        "H120": 89.66,
-        "H20": 43.11,
-        "H5": 79.31,
-        "H60": 79.31
+        "H120": 96.55,
+        "H20": 55.17,
+        "H5": 63.79,
+        "H60": 84.48
       },
-      "RelativeStrength": 68.11,
+      "RelativeStrength": 75.17,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 8307532.0,
@@ -20879,27 +21646,27 @@
         "revenue_yoy": 29.883694137526195,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 20.69,
+      "Liquidity": 27.59,
       "M7_inputs": {
         "FI": 925129.0,
         "IT": 0.0,
         "LH": 132.71,
-        "MO": 87.5,
+        "MO": 87.93,
         "PT": 88.0,
-        "PV": 71.0,
-        "RS": 75.86
+        "PV": 87.45,
+        "RS": 72.07
       },
       "MHE_inputs": {
-        "H120": 62.07,
-        "H20": 96.55,
-        "H5": 96.55,
-        "H60": 63.8
+        "H120": 63.8,
+        "H20": 93.1,
+        "H5": 81.03,
+        "H60": 58.62
       },
-      "RelativeStrength": 75.86,
+      "RelativeStrength": 72.07,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 925129.0,
@@ -20932,27 +21699,27 @@
         "revenue_yoy": 26.33031651680444,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 41.38,
+      "Liquidity": 34.48,
       "M7_inputs": {
         "FI": -1178728.0,
         "IT": 211017.0,
         "LH": 171.93,
-        "MO": 40.47,
-        "PT": 85.0,
-        "PV": 45.93,
-        "RS": 44.66
+        "MO": 41.54,
+        "PT": 65.0,
+        "PV": 61.98,
+        "RS": 54.48
       },
       "MHE_inputs": {
-        "H120": 48.28,
-        "H20": 24.14,
-        "H5": 10.34,
-        "H60": 67.25
+        "H120": 60.34,
+        "H20": 48.28,
+        "H5": 20.69,
+        "H60": 62.07
       },
-      "RelativeStrength": 44.66,
+      "RelativeStrength": 54.48,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -967711.0,
@@ -20985,27 +21752,27 @@
         "revenue_yoy": 54.27157903895514,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 3.45,
+      "Liquidity": 6.9,
       "M7_inputs": {
         "FI": 6159.0,
         "IT": 0.0,
         "LH": 152.82999999999998,
-        "MO": 48.41,
-        "PT": 49.0,
-        "PV": 26.87,
-        "RS": 55.86
+        "MO": 25.64,
+        "PT": 41.0,
+        "PV": 36.85,
+        "RS": 48.79
       },
       "MHE_inputs": {
-        "H120": 17.24,
-        "H20": 79.31,
+        "H120": 22.41,
+        "H20": 41.38,
         "H5": 0.0,
-        "H60": 41.38
+        "H60": 63.79
       },
-      "RelativeStrength": 55.86,
+      "RelativeStrength": 48.79,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TPEX",
-        "benchmark_history_coverage": 220,
+        "benchmark_history_coverage": 219,
         "benchmark_market": "TPEX"
       },
       "SMART_MONEY": 6159.0,
@@ -21038,27 +21805,27 @@
         "revenue_yoy": 98.21291582397657,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 34.48,
+      "Liquidity": 37.93,
       "M7_inputs": {
         "FI": -559126.0,
         "IT": -231266.0,
         "LH": 183.29000000000002,
-        "MO": 72.88,
-        "PT": 36.0,
-        "PV": 56.35,
-        "RS": 43.79
+        "MO": 84.08,
+        "PT": 56.0,
+        "PV": 55.53,
+        "RS": 57.07
       },
       "MHE_inputs": {
-        "H120": 15.51,
-        "H20": 58.62,
-        "H5": 75.86,
+        "H120": 18.96,
+        "H20": 89.66,
+        "H5": 72.41,
         "H60": 50.0
       },
-      "RelativeStrength": 43.79,
+      "RelativeStrength": 57.07,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": -790392.0,
@@ -21091,27 +21858,27 @@
         "revenue_yoy": 5.328654064265897,
         "source_semantics": "OFFICIAL_MONTHLY_REVENUE_RAW_INPUT"
       },
-      "Liquidity": 6.9,
+      "Liquidity": 24.14,
       "M7_inputs": {
         "FI": 422795.0,
         "IT": 65549.0,
         "LH": 131.99,
-        "MO": 75.03,
+        "MO": 78.19,
         "PT": 88.0,
-        "PV": 69.99,
-        "RS": 42.76
+        "PV": 76.8,
+        "RS": 55.69
       },
       "MHE_inputs": {
         "H120": 41.38,
-        "H20": 67.25,
-        "H5": 70.69,
-        "H60": 15.51
+        "H20": 86.21,
+        "H5": 44.83,
+        "H60": 31.03
       },
-      "RelativeStrength": 42.76,
+      "RelativeStrength": 55.69,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TAIEX",
-        "benchmark_history_coverage": 181,
+        "benchmark_history_coverage": 180,
         "benchmark_market": "TWSE"
       },
       "SMART_MONEY": 488344.0,
@@ -21149,22 +21916,22 @@
         "FI": 4902.0,
         "IT": 0.0,
         "LH": 138.42000000000002,
-        "MO": 37.36,
-        "PT": 0.0,
-        "PV": 98.27,
-        "RS": 21.55
+        "MO": 51.03,
+        "PT": 23.0,
+        "PV": 42.13,
+        "RS": 29.48
       },
       "MHE_inputs": {
-        "H120": 29.31,
-        "H20": 13.79,
-        "H5": 27.59,
-        "H60": 20.69
+        "H120": 32.76,
+        "H20": 37.93,
+        "H5": 44.83,
+        "H60": 10.34
       },
-      "RelativeStrength": 21.55,
+      "RelativeStrength": 29.48,
       "Rotation": null,
       "Rotation_inputs": {
         "benchmark": "TPEX",
-        "benchmark_history_coverage": 220,
+        "benchmark_history_coverage": 219,
         "benchmark_market": "TPEX"
       },
       "SMART_MONEY": 4902.0,
@@ -21226,7 +21993,7 @@
       "normalization_status": "PASS",
       "official_endpoint": [
         "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL",
-        "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes"
+        "https://www.tpex.org.tw/www/en-us/afterTrading/tradingStock"
       ],
       "required": true,
       "required_for_this_run": true,
@@ -21245,7 +22012,7 @@
       "normalization_status": "PASS",
       "official_endpoint": [
         "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL",
-        "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes"
+        "https://www.tpex.org.tw/www/en-us/afterTrading/tradingStock"
       ],
       "required": true,
       "required_for_this_run": true,
@@ -21356,7 +22123,7 @@
     "market_daily",
     "trading_metadata"
   ],
-  "retrieval_timestamp": "2026-10-04T06:07:16.633546Z",
+  "retrieval_timestamp": "2026-10-05T16:09:02.742583Z",
   "roy_portfolio": [],
   "schema_version": "RATE-PRODUCTION-SOURCE-BUNDLE-V2",
   "short_term_top30": [
@@ -21391,7 +22158,7 @@
     "3014",
     "3227"
   ],
-  "snapshot_id": "rate-source-snapshot-a8d2427c8aab195c3af1debf",
+  "snapshot_id": "rate-source-snapshot-3bbe73c100b02f32a57d6443",
   "source_bundle_validation": "PASS",
   "source_provenance": {
     "cadence_applicability": {
@@ -21410,16 +22177,16 @@
       "validation_status": "PASS"
     },
     "cer073_live_fallback": "FORBIDDEN",
-    "execution_authority": "DEVELOPMENT_LIVE_PROBE",
+    "execution_authority": "MAIN_ONLY",
     "execution_scope": "PRODUCTION_SOURCE_ACQUISITION",
     "fixture_fallback": "FORBIDDEN",
     "historical_acceptance_bundle_fallback": "FORBIDDEN",
     "local_cache_fallback": "FORBIDDEN",
     "local_desktop_dependency": "FORBIDDEN",
     "manual_data_fallback": "FORBIDDEN",
-    "production_evidence_authoritative": false,
+    "production_evidence_authoritative": true,
     "recovery_fallback": "FORBIDDEN",
-    "retrieval_timestamp": "2026-10-04T06:07:16.633546Z",
+    "retrieval_timestamp": "2026-10-05T16:09:02.742583Z",
     "source": "RATE_OFFICIAL_TW_MARKET_DATA_SSOT",
     "source_acquisition_independent_from_previous_state": true,
     "stale_snapshot_fallback": "FORBIDDEN",
@@ -21427,7 +22194,7 @@
     "third_party_fallback": "FORBIDDEN",
     "trading_date": "2026-10-02"
   },
-  "source_snapshot_id": "rate-source-snapshot-a8d2427c8aab195c3af1debf",
+  "source_snapshot_id": "rate-source-snapshot-3bbe73c100b02f32a57d6443",
   "source_status": "PASS",
   "stale_snapshot_fallback": "FORBIDDEN",
   "synthetic_fallback": "FORBIDDEN",
@@ -24258,26 +25025,19 @@
       "700206",
       "700207",
       "700208",
-      "700231",
       "700257",
       "700258",
-      "700259",
-      "700260",
       "700261",
       "700262",
       "700263",
       "700264",
       "700267",
       "700269",
-      "700270",
       "700271",
       "700273",
-      "700274",
       "700275",
       "700276",
-      "700277",
       "700279",
-      "700300",
       "700330",
       "700342",
       "700343",
@@ -24583,11 +25343,7 @@
       "703482",
       "703483",
       "703515",
-      "703520",
-      "703528",
-      "703535",
       "703581",
-      "703589",
       "703604",
       "703616",
       "703617",
@@ -25788,12 +26544,9 @@
       "706963",
       "706965",
       "706966",
-      "706967",
       "706968",
       "706969",
       "706970",
-      "706971",
-      "706972",
       "706973",
       "706975",
       "706976",
@@ -25809,20 +26562,9 @@
       "706986",
       "706987",
       "706988",
-      "706989",
-      "706990",
-      "706991",
-      "706994",
-      "706995",
-      "706996",
-      "706997",
-      "706998",
       "706999",
       "707000",
-      "707001",
-      "707002",
       "707003",
-      "707004",
       "707006",
       "707007",
       "707008",
@@ -34437,6 +35179,7 @@
       "715728",
       "715729",
       "715730",
+      "715731",
       "715732",
       "715733",
       "715734",
@@ -34507,6 +35250,8 @@
       "715799",
       "715800",
       "715801",
+      "715802",
+      "715803",
       "715804",
       "715805",
       "715806",
@@ -34523,6 +35268,8 @@
       "715817",
       "715818",
       "715819",
+      "715820",
+      "715821",
       "715822",
       "715823",
       "715824",
@@ -34535,7 +35282,161 @@
       "715831",
       "715832",
       "715833",
-      "72400U",
+      "715834",
+      "715835",
+      "715836",
+      "715837",
+      "715838",
+      "715839",
+      "715840",
+      "715841",
+      "715842",
+      "715843",
+      "715844",
+      "715845",
+      "715846",
+      "715847",
+      "715848",
+      "715849",
+      "715850",
+      "715851",
+      "715852",
+      "715853",
+      "715854",
+      "715855",
+      "715856",
+      "715857",
+      "715858",
+      "715859",
+      "715860",
+      "715861",
+      "715862",
+      "715863",
+      "715864",
+      "715865",
+      "715866",
+      "715867",
+      "715868",
+      "715869",
+      "715870",
+      "715871",
+      "715872",
+      "715873",
+      "715874",
+      "715875",
+      "715876",
+      "715877",
+      "715878",
+      "715879",
+      "715880",
+      "715881",
+      "715882",
+      "715883",
+      "715884",
+      "715885",
+      "715886",
+      "715887",
+      "715888",
+      "715889",
+      "715890",
+      "715891",
+      "715892",
+      "715893",
+      "715894",
+      "715895",
+      "715896",
+      "715897",
+      "715898",
+      "715899",
+      "715900",
+      "715901",
+      "715902",
+      "715903",
+      "715904",
+      "715905",
+      "715906",
+      "715907",
+      "715908",
+      "715909",
+      "715910",
+      "715911",
+      "715912",
+      "715913",
+      "715914",
+      "715915",
+      "715916",
+      "715917",
+      "715918",
+      "715919",
+      "715920",
+      "715921",
+      "715922",
+      "715923",
+      "715924",
+      "715925",
+      "715926",
+      "715927",
+      "715928",
+      "715929",
+      "715930",
+      "715931",
+      "715932",
+      "715933",
+      "715934",
+      "715935",
+      "715936",
+      "715937",
+      "715938",
+      "715939",
+      "715940",
+      "715941",
+      "715942",
+      "715943",
+      "715944",
+      "715945",
+      "715946",
+      "715947",
+      "715948",
+      "715949",
+      "715950",
+      "715951",
+      "715952",
+      "715953",
+      "715954",
+      "715955",
+      "715956",
+      "715957",
+      "715958",
+      "715959",
+      "715960",
+      "715961",
+      "715962",
+      "715963",
+      "715964",
+      "715965",
+      "715966",
+      "715967",
+      "715968",
+      "715969",
+      "715970",
+      "715971",
+      "715972",
+      "715973",
+      "715974",
+      "715975",
+      "715976",
+      "715977",
+      "715978",
+      "715979",
+      "715980",
+      "715981",
+      "715982",
+      "715983",
+      "715984",
+      "715985",
+      "715986",
+      "715987",
+      "715988",
       "72414U",
       "72479U",
       "72485U",
@@ -34603,9 +35504,6 @@
       "72841U",
       "72842U",
       "72843U",
-      "72846U",
-      "72847U",
-      "72848U",
       "72849U",
       "72850U",
       "728516",
@@ -34949,10 +35847,12 @@
       "73170U",
       "73171U",
       "73172U",
+      "73173U",
+      "73174U",
+      "73175U",
       "732269",
       "732272",
       "732332",
-      "732545",
       "732586",
       "732653",
       "733025",
@@ -36455,7 +37355,7 @@
     ],
     "approved_universe_count": 30,
     "artifact": "RATE_PRODUCTION_UNIVERSE_BINDING",
-    "available_symbol_count": 15015,
+    "available_symbol_count": 15148,
     "binding_mode": "AUTHORITATIVE_CONTRACT_EXACT_30",
     "blocking_reason": null,
     "contract_sha256": "57772eb40b16431f4b9e89395b2a98c2b8cd6d526e626a1860355c1b403a12e7",
