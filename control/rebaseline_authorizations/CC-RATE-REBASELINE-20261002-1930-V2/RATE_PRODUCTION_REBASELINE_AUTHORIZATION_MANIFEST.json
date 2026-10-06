@@ -1,7 +1,7 @@
 {
   "acceptance_counter_reset": false,
   "ai_opening_state_sha256": "d6bb9021e2164fa150807c637d47b1fa3430cdeea171038a42b00115b32e4f35",
-  "approval_commit_sha": null,
+  "approval_commit_sha": "aab70306b214d5213b27b25550abae202db2a536",
   "approved_by": "CONTROL_CENTER",
   "artifact": "RATE_PRODUCTION_REBASELINE_AUTHORIZATION_MANIFEST",
   "authoritative_artifact_commit_sha": "f3069b238ebc9ce2ef572b767723ec4ecd9a662f",
