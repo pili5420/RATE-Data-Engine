@@ -12,7 +12,7 @@ from scripts import bootstrap_full_market_history as cli
 from src import full_market_history as h
 from src import full_market_history_acquisition as a
 from src.sources.fundamental_history import (EPSPeriodNotAvailable, MOPSHistoricalFundamentalAdapter, FundamentalHistoryStoreV2,
-    _warmup_revenue_rows, validate_revenue_semantics)
+    _eps_official_no_data, _warmup_revenue_rows, validate_revenue_semantics)
 from src.sources.mops_raw_evidence import load_response, verify_record
 from tests.test_full_market_history import cfg, material, plan
 from tests.test_warmup_run1_defects import OfficialArchiveResponse
@@ -332,6 +332,7 @@ class YoYHistorySemanticsTests(unittest.TestCase):
 
 
     def test_run4_official_eps_no_data_response_is_leading_availability_signal(self):
+        # Engineering HTML fixture, not an exact archived Run-4 replay.
         html = """<html><head><title>公開資訊觀測站</title></head><body>
         <div id="div01"><br><h4 align="center"><font color="red">查詢無資料!</font></h4></div>
         <script>var ignored = "查詢無資料!";</script></body></html>"""
@@ -344,6 +345,58 @@ class YoYHistorySemanticsTests(unittest.TestCase):
         self.assertEqual(eps[0]['requested_period'], '2026Q3')
         self.assertEqual(eps[0]['http_status'], 200)
         self.assertEqual(eps[0]['final_url'], 'https://mopsov.twse.com.tw/mops/web/ajax_t163sb04')
+
+    def test_eps_visible_no_data_whitespace_and_entities(self):
+        for text in ('查詢無資料!', '查詢 \n 無\t資料 !', '查詢&nbsp;無&#10;資料&#33;'):
+            with self.subTest(text=text):
+                self.assertTrue(_eps_official_no_data('<html><body><h4>' + text + '</h4></body></html>'))
+
+    def test_eps_hidden_no_data_is_not_a_signal(self):
+        for tag in ('<script>查詢無資料!</script>', '<STYLE>查詢無資料!</STYLE>',
+                    '<!-- 查詢無資料! -->', '<head><title>查詢無資料!</title></head>',
+                    '<script>查詢無資料!', '<style>查詢無資料!'):
+            with self.subTest(tag=tag):
+                self.assertFalse(_eps_official_no_data('<html>' + tag + '<body></body></html>'))
+
+    def test_eps_ambiguous_no_data_does_not_bypass_identity_or_schema(self):
+        cases = (
+            ('<table><tr><th>公司代號</th><th>基本每股盈餘</th></tr></table>',
+             'FUNDAMENTAL_EPS_PERIOD_IDENTITY_UNPROVEN'),
+            ('<div>資料年度：115年第2季</div>', 'FUNDAMENTAL_EPS_PERIOD_IDENTITY_MISMATCH'),
+            ('<div>Internal Server Error</div>', 'FUNDAMENTAL_EPS_PERIOD_IDENTITY_UNPROVEN'),
+            ('<div>系統發生錯誤</div>', 'FUNDAMENTAL_EPS_PERIOD_IDENTITY_UNPROVEN'),
+            ('<head><title>Internal Server Error</title></head>', 'FUNDAMENTAL_EPS_PERIOD_IDENTITY_UNPROVEN'),
+        )
+        for extra, reason in cases:
+            html = '<html><body><h4>查詢無資料!</h4>' + extra + '</body></html>'
+            with self.subTest(extra=extra):
+                self.assertFalse(_eps_official_no_data(html))
+                with self.assertRaisesRegex(RuntimeError, reason) as caught:
+                    self.adapter(html).fetch_eps_period('TWSE', 2026, 3)
+                self.assertNotIsInstance(caught.exception, EPSPeriodNotAvailable)
+
+    def test_eps_no_data_preserves_transport_and_integrity_gates(self):
+        html = '<html><body><h4>查詢無資料!</h4></body></html>'
+        for status, final, reason in ((503, None, 'MOPS_EPS_HTTP_503'),
+                (200, 'https://unauthorized.test', 'FUNDAMENTAL_EPS_ENDPOINT_BINDING_INVALID')):
+            with self.subTest(status=status, final=final), self.assertRaisesRegex(RuntimeError, reason):
+                self.adapter(html, status=status, final=final).fetch_eps_period('TWSE', 2026, 3)
+        response = OfficialArchiveResponse(html, 'https://mopsov.twse.com.tw/mops/web/ajax_t163sb04')
+        response.headers['Content-Length'] = str(len(html.encode('utf-8')) + 1)
+        source = MOPSHistoricalFundamentalAdapter(opener=lambda req,timeout: response, min_interval_seconds=0,
+            warmup_evidence_root=self.root/'length-evidence')
+        with self.assertRaisesRegex(RuntimeError, 'MOPS_EPS_RESPONSE_LENGTH_MISMATCH'):
+            source.fetch_eps_period('TWSE', 2026, 3)
+
+    def test_eps_no_data_is_not_publication_or_returned_period_proof(self):
+        source = self.adapter('<html><body><h4>查詢無資料!</h4></body></html>')
+        with self.assertRaises(EPSPeriodNotAvailable):
+            source.fetch_eps_period('TWSE', 2026, 3)
+        diag = source.diagnostics[-1]
+        self.assertEqual(diag['availability_status'], 'OFFICIAL_QUERY_NO_DATA')
+        self.assertEqual(diag['publication_status'], 'UNPROVEN')
+        self.assertEqual(diag['period_identity_source'], 'UNPROVEN')
+        self.assertNotIn('returned_period', diag)
 
 
 if __name__ == '__main__':

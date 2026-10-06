@@ -312,17 +312,25 @@ def _revenue_archive_identity(html, market, requested_period, endpoint, final_ur
 
 
 class EPSPeriodNotAvailable(RuntimeError):
-    """Official MOPS response proves the requested leading EPS quarter is not published yet."""
+    """Legacy exception label for query no-data; not proof of publication status."""
     def __init__(self, period):
         self.period = period
         super().__init__(f"FUNDAMENTAL_EPS_PERIOD_NOT_AVAILABLE:{period}")
 
 
 def _eps_official_no_data(html):
-    visible = re.sub(r"<script\\b[^>]*>.*?</script>|<style\\b[^>]*>.*?</style>", " ", html,
+    visible = re.sub(r"<!--.*?-->", " ", html, flags=re.DOTALL)
+    titles = re.findall(r"<title\b[^>]*>(.*?)</title>", visible, flags=re.IGNORECASE | re.DOTALL)
+    if any(_plain(title) != "公開資訊觀測站" for title in titles):
+        return False
+    visible = re.sub(r"<script\b[^>]*>.*?</script>|<style\b[^>]*>.*?</style>|<head\b[^>]*>.*?</head>", " ", visible,
                      flags=re.IGNORECASE | re.DOTALL)
+    if re.search(r"<(?:table|input|select|script|style|head)\b", visible, flags=re.IGNORECASE):
+        return False
     visible = _plain(re.sub(r"<[^>]+>", " ", visible))
-    return re.search(r"查詢\\s*無\\s*資料\\s*!?", visible) is not None
+    # Accept only the standalone visible response, not text embedded in a
+    # conflicting period, data table, or error page.
+    return re.fullmatch(r"查詢\s*無\s*資料\s*!?", visible) is not None
 
 
 def discover_eps_identity(html):
@@ -484,8 +492,8 @@ class MOPSHistoricalFundamentalAdapter:
         if self.warmup_evidence_root is not None and diag["final_url"] != MOPS_EPS_ENDPOINT:
             raise RuntimeError("FUNDAMENTAL_EPS_ENDPOINT_BINDING_INVALID")
         if self.warmup_evidence_root is not None and _eps_official_no_data(html):
-            diag.update({"availability_status":"OFFICIAL_PERIOD_NOT_AVAILABLE",
-                         "period_identity_source":"OFFICIAL_NO_DATA_RESPONSE"})
+            diag.update({"availability_status":"OFFICIAL_QUERY_NO_DATA",
+                         "publication_status":"UNPROVEN", "period_identity_source":"UNPROVEN"})
             raise EPSPeriodNotAvailable(period)
         identity=discover_eps_identity(html)
         diag.update({"period_identity_candidates":identity})
