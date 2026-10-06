@@ -44,6 +44,7 @@ jobs:
         run: >-
           python -B -m unittest
           tests.test_full_market_history
+          tests.test_full_market_history_catalogue_transport
           tests.test_full_market_history_acquisition
           tests.test_full_market_history_storage
           tests.test_warmup_run1_defects

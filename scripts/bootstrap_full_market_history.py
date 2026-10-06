@@ -194,6 +194,8 @@ def main():
         result = {"validation_status": "FAIL_CLOSED", "blocking_reason": str(exc), "fallback_used": False,
                   "production_live_state_mutation": 0, "production_state_latest_mutation": 0,
                   "portfolio_mutation": 0, "ledger_mutation": 0}
+        if hasattr(exc, "catalogue_transport_evidence"):
+            result["catalogue_transport_evidence"] = exc.catalogue_transport_evidence
         put_json(output, "failure.json", result)
         print(json.dumps(result))
         return 1
