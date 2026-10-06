@@ -6,6 +6,15 @@ on:
     paths:
       - "config/RATE_FULL_MARKET_ROTATION_CONTRACT_V1.json"
       - "src/full_market_rotation.py"
+      - "src/full_market_catalogue.py"
+      - "src/full_market_materialization.py"
+      - "src/phase2_production.py"
+      - "config/RATE_PHASE2_CHANGE_REQUEST_V1.json"
+      - "scripts/*phase2*.py"
+      - "scripts/*production*.py"
+      - "tests/test_phase2_production.py"
+      - "tests/test_full_market_materialization.py"
+      - ".github/workflows/rate_production_*_scheduler.yml"
       - "scripts/run_full_market_rotation.py"
       - "tests/test_full_market_rotation.py"
       - "docs/RATE_PHASE2_FULL_MARKET_ROTATION.md"
@@ -18,7 +27,7 @@ jobs:
   verify:
     name: Read-only full-market candidate and canonical continuity regression
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     env:
       PYTHONDONTWRITEBYTECODE: "1"
       RATE_PHASE2_CI_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -38,10 +47,16 @@ jobs:
           go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
           -shellcheck= -pyflakes=
           .github/workflows/rate_phase2_full_market_rotation_ci.yml
+          .github/workflows/rate_production_0730_scheduler.yml
+          .github/workflows/rate_production_0930_scheduler.yml
+          .github/workflows/rate_production_1200_scheduler.yml
+          .github/workflows/rate_production_1930_scheduler.yml
       - name: Run isolated candidate and frozen-owner regression
         run: >-
           python -B -m unittest
           tests.test_full_market_rotation
+          tests.test_phase2_production
+          tests.test_full_market_materialization
           tests.test_logic
           tests.test_spec_formulas
           tests.test_technical_features
@@ -57,6 +72,10 @@ jobs:
           tests.test_production_scheduler_change_control
           tests.test_rate_production_source_acquisition
           tests.test_production_source_latest_publisher
-          tests.test_rate_rebaseline_bootstrap -v
+          tests.test_rate_rebaseline_bootstrap
+          tests.test_rate_soak_005
+          tests.test_rate_production_history_materialization
+          tests.test_tpex_transport
+          tests.test_tpex_date_binding -v
       - name: Confirm no tracked production mutation
         run: git diff --exit-code

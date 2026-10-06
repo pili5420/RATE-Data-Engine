@@ -18,7 +18,7 @@ REQUIRED = ARTIFACTS
 
 def publish_state(*, persist_evidence_path, trading_date, cadence, artifacts_root="artifacts",
                   workflow_run_id=None, workflow_job_id=None, evidence_output=None,
-                  state_root=None, event_name=None, commit_sha=None, ref=None):
+                  state_root=None, event_name=None, commit_sha=None, ref=None, phase2=False, source_bundle_path=None):
     out = {"artifact": "RATE_PRODUCTION_STATE_LIVE_UPDATE_EVIDENCE", "validation_status": "BLOCKED",
            "workflow_run_id": workflow_run_id, "workflow_job_id": workflow_job_id,
            "trading_date": trading_date, "cadence": cadence, "checks": {}, "live_state_updated": False}
@@ -41,12 +41,26 @@ def publish_state(*, persist_evidence_path, trading_date, cadence, artifacts_roo
         material = read_object(source_path)
         state = validate_material(payload, material, trading_date, cadence)
         root = Path(artifacts_root)
-        previous_date = _previous_legal_trading_day(trading_date) if cadence == "07:30" else trading_date
-        previous = load_live_state(root / "production_state", previous_date, CADENCE_PREDECESSOR[cadence])
+        if phase2:
+            from src.phase2_production import latest_predecessor, prepare_bundle_state
+            require(source_bundle_path, "PHASE2_SOURCE_BUNDLE_REQUIRED")
+            bundle = read_object(source_bundle_path)
+            authority = bundle["input_material"]["runtime_authority"]
+            require(authority == {"run_id": str(workflow_run_id), "commit_sha": commit_sha,
+                "event": event_name, "ref": ref}, "PHASE2_RUNTIME_AUTHORITY_BINDING_INVALID")
+            expected_state = prepare_bundle_state(bundle, state_root=root / "production_state")
+            require(state == expected_state, "PHASE2_PREPARED_STATE_BINDING_INVALID")
+            from scripts.run_phase2_production import preflight_manifest
+            preflight_manifest(source_bundle_path, bundle, authority)
+            previous = latest_predecessor(root / "production_state", trading_date, cadence)[2]
+        else:
+            previous_date = _previous_legal_trading_day(trading_date) if cadence == "07:30" else trading_date
+            previous = load_live_state(root / "production_state", previous_date, CADENCE_PREDECESSOR[cadence])
         require(state["previous_state_id"] == previous["state"]["current_state_id"]
                 and state["decision"].get("previous_state_hash") == previous["state"]["decision_payload_hash"], "LIVE_STATE_LINEAGE_INVALID")
         # The decision engine owns account changes; transport must preserve the entire transaction prefix.
-        old_ledger = previous["state"]["decision"]["transaction_ledger"]["transactions"]
+        old_ledger = (previous["state"]["decision"]["transaction_ledger"].get("transactions", []) if phase2
+                      else previous["state"]["decision"]["transaction_ledger"]["transactions"])
         new_ledger = state["decision"]["transaction_ledger"]["transactions"]
         require(new_ledger[:len(old_ledger)] == old_ledger, "LIVE_STATE_LEDGER_HISTORY_LOST")
         directory = root / "production_state" / "live" / trading_date / CADENCE_DIR[cadence]
@@ -103,11 +117,17 @@ def main():
     parser.add_argument("--workflow-run-id")
     parser.add_argument("--workflow-job-id")
     parser.add_argument("--evidence-output")
+    parser.add_argument("--phase2", action="store_true")
+    parser.add_argument("--source-bundle")
     args = parser.parse_args()
+    if os.getenv("GITHUB_REF") == "refs/heads/main" and not args.phase2:
+        print(json.dumps({"validation_status": "BLOCKED", "live_state_updated": False,
+                          "blocking_reason": "BOOTSTRAP_UNIVERSE_NOT_NORMAL_PRODUCTION"}))
+        return 1
     out = publish_state(persist_evidence_path=args.persist_evidence, trading_date=args.trading_date,
                         cadence=args.cadence, artifacts_root=args.artifacts_root, state_root=args.state_root,
                         workflow_run_id=args.workflow_run_id, workflow_job_id=args.workflow_job_id,
-                        evidence_output=args.evidence_output)
+                        evidence_output=args.evidence_output, phase2=args.phase2, source_bundle_path=args.source_bundle)
     print(json.dumps(out, ensure_ascii=False, sort_keys=True))
     return 0 if out["validation_status"] == "PASS" else 1
 

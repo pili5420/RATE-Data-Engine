@@ -156,6 +156,9 @@ def validate_freshness(bundle: Mapping[str, Any], *, trading_date: str, cadence:
 
 
 def validate_production_source_bundle(bundle: Mapping[str, Any], *, trading_date: str, cadence: str) -> dict:
+    from src.phase2_production import SOURCE_SCHEMA, validate_phase2_source_bundle
+    if bundle.get("schema_version") == SOURCE_SCHEMA:
+        return validate_phase2_source_bundle(bundle, trading_date=trading_date, cadence=cadence)
     source_provenance = bundle.get("source_provenance") or {}
     retrieval_timestamp = source_provenance.get("retrieval_timestamp") or bundle.get("retrieval_timestamp")
     records = bundle.get("decision_records") if "decision_records" in bundle else (bundle.get("records") or [])
@@ -365,6 +368,18 @@ def main() -> int:
     parser.add_argument("--workflow-job-id", default=os.getenv("ACTIONS_JOB_ID") or os.getenv("GITHUB_JOB"))
     parser.add_argument("--evidence-output", default="artifacts/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST_UPDATE_EVIDENCE.json")
     args = parser.parse_args()
+    if os.getenv("GITHUB_REF") == "refs/heads/main":
+        from src.phase2_production import SOURCE_SCHEMA, main_authority
+        bundle = load_json(args.source_bundle)
+        if bundle.get("schema_version") != SOURCE_SCHEMA:
+            print(json.dumps({"validation_status": "FAIL", "publish_result": "BLOCKED",
+                              "blocking_reason": "BOOTSTRAP_UNIVERSE_NOT_NORMAL_PRODUCTION"}))
+            return 1
+        authority = main_authority()
+        if authority["event"] != "schedule" or bundle["input_material"]["runtime_authority"] != authority:
+            print(json.dumps({"validation_status": "FAIL", "publish_result": "BLOCKED",
+                              "blocking_reason": "PHASE2_RUNTIME_AUTHORITY_BINDING_INVALID"}))
+            return 1
     evidence = publish_latest(source_bundle_path=args.source_bundle, trading_date=args.trading_date, cadence=args.cadence, artifacts_root=args.artifacts_root, workflow_run_id=args.workflow_run_id, workflow_job_id=args.workflow_job_id, evidence_output=args.evidence_output)
     print(json.dumps(evidence, ensure_ascii=False, sort_keys=True))
     return 0 if evidence.get("publish_result") == "PASS" else 1

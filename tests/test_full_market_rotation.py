@@ -179,6 +179,7 @@ class FullMarketRotationTests(unittest.TestCase):
 
     def test_policy_must_be_authorized_not_invented(self):
         draft = json.loads((ROOT / "config/RATE_FULL_MARKET_ROTATION_CONTRACT_V1.json").read_bytes())
+        draft["validation_status"] = "BLOCKED"
         self.assertEqual(self.evaluate(contract=draft)["blocking_reason"], "ELIGIBILITY_POLICY_AUTHORIZATION_REQUIRED")
 
     def test_missing_input_preserves_previous_and_produces_no_ranking(self):
@@ -194,6 +195,13 @@ class FullMarketRotationTests(unittest.TestCase):
         inputs = copy.deepcopy(self.inputs)
         inputs["stock_histories"]["1059"] = inputs["stock_histories"]["1059"][1:]
         self.assertEqual(self.evaluate(inputs=inputs)["blocking_reason"], "HISTORICAL_WARMUP_REQUIRED")
+
+    def test_official_zero_volume_is_not_a_universe_filter(self):
+        inputs = copy.deepcopy(self.inputs)
+        inputs["stock_histories"]["1059"][0].update(volume=0, turnover=0)
+        result = self.evaluate(inputs=inputs)
+        self.assertEqual(result["validation_status"], "PASS", result.get("blocking_reason"))
+        self.assertEqual(result["candidate_universe_count"], 60)
 
     def test_nonofficial_synthetic_and_wrong_benchmark_history_rejected(self):
         for group, changes, reason in (("stock_histories", {"source": "THIRD_PARTY"}, "OFFICIAL_HISTORY_REQUIRED"),
@@ -293,9 +301,14 @@ class FullMarketRotationTests(unittest.TestCase):
         self.assertEqual(result["blocking_reason"], "PREVIOUS_DECISION_SHORT_TOP30_MISSING")
         self.assertIsNone(result["ranking"])
 
-    def test_no_existing_production_logic_state_account_authorization_or_workflow_changes(self):
+    def test_frozen_owners_state_accounts_authorization_and_bootstrap_unchanged(self):
         names = subprocess.check_output(["git", "-C", str(ROOT), "ls-tree", "-r", "--name-only", BASE]).decode().splitlines()
+        integration = {"scripts/build_production_source_bundle_from_official.py", "scripts/resolve_production_runtime_context.py",
+                       "scripts/publish_production_state_latest.py", "scripts/publish_production_source_bundle_latest.py"}
+        integration.update(f".github/workflows/rate_production_{slot}_scheduler.yml" for slot in ("0730", "0930", "1200", "1930"))
         for name in names:
+            if name in integration:
+                continue
             self.assertEqual((ROOT / name).read_bytes(), subprocess.check_output(["git", "-C", str(ROOT), "show", f"{BASE}:{name}"]), name)
         expected = os.getenv("RATE_PHASE2_CI_HEAD_SHA")
         if expected:

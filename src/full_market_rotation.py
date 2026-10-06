@@ -1,4 +1,4 @@
-"""Read-only Phase 2 candidate pipeline. Canonical state and rule owners stay authoritative."""
+"""Phase 2 evaluation. Canonical state and calculation owners stay authoritative."""
 from __future__ import annotations
 
 import copy
@@ -87,7 +87,9 @@ def _history(rows, *, minimum, end, source, fields, date_key="trade_date"):
     require(dates == sorted(dates) and len(dates) == len(set(dates)), "HISTORICAL_RECORD_DUPLICATE_OR_UNORDERED")
     require(dates[-1] == end if date_key == "trade_date" else dates[-1] <= end, "HISTORICAL_ASOF_BINDING_INVALID")
     for row in rows:
-        require(row.get("source") == source and row.get("source_timestamp")
+        allowed_sources = {source, source + "_STOCK_DAY", source + "_BENCHMARK_HISTORY",
+                           source + " Official Historical Query", source + " Official Daily History"}
+        require(row.get("source") in allowed_sources and row.get("source_timestamp")
                 and row.get("synthetic") is not True and row.get("fallback_used") is not True,
                 "OFFICIAL_HISTORY_REQUIRED")
         require(all(type(row.get(field)) in (int, float) and math.isfinite(row[field]) for field in fields),
@@ -117,7 +119,7 @@ def derive_full_market_inputs(inputs, catalogue, contract, symbols, markets, tra
         _history(stock[symbol], minimum=180, end=trading_date, source=source,
                  fields=("open", "high", "low", "close", "volume", "turnover"))
         require(all(row.get("symbol") == symbol and row["close"] > 0
-                    and row["volume"] > 0 and row["turnover"] > 0 for row in stock[symbol]), "HISTORICAL_RECORD_INVALID")
+                    and row["volume"] >= 0 and row["turnover"] >= 0 for row in stock[symbol]), "HISTORICAL_RECORD_INVALID")
         _history(bench[symbol], minimum=180, end=trading_date, source=source, fields=("close",))
         require(all(row["close"] > 0 and row.get("benchmark_symbol") ==
                     ("TAIEX" if source == "TWSE" else "TPEX") for row in bench[symbol]), "BENCHMARK_MARKET_BINDING_INVALID")
@@ -125,7 +127,7 @@ def derive_full_market_inputs(inputs, catalogue, contract, symbols, markets, tra
                     set(row["trade_date"] for row in bench[symbol])) >= 180, "HISTORICAL_WARMUP_REQUIRED")
         _history(inst[symbol], minimum=26, end=trading_date, source=source,
                  fields=("foreign_net_shares", "investment_trust_net_shares", "close", "turnover"))
-        require(all(row["close"] > 0 and row["turnover"] > 0 for row in inst[symbol]), "HISTORICAL_RECORD_INVALID")
+        require(all(row["close"] > 0 and row["turnover"] >= 0 for row in inst[symbol]), "HISTORICAL_RECORD_INVALID")
         _history(tdcc[symbol], minimum=5, end=trading_date, source="TDCC", fields=("holder_pct_400",), date_key="period_end")
     fundamental_rows = inputs.get("fundamental_records")
     require(set(_symbols(fundamental_rows, "FULL_MARKET_FUNDAMENTAL_INCOMPLETE")) == expected,
@@ -179,7 +181,8 @@ def rank_full_market(records):
 
 
 def evaluate_rotation(*, state_root, previous_trading_date, previous_cadence, trading_date, cadence,
-                      catalogue=None, inputs=None, contract=None, intraday_feed=None, verification_only=False):
+                      catalogue=None, inputs=None, contract=None, intraday_feed=None, verification_only=False,
+                      first_refresh=False):
     result = {"artifact": "RATE_PHASE2_FULL_MARKET_ROTATION_REVIEW", "validation_status": "FAIL_CLOSED",
               "trading_date": trading_date, "cadence": cadence, "previous_state_preserved": True,
               "continuity_baseline_source": CONTINUITY, "candidate_universe_source": UNIVERSE,
@@ -203,8 +206,16 @@ def evaluate_rotation(*, state_root, previous_trading_date, previous_cadence, tr
         require(previous_trading_date <= trading_date
                 and (previous_trading_date < trading_date or CADENCES.index(previous_cadence) < CADENCES.index(cadence)),
                 "PREVIOUS_STATE_TIME_BINDING_INVALID")
-        baseline = _symbols(previous["decision"].get("short_top30"), "PREVIOUS_DECISION_SHORT_TOP30_MISSING")
-        require(len(baseline) == 30, "PREVIOUS_DECISION_SHORT_TOP30_INVALID")
+        if first_refresh:
+            from .phase2_production import validate_first_refresh
+            validate_first_refresh(previous, state_root, trading_date, cadence)
+            baseline = []
+            result.update(continuity_baseline_source="FIRST_FULL_MARKET_REFRESH_AUTHORITY",
+                          ranking_turnover_status="NOT_APPLICABLE_FIRST_FULL_MARKET_REFRESH")
+        else:
+            baseline = _symbols(previous["decision"].get("short_top30"), "PREVIOUS_DECISION_SHORT_TOP30_MISSING")
+            require(len(baseline) == 30, "PREVIOUS_DECISION_SHORT_TOP30_INVALID")
+            result["ranking_turnover_status"] = "RANKED_PREDECESSOR_COMPARISON"
         if cadence != "19:30":
             if cadence in {"09:30", "12:00"}:
                 require(previous_trading_date == trading_date and previous_cadence ==
@@ -227,6 +238,9 @@ def evaluate_rotation(*, state_root, previous_trading_date, previous_cadence, tr
                           ranking={key: copy.deepcopy(previous["decision"][key]) for key in ("top50", "short_top30", "long_top30")})
             return result
         require(verification_only or (inputs or {}).get("evidence_scope") == "PRODUCTION", "ENGINEERING_INPUTS_NOT_PRODUCTION")
+        if not verification_only:
+            from .full_market_catalogue import validate_catalogue
+            validate_catalogue(catalogue, trading_date)
         symbols, markets = bind_full_universe(catalogue, contract, trading_date, baseline)
         result.update(candidate_universe_count=len(symbols), outside_previous_top30=sorted(set(symbols) - set(baseline)))
         records = derive_full_market_inputs(inputs, catalogue, contract, symbols, markets, trading_date, previous)
@@ -236,8 +250,10 @@ def evaluate_rotation(*, state_root, previous_trading_date, previous_cadence, tr
                       ranking=ranking, ranking_inputs_sha256=sha256(records), ranking_result_sha256=sha256(ranking),
                       production_snapshot_id=inputs["production_snapshot_id"], historical_warmup="PASS")
         result["input_snapshot_id"] = inputs["input_snapshot_id"]
+        result["short_term_entries"] = None if first_refresh else sorted(set(row["symbol"] for row in ranking["short_top30"]) - set(baseline))
+        result["short_term_exits"] = None if first_refresh else sorted(set(baseline) - set(row["symbol"] for row in ranking["short_top30"]))
         return result
-    except (RuntimeError, ValueError, TypeError, KeyError, AttributeError) as exc:
+    except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, ArithmeticError) as exc:
         reason = str(exc) or type(exc).__name__
         result.update(blocking_reason=reason, ranking=None)
         if EXTERNAL_FEED in reason:
