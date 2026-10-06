@@ -1,0 +1,25 @@
+{
+  "policy_id": "CR-RATE-PHASE2-ELIGIBILITY-AND-FIRST-REFRESH-V1",
+  "status": "APPROVED",
+  "approved_by": "CONTROL_CENTER",
+  "candidate_universe_source": "FULL_TAIWAN_ELIGIBLE_MARKET_UNIVERSE",
+  "markets": ["TWSE", "TPEX"],
+  "include": ["OFFICIAL_COMMON_EQUITY_NORMAL_LISTING"],
+  "exclude": ["ETF", "ETN", "WARRANT", "BOND", "FUND_UNIT", "PREFERRED_SHARE", "RIGHTS", "STRUCTURED_PRODUCT", "DELISTED", "OTHER_NON_COMMON_EQUITY"],
+  "classification_authorities": ["TWSE", "TPEX"],
+  "eligibility_independent_from_data_availability": true,
+  "symbol_heuristics_allowed": false,
+  "minimum_official_eod_sessions": 180,
+  "fallback_allowed": false,
+  "first_refresh": {
+    "authority_id": "FIRST_FULL_MARKET_REFRESH_AUTHORITY",
+    "single_use": true,
+    "cadence": "19:30",
+    "predecessor_trading_date": "2026-10-02",
+    "predecessor_cadence": "19:30",
+    "predecessor_state_id": "rate-state-baa7113253efcaf5d448e431",
+    "predecessor_state_hash": "baa7113253efcaf5d448e4319318e070da6f6a680d55303e209cd3d64d2d7fec",
+    "ranking_turnover_status": "NOT_APPLICABLE_FIRST_FULL_MARKET_REFRESH"
+  },
+  "subsequent_continuity_baseline_source": "PREVIOUS_VALIDATION_PASS_DECISION_STATE_SHORT_TERM_TOP30"
+}
