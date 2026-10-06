@@ -1,0 +1,20 @@
+{
+  "acceptance_counter_reset": false,
+  "approval_commit_sha": "daf109c0575bb67f13f502a66d64eac6e0db7baa",
+  "artifact": "RATE_PRODUCTION_REBASELINE_AUTHORIZATION_CONSUMPTION_EVIDENCE",
+  "authorization_blob_sha256": "ffe6abbc86b882987afb90d1c706af0db45f7d7fb80443e7b4761813c4ce5055",
+  "authorization_id": "CC-RATE-REBASELINE-20261002-1930-V3",
+  "baseline_id": "rate-rebaseline-20261002-1930-cc-approved-v1",
+  "commit_sha": "0dd1350286eed6e892f86490f4f741d8f6334b68",
+  "consumed": true,
+  "consumed_at": "2026-10-06T05:46:35.803068Z",
+  "post_rebaseline_continuity_window": "NEW",
+  "scheduled_soak_credit": false,
+  "source_state_hash": "baa7113253efcaf5d448e4319318e070da6f6a680d55303e209cd3d64d2d7fec",
+  "source_state_id": "rate-state-baa7113253efcaf5d448e431",
+  "target_cadence": "19:30",
+  "target_trading_date": "2026-10-02",
+  "validation_status": "PASS",
+  "workflow_job_id": "112127473306",
+  "workflow_run_id": "37420151472"
+}

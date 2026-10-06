@@ -1,0 +1,15 @@
+{
+  "acceptance_counter_reset": false,
+  "artifact": "RATE_PRODUCTION_REBASELINE_BOOTSTRAP_EVIDENCE",
+  "atomic_publication_stage": "STAGED_CANONICAL_PACKAGE",
+  "baseline_id": "rate-rebaseline-20261002-1930-cc-approved-v1",
+  "cadence": "19:30",
+  "latest_update_status": "PENDING",
+  "post_rebaseline_continuity_window": "NEW",
+  "rebaseline_authorization_id": "CC-RATE-REBASELINE-20261002-1930-V3",
+  "scheduled_soak_credit": false,
+  "source_state_hash": "baa7113253efcaf5d448e4319318e070da6f6a680d55303e209cd3d64d2d7fec",
+  "source_state_id": "rate-state-baa7113253efcaf5d448e431",
+  "trading_date": "2026-10-02",
+  "validation_status": "PASS"
+}

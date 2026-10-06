@@ -1,0 +1,31 @@
+{
+  "acceptance_counter_reset": false,
+  "approval_commit_sha": "daf109c0575bb67f13f502a66d64eac6e0db7baa",
+  "artifact": "RATE_PRODUCTION_STATE_MANIFEST",
+  "authorization_blob_sha256": "ffe6abbc86b882987afb90d1c706af0db45f7d7fb80443e7b4761813c4ce5055",
+  "baseline_id": "rate-rebaseline-20261002-1930-cc-approved-v1",
+  "baseline_state_hash": "baa7113253efcaf5d448e4319318e070da6f6a680d55303e209cd3d64d2d7fec",
+  "baseline_state_id": "rate-state-baa7113253efcaf5d448e431",
+  "baseline_type": "CONTROL_CENTER_REBASELINE",
+  "cadence": "19:30",
+  "commit_sha": "0dd1350286eed6e892f86490f4f741d8f6334b68",
+  "current_state_hash": "baa7113253efcaf5d448e4319318e070da6f6a680d55303e209cd3d64d2d7fec",
+  "current_state_id": "rate-state-baa7113253efcaf5d448e431",
+  "event_name": "workflow_dispatch",
+  "files": {
+    "RATE_PRODUCTION_DECISION_STATE.json": "eb69924bc22eb5398f8dc768b74aef8552107336cc899b7b381c82241a5a0c51",
+    "RATE_PRODUCTION_PERSIST_RESULT_EVIDENCE.json": "4a8fc87f61b8a5dd122cba210a9721b04e05b726a5c8b270bb7f270a5caed292",
+    "RATE_PRODUCTION_REBASELINE_AUTHORIZATION_CONSUMPTION_EVIDENCE.json": "1e1167b0c72cdcdacdfa742c2f8e6e9a7c6ef280846f7ab7158f529fd918ce4c"
+  },
+  "historical_chain_break_acknowledged": true,
+  "post_rebaseline_continuity_window": "NEW",
+  "rebaseline_authorization_id": "CC-RATE-REBASELINE-20261002-1930-V3",
+  "rebaseline_authorization_manifest_hash": "ffe6abbc86b882987afb90d1c706af0db45f7d7fb80443e7b4761813c4ce5055",
+  "rebaseline_bootstrap": true,
+  "ref": "refs/heads/main",
+  "scheduled_soak_credit": false,
+  "trading_date": "2026-10-02",
+  "validation_status": "PASS",
+  "workflow_job_id": "112127473306",
+  "workflow_run_id": "37420151472"
+}

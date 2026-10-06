@@ -1,0 +1,22 @@
+{
+  "acceptance_counter_reset": false,
+  "artifact": "RATE_PRODUCTION_STATE_LATEST",
+  "authorization_consumption_path": "/home/runner/work/RATE-Data-Engine/RATE-Data-Engine/artifacts/production_state/live/2026-10-02/1930/RATE_PRODUCTION_REBASELINE_AUTHORIZATION_CONSUMPTION_EVIDENCE.json",
+  "authorization_consumption_sha256": "1e1167b0c72cdcdacdfa742c2f8e6e9a7c6ef280846f7ab7158f529fd918ce4c",
+  "baseline_id": "rate-rebaseline-20261002-1930-cc-approved-v1",
+  "baseline_type": "CONTROL_CENTER_REBASELINE",
+  "cadence": "19:30",
+  "current_state_hash": "baa7113253efcaf5d448e4319318e070da6f6a680d55303e209cd3d64d2d7fec",
+  "current_state_id": "rate-state-baa7113253efcaf5d448e431",
+  "live_manifest_path": "/home/runner/work/RATE-Data-Engine/RATE-Data-Engine/artifacts/production_state/live/2026-10-02/1930/RATE_PRODUCTION_STATE_MANIFEST.json",
+  "live_manifest_sha256": "2d8a2f9afc68b35140f2706b281231b7c38fea380cad39c0b67244b6c23c5d7c",
+  "live_state_evidence_path": "/home/runner/work/RATE-Data-Engine/RATE-Data-Engine/artifacts/production_state/live/2026-10-02/1930/RATE_PRODUCTION_PERSIST_RESULT_EVIDENCE.json",
+  "post_rebaseline_continuity_window": "NEW",
+  "rebaseline_authorization_id": "CC-RATE-REBASELINE-20261002-1930-V3",
+  "rebaseline_bootstrap": true,
+  "scheduled_soak_credit": false,
+  "trading_date": "2026-10-02",
+  "validation_status": "PASS",
+  "workflow_job_id": "112127473306",
+  "workflow_run_id": "37420151472"
+}
