@@ -86,6 +86,13 @@ def _validate_approval_commit(repository_root, relative_path, authorization, cur
             "REBASELINE_AUTHORIZATION_BLOB_HASH_MISMATCH")
 
 
+def _validate_dispatch_policy(authorization):
+    require(authorization.get("authority_scope") == "RATE_EXACT_MAIN_REBASELINE_BOOTSTRAP_ONLY",
+            "REBASELINE_AUTHORITY_SCOPE_INVALID")
+    require(authorization.get("candidate_only") is False, "REBASELINE_CANDIDATE_ONLY_FORBIDDEN")
+    require(authorization.get("dispatch_allowed") is True, "REBASELINE_DISPATCH_NOT_ALLOWED")
+
+
 def _safe_material_path(repository_root, raw_path):
     raw = Path(raw_path)
     require(not raw.is_absolute(), "REBASELINE_MATERIAL_PATH_INVALID")
@@ -544,6 +551,7 @@ def bootstrap_rebaseline_state(*, rebaseline_manifest_path, rebaseline_state_pat
         require(authorization.get("authorization_id") == authorization_id, "REBASELINE_AUTHORIZATION_ID_MISMATCH")
         require(authorization.get("authorization_status") == "APPROVED"
                 and authorization.get("approved_by") == "CONTROL_CENTER", "REBASELINE_AUTHORIZATION_NOT_APPROVED")
+        _validate_dispatch_policy(authorization)
         require(authorization.get("baseline_type") == "CONTROL_CENTER_REBASELINE"
                 and authorization.get("previous_state_resolution") == "CONTROL_CENTER_REBASELINE",
                 "REBASELINE_AUTHORIZATION_POLICY_INVALID")

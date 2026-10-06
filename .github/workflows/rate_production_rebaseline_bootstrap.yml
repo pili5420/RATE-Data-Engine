@@ -96,40 +96,40 @@ jobs:
           git add artifacts/RATE_PRODUCTION_STATE_LATEST.json artifacts/production_state/live
           if git diff --cached --quiet; then
             python - <<'PY'
-import json, os
-from pathlib import Path
-path = Path("artifacts/production_state/RATE_PRODUCTION_REBASELINE_BOOTSTRAP_EVIDENCE.json")
-payload = json.loads(path.read_text(encoding="utf-8"))
-payload.update({
-  "validated_main_sha": os.environ["VALIDATED_MAIN_SHA"],
-  "bootstrap_parent_sha": os.environ["VALIDATED_MAIN_SHA"],
-  "origin_main_sha_before_push": os.environ["VALIDATED_MAIN_SHA"],
-  "bootstrap_commit_sha": os.environ["VALIDATED_MAIN_SHA"],
-  "pushed_main_sha": os.environ["VALIDATED_MAIN_SHA"],
-  "main_concurrency_status": "PASS",
-  "push_result": "PASS",
-  "execution_evidence_authority": "ACTIONS_ARTIFACT"
-})
-path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-PY
+          import json, os
+          from pathlib import Path
+          path = Path("artifacts/production_state/RATE_PRODUCTION_REBASELINE_BOOTSTRAP_EVIDENCE.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          payload.update({
+            "validated_main_sha": os.environ["VALIDATED_MAIN_SHA"],
+            "bootstrap_parent_sha": os.environ["VALIDATED_MAIN_SHA"],
+            "origin_main_sha_before_push": os.environ["VALIDATED_MAIN_SHA"],
+            "bootstrap_commit_sha": os.environ["VALIDATED_MAIN_SHA"],
+            "pushed_main_sha": os.environ["VALIDATED_MAIN_SHA"],
+            "main_concurrency_status": "PASS",
+            "push_result": "PASS",
+            "execution_evidence_authority": "ACTIONS_ARTIFACT"
+          })
+          path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+          PY
           else
             bootstrap_parent_sha="$(git rev-parse HEAD)"
             if [ "$bootstrap_parent_sha" != "$VALIDATED_MAIN_SHA" ]; then
               BOOTSTRAP_PARENT_SHA="$bootstrap_parent_sha" python - <<'PY'
-import json, os
-from pathlib import Path
-path = Path("artifacts/production_state/RATE_PRODUCTION_REBASELINE_BOOTSTRAP_EVIDENCE.json")
-payload = json.loads(path.read_text(encoding="utf-8"))
-payload.update({
-  "validated_main_sha": os.environ["VALIDATED_MAIN_SHA"],
-  "bootstrap_parent_sha": os.environ["BOOTSTRAP_PARENT_SHA"],
-  "pushed_main_sha": None,
-  "main_concurrency_status": "REBASELINE_BOOTSTRAP_PARENT_MISMATCH",
-  "push_result": "BLOCKED",
-  "execution_evidence_authority": "ACTIONS_ARTIFACT"
-})
-path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-PY
+          import json, os
+          from pathlib import Path
+          path = Path("artifacts/production_state/RATE_PRODUCTION_REBASELINE_BOOTSTRAP_EVIDENCE.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          payload.update({
+            "validated_main_sha": os.environ["VALIDATED_MAIN_SHA"],
+            "bootstrap_parent_sha": os.environ["BOOTSTRAP_PARENT_SHA"],
+            "pushed_main_sha": None,
+            "main_concurrency_status": "REBASELINE_BOOTSTRAP_PARENT_MISMATCH",
+            "push_result": "BLOCKED",
+            "execution_evidence_authority": "ACTIONS_ARTIFACT"
+          })
+          path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+          PY
               exit 1
             fi
             git commit -m "Bootstrap authorized RATE production rebaseline state"
@@ -138,60 +138,60 @@ PY
             origin_main_sha="$(git rev-parse "origin/${{ github.ref_name }}")"
             if [ "$origin_main_sha" != "$VALIDATED_MAIN_SHA" ]; then
               ORIGIN_MAIN_SHA="$origin_main_sha" BOOTSTRAP_PARENT_SHA="$bootstrap_parent_sha" BOOTSTRAP_COMMIT_SHA="$bootstrap_commit_sha" python - <<'PY'
-import json, os
-from pathlib import Path
-path = Path("artifacts/production_state/RATE_PRODUCTION_REBASELINE_BOOTSTRAP_EVIDENCE.json")
-payload = json.loads(path.read_text(encoding="utf-8"))
-payload.update({
-  "validated_main_sha": os.environ["VALIDATED_MAIN_SHA"],
-  "origin_main_sha_before_push": os.environ["ORIGIN_MAIN_SHA"],
-  "bootstrap_parent_sha": os.environ["BOOTSTRAP_PARENT_SHA"],
-  "bootstrap_commit_sha": os.environ["BOOTSTRAP_COMMIT_SHA"],
-  "pushed_main_sha": None,
-  "main_concurrency_status": "MAIN_ADVANCED_AFTER_REBASELINE_VALIDATION",
-  "push_result": "BLOCKED",
-  "execution_evidence_authority": "ACTIONS_ARTIFACT"
-})
-path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-PY
+          import json, os
+          from pathlib import Path
+          path = Path("artifacts/production_state/RATE_PRODUCTION_REBASELINE_BOOTSTRAP_EVIDENCE.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          payload.update({
+            "validated_main_sha": os.environ["VALIDATED_MAIN_SHA"],
+            "origin_main_sha_before_push": os.environ["ORIGIN_MAIN_SHA"],
+            "bootstrap_parent_sha": os.environ["BOOTSTRAP_PARENT_SHA"],
+            "bootstrap_commit_sha": os.environ["BOOTSTRAP_COMMIT_SHA"],
+            "pushed_main_sha": None,
+            "main_concurrency_status": "MAIN_ADVANCED_AFTER_REBASELINE_VALIDATION",
+            "push_result": "BLOCKED",
+            "execution_evidence_authority": "ACTIONS_ARTIFACT"
+          })
+          path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+          PY
               exit 1
             fi
             if git push origin "HEAD:${{ github.ref_name }}"; then
               ORIGIN_MAIN_SHA="$origin_main_sha" BOOTSTRAP_PARENT_SHA="$bootstrap_parent_sha" BOOTSTRAP_COMMIT_SHA="$bootstrap_commit_sha" python - <<'PY'
-import json, os
-from pathlib import Path
-path = Path("artifacts/production_state/RATE_PRODUCTION_REBASELINE_BOOTSTRAP_EVIDENCE.json")
-payload = json.loads(path.read_text(encoding="utf-8"))
-payload.update({
-  "validated_main_sha": os.environ["VALIDATED_MAIN_SHA"],
-  "origin_main_sha_before_push": os.environ["ORIGIN_MAIN_SHA"],
-  "bootstrap_parent_sha": os.environ["BOOTSTRAP_PARENT_SHA"],
-  "bootstrap_commit_sha": os.environ["BOOTSTRAP_COMMIT_SHA"],
-  "pushed_main_sha": os.environ["BOOTSTRAP_COMMIT_SHA"],
-  "main_concurrency_status": "PASS",
-  "push_result": "PASS",
-  "execution_evidence_authority": "ACTIONS_ARTIFACT"
-})
-path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-PY
+          import json, os
+          from pathlib import Path
+          path = Path("artifacts/production_state/RATE_PRODUCTION_REBASELINE_BOOTSTRAP_EVIDENCE.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          payload.update({
+            "validated_main_sha": os.environ["VALIDATED_MAIN_SHA"],
+            "origin_main_sha_before_push": os.environ["ORIGIN_MAIN_SHA"],
+            "bootstrap_parent_sha": os.environ["BOOTSTRAP_PARENT_SHA"],
+            "bootstrap_commit_sha": os.environ["BOOTSTRAP_COMMIT_SHA"],
+            "pushed_main_sha": os.environ["BOOTSTRAP_COMMIT_SHA"],
+            "main_concurrency_status": "PASS",
+            "push_result": "PASS",
+            "execution_evidence_authority": "ACTIONS_ARTIFACT"
+          })
+          path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+          PY
             else
               ORIGIN_MAIN_SHA="$origin_main_sha" BOOTSTRAP_PARENT_SHA="$bootstrap_parent_sha" BOOTSTRAP_COMMIT_SHA="$bootstrap_commit_sha" python - <<'PY'
-import json, os
-from pathlib import Path
-path = Path("artifacts/production_state/RATE_PRODUCTION_REBASELINE_BOOTSTRAP_EVIDENCE.json")
-payload = json.loads(path.read_text(encoding="utf-8"))
-payload.update({
-  "validated_main_sha": os.environ["VALIDATED_MAIN_SHA"],
-  "origin_main_sha_before_push": os.environ["ORIGIN_MAIN_SHA"],
-  "bootstrap_parent_sha": os.environ["BOOTSTRAP_PARENT_SHA"],
-  "bootstrap_commit_sha": os.environ["BOOTSTRAP_COMMIT_SHA"],
-  "pushed_main_sha": None,
-  "main_concurrency_status": "BOOTSTRAP_MAIN_CONCURRENCY_CONFLICT",
-  "push_result": "BOOTSTRAP_MAIN_CONCURRENCY_CONFLICT",
-  "execution_evidence_authority": "ACTIONS_ARTIFACT"
-})
-path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-PY
+          import json, os
+          from pathlib import Path
+          path = Path("artifacts/production_state/RATE_PRODUCTION_REBASELINE_BOOTSTRAP_EVIDENCE.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          payload.update({
+            "validated_main_sha": os.environ["VALIDATED_MAIN_SHA"],
+            "origin_main_sha_before_push": os.environ["ORIGIN_MAIN_SHA"],
+            "bootstrap_parent_sha": os.environ["BOOTSTRAP_PARENT_SHA"],
+            "bootstrap_commit_sha": os.environ["BOOTSTRAP_COMMIT_SHA"],
+            "pushed_main_sha": None,
+            "main_concurrency_status": "BOOTSTRAP_MAIN_CONCURRENCY_CONFLICT",
+            "push_result": "BOOTSTRAP_MAIN_CONCURRENCY_CONFLICT",
+            "execution_evidence_authority": "ACTIONS_ARTIFACT"
+          })
+          path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+          PY
               exit 1
             fi
           fi
