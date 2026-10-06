@@ -12,6 +12,7 @@ on:
       - "control/rebaseline_authorizations/CC-RATE-REBASELINE-20261002-1930-V3/**"
       - "tests/test_rate_rebaseline_bootstrap.py"
       - "tests/test_rebaseline_activation_closure.py"
+      - "tests/test_rebaseline_shallow_checkout.py"
 
 permissions:
   contents: read
@@ -45,6 +46,7 @@ jobs:
         run: >-
           python -B -m unittest
           tests.test_rebaseline_activation_closure
+          tests.test_rebaseline_shallow_checkout
           tests.test_rate_rebaseline_bootstrap
           tests.test_rate_eod_rebaseline_material
           tests.test_rate_soak_005

@@ -154,7 +154,9 @@ class RebaselineActivationClosureTests(unittest.TestCase):
             yaml.safe_load(old)
         new = (ROOT / WORKFLOW).read_text()
         workflow = yaml.safe_load(new)
-        self.assertEqual([line.strip() for line in old.splitlines()], [line.strip() for line in new.splitlines()])
+        # The separately tested checkout-history fix is additive to the heredoc repair.
+        heredoc_repair = new.replace("          fetch-depth: 0\n", "", 1)
+        self.assertEqual([line.strip() for line in old.splitlines()], [line.strip() for line in heredoc_repair.splitlines()])
         events = workflow.get("on", workflow.get(True))
         self.assertEqual(list(events), ["workflow_dispatch"])
         job = workflow["jobs"]["rebaseline-bootstrap"]
