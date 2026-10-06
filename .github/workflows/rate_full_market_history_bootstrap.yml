@@ -56,6 +56,14 @@ jobs:
           path: ${{ runner.temp }}/plan/plan.json
           if-no-files-found: error
           retention-days: 7
+      - name: Retain catalogue plan failure transport evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_HISTORY_PLAN_FAILURE_${{ github.run_id }}_${{ github.run_attempt }}
+          path: ${{ runner.temp }}/plan/failure.json
+          if-no-files-found: ignore
+          retention-days: 7
 
   acquire:
     needs: plan

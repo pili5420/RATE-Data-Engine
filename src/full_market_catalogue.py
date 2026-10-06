@@ -4,10 +4,13 @@ from __future__ import annotations
 from collections import Counter
 from datetime import date, datetime, timezone
 import hashlib
+from http.client import IncompleteRead
 from html.parser import HTMLParser
 import json
 from pathlib import Path
 import re
+import time
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from .cer074_acceptance import sha256
@@ -20,6 +23,14 @@ CLASSIFICATION_ENDPOINTS = {m: f"https://isin.twse.com.tw/isin/e_C_public.jsp?st
 LISTING_ENDPOINTS = {"TWSE": "https://openapi.twse.com.tw/v1/opendata/t187ap03_L",
                      "TPEX": "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap03_O"}
 NORMAL_LISTING_MARKETS = {"TWSE": {"TWSE LISTED", "TAIWAN INNOVATION BOARD"}, "TPEX": {"TPEx LISTED"}}
+CATALOGUE_MAX_ATTEMPTS = 3
+RETRIABLE_HTTP_STATUSES = (408, 429, 500, 502, 503, 504)
+
+
+class CatalogueTransportError(RuntimeError):
+    def __init__(self, message, evidence):
+        super().__init__(message)
+        self.catalogue_transport_evidence = evidence
 
 
 def approved_policy():
@@ -102,19 +113,101 @@ def parse_classification(body, market):
 
 
 def fetch_receipt(endpoint, *, html=False):
-    request = Request(endpoint, headers={"User-Agent": "RATE-Phase2/1.0", "Accept": "text/html" if html else "application/json"})
-    with urlopen(request, timeout=30) as response:
-        require(response.geturl() == endpoint, "CATALOGUE_UNAPPROVED_REDIRECT")
-        body = response.read()
-        status, content_type = response.getcode(), response.headers.get("Content-Type", "")
-    require(status == 200 and body, "CATALOGUE_TRANSPORT_FAILED")
-    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    return body, {"endpoint": endpoint, "http_status": status, "content_type": content_type,
-                  "response_bytes": len(body), "body_sha256": hashlib.sha256(body).hexdigest(),
-                  "retrieved_at": now, "fallback_used": False}
+    identity = [(market, kind) for kind, endpoints in (("classification", CLASSIFICATION_ENDPOINTS),
+                                                      ("listing", LISTING_ENDPOINTS))
+                for market, official in endpoints.items() if official == endpoint]
+    require(len(identity) == 1, "CATALOGUE_UNAPPROVED_ENDPOINT")
+    market, kind = identity[0]
+    attempts = []
+    for attempt in range(1, CATALOGUE_MAX_ATTEMPTS + 1):
+        evidence = {"source_owner": market, "market": market, "endpoint": endpoint, "request_type": kind,
+                    "attempt_number": attempt, "http_status": None, "final_url": None,
+                    "content_type": None, "content_length": None, "bytes_actually_read": 0,
+                    "bytes_remaining": None, "expected_response_bytes": None, "fallback_used": False}
+        body = b""
+        try:
+            request = Request(endpoint, headers={"User-Agent": "RATE-Phase2/1.0",
+                                                "Accept": "text/html" if html else "application/json"})
+            with urlopen(request, timeout=30) as response:
+                evidence.update(http_status=response.getcode(), final_url=response.geturl(),
+                                content_type=response.headers.get("Content-Type", ""),
+                                content_length=response.headers.get("Content-Length"))
+                require(evidence["final_url"] == endpoint, "CATALOGUE_UNAPPROVED_REDIRECT")
+                if evidence["http_status"] != 200:
+                    raise HTTPError(endpoint, evidence["http_status"], "CATALOGUE_TRANSPORT_FAILED", response.headers, None)
+                length = evidence["content_length"]
+                if length is not None:
+                    require(str(length).strip().isdigit(), "CATALOGUE_CONTENT_LENGTH_INVALID")
+                    evidence["expected_response_bytes"] = int(length)
+                evidence["bytes_actually_read"] = None
+                body = response.read()
+                evidence["bytes_actually_read"] = len(body)
+                if length is not None and len(body) < int(length):
+                    raise IncompleteRead(body, int(length) - len(body))
+                require(length is None or len(body) == int(length), "CATALOGUE_CONTENT_LENGTH_MISMATCH")
+                require(body, "CATALOGUE_TRANSPORT_FAILED")
+        except Exception as exc:
+            if isinstance(exc, HTTPError):
+                evidence.update(http_status=exc.code, final_url=exc.geturl(),
+                                content_type=exc.headers.get("Content-Type") if exc.headers else None,
+                                content_length=exc.headers.get("Content-Length") if exc.headers else None)
+                exc.close()
+            if isinstance(exc, IncompleteRead):
+                body = exc.partial
+                evidence.update(bytes_actually_read=len(body), bytes_remaining=exc.expected,
+                                expected_response_bytes=len(body) + exc.expected if exc.expected is not None
+                                else evidence["expected_response_bytes"])
+            if body:
+                evidence.update(partial_response_bytes=len(body), partial_body_sha256=hashlib.sha256(body).hexdigest(),
+                                partial_body_hash_authoritative=False)
+            retriable = (exc.code in RETRIABLE_HTTP_STATUSES if isinstance(exc, HTTPError)
+                         else isinstance(exc, (IncompleteRead, ConnectionError, TimeoutError, URLError))
+                         or str(exc) == "CATALOGUE_CONTENT_LENGTH_MISMATCH")
+            unapproved_redirect = evidence["final_url"] is not None and evidence["final_url"] != endpoint
+            if unapproved_redirect:
+                retriable = False
+            will_retry = retriable and attempt < CATALOGUE_MAX_ATTEMPTS
+            evidence.update(exception_class=type(exc).__name__, exception_message=str(exc),
+                            retrieval_timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                            retry_decision="RETRY_SAME_OFFICIAL_ENDPOINT" if will_retry else
+                            "FAIL_CLOSED_RETRY_EXHAUSTED" if retriable else "FAIL_CLOSED_NON_RETRIABLE")
+            attempts.append(evidence)
+            if not will_retry:
+                message = str(exc) if isinstance(exc, RuntimeError) else f"CATALOGUE_TRANSPORT_FAILED:{type(exc).__name__}:{exc}"
+                if unapproved_redirect:
+                    message = "CATALOGUE_UNAPPROVED_REDIRECT"
+                raise CatalogueTransportError(message, attempts) from exc
+            time.sleep(2 ** (attempt - 1))
+            continue
+        now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        evidence.update(retrieval_timestamp=now, retry_decision="ACCEPT_COMPLETE_RESPONSE")
+        attempts.append(evidence)
+        # Only a complete, validated transport may produce an authoritative receipt hash.
+        return body, {"endpoint": endpoint, "final_url": evidence["final_url"], "http_status": evidence["http_status"],
+                      "content_type": evidence["content_type"], "content_length": evidence["content_length"],
+                      "response_bytes": len(body), "body_sha256": hashlib.sha256(body).hexdigest(),
+                      "retrieved_at": now, "fallback_used": False, "attempt_count": attempt, "transport_attempts": attempts}
 
 
 def build_catalogue(trading_date, *, fetcher=fetch_receipt):
+    evidence = []
+    def capture_receipt(endpoint, *, html=False):
+        try:
+            body, receipt = fetcher(endpoint, html=html)
+        except CatalogueTransportError as exc:
+            evidence.extend(exc.catalogue_transport_evidence)
+            raise
+        evidence.extend(receipt.get("transport_attempts", []))
+        return body, receipt
+    try:
+        return _build_catalogue(trading_date, fetcher=capture_receipt)
+    except Exception as exc:
+        # Preserve earlier retries even if a later endpoint or semantic gate fails.
+        exc.catalogue_transport_evidence = evidence
+        raise
+
+
+def _build_catalogue(trading_date, *, fetcher):
     date.fromisoformat(trading_date)
     policy = approved_policy()
     catalogue = {"artifact": "RATE_FULL_MARKET_ELIGIBILITY_CATALOGUE", "schema_version": "RATE-FULL-MARKET-CATALOGUE-V1",
