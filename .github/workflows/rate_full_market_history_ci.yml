@@ -9,6 +9,7 @@ on:
       - "src/full_market_catalogue.py"
       - "src/full_market_history*.py"
       - "src/sources/fundamental_history.py"
+      - "src/sources/mops_raw_evidence.py"
       - "scripts/bootstrap_full_market_history.py"
       - "tests/test_full_market_history*.py"
       - "tests/test_warmup_run1_defects.py"
@@ -46,6 +47,7 @@ jobs:
           tests.test_full_market_history
           tests.test_full_market_history_catalogue_transport
           tests.test_full_market_history_acquisition
+          tests.test_full_market_history_yoy_semantics
           tests.test_full_market_history_storage
           tests.test_warmup_run1_defects
           tests.test_rate_production_history_materialization

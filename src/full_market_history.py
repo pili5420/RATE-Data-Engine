@@ -22,6 +22,7 @@ OWNER_FILES = (
     "src/institutional_history.py", "src/institutional_features.py", "src/stage_history.py",
     "src/rotation_history.py", "src/technical_features.py", "src/rate_logic.py",
     "src/feature_math.py", "src/sources/base.py", "src/sources/tpex_transport.py",
+    "src/sources/mops_raw_evidence.py",
     "src/cer080_multi_day_continuity.py", "scripts/resolve_production_runtime_context.py",
     "scripts/materialize_production_history_store.py", "scripts/build_live_source_bundle.py",
 )
@@ -192,7 +193,7 @@ def finite(row, keys, nonnegative=()):
             require(value >= 0, "HISTORY_VALUE_INVALID")
 
 
-def validate_symbol(material, plan, symbol, market):
+def validate_symbol(material, plan, symbol, market, *, evidence_root=None):
     validate_authority(material["acquisition_runtime_authority"])
     require(material["artifact"] == "RATE_FULL_MARKET_SYMBOL_HISTORY"
             and material["plan_id"] == plan["plan_id"] and material["symbol"] == symbol
@@ -248,17 +249,26 @@ def validate_symbol(material, plan, symbol, market):
             and len({(r["fiscal_year"], r["quarter"]) for r in eps}) == len(eps), "FUNDAMENTAL_DUPLICATE_PERIOD")
     for row in rev + eps:
         require(row["symbol"] == symbol and row["provider"] == "MOPS Official"
+                and row["market"] == market
                 and row["official_disclosure_date"] <= plan["completed_through"], "FUNDAMENTAL_ASOF_BINDING_INVALID")
         require(row.get("endpoint") and len(row.get("content_hash", "")) == 64, "OFFICIAL_SOURCE_RECEIPT_MISSING")
     from .sources.fundamental_history import FundamentalHistoryStoreV2
+    from .sources.mops_raw_evidence import verify_record
     for row in rev:
         FundamentalHistoryStoreV2._validate_revenue_event(row)
         require(row["revenue_period"] <= plan["completed_through"][:7], "FUTURE_DATED_HISTORY")
-        finite(row, ("revenue_yoy",))
+        if "revenue_yoy_status" in row:
+            require(evidence_root is not None, "MOPS_RAW_RESPONSE_REQUIRED")
+            verify_record(evidence_root, row, plan, "revenue")
+        else:
+            finite(row, ("revenue_yoy",))
     for row in eps:
         FundamentalHistoryStoreV2._validate_eps_event(row)
         require(row["quarter"] in (1, 2, 3, 4) and (row["fiscal_year"], row["quarter"]) <= (int(plan["completed_through"][:4]), (int(plan["completed_through"][5:7]) - 1) // 3), "FUTURE_DATED_HISTORY")
         finite(row, ("single_quarter_eps",))
+        if "raw_response_reference" in row:
+            require(evidence_root is not None, "MOPS_RAW_RESPONSE_REQUIRED")
+            verify_record(evidence_root, row, plan, "eps")
     return {"stock_sessions": len(stocks), "benchmark_sessions": len(benchmark), "institutional_sessions": len(institutional),
             "tdcc_periods": len(tdcc), "revenue_periods": len(rev), "eps_quarters": len(eps), "validation_status": "PASS"}
 
@@ -275,12 +285,12 @@ def load_checkpoint(root, plan, symbol, market):
     require(checkpoint.get("artifact") == "RATE_HISTORY_SYMBOL_CHECKPOINT" and checkpoint.get("plan_id") == plan["plan_id"]
             and checkpoint.get("symbol") == symbol and checkpoint.get("market") == market, "CHECKPOINT_BINDING_INVALID")
     material = load_material(root, checkpoint["material"])
-    require(checkpoint["coverage"] == validate_symbol(material, plan, symbol, market), "CHECKPOINT_COVERAGE_MISMATCH")
+    require(checkpoint["coverage"] == validate_symbol(material, plan, symbol, market, evidence_root=root), "CHECKPOINT_COVERAGE_MISMATCH")
     return material, checkpoint
 
 
 def persist_symbol(root, material, plan, symbol, market):
-    coverage = validate_symbol(material, plan, symbol, market)
+    coverage = validate_symbol(material, plan, symbol, market, evidence_root=root)
     reference = put_material(root, material)
     checkpoint = {"artifact": "RATE_HISTORY_SYMBOL_CHECKPOINT", "plan_id": plan["plan_id"],
                   "symbol": symbol, "market": market, "material": reference, "coverage": coverage}

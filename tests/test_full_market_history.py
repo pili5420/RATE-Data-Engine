@@ -16,11 +16,12 @@ from src.institutional_history import T86_OFFICIAL_SOURCE, TPEX_OFFICIAL_SOURCE
 from src.cer080_multi_day_continuity import is_trading_day
 from src.sources.tdcc_historical import TDCC_HISTORICAL_PAGE, holder_pct_400_from_tiers
 
-BASE = "fcf06e512a62fad9eba828416e52041614f7dc3d"
-CATALOGUE_FIX_ALLOWED_CHANGES = {"src/full_market_catalogue.py", "scripts/bootstrap_full_market_history.py",
-                                "tests/test_full_market_history.py",
-                                ".github/workflows/rate_full_market_history_bootstrap.yml",
-                                ".github/workflows/rate_full_market_history_ci.yml"}
+BASE = "9bc75ff4f81d2171b5ae5f156c7e5e9799b66758"
+YOY_CR_ALLOWED_CHANGES = {"src/sources/fundamental_history.py", "src/sources/mops_raw_evidence.py",
+                        "src/full_market_history.py", "src/full_market_history_acquisition.py",
+                        "scripts/bootstrap_full_market_history.py", "tests/test_full_market_history.py",
+                        "tests/test_full_market_history_acquisition.py", "tests/test_full_market_history_yoy_semantics.py",
+                        "docs/RATE_FULL_MARKET_HISTORY_BOOTSTRAP.md", ".github/workflows/rate_full_market_history_ci.yml"}
 DAY = "2026-10-06"
 AUTHORITY = {"ref": "refs/heads/main", "event": "workflow_dispatch", "run_id": "100", "commit_sha": "a" * 40}
 AUTHORITY["github_execution_evidence"] = {"run_id": "100", "head_sha": "a" * 40, "head_branch": "main",
@@ -125,10 +126,10 @@ class FullMarketHistoryTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "CATALOGUE_COUNT_CHANGE_REQUEST_REQUIRED"):
             h.eligible(self.plan["catalogue"])
 
-    def test_main_files_outside_catalogue_defect_scope_are_byte_identical(self):
+    def test_main_files_outside_approved_yoy_cr_scope_are_byte_identical(self):
         names = subprocess.check_output(["git", "-C", str(h.ROOT), "ls-tree", "-r", "--name-only", BASE]).decode().splitlines()
         for name in names:
-            if name in CATALOGUE_FIX_ALLOWED_CHANGES:
+            if name in YOY_CR_ALLOWED_CHANGES:
                 continue
             self.assertEqual((h.ROOT / name).read_bytes(), subprocess.check_output(["git", "-C", str(h.ROOT), "show", BASE + ":" + name]), name)
         expected = os.getenv("RATE_WARMUP_CI_HEAD_SHA")

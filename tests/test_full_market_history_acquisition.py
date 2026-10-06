@@ -148,6 +148,8 @@ class HistoryAcquisitionTests(unittest.TestCase):
         base = material(self.plan)["fundamental"]
         requests = []
         class Adapter:
+            def __init__(self, **kwargs):
+                self.row_failures = []
             def fetch_revenue_period(self, market, period):
                 requests.append(("revenue", market, period))
                 return [{**base["revenue"][0], "market": market, "revenue_period": period,
