@@ -167,7 +167,9 @@ class HistoryAcquisitionTests(unittest.TestCase):
         self.assertEqual(len(selected["1000"]["eps"]), 8)
 
 
-    def test_one_leading_officially_unavailable_eps_quarter_is_skipped(self):
+    def test_leading_query_no_data_cannot_skip_to_older_eps_for_pass(self):
+        # Control Center scope correction: replace the former skip authorization
+        # assertion with immediate fail-closed and no normalized persistence.
         import time
         base = material(self.plan)["fundamental"]
         requests = []
@@ -183,12 +185,13 @@ class HistoryAcquisitionTests(unittest.TestCase):
                     raise EPSPeriodNotAvailable(f"{year}Q{quarter}")
                 return [{**base["eps"][0], "market": market, "fiscal_year": year, "quarter": quarter,
                          "official_disclosure_date": "2026-10-01"}]
-        with patch("src.sources.fundamental_history.MOPSHistoricalFundamentalAdapter", Adapter):
-            selected = a.acquire_fundamentals(["1000"], "TWSE", self.plan, self.root, time.monotonic())
-        self.assertEqual(requests[0], (2026, 3))
-        self.assertEqual(requests[1], (2026, 2))
-        self.assertEqual(len(requests), 11)
-        self.assertEqual(len(selected["1000"]["eps"]), 8)
+        with patch("src.sources.fundamental_history.MOPSHistoricalFundamentalAdapter", Adapter), \
+             patch("src.sources.fundamental_history.FundamentalHistoryStoreV2.upsert") as persist:
+            with self.assertRaisesRegex(EPSPeriodNotAvailable, "FUNDAMENTAL_EPS_PERIOD_NOT_AVAILABLE:2026Q3"):
+                a.acquire_fundamentals(["1000"], "TWSE", self.plan, self.root, time.monotonic())
+            persist.assert_not_called()
+        self.assertEqual(requests, [(2026, 3)])
+        self.assertFalse((self.root / "fundamental" / "RATE_FUNDAMENTAL_HISTORY_V2.json").exists())
 
     def test_eps_no_data_after_available_history_started_remains_fail_closed(self):
         import time
@@ -208,10 +211,11 @@ class HistoryAcquisitionTests(unittest.TestCase):
                 return [{**base["eps"][0], "market": market, "fiscal_year": year, "quarter": quarter,
                          "official_disclosure_date": "2026-10-01"}]
         with patch("src.sources.fundamental_history.MOPSHistoricalFundamentalAdapter", Adapter), \
-             self.assertRaisesRegex(RuntimeError, "FUNDAMENTAL_EPS_HISTORY_GAP"):
+             self.assertRaisesRegex(EPSPeriodNotAvailable, "FUNDAMENTAL_EPS_PERIOD_NOT_AVAILABLE:2026Q2"):
             a.acquire_fundamentals(["1000"], "TWSE", self.plan, self.root, time.monotonic())
+        self.assertEqual(calls, 2)
 
-    def test_two_leading_unavailable_eps_quarters_are_not_silently_skipped(self):
+    def test_multiple_no_data_quarters_do_not_authorize_even_one_skip(self):
         import time
         base = material(self.plan)["fundamental"]
         calls = 0
@@ -229,8 +233,20 @@ class HistoryAcquisitionTests(unittest.TestCase):
                 return [{**base["eps"][0], "market": market, "fiscal_year": year, "quarter": quarter,
                          "official_disclosure_date": "2026-10-01"}]
         with patch("src.sources.fundamental_history.MOPSHistoricalFundamentalAdapter", Adapter), \
-             self.assertRaisesRegex(RuntimeError, "FUNDAMENTAL_EPS_HISTORY_GAP"):
+             self.assertRaisesRegex(EPSPeriodNotAvailable, "FUNDAMENTAL_EPS_PERIOD_NOT_AVAILABLE:2026Q3"):
             a.acquire_fundamentals(["1000"], "TWSE", self.plan, self.root, time.monotonic())
+        self.assertEqual(calls, 1)
+
+    def test_formal_fundamental_acquisition_is_exact_main_implementation(self):
+        import ast
+        import inspect
+        import subprocess
+        original = subprocess.check_output(["git", "-C", str(h.ROOT), "show",
+            "40c00f300d6ba64ca06850ba172fd1df222d1c86:src/full_market_history_acquisition.py"]).decode()
+        expected = next(node for node in ast.parse(original).body
+                        if isinstance(node, ast.FunctionDef) and node.name == 'acquire_fundamentals')
+        current = ast.parse(inspect.getsource(a.acquire_fundamentals)).body[0]
+        self.assertEqual(ast.dump(current), ast.dump(expected))
 
 
 if __name__ == "__main__":
