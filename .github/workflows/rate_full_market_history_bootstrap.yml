@@ -1,0 +1,147 @@
+name: RATE Full-Market Historical Warmup Bootstrap
+
+on:
+  workflow_dispatch:
+    inputs:
+      as_of:
+        description: Current official catalogue date YYYY-MM-DD (history strictly before this date)
+        required: true
+      resume_plan_id:
+        description: Exact durable plan ID to resume; empty starts a new official catalogue plan
+        required: false
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+concurrency:
+  group: rate-full-market-history-ssot-writer
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    env:
+      EXECUTION_AUTHORITY: MAIN_ONLY
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Bind official catalogue or exact durable resume plan
+        id: plan
+        env:
+          AS_OF: ${{ inputs.as_of }}
+          RESUME_PLAN: ${{ inputs.resume_plan_id }}
+        run: |
+          python -B scripts/bootstrap_full_market_history.py plan \
+            --as-of "$AS_OF" --resume-plan-id "$RESUME_PLAN" \
+            --store-root "$RUNNER_TEMP/history-ssot" --output-root "$RUNNER_TEMP/plan"
+          echo "matrix=$(cat "$RUNNER_TEMP/plan/matrix.json")" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RATE_HISTORY_PLAN_${{ github.run_id }}_${{ github.run_attempt }}
+          path: ${{ runner.temp }}/plan/plan.json
+          if-no-files-found: error
+          retention-days: 7
+
+  acquire:
+    needs: plan
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      EXECUTION_AUTHORITY: MAIN_ONLY
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: RATE_HISTORY_PLAN_${{ github.run_id }}_${{ github.run_attempt }}
+          path: ${{ runner.temp }}/plan
+      - name: Acquire bounded official shard or hash-verified durable checkpoints
+        env:
+          SHARD_ID: ${{ matrix.shard_id }}
+        run: >-
+          python -B scripts/bootstrap_full_market_history.py shard
+          --plan "$RUNNER_TEMP/plan/plan.json" --shard-id "$SHARD_ID"
+          --store-root "$RUNNER_TEMP/history-ssot" --output-root "$RUNNER_TEMP/progress"
+      - name: Transfer verified partial progress (not authoritative storage)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_HISTORY_PROGRESS_${{ matrix.shard_id }}_${{ github.run_id }}_${{ github.run_attempt }}
+          path: ${{ runner.temp }}/progress/
+          if-no-files-found: warn
+          retention-days: 7
+
+  persist-and-validate:
+    needs: [plan, acquire]
+    if: ${{ always() && github.ref == 'refs/heads/main' && needs.plan.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: write
+      actions: read
+    env:
+      EXECUTION_AUTHORITY: MAIN_ONLY
+      PYTHONDONTWRITEBYTECODE: "1"
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: RATE_HISTORY_PLAN_${{ github.run_id }}_${{ github.run_attempt }}
+          path: ${{ runner.temp }}/plan
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: RATE_HISTORY_PROGRESS_*_${{ github.run_id }}_${{ github.run_attempt }}
+          path: ${{ runner.temp }}/incoming
+          merge-multiple: false
+      - name: Authenticate dedicated history-branch single writer
+        run: gh auth setup-git
+      - name: Persist verified progress; accept snapshot only at full coverage
+        run: >-
+          python -B scripts/bootstrap_full_market_history.py publish
+          --plan "$RUNNER_TEMP/plan/plan.json" --input-root "$RUNNER_TEMP/incoming"
+          --store-root "$RUNNER_TEMP/history-ssot" --output-root "$RUNNER_TEMP/acceptance"
+      - name: Confirm production code and live namespaces unchanged
+        if: always()
+        run: git diff --exit-code
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: RATE_FULL_MARKET_HISTORY_ACCEPTANCE_${{ github.run_id }}_${{ github.run_attempt }}
+          path: ${{ runner.temp }}/acceptance/
+          if-no-files-found: warn
+          retention-days: 90

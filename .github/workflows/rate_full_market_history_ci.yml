@@ -1,0 +1,61 @@
+name: RATE Full-Market History Bootstrap PR Verification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "config/RATE_FULL_MARKET_HISTORY_BOOTSTRAP_V1.json"
+      - "config/RATE_PHASE2_CHANGE_REQUEST_V1.json"
+      - "src/full_market_catalogue.py"
+      - "src/full_market_history*.py"
+      - "scripts/bootstrap_full_market_history.py"
+      - "tests/test_full_market_history*.py"
+      - "docs/RATE_FULL_MARKET_HISTORY_BOOTSTRAP.md"
+      - ".github/workflows/rate_full_market_history*.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      RATE_WARMUP_CI_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install PyYAML==6.0.3
+      - name: Validate new workflows without executing bootstrap
+        run: >-
+          go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7 -shellcheck= -pyflakes=
+          .github/workflows/rate_full_market_history_bootstrap.yml
+          .github/workflows/rate_full_market_history_ci.yml
+      - name: Isolated warmup and frozen-owner regression
+        run: >-
+          python -B -m unittest
+          tests.test_full_market_history
+          tests.test_full_market_history_acquisition
+          tests.test_full_market_history_storage
+          tests.test_rate_production_history_materialization
+          tests.test_cer072_institutional_history
+          tests.test_cer072_tdcc_historical
+          tests.test_cer073_fundamental_history_v2
+          tests.test_stage_history
+          tests.test_stage_evidence
+          tests.test_rotation_history
+          tests.test_production_source_latest_publisher
+          tests.test_thin_work_manifest
+          tests.test_production_scheduler_change_control
+          tests.test_rate_soak_005
+          tests.test_state_engine
+          tests.test_production_integration -v
+      - name: No tracked production mutation
+        run: git diff --exit-code
