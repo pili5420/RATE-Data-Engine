@@ -9,6 +9,7 @@ from urllib.error import HTTPError, URLError
 
 from src import full_market_history as h
 from src import full_market_history_acquisition as a
+from src.sources.fundamental_history import EPSPeriodNotAvailable
 from tests.test_full_market_history import cfg, material, plan, receipt
 
 
@@ -164,6 +165,72 @@ class HistoryAcquisitionTests(unittest.TestCase):
         self.assertEqual(len({r[2:] for r in requests if r[0] == "eps"}), 10)
         self.assertEqual(len(selected["1000"]["revenue"]), 3)
         self.assertEqual(len(selected["1000"]["eps"]), 8)
+
+
+    def test_one_leading_officially_unavailable_eps_quarter_is_skipped(self):
+        import time
+        base = material(self.plan)["fundamental"]
+        requests = []
+        class Adapter:
+            def __init__(self, **kwargs):
+                self.row_failures = []
+            def fetch_revenue_period(self, market, period):
+                return [{**base["revenue"][0], "market": market, "revenue_period": period,
+                         "official_disclosure_date": "2026-10-01"}]
+            def fetch_eps_period(self, market, year, quarter):
+                requests.append((year, quarter))
+                if len(requests) == 1:
+                    raise EPSPeriodNotAvailable(f"{year}Q{quarter}")
+                return [{**base["eps"][0], "market": market, "fiscal_year": year, "quarter": quarter,
+                         "official_disclosure_date": "2026-10-01"}]
+        with patch("src.sources.fundamental_history.MOPSHistoricalFundamentalAdapter", Adapter):
+            selected = a.acquire_fundamentals(["1000"], "TWSE", self.plan, self.root, time.monotonic())
+        self.assertEqual(requests[0], (2026, 3))
+        self.assertEqual(requests[1], (2026, 2))
+        self.assertEqual(len(requests), 11)
+        self.assertEqual(len(selected["1000"]["eps"]), 8)
+
+    def test_eps_no_data_after_available_history_started_remains_fail_closed(self):
+        import time
+        base = material(self.plan)["fundamental"]
+        calls = 0
+        class Adapter:
+            def __init__(self, **kwargs):
+                self.row_failures = []
+            def fetch_revenue_period(self, market, period):
+                return [{**base["revenue"][0], "market": market, "revenue_period": period,
+                         "official_disclosure_date": "2026-10-01"}]
+            def fetch_eps_period(self, market, year, quarter):
+                nonlocal calls
+                calls += 1
+                if calls == 2:
+                    raise EPSPeriodNotAvailable(f"{year}Q{quarter}")
+                return [{**base["eps"][0], "market": market, "fiscal_year": year, "quarter": quarter,
+                         "official_disclosure_date": "2026-10-01"}]
+        with patch("src.sources.fundamental_history.MOPSHistoricalFundamentalAdapter", Adapter), \
+             self.assertRaisesRegex(RuntimeError, "FUNDAMENTAL_EPS_HISTORY_GAP"):
+            a.acquire_fundamentals(["1000"], "TWSE", self.plan, self.root, time.monotonic())
+
+    def test_two_leading_unavailable_eps_quarters_are_not_silently_skipped(self):
+        import time
+        base = material(self.plan)["fundamental"]
+        calls = 0
+        class Adapter:
+            def __init__(self, **kwargs):
+                self.row_failures = []
+            def fetch_revenue_period(self, market, period):
+                return [{**base["revenue"][0], "market": market, "revenue_period": period,
+                         "official_disclosure_date": "2026-10-01"}]
+            def fetch_eps_period(self, market, year, quarter):
+                nonlocal calls
+                calls += 1
+                if calls <= 2:
+                    raise EPSPeriodNotAvailable(f"{year}Q{quarter}")
+                return [{**base["eps"][0], "market": market, "fiscal_year": year, "quarter": quarter,
+                         "official_disclosure_date": "2026-10-01"}]
+        with patch("src.sources.fundamental_history.MOPSHistoricalFundamentalAdapter", Adapter), \
+             self.assertRaisesRegex(RuntimeError, "FUNDAMENTAL_EPS_HISTORY_GAP"):
+            a.acquire_fundamentals(["1000"], "TWSE", self.plan, self.root, time.monotonic())
 
 
 if __name__ == "__main__":
