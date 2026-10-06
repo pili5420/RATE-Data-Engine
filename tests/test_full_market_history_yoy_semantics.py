@@ -11,7 +11,7 @@ from urllib.error import URLError
 from scripts import bootstrap_full_market_history as cli
 from src import full_market_history as h
 from src import full_market_history_acquisition as a
-from src.sources.fundamental_history import (MOPSHistoricalFundamentalAdapter, FundamentalHistoryStoreV2,
+from src.sources.fundamental_history import (EPSPeriodNotAvailable, MOPSHistoricalFundamentalAdapter, FundamentalHistoryStoreV2,
     _warmup_revenue_rows, validate_revenue_semantics)
 from src.sources.mops_raw_evidence import load_response, verify_record
 from tests.test_full_market_history import cfg, material, plan
@@ -329,6 +329,21 @@ class YoYHistorySemanticsTests(unittest.TestCase):
         self.assertEqual(h.reload_snapshot(root,self.plan,snapshot['snapshot_id']),snapshot)
         self.assertFalse((root/'RATE_PRODUCTION_STATE_LATEST.json').exists())
         self.assertFalse((root/'production_state').exists())
+
+
+    def test_run4_official_eps_no_data_response_is_leading_availability_signal(self):
+        html = """<html><head><title>公開資訊觀測站</title></head><body>
+        <div id="div01"><br><h4 align="center"><font color="red">查詢無資料!</font></h4></div>
+        <script>var ignored = "查詢無資料!";</script></body></html>"""
+        source = self.adapter(html)
+        with self.assertRaisesRegex(EPSPeriodNotAvailable, "FUNDAMENTAL_EPS_PERIOD_NOT_AVAILABLE:2026Q3"):
+            source.fetch_eps_period("TWSE", 2026, 3)
+        reports = [json.loads(p.read_bytes()) for p in (self.root/'evidence/reports/mops').glob('*.json')]
+        eps = [r for r in reports if r.get('domain') == 'eps']
+        self.assertEqual(len(eps), 1)
+        self.assertEqual(eps[0]['requested_period'], '2026Q3')
+        self.assertEqual(eps[0]['http_status'], 200)
+        self.assertEqual(eps[0]['final_url'], 'https://mopsov.twse.com.tw/mops/web/ajax_t163sb04')
 
 
 if __name__ == '__main__':
