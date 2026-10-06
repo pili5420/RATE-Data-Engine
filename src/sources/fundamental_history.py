@@ -143,6 +143,50 @@ def _table_records(html, required):
     return records,schemas
 
 
+class _RevenueArchiveHeader(HTMLParser):
+    """Capture the official archive's visible size-5 heading, not script/comment text."""
+    def __init__(self):
+        super().__init__()
+        self.headings=[]; self._depth=0; self._text=[]; self._hidden=0
+    def handle_starttag(self, tag, attrs):
+        if tag.lower() in ("script", "style"):
+            self._hidden+=1
+        if tag.lower() == "font":
+            if self._depth:
+                self._depth+=1
+            elif dict(attrs).get("size") == "5":
+                self._depth=1; self._text=[]
+    def handle_data(self, value):
+        if self._depth and not self._hidden: self._text.append(value)
+    def handle_endtag(self, tag):
+        if tag.lower() in ("script", "style") and self._hidden:
+            self._hidden-=1
+        if tag.lower() == "font" and self._depth:
+            self._depth-=1
+            if not self._depth: self.headings.append(_plain("".join(self._text)))
+
+
+def _revenue_archive_identity(html, market, requested_period, endpoint, final_url):
+    parser=_RevenueArchiveHeader(); parser.feed(html)
+    identities=[]
+    for heading in parser.headings:
+        match=re.fullmatch(r"(上市|上櫃)公司(\d{2,3})年(\d{1,2})月份\(累計與當月\)營業收入統計表",
+                           re.sub(r"\s+", "", heading))
+        if match:
+            identities.append({"market": "TWSE" if match[1] == "上市" else "TPEX",
+                               "period": normalize_revenue_period(f"{match[2]}年{match[3]}月"), "heading": heading})
+    if len(identities) != 1:
+        raise RuntimeError("FUNDAMENTAL_REVENUE_PERIOD_IDENTITY_UNPROVEN")
+    identity=identities[0]
+    if identity["period"] != requested_period:
+        raise RuntimeError(f"FUNDAMENTAL_REVENUE_PERIOD_IDENTITY_MISMATCH:{requested_period}:{identity['period']}")
+    if identity["market"] != market:
+        raise RuntimeError("FUNDAMENTAL_REVENUE_MARKET_IDENTITY_MISMATCH")
+    if final_url != endpoint:
+        raise RuntimeError("FUNDAMENTAL_REVENUE_ARCHIVE_BINDING_INVALID")
+    return {**identity, "final_url": final_url}
+
+
 def discover_eps_identity(html):
     plain=_plain(re.sub(r"<[^>]+>"," ",html))
     snippets=[]
@@ -235,22 +279,34 @@ class MOPSHistoricalFundamentalAdapter:
         for row in rows:
             try:
                 row_period=normalize_revenue_period(row["period"])
-            except ValueError:
-                continue
+            except ValueError as exc:
+                raise RuntimeError("FUNDAMENTAL_REVENUE_PERIOD_IDENTITY_UNPROVEN") from exc
             returned_periods.add(row_period)
             normalized_rows.append((row,row_period,normalize_official_date(row["disclosure"])))
         if not normalized_rows:
-            raise RuntimeError("FUNDAMENTAL_REVENUE_PERIOD_IDENTITY_UNPROVEN")
+            # Archive tables omit row-level period/date columns. The observed page
+            # heading must independently prove the exact final archive's period.
+            if not basic_rows or any(_header_index(header,("資料年月",)) is not None for header in basic_schemas):
+                raise RuntimeError("FUNDAMENTAL_REVENUE_PERIOD_IDENTITY_UNPROVEN")
+            identity=_revenue_archive_identity(html,market,period,endpoint,diag["final_url"])
+            disclosure=extract_disclosure_date(html)
+            normalized_rows=[(row,identity["period"],disclosure) for row in basic_rows]
+            returned_periods={identity["period"]}; schemas=basic_schemas
+            diag.update({"period_identity_source":"OFFICIAL_ARCHIVE_HEADER_AND_FINAL_PATH",
+                         "period_identity_evidence":identity,"official_disclosure_date_fields":"PAGE_HEADER 出表日期"})
+        else:
+            diag.update({"period_identity_source":"ROW_LEVEL_OFFICIAL_FIELD",
+                         "official_disclosure_date_fields":"ROW_LEVEL 出表日期"})
         if returned_periods != {period}:
             returned=",".join(sorted(returned_periods)) or "NONE"
             raise RuntimeError(f"FUNDAMENTAL_REVENUE_PERIOD_IDENTITY_MISMATCH:{period}:{returned}")
-        diag.update({"schema_header":schemas,"distinct_returned_periods":sorted(returned_periods),
-                     "period_identity_source":"ROW_LEVEL_OFFICIAL_FIELD",
-                     "official_disclosure_date_fields":"ROW_LEVEL 出表日期"})
+        diag.update({"schema_header":schemas,"distinct_returned_periods":sorted(returned_periods)})
         return [{"symbol":_plain(row["symbol"]),"market":market,"revenue_period":row_period,
                  "revenue_yoy":_number(row["yoy"]),"official_disclosure_date":disclosure,
                  "provider":self.provider,"official_product":"月營業收入資訊","endpoint":endpoint,
-                 "content_hash":diag["body_sha256"],"retrieval_timestamp":diag["retrieval_timestamp"]}
+                 "content_hash":diag["body_sha256"],"retrieval_timestamp":diag["retrieval_timestamp"],
+                 "period_identity_source":diag["period_identity_source"],
+                 "period_identity_evidence":diag.get("period_identity_evidence",{"row_period":row_period})}
                 for row,row_period,disclosure in normalized_rows]
     def fetch_eps_period(self, market, fiscal_year, quarter):
         mk=self._market(market); period=f"{fiscal_year}Q{quarter}"

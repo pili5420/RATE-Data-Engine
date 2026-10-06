@@ -8,8 +8,10 @@ on:
       - "config/RATE_PHASE2_CHANGE_REQUEST_V1.json"
       - "src/full_market_catalogue.py"
       - "src/full_market_history*.py"
+      - "src/sources/fundamental_history.py"
       - "scripts/bootstrap_full_market_history.py"
       - "tests/test_full_market_history*.py"
+      - "tests/test_warmup_run1_defects.py"
       - "docs/RATE_FULL_MARKET_HISTORY_BOOTSTRAP.md"
       - ".github/workflows/rate_full_market_history*.yml"
 
@@ -44,6 +46,7 @@ jobs:
           tests.test_full_market_history
           tests.test_full_market_history_acquisition
           tests.test_full_market_history_storage
+          tests.test_warmup_run1_defects
           tests.test_rate_production_history_materialization
           tests.test_cer072_institutional_history
           tests.test_cer072_tdcc_historical

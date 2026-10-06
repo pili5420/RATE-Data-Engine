@@ -53,10 +53,11 @@ def main_authority():
     response = subprocess.run(["gh", "api", "repos/" + REPOSITORY + "/actions/runs/" + value["run_id"]],
                               check=True, capture_output=True, text=True, timeout=60)
     run = json.loads(response.stdout)
+    # Whole-run status is volatile while matrix jobs queue/start, not authority.
     require(str(run["id"]) == value["run_id"] and run["head_sha"] == value["commit_sha"]
             and run["head_branch"] == "main" and run["event"] == "workflow_dispatch"
             and run["path"].split("@")[0] == ".github/workflows/rate_full_market_history_bootstrap.yml"
-            and str(run["run_attempt"]) == value["run_attempt"] and run["status"] == "in_progress",
+            and str(run["run_attempt"]) == value["run_attempt"],
             "GITHUB_WARMUP_RUN_BINDING_INVALID")
     value["github_execution_evidence"] = {"run_id": str(run["id"]), "head_sha": run["head_sha"],
         "head_branch": run["head_branch"], "event": run["event"], "workflow_path": run["path"].split("@")[0],
