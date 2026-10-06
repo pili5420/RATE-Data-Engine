@@ -112,6 +112,8 @@ def commit_store(root, plan):
 
 
 def import_progress(root, plan, input_root):
+    from src.sources.mops_raw_evidence import import_responses
+    import_responses(root, plan, input_root, write=False)
     symbols = {row["symbol"]: row["market"] for row in eligible(plan["catalogue"])}
     incoming = []
     # Validate every incoming symbol before placing any object in durable staging.
@@ -123,9 +125,10 @@ def import_progress(root, plan, input_root):
         require(checkpoint["market"] == symbols[symbol], "CHECKPOINT_BINDING_INVALID")
         require(path.name == Path(checkpoint_path(plan, symbol)).name, "CHECKPOINT_BINDING_INVALID")
         material = load_material(path.parents[2], checkpoint["material"])
-        require(checkpoint["coverage"] == validate_symbol(material, plan, symbol, symbols[symbol]), "CHECKPOINT_COVERAGE_MISMATCH")
+        require(checkpoint["coverage"] == validate_symbol(material, plan, symbol, symbols[symbol], evidence_root=path.parents[2]), "CHECKPOINT_COVERAGE_MISMATCH")
         incoming.append((symbol, material))
     require(len(incoming) == len({symbol for symbol, _ in incoming}), "DUPLICATE_SYMBOL")
+    import_responses(root, plan, input_root)
     for symbol, material in incoming:
         persist_symbol(root, material, plan, symbol, symbols[symbol])
 

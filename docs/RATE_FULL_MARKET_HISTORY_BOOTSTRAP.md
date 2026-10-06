@@ -18,7 +18,8 @@ are not screened by length/range; official CFI common equity and normal listing 
 The requested scope is exactly TWSE 1,085 + TPEx 893 = 1,978. Changed official counts
 fail `CATALOGUE_COUNT_CHANGE_REQUEST_REQUIRED`, never a silent universe reduction.
 
-The existing owners remain byte-identical:
+The following owners and strategy definitions remain unchanged except for the
+explicitly approved historical revenue semantics described below:
 
 - Stock and benchmark: TWSEAdapter, TPExAdapter, existing bounded month normalizers
   and PersistentHistoricalStore retention (220 sessions).
@@ -69,6 +70,58 @@ LF. The catalogue's own approved content hash retains its original canonical own
 history byte digests are separately named. Gzip has no filename or wall-clock mtime.
 Stored compressed bytes and decompressed canonical bytes both have SHA256 references.
 The checkout disables CRLF conversion before reading immutable files.
+
+## Approved Historical Revenue Semantics
+
+Authority: `CR-RATE-PHASE2-FUNDAMENTAL-YOY-UNDEFINED-V1`, approved by Control Center.
+Engineering base: `9bc75ff4f81d2171b5ae5f156c7e5e9799b66758`.
+Run-3 evidence: run `37478238005`, plan `rate-history-plan-02c3580d4e53f71f1ef0adb7`.
+Its raw responses were not retained; post-run observations are never labeled exact
+Run-3 material. This PR does not dispatch Run-4 or grant any MAIN acceptance credit.
+
+Only the warmup adapter opts into the new normalization. Numeric YoY remains
+`VALID_NUMERIC`. Blank official monthly YoY is `UNDEFINED_ZERO_BASE` with JSON null
+only when official current-month revenue is finite, official prior-year same-month
+revenue is finite and exactly zero, row/market/period identity is proven, and the
+exact official archive endpoint, final URL, HTTP/body/schema gates pass. The record
+retains current/prior revenues, raw fields, status, source/report dates, response
+hash, period evidence and the content-addressed exact-response reference. Null is
+never converted to zero, infinity, a previous month or cumulative revenue growth.
+Placeholders such as `--` and `N/A` are not official blank-field evidence.
+
+These observations count toward the existing three-period historical completeness
+gate. Other missing/invalid numeric rows remain fail-closed for the affected symbol
+and retain exact row diagnostics; unrelated valid rows continue. Affected symbols
+are not excluded, and partial coverage never becomes an accepted full snapshot.
+Transport, identity, duplicate/ambiguous schema and other market-wide integrity
+failures still block the market fetch. EPS numeric definitions are unchanged;
+warmup row-level numeric failures are isolated rather than mislabeled across symbols.
+
+Exact revenue and EPS response bytes are transferred in the existing always-uploaded
+shard progress artifact and then validated before append-only SSOT import, including
+failed-shard evidence with no successful checkpoints. No bootstrap workflow or
+scheduler changes are needed. Storage adds:
+
+```text
+materials/mops/<exact-body-sha256>.bin
+reports/mops/<receipt-byte-sha256>.json
+reports/fundamental_rows/<row-failure-report-sha256>.json
+```
+
+Receipts retain endpoint/final URL, HTTP/content type/length, byte count/SHA256,
+retrieval time, market, requested period, report date, request method/body, actual
+acquisition authority, plan identity and parser/normalization version. Exact byte,
+receipt and row-replay tampering fails closed. No raw hash is substituted with a
+post-run refetch hash. These paths stay under existing allowed `materials`/`reports`
+namespaces; old storage commits are never rewritten.
+
+Disclosure/as-of filtering is unchanged: an official report date after the completed
+session is not backdated. This CR alone cannot guarantee 1978/1978 warmup acceptance.
+The strategy/scoring consumers, Stage/Rotation/M7/MHE, Portfolio, Ledger, live state,
+LATEST, eligibility and 1085+893 universe requirement remain unchanged. Downstream
+nullable-YoY strategy handling requires a separate Change Request. Owner fingerprints
+change, so Run-1/Run-3 plans are not resumable with this code; a new controlled MAIN
+plan is required after review and merge, under separate dispatch authorization.
 
 A plan binds catalogue, as-of, previous legal completed trading day, policy/contract,
 owner byte fingerprints, initial MAIN run/commit identity and deterministic shards.

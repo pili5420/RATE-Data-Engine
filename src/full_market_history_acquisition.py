@@ -57,11 +57,12 @@ class ReceiptAdapter:
         return invoke
 
 
-def acquire_fundamentals(symbols, market, plan, workspace, started):
+def acquire_fundamentals(symbols, market, plan, workspace, started, *, evidence_root=None, authority=None):
     from scripts.materialize_production_history_store import _finite_periods
     from .sources.fundamental_history import FundamentalHistoryStoreV2, MOPSHistoricalFundamentalAdapter
     store = FundamentalHistoryStoreV2(Path(workspace) / "fundamental")
-    adapter = MOPSHistoricalFundamentalAdapter()
+    adapter = MOPSHistoricalFundamentalAdapter(warmup_evidence_root=evidence_root if evidence_root is not None else workspace,
+        evidence_context={"plan_id": plan["plan_id"], "acquisition_runtime_authority": authority or plan["runtime_authority"]})
     months = [p[:4] + "-" + p[4:] for p in _finite_periods(plan["as_of"], 7)][1:]
     asof = date.fromisoformat(plan["completed_through"])
     ordinal = asof.year * 4 + (asof.month - 1) // 3 - 1
@@ -77,7 +78,8 @@ def acquire_fundamentals(symbols, market, plan, workspace, started):
     for symbol in symbols:
         rev = sorted(selected[symbol]["revenue"].values(), key=lambda r: r["revenue_period"])[-3:]
         quarters = sorted(selected[symbol]["eps"].values(), key=lambda r: (r["fiscal_year"], r["quarter"]))[-8:]
-        result[symbol] = {"revenue": rev, "eps": quarters}
+        result[symbol] = {"revenue": rev, "eps": quarters,
+                          "failures": [r for r in getattr(adapter, "row_failures", []) if r["symbol"] == symbol]}
     return result
 
 
@@ -134,12 +136,18 @@ def acquire_shard(plan, shard_id, durable_root, output_root, *, authority):
         from .sources.tpex import TPExAdapter
         with tempfile.TemporaryDirectory(prefix="rate-history-owner-") as workspace:
             try:
-                fundamentals = acquire_fundamentals(pending, shard["market"], plan, workspace, started)
+                fundamentals = acquire_fundamentals(pending, shard["market"], plan, workspace, started,
+                                                    evidence_root=output_root, authority=authority)
             except Exception as exc:
                 return {"artifact": "RATE_HISTORY_SHARD_PROGRESS", "shard_id": shard_id, "plan_id": plan["plan_id"],
                         "validation_status": "FAIL_CLOSED", "completed_symbols": [], "reused_symbols": reused,
-                        "failed_symbols": [{"symbol": s, "reason": str(exc)} for s in pending], "fallback_used": False}
+                        "failed_symbols": [{"symbol": s, "reason": str(exc), "scope": "MARKET_SOURCE"} for s in pending], "fallback_used": False}
             for symbol in pending:
+                row_failures = fundamentals[symbol].get("failures", [])
+                if row_failures:
+                    failed.append({"symbol": symbol, "reason": row_failures[0]["reason"], "scope": "ROW",
+                                   "fundamental_row_failures": row_failures})
+                    continue
                 try:
                     owner = TWSEAdapter() if shard["market"] == "TWSE" else TPExAdapter()
                     adapter = ReceiptAdapter(owner, started, contract()["max_shard_seconds"], responses)

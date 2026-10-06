@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 import time
 from datetime import date, datetime, timezone
+from decimal import Decimal
 from html import unescape
 from html.parser import HTMLParser
 from pathlib import Path
@@ -18,6 +20,128 @@ MOPS_REVENUE_PAGE = "https://mops.twse.com.tw/mops/web/t21sc03"
 MOPS_REVENUE_ARCHIVE = "https://mopsov.twse.com.tw/nas/t21/{market}/t21sc03_{roc_year}_{month}_0.html"
 MOPS_EPS_PAGE = "https://mops.twse.com.tw/mops/web/t163sb04"
 MOPS_EPS_ENDPOINT = "https://mopsov.twse.com.tw/mops/web/ajax_t163sb04"
+
+
+def _finite_official_number(value):
+    number = _number(value)
+    if not math.isfinite(number):
+        raise ValueError("FUNDAMENTAL_NUMERIC_INVALID")
+    return number
+
+
+def _official_revenue_amount(value):
+    if "%" in _plain(value) or "％" in _plain(value):
+        raise ValueError("FUNDAMENTAL_NUMERIC_INVALID")
+    number = _finite_official_number(value)
+    exact = Decimal(_plain(value).replace(",", "").replace("(", "-").replace(")", ""))
+    if number == 0 and exact != 0:
+        raise ValueError("FUNDAMENTAL_NUMERIC_INVALID")
+    return number
+
+
+def _decode_response(body):
+    encodings = ("utf-8-sig", "big5", "cp950")
+    head = body[:2048].decode("ascii", errors="ignore").lower()
+    if "charset=big5" in head or "charset=ms950" in head:
+        encodings = ("big5", "cp950", "utf-8-sig")
+    for encoding in encodings:
+        try:
+            return body.decode(encoding)
+        except UnicodeDecodeError:
+            pass
+    raise ValueError("MOPS_RESPONSE_ENCODING_UNSUPPORTED")
+
+
+def validate_revenue_semantics(row):
+    from .mops_raw_evidence import NORMALIZATION_VERSION
+    if row.get("normalization_version") != NORMALIZATION_VERSION or row.get("fallback_used") is not False:
+        raise ValueError("FUNDAMENTAL_REVENUE_SEMANTICS_UNPROVEN")
+    if "revenue_yoy" not in row:
+        raise ValueError("FUNDAMENTAL_NUMERIC_MISSING")
+    for key, raw in (("current_month_revenue", "official_raw_current_month_revenue"),
+                     ("prior_year_same_month_revenue", "official_raw_prior_year_same_month_revenue")):
+        value = row.get(key)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value != _official_revenue_amount(row.get(raw, "")):
+            raise ValueError("FUNDAMENTAL_NUMERIC_INVALID")
+    raw_yoy = row.get("official_raw_yoy")
+    if not isinstance(raw_yoy, str):
+        raise ValueError("FUNDAMENTAL_NUMERIC_MISSING")
+    if _plain(raw_yoy) == "":
+        if row["prior_year_same_month_revenue"] != 0:
+            raise ValueError("FUNDAMENTAL_NUMERIC_MISSING")
+        if row.get("revenue_yoy") is not None or row.get("revenue_yoy_status") != "UNDEFINED_ZERO_BASE":
+            raise ValueError("FUNDAMENTAL_REVENUE_SEMANTICS_INVALID")
+    elif row.get("revenue_yoy_status") != "VALID_NUMERIC" or isinstance(row.get("revenue_yoy"), bool) or row.get("revenue_yoy") != _finite_official_number(raw_yoy):
+        raise ValueError("FUNDAMENTAL_REVENUE_SEMANTICS_INVALID")
+    period = row.get("revenue_period", "")
+    if row.get("market") not in ("TWSE", "TPEX") or normalize_revenue_period(period) != period:
+        raise ValueError("FUNDAMENTAL_REVENUE_IDENTITY_INVALID")
+    year, month = (int(x) for x in period.split("-"))
+    endpoint = MOPS_REVENUE_ARCHIVE.format(market="sii" if row["market"] == "TWSE" else "otc", roc_year=year-1911, month=month)
+    identity = row.get("period_identity_evidence", {})
+    if row.get("endpoint") != endpoint or row.get("final_url") != endpoint or row.get("http_status") != 200:
+        raise ValueError("FUNDAMENTAL_REVENUE_ARCHIVE_BINDING_INVALID")
+    if identity.get("market") != row["market"] or identity.get("period") != period or identity.get("final_url") != endpoint:
+        raise ValueError("FUNDAMENTAL_REVENUE_IDENTITY_INVALID")
+    if not re.fullmatch(r"[0-9A-Za-z]{4,6}", str(row.get("symbol", ""))) or not row.get("raw_response_reference"):
+        raise ValueError("FUNDAMENTAL_REVENUE_IDENTITY_INVALID")
+
+
+def _warmup_revenue_rows(html, market, period, diag):
+    from .mops_raw_evidence import NORMALIZATION_VERSION
+    identity = _revenue_archive_identity(html, market, period, diag["endpoint"], diag["final_url"])
+    disclosure = extract_disclosure_date(html)
+    required = {"symbol": "公司代號", "current": "當月營收", "prior": "去年當月營收", "yoy": "去年同月增減(%)"}
+    rows, failures, seen, schema_count = [], [], set(), 0
+    for table in _tables(html):
+        for pos, header in enumerate(table[:8]):
+            names = [re.sub(r"\s+", "", x) for x in header]
+            if "公司代號" not in names:
+                continue
+            if any(names.count(name) != 1 for name in required.values()):
+                raise RuntimeError("FUNDAMENTAL_REVENUE_SCHEMA_AMBIGUOUS")
+            schema_count += 1
+            indices = {key: names.index(name) for key, name in required.items()}
+            for cells in table[pos+1:]:
+                if not cells or cells[0] in ("合計", "總計"):
+                    continue
+                symbol = cells[indices["symbol"]] if len(cells) > indices["symbol"] else ""
+                if not re.fullmatch(r"[0-9A-Za-z]{4,6}", symbol) or symbol in seen:
+                    raise RuntimeError("FUNDAMENTAL_REVENUE_ROW_IDENTITY_INVALID")
+                seen.add(symbol)
+                raw = {key: cells[i] if len(cells) > i else "" for key, i in indices.items()}
+                if "資料年月" in names:
+                    idx = names.index("資料年月")
+                    if len(cells) <= idx or normalize_revenue_period(cells[idx]) != period:
+                        raise RuntimeError("FUNDAMENTAL_REVENUE_PERIOD_IDENTITY_MISMATCH")
+                if "市場別" in names:
+                    idx = names.index("市場別")
+                    if len(cells) <= idx or cells[idx] != market:
+                        raise RuntimeError("FUNDAMENTAL_REVENUE_MARKET_IDENTITY_MISMATCH")
+                item = {"symbol": symbol, "market": market, "revenue_period": period,
+                        "official_disclosure_date": disclosure, "provider": "MOPS Official",
+                        "official_product": "月營業收入資訊", "endpoint": diag["endpoint"], "final_url": diag["final_url"],
+                        "http_status": diag["http_status"], "content_hash": diag["body_sha256"],
+                        "retrieval_timestamp": diag["retrieval_timestamp"], "period_identity_source": "OFFICIAL_ARCHIVE_HEADER_AND_FINAL_PATH",
+                        "period_identity_evidence": identity, "normalization_version": NORMALIZATION_VERSION,
+                        "official_raw_yoy": raw["yoy"], "official_raw_current_month_revenue": raw["current"],
+                        "official_raw_prior_year_same_month_revenue": raw["prior"], "fallback_used": False,
+                        "raw_response_reference": diag["raw_response_reference"]}
+                try:
+                    item["current_month_revenue"] = _official_revenue_amount(raw["current"])
+                    item["prior_year_same_month_revenue"] = _official_revenue_amount(raw["prior"])
+                    item["revenue_yoy"] = None if raw["yoy"] == "" and item["prior_year_same_month_revenue"] == 0 else _finite_official_number(raw["yoy"])
+                    item["revenue_yoy_status"] = "UNDEFINED_ZERO_BASE" if item["revenue_yoy"] is None else "VALID_NUMERIC"
+                    validate_revenue_semantics(item)
+                except (ValueError, TypeError) as exc:
+                    failures.append({**item, "domain": "revenue", "scope": "ROW", "requested_period": period,
+                                     "reason": str(exc), "exception_class": type(exc).__name__, "validation_status": "FAIL_CLOSED"})
+                else:
+                    rows.append(item)
+            break
+    if not schema_count or not seen:
+        raise RuntimeError("FUNDAMENTAL_REVENUE_SCHEMA_AMBIGUOUS")
+    return rows, failures
 
 
 def _now():
@@ -225,9 +349,12 @@ class MOPSHistoricalFundamentalAdapter:
     provider="MOPS Official"
     revenue_request_granularity="MARKET_PERIOD"
     eps_request_granularity="MARKET_QUARTER"
-    def __init__(self, opener=urlopen, min_interval_seconds=0.25):
+    def __init__(self, opener=urlopen, min_interval_seconds=0.25, *, warmup_evidence_root=None, evidence_context=None):
         self.opener=opener; self.min_interval_seconds=min_interval_seconds; self._last=None
         self.request_count={"revenue":0,"eps":0}; self.diagnostics=[]
+        self.warmup_evidence_root = warmup_evidence_root
+        self.evidence_context = evidence_context or {}
+        self.row_failures = []
     def _open(self, request, domain, requested_period):
         if self._last is not None:
             time.sleep(max(0,self.min_interval_seconds-(time.monotonic()-self._last)))
@@ -248,11 +375,27 @@ class MOPSHistoricalFundamentalAdapter:
             raise RuntimeError(f"MOPS_{domain.upper()}_TRANSPORT:{type(exc).__name__}") from exc
         classification=_classify_body(body,content_type)
         diag={"domain":domain,"requested_period":requested_period,"http_status":status,"final_url":final_url,
+              "endpoint":request.full_url,
+              "content_length":response.headers.get("Content-Length"),
               "content_type":content_type,"response_bytes":len(body),"body_classification":classification,
               "body_sha256":hashlib.sha256(body).hexdigest(),"retrieval_timestamp":_now()}
         self.diagnostics.append(diag); self.request_count[domain]+=1
+        if self.warmup_evidence_root is not None:
+            from .mops_raw_evidence import retain_response
+            try:
+                report_date = extract_disclosure_date(_decode_response(body))
+            except (ValueError, UnicodeDecodeError):
+                report_date = None
+            metadata = {**diag, **self.evidence_context, "market": self._active_market,
+                        "source_owner": self.provider, "official_report_disclosure_date": report_date,
+                        "request_method": request.get_method(), "request_body_hex": request.data.hex() if request.data else None,
+                        "content_type": content_type}
+            diag["raw_response_reference"] = retain_response(self.warmup_evidence_root, body, metadata)
         if status != 200: raise RuntimeError(f"MOPS_{domain.upper()}_HTTP_{status}")
         if not body: raise RuntimeError(f"MOPS_{domain.upper()}_EMPTY_RESPONSE")
+        if self.warmup_evidence_root is not None and diag["content_length"] is not None:
+            if not str(diag["content_length"]).isdigit() or int(diag["content_length"]) != len(body):
+                raise RuntimeError(f"MOPS_{domain.upper()}_RESPONSE_LENGTH_MISMATCH")
         if classification == "OFFICIAL_MOPS_TRANSPORT_BLOCKED_BY_EDGE_POLICY":
             raise RuntimeError(classification)
         if classification != "HTML": raise RuntimeError(f"MOPS_{domain.upper()}_NON_HTML_RESPONSE")
@@ -267,9 +410,16 @@ class MOPSHistoricalFundamentalAdapter:
     @staticmethod
     def _market(market): return "sii" if market == "TWSE" else "otc"
     def fetch_revenue_period(self, market, period):
+        self._active_market = market
         year,month=(int(x) for x in period.split("-")); roc=year-1911; mk=self._market(market)
         endpoint=MOPS_REVENUE_ARCHIVE.format(market=mk,roc_year=roc,month=month)
         html,diag=self._open(Request(endpoint,headers={"User-Agent":"RATE-Data-Engine/1.0"}),"revenue",period)
+        if self.warmup_evidence_root is not None:
+            rows, failures = _warmup_revenue_rows(html, market, period, diag)
+            self.row_failures.extend(failures)
+            from .mops_raw_evidence import retain_failures
+            retain_failures(self.warmup_evidence_root, failures, self.evidence_context)
+            return rows
         rows,schemas=_table_records(html,{"symbol":("公司代號",),"period":("資料年月",),
                                           "yoy":("去年同月增減",),"disclosure":("出表日期",)})
         basic_rows,basic_schemas=_table_records(html,{"symbol":("公司代號",),"yoy":("去年同月增減",)})
@@ -309,6 +459,7 @@ class MOPSHistoricalFundamentalAdapter:
                  "period_identity_evidence":diag.get("period_identity_evidence",{"row_period":row_period})}
                 for row,row_period,disclosure in normalized_rows]
     def fetch_eps_period(self, market, fiscal_year, quarter):
+        self._active_market = market
         mk=self._market(market); period=f"{fiscal_year}Q{quarter}"
         params={"encodeURIComponent":"1","step":"1","firstin":"1","off":"1","isQuery":"Y",
                 "TYPEK":mk,"year":str(fiscal_year-1911),"season":f"{quarter:02d}"}
@@ -327,11 +478,30 @@ class MOPSHistoricalFundamentalAdapter:
         if not rows: raise RuntimeError("FUNDAMENTAL_EPS_SCHEMA_MISSING")
         diag.update({"schema_header":schemas,"returned_period":period,"official_disclosure_date":disclosure,
                      "period_identity_source":identity["identity_source"]})
-        return [{"symbol":_plain(row["symbol"]),"market":market,"fiscal_year":fiscal_year,"quarter":quarter,
-                 "single_quarter_eps":_number(row["eps"]),"official_disclosure_date":disclosure,
+        if self.warmup_evidence_root is not None and diag["final_url"] != MOPS_EPS_ENDPOINT:
+            raise RuntimeError("FUNDAMENTAL_EPS_ENDPOINT_BINDING_INVALID")
+        result = []
+        for row in rows:
+            try:
+                value = _number(row["eps"]) if self.warmup_evidence_root is None else _finite_official_number(row["eps"])
+            except ValueError as exc:
+                if self.warmup_evidence_root is None:
+                    raise
+                self.row_failures.append({"symbol": _plain(row["symbol"]), "market": market, "domain": "eps",
+                    "requested_period": period, "scope": "ROW", "reason": str(exc), "exception_class": type(exc).__name__,
+                    "endpoint": MOPS_EPS_ENDPOINT, "final_url": diag["final_url"], "content_hash": diag["body_sha256"],
+                    "raw_eps": row["eps"], "raw_response_reference": diag["raw_response_reference"], "validation_status": "FAIL_CLOSED"})
+                continue
+            result.append({"symbol":_plain(row["symbol"]),"market":market,"fiscal_year":fiscal_year,"quarter":quarter,
+                 "single_quarter_eps":value,"official_disclosure_date":disclosure,
                  "source_semantics":"OFFICIAL_SINGLE_QUARTER","provider":self.provider,
                  "official_product":"綜合損益表","endpoint":MOPS_EPS_ENDPOINT,
-                 "content_hash":diag["body_sha256"],"retrieval_timestamp":diag["retrieval_timestamp"]} for row in rows]
+                 "content_hash":diag["body_sha256"],"retrieval_timestamp":diag["retrieval_timestamp"],
+                 **({"raw_response_reference": diag["raw_response_reference"]} if self.warmup_evidence_root is not None else {})})
+        if self.warmup_evidence_root is not None:
+            from .mops_raw_evidence import retain_failures
+            retain_failures(self.warmup_evidence_root, [r for r in self.row_failures if r["domain"] == "eps" and r["requested_period"] == period], self.evidence_context)
+        return result
 
 
 def _canonical(value):
@@ -387,6 +557,8 @@ class FundamentalHistoryStoreV2:
                "classification":row.get("classification"),
                "provider":row.get("provider"),"official_product":row.get("official_product"),
                "endpoint":row.get("endpoint"),"content_hash":row.get("content_hash")}
+        if "revenue_yoy_status" in row:
+            value.update({key: row[key] for key in ("revenue_yoy_status", "current_month_revenue", "prior_year_same_month_revenue", "official_raw_yoy", "normalization_version")})
         return hashlib.sha256(_canonical(value).encode()).hexdigest()
     @staticmethod
     def _eps_semantic_key(row):
@@ -402,13 +574,17 @@ class FundamentalHistoryStoreV2:
         return hashlib.sha256(_canonical(value).encode()).hexdigest()
     @staticmethod
     def _validate_revenue_event(row):
-        required=("symbol","market","revenue_period","revenue_yoy","official_disclosure_date",
+        required=("symbol","market","revenue_period","official_disclosure_date",
                   "provider","official_product","endpoint","content_hash","retrieval_timestamp")
         missing=[key for key in required if row.get(key) in (None,"")]
         if missing:
             raise RuntimeError("UNVERIFIED_REVENUE_EVENT:" + ",".join(missing))
         normalize_revenue_period(row["revenue_period"])
         normalize_official_date(row["official_disclosure_date"])
+        if "revenue_yoy_status" in row:
+            validate_revenue_semantics(row)
+        elif row.get("revenue_yoy") in (None, ""):
+            raise RuntimeError("UNVERIFIED_REVENUE_EVENT:revenue_yoy")
     @staticmethod
     def _validate_eps_event(row):
         required=("symbol","market","fiscal_year","quarter","single_quarter_eps","official_disclosure_date",
