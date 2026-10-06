@@ -37,16 +37,16 @@
       "historical_acceptance_bundle_fallback": "FORBIDDEN",
       "input_snapshot_ids": [
         "rate-source-input-1131ed13afd88383858cebc3",
+        "rate-source-input-157a590ead0441768083770f",
         "rate-source-input-46172f7b3380301bef0d513d",
+        "rate-source-input-580b4d67dad6a10ec4721a04",
         "rate-source-input-609ad08ad0b1bdc8e78e30f6",
-        "rate-source-input-8bbdeed85ae416bc3a5119f5",
+        "rate-source-input-7ca71ca5463472a1a18f9a2c",
         "rate-source-input-916929a3b80f2e22e735291e",
-        "rate-source-input-98322ae9e8e34ffb7180c280",
-        "rate-source-input-a75c55e02389a6a1b1f30733",
-        "rate-source-input-cad5fad676042688f735b7c4",
+        "rate-source-input-9ada20e27ceba9ac522810a0",
         "rate-source-input-d2b9beeeea8c5bf347c45380",
-        "rate-source-input-fe8bc541d2e9f75ef83e3f20",
-        "rate-source-input-fff5d1366c4ef8482a33e99e"
+        "rate-source-input-d757bd14563c44889b85cb05",
+        "rate-source-input-fe8bc541d2e9f75ef83e3f20"
       ],
       "recovery_fallback": "FORBIDDEN",
       "source_provenance": {
@@ -66,16 +66,16 @@
           "validation_status": "PASS"
         },
         "cer073_live_fallback": "FORBIDDEN",
-        "execution_authority": "DEVELOPMENT_LIVE_PROBE",
+        "execution_authority": "MAIN_ONLY",
         "execution_scope": "PRODUCTION_SOURCE_ACQUISITION",
         "fixture_fallback": "FORBIDDEN",
         "historical_acceptance_bundle_fallback": "FORBIDDEN",
         "local_cache_fallback": "FORBIDDEN",
         "local_desktop_dependency": "FORBIDDEN",
         "manual_data_fallback": "FORBIDDEN",
-        "production_evidence_authoritative": false,
+        "production_evidence_authoritative": true,
         "recovery_fallback": "FORBIDDEN",
-        "retrieval_timestamp": "2026-10-04T06:07:16.633546Z",
+        "retrieval_timestamp": "2026-10-05T16:09:02.742583Z",
         "source": "RATE_OFFICIAL_TW_MARKET_DATA_SSOT",
         "source_acquisition_independent_from_previous_state": true,
         "stale_snapshot_fallback": "FORBIDDEN",
@@ -83,13 +83,13 @@
         "third_party_fallback": "FORBIDDEN",
         "trading_date": "2026-10-02"
       },
-      "source_snapshot_id": "rate-source-snapshot-a8d2427c8aab195c3af1debf",
+      "source_snapshot_id": "rate-source-snapshot-3bbe73c100b02f32a57d6443",
       "stale_snapshot_fallback": "FORBIDDEN",
       "synthetic_fallback": "FORBIDDEN",
       "trading_date": "2026-10-02",
       "validation_status": "PASS"
     },
-    "production_source_bundle_sha256": "8880bff186eebb4673e9d429ce61eafb8375ce93f80b437bb1a6d723fd80a096",
+    "production_source_bundle_sha256": "0f6b1ddbedf5989de6b922fa71f767f753ef60c9b4dd8f7526415a380858453d",
     "roy_portfolio": {
       "broker_screenshot_hash_available": false,
       "control_center_approved": true,
@@ -197,7 +197,7 @@
       "roy_portfolio_reference": "CONTROL_CENTER_REBASELINE_ROY_OPENING_STATE.json"
     }
   },
-  "state_hash": "9bae27caa6bea1ec16a0c6b306216822537fc286dd60f8d0671a6ceb062ee722",
-  "state_id": "rate-state-9bae27caa6bea1ec16a0c6b3",
+  "state_hash": "baa7113253efcaf5d448e4319318e070da6f6a680d55303e209cd3d64d2d7fec",
+  "state_id": "rate-state-baa7113253efcaf5d448e431",
   "validation_status": "PASS"
 }
