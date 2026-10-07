@@ -59,7 +59,7 @@ def changed_paths(before: dict, after: dict) -> set:
     return {path for path in before.keys() | after.keys() if before.get(path) != after.get(path)}
 
 
-def working_fingerprints(root: Path, expected: dict) -> dict:
+def working_fingerprints(root: Path, expected: dict, fixture_outputs=None) -> dict:
     result = {}
     for relative, (mode, _kind, digest) in expected.items():
         path = root / relative
@@ -72,7 +72,23 @@ def working_fingerprints(root: Path, expected: dict) -> dict:
         actual = hashlib.sha1(b"blob " + str(len(data)).encode("ascii") + b"\0" + data).hexdigest()
         require(actual == digest, "WORKTREE_BYTE_MISMATCH:" + relative)
         result[relative] = hashlib.sha256(data).hexdigest()
-    require(not git(root, "status", "--porcelain", "--untracked-files=all").strip(), "WORKTREE_NOT_CLEAN")
+    require(not git(root, "diff", "--cached", "--name-only", "HEAD").strip(), "TRACKED_INDEX_CHANGED")
+    untracked = [path.decode("utf-8") for path in
+                 git(root, "ls-files", "--others", "--exclude-standard", "-z").split(b"\0") if path]
+    if fixture_outputs is None:
+        require(not untracked, "WORKTREE_NOT_CLEAN:" + repr(untracked))
+    else:
+        # Existing test_state_engine.py deliberately writes these two fixtures
+        # and restores module globals, but does not remove its JSON files.
+        # Preserve their hashes as test-only evidence; never suppress other paths.
+        allowed = {"artifacts/test_state_tmp/c.json", "artifacts/test_state_tmp/g.json"}
+        for relative in untracked:
+            path = root / relative
+            require(path.is_file() and not path.is_symlink(), "UNSAFE_UNTRACKED_OUTPUT:" + relative)
+            fixture_outputs[relative] = {"sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                                         "bytes": path.stat().st_size,
+                                         "classification": "UNTRACKED_TEST_OUTPUT_NOT_PUBLISHED"}
+        require(set(untracked) <= allowed, "UNEXPECTED_TEST_OUTPUT:" + repr(sorted(set(untracked) - allowed)))
     return result
 
 
@@ -140,7 +156,8 @@ def verify(output: Path, expected_head: str, expected_base: str, report: dict) -
                     isolated, [sys.executable, "-B", "scripts/verify_eps_duration_isolation.py"],
                     output / "pr30-original-isolation.log", 302, ACCEPTED_MAIN)
             finally:
-                require(working_fingerprints(isolated, main_tree) == before, "ISOLATED_WORKING_BYTES_CHANGED")
+                outputs = report.setdefault("pr30_test_only_outputs", {})
+                require(working_fingerprints(isolated, main_tree, outputs) == before, "ISOLATED_WORKING_BYTES_CHANGED")
             combined = temporary / "combined"
             git(ROOT, "worktree", "add", "--detach", str(combined), ACCEPTED_MAIN)
             roots.append(combined)
@@ -168,7 +185,8 @@ def verify(output: Path, expected_head: str, expected_base: str, report: dict) -
                     combined, [sys.executable, "-B", "-m", "unittest", *modules, "-v"],
                     output / "combined-regression.log", 312, local_commit)
             finally:
-                require(working_fingerprints(combined, expected_tree) == before_combined, "COMBINED_WORKING_BYTES_CHANGED")
+                outputs = report.setdefault("combined_test_only_outputs", {})
+                require(working_fingerprints(combined, expected_tree, outputs) == before_combined, "COMBINED_WORKING_BYTES_CHANGED")
             protected = {path: value for path, value in main_tree.items() if path not in DIAGNOSTIC_PATHS}
             require(all(expected_tree.get(path) == value for path, value in protected.items()), "PROTECTED_MAIN_BYTES_CHANGED")
             report.update({"protected_main_file_count": len(protected), "protected_main_git_blobs": "PASS",
