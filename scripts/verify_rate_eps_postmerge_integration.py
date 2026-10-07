@@ -33,6 +33,12 @@ def require(condition: bool, reason: str) -> None:
         raise RuntimeError(reason)
 
 
+
+def validate_base_binding(event_base: str, observed_main: str) -> None:
+    require(event_base in (ORIGINAL_BASE, ACCEPTED_MAIN), "EVENT_BASE_BINDING_INVALID")
+    require(observed_main == ACCEPTED_MAIN, "OBSERVED_MAIN_ADVANCED_REVIEW_REQUIRED")
+
+
 def git(root: Path, *args: str) -> bytes:
     return subprocess.check_output(["git", "-c", "core.autocrlf=false", *args], cwd=root)
 
@@ -95,9 +101,12 @@ def verify(output: Path, expected_head: str, expected_base: str, report: dict) -
     head = git(ROOT, "rev-parse", "HEAD").decode().strip()
     require(re.fullmatch(r"[0-9a-f]{40}", expected_head) is not None and head == expected_head,
             "PR_HEAD_BINDING_INVALID")
-    require(expected_base == ACCEPTED_MAIN, "BASE_ADVANCED_REVIEW_REQUIRED")
-    require(git(ROOT, "rev-parse", "refs/remotes/origin/main").decode().strip() == ACCEPTED_MAIN,
-            "OBSERVED_MAIN_ADVANCED_REVIEW_REQUIRED")
+    observed_main = git(ROOT, "rev-parse", "refs/remotes/origin/main").decode().strip()
+    report.update({"pr_head_sha": head, "event_base_sha": expected_base,
+                   "accepted_main_sha": ACCEPTED_MAIN, "observed_main_sha": observed_main})
+    # PR event metadata may retain the original branch base. It is not the
+    # target of this integration proof. Preserve it and verify both identities.
+    validate_base_binding(expected_base, observed_main)
     git(ROOT, "merge-base", "--is-ancestor", REVIEWED_PR29, head)
     require(git(ROOT, "merge-base", ACCEPTED_MAIN, REVIEWED_PR29).decode().strip() == ORIGINAL_BASE,
             "HISTORICAL_BASE_BINDING_INVALID")
