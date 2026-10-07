@@ -47,6 +47,7 @@ class Fact:
     pit_selection_status: str = "UNPROVEN"
     knowledge_time_basis: str = "OBSERVED_FORWARD_ONLY"
     issuer_period_group: Optional[str] = None
+    issuer_identifier_scheme: Optional[str] = None
     production_eligible: bool = field(default=False, init=False)
     original_eight_quarter_coverage_credit: int = field(default=0, init=False)
 
@@ -76,6 +77,7 @@ def validate_semantics(fact, expected):
     require(fact.raw_integrity_status == "PASS", "RAW_INTEGRITY_UNPROVEN")
     require(fact.symbol == expected.symbol and fact.issuer_identity == expected.symbol,
             "WRONG_ISSUER")
+    require(fact.issuer_identifier_scheme == "http://www.twse.com.tw", "ISSUER_SCHEME_UNPROVEN")
     require(fact.market == expected.market, "WRONG_MARKET")
     require(fact.eps_basis == expected.eps_basis, "BASIC_DILUTED_MISMATCH")
     local = {"BASIC": "BasicEarningsLossPerShare", "DILUTED": "DilutedEarningsLossPerShare"}.get(expected.eps_basis)

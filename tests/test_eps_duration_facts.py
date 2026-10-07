@@ -152,6 +152,7 @@ class ArchivedReplayTests(unittest.TestCase):
 
     def test_wrong_issuer_market_scope_unit_concept_context(self):
         cases = (("symbol", "6488", "WRONG_ISSUER"), ("market", "TPEX", "WRONG_MARKET"),
+                 ("issuer_identifier_scheme", "https://example.com", "ISSUER_SCHEME_UNPROVEN"),
                  ("statement_scope", "SEPARATE", "WRONG_SCOPE"), ("unit", "USD/shares", "WRONG_UNIT"),
                  ("concept", "{https://example.com}BasicEarningsLossPerShare", "WRONG_CONCEPT"),
                  ("period_start", "2026-01-01", "WRONG_CONTEXT"))

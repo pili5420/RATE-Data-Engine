@@ -137,6 +137,8 @@ def parse_inline(receipt, data, symbol, market, fiscal_calendar_evidence=None):
             require(len(values) == 1, "CONTEXT_DURATION_UNPROVEN")
             return text(values[0])
         issuer = single("./i:entity/i:identifier")
+        schemes = context.xpath("./i:entity/i:identifier/@scheme", namespaces=NS)
+        require(schemes == ["http://www.twse.com.tw"], "ISSUER_SCHEME_UNPROVEN")
         require(issuer == symbol, "WRONG_ISSUER")
         start, end = single("./i:period/i:startDate"), single("./i:period/i:endDate")
         require(date.fromisoformat(start) <= date.fromisoformat(end), "PERIOD_INVALID")
@@ -169,6 +171,7 @@ def parse_inline(receipt, data, symbol, market, fiscal_calendar_evidence=None):
                           attempt["body_sha256"], None, "MOPS_INLINE_XBRL",
                           attempt["body_sha256"], receipt["label"], node.get("contextRef"),
                           tree.getpath(node), attempt["retrieved_at"], fact_semantics_status=status,
-                          issuer_period_group=symbol + "-" + meta["Year"] + "Q" + meta["Quarter"]))
+                          issuer_period_group=symbol + "-" + meta["Year"] + "Q" + meta["Quarter"],
+                          issuer_identifier_scheme=schemes[0]))
     require(facts, "EPS_FACTS_MISSING")
     return facts
