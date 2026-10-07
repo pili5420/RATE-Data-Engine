@@ -1,0 +1,51 @@
+name: RATE Provider EPS Candidate Engineering Verification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/provider_eps_candidate.py"
+      - "scripts/*provider_eps_candidate.py"
+      - "tests/test_provider_eps_candidate.py"
+      - "tests/provider_eps_engineering_fixture.py"
+      - "tests/fixtures/provider_eps_candidate/**"
+      - "docs/RATE_PROVIDER_EPS_CANDIDATE.md"
+      - ".github/workflows/rate_provider_eps_candidate_ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  engineering-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Offline engineered fixtures and exact base/head isolation
+        env:
+          EXPECTED_BASE: ${{ github.event.pull_request.base.sha }}
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: >-
+          python -B scripts/verify_provider_eps_candidate.py
+          --expected-base "$EXPECTED_BASE" --expected-head "$EXPECTED_HEAD"
+          --output-dir "$RUNNER_TEMP/provider-eps-engineering-evidence"
+      - name: No tracked or untracked mutation
+        if: always()
+        run: test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Retain engineering evidence only, never real FinMind raw
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PROVIDER_EPS_ENGINEERING_NOT_REAL_REPLAY_${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/provider-eps-engineering-evidence/
+          if-no-files-found: error
+          retention-days: 14

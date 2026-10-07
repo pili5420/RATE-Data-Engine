@@ -1,0 +1,9 @@
+{
+  "material_class": "ENGINEERING_FIXTURE_NOT_REAL_FINMIND_REPLAY",
+  "description": "Synthetic values and receipt bodies; never evidence of actual FinMind replay.",
+  "symbols": {
+    "2330": ["0", "1.25", "2", "3", "4", "5", "6", "7"],
+    "6488": ["-8", "-7", "-6", "-5", "-4", "-3", "-2", "-1"],
+    "1340": ["2", "1", "0", "-1", "-2", "-3", "-4", "-5"]
+  }
+}
