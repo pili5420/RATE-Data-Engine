@@ -1,14 +1,12 @@
 """Current-base acceptance, separate from unchanged historical PR29/30 scripts."""
 import argparse
 import ast
-import io
 import json
 import os
 from pathlib import Path
 import re
 import subprocess
 import sys
-import tarfile
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -79,11 +77,12 @@ def verify(output, expected_head, expected_base):
     verify_export(b1_root / "preview", archive, expected_code_sha=head)
     with tempfile.TemporaryDirectory(prefix="rate-b1-acceptance-") as temporary:
         baseline, candidate = Path(temporary) / "baseline", Path(temporary) / "candidate"
-        baseline.mkdir()
-        candidate.mkdir()
         for commit, directory in ((BASE, baseline), (head, candidate)):
-            with tarfile.open(fileobj=io.BytesIO(git("archive", commit))) as archive_tree:
-                archive_tree.extractall(directory, filter="data")
+            # Existing frozen-baseline tests need git show, not only archived working files.
+            subprocess.run(["git", "-c", "core.autocrlf=false", "clone", "--shared", "--no-checkout",
+                            str(ROOT), str(directory)], check=True, capture_output=True)
+            subprocess.run(["git", "-c", "core.autocrlf=false", "checkout", "--detach", commit],
+                           cwd=directory, check=True, capture_output=True)
         if tracked_hashes(base_paths, baseline) != before or tracked_hashes(base_paths, candidate) != before:
             raise ValueError("BASELINE_WORKING_BYTES_MISMATCH")
         reference = formal(baseline, b1_root / "comparison", head)
