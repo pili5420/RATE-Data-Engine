@@ -1,0 +1,92 @@
+name: RATE EPS B1 Nondecision Research Verification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/eps_b1_research.py"
+      - "scripts/*eps_b1*"
+      - "tests/test_eps_b1_research.py"
+      - "docs/RATE_EPS_B1_*"
+      - ".github/workflows/rate_eps_b1_research_ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  current-b1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pinned verification dependencies
+        run: python -m pip install lxml==6.1.1 PyYAML==6.0.3
+      - name: Exact head binding
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+      - name: Validate B1 workflow syntax
+        run: >-
+          go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          -shellcheck= -pyflakes= .github/workflows/rate_eps_b1_research_ci.yml
+      - name: Offline B1 current-base integration and non-interference
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_BASE: ${{ github.event.pull_request.base.sha }}
+        run: >-
+          python -B scripts/verify_eps_b1_noninterference.py
+          --expected-head "$EXPECTED_HEAD" --expected-base "$EXPECTED_BASE"
+          --output-dir "$RUNNER_TEMP/rate-eps-b1-evidence"
+      - name: No tracked mutation
+        if: always()
+        run: git diff --exit-code
+      - name: Retain B1 review artifacts including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_EPS_B1_CURRENT_${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/rate-eps-b1-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
+  historical-pr30:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 4c0f95e71281cf2dfc1e04d8c2bb128c6c2f1ad6
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install lxml==6.1.1 PyYAML==6.0.3
+      - name: Pinned historical head binding
+        run: test "$(git rev-parse HEAD)" = "4c0f95e71281cf2dfc1e04d8c2bb128c6c2f1ad6"
+      - name: Unchanged historical isolation acceptance
+        run: >-
+          python -B scripts/verify_eps_duration_isolation.py
+          --output "$RUNNER_TEMP/rate-eps-b1-historical-pr30.json"
+      - name: No historical tracked mutation
+        if: always()
+        run: git diff --exit-code
+      - name: Retain separate historical replay evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_EPS_B1_HISTORICAL_PR30_${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/rate-eps-b1-historical-pr30*
+          if-no-files-found: error
+          retention-days: 14
