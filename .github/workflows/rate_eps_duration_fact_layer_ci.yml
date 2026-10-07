@@ -1,0 +1,44 @@
+name: RATE EPS Duration Fact Layer Isolated Verification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/eps_duration_facts/**"
+      - "scripts/*eps_duration*"
+      - "tests/test_eps_duration_facts.py"
+      - "tests/fixtures/eps_duration/**"
+      - "docs/RATE_EPS_DURATION*"
+      - ".github/workflows/rate_eps_duration_fact_layer_ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install lxml==6.1.1 PyYAML==6.0.3
+      - name: Exact head binding
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+      - name: Validate isolated workflow syntax
+        run: >-
+          go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          -shellcheck= -pyflakes= .github/workflows/rate_eps_duration_fact_layer_ci.yml
+      - name: Offline replay, fail-closed gates and frozen Production regression
+        run: python -B scripts/verify_eps_duration_isolation.py
+      - name: No tracked mutation
+        run: git diff --exit-code
