@@ -1,0 +1,64 @@
+{
+  "contract_id": "RATE-EPS-DURATION-KNOWLEDGE-TIME-CANDIDATE-V1",
+  "change_authority": "CR-RATE-EPS-DURATION-KNOWLEDGE-TIME-V1",
+  "status": "ISOLATED_CANDIDATE_NOT_PRODUCTION_ACTIVE",
+  "historical_cutoff": "2026-10-05",
+  "universe_unchanged": {"TWSE": 1085, "TPEX": 893, "total": 1978},
+  "original_eps_requirement": "8 consecutive officially reported single-quarter BASIC EPS facts",
+  "original_indicator_alias": null,
+  "production_eligible": false,
+  "original_eight_quarter_coverage_credit": 0,
+  "duration_tags": ["QUARTER", "YEAR_TO_DATE", "ANNUAL", "UNPROVEN"],
+  "eps_basis_tags": ["BASIC", "DILUTED", "UNPROVEN"],
+  "unknown_policy": "PRESERVE_NULL_OR_UNPROVEN_NO_SUBSTITUTION",
+  "numeric_policy": "Decimal; explicit observed transformation; raw scale, decimals and precision remain distinct",
+  "raw_integrity": "Exact archived bytes, receipt, status, endpoint, redirect, length, hash and observed time",
+  "fact_semantics": "Expanded observed concepts, issuer, market, context duration, scope, unit and fiscal calendar",
+  "pit_selection": "Externally qualified exact public-version binding and cutoff-specific complete index required",
+  "index_trust_boundary": "Completeness/public-version attestations are NOT produced by this parser. Engineering fixtures exercise these inputs but are not official attestations.",
+  "date_only_policy": "Preserve date evidence; SECOND with proven offset required by current candidate selector; do not invent an intraday timestamp",
+  "knowledge_time": "first_verified_observed_at permits OBSERVED_FORWARD_ONLY; never inferred public time or historical backfill",
+  "revision_policy": "Select cutoff-qualified version; require superseded version record, not necessarily original raw bytes for post-revision selection",
+  "period_selection": "Complete official index determines anchor before parsing; bounded ten-quarter window; eight consecutive quarters; no older substitution",
+  "source_binding_proposals": [
+    {
+      "representation": "MOPS_INLINE_XBRL",
+      "role": "DURATION_FACT_DIAGNOSTIC_REPLAY_ONLY",
+      "endpoint": "https://mopsov.twse.com.tw/server-java/FileDownLoad",
+      "method": "GET",
+      "bindings": ["functionName=t164sb01", "step=9", "co_id", "year", "season", "report_id=C"],
+      "returned_identity": "Official CompanyID/Year/Quarter/Market/ReportCategory plus each fact's absolute context",
+      "historical_public_version_qualification": "UNPROVEN"
+    },
+    {
+      "representation": "OFFICIAL_COMPANY_BOOK_INDEX",
+      "role": "OBSERVED_FISCAL_CALENDAR_AND_DOCUMENT_LINK_EVIDENCE_NOT_PIT_COMPLETENESS",
+      "endpoint": "https://doc.twse.com.tw/server-java/t57sb01",
+      "bindings": ["co_id", "step=1", "year", "mtype=A"]
+    },
+    {
+      "representation": "TSMC_OFFICIAL_2025Q4_RELEASE_AND_ATTACHMENT",
+      "endpoint": "https://pr.tsmc.com/english/news/3281",
+      "role": "2330_ONLY_QUARTER_DILUTED_DIAGNOSTIC",
+      "basic_eps_substitution": false,
+      "audit_status": "UNPROVEN",
+      "board_approval_status": "NOT_BOARD_APPROVED_AT_RELEASE"
+    },
+    {
+      "representation": "SEC_FORM_6K_0001046179_26_000008",
+      "role": "OFFICIAL_INDEX_METADATA_QUALIFICATION_ONLY_RAW_ACCESS_HTTP_403",
+      "endpoint": "https://www.sec.gov/Archives/edgar/data/1046179/000104617926000008/0001046179-26-000008-index.htm",
+      "raw_integrity_status": "UNPROVEN",
+      "pit_selection_status": "UNPROVEN"
+    },
+    {
+      "representation": "ajax_t163sb04",
+      "role": "EXISTING_YEAR_TO_DATE_OR_QUERY_NO_DATA_DIAGNOSTICS_ONLY",
+      "repeat_twenty_response_investigation": false,
+      "single_quarter_coverage_credit": 0
+    }
+  ],
+  "active_source_registry_modified": false,
+  "active_data_contract_modified": false,
+  "production_integration": false
+}
