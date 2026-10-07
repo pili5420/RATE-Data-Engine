@@ -9,6 +9,7 @@ from urllib.error import HTTPError, URLError
 
 from src import full_market_history as h
 from src import full_market_history_acquisition as a
+from src.sources.fundamental_history import EPSPeriodNotAvailable
 from tests.test_full_market_history import cfg, material, plan, receipt
 
 
@@ -164,6 +165,88 @@ class HistoryAcquisitionTests(unittest.TestCase):
         self.assertEqual(len({r[2:] for r in requests if r[0] == "eps"}), 10)
         self.assertEqual(len(selected["1000"]["revenue"]), 3)
         self.assertEqual(len(selected["1000"]["eps"]), 8)
+
+
+    def test_leading_query_no_data_cannot_skip_to_older_eps_for_pass(self):
+        # Control Center scope correction: replace the former skip authorization
+        # assertion with immediate fail-closed and no normalized persistence.
+        import time
+        base = material(self.plan)["fundamental"]
+        requests = []
+        class Adapter:
+            def __init__(self, **kwargs):
+                self.row_failures = []
+            def fetch_revenue_period(self, market, period):
+                return [{**base["revenue"][0], "market": market, "revenue_period": period,
+                         "official_disclosure_date": "2026-10-01"}]
+            def fetch_eps_period(self, market, year, quarter):
+                requests.append((year, quarter))
+                if len(requests) == 1:
+                    raise EPSPeriodNotAvailable(f"{year}Q{quarter}")
+                return [{**base["eps"][0], "market": market, "fiscal_year": year, "quarter": quarter,
+                         "official_disclosure_date": "2026-10-01"}]
+        with patch("src.sources.fundamental_history.MOPSHistoricalFundamentalAdapter", Adapter), \
+             patch("src.sources.fundamental_history.FundamentalHistoryStoreV2.upsert") as persist:
+            with self.assertRaisesRegex(EPSPeriodNotAvailable, "FUNDAMENTAL_EPS_PERIOD_NOT_AVAILABLE:2026Q3"):
+                a.acquire_fundamentals(["1000"], "TWSE", self.plan, self.root, time.monotonic())
+            persist.assert_not_called()
+        self.assertEqual(requests, [(2026, 3)])
+        self.assertFalse((self.root / "fundamental" / "RATE_FUNDAMENTAL_HISTORY_V2.json").exists())
+
+    def test_eps_no_data_after_available_history_started_remains_fail_closed(self):
+        import time
+        base = material(self.plan)["fundamental"]
+        calls = 0
+        class Adapter:
+            def __init__(self, **kwargs):
+                self.row_failures = []
+            def fetch_revenue_period(self, market, period):
+                return [{**base["revenue"][0], "market": market, "revenue_period": period,
+                         "official_disclosure_date": "2026-10-01"}]
+            def fetch_eps_period(self, market, year, quarter):
+                nonlocal calls
+                calls += 1
+                if calls == 2:
+                    raise EPSPeriodNotAvailable(f"{year}Q{quarter}")
+                return [{**base["eps"][0], "market": market, "fiscal_year": year, "quarter": quarter,
+                         "official_disclosure_date": "2026-10-01"}]
+        with patch("src.sources.fundamental_history.MOPSHistoricalFundamentalAdapter", Adapter), \
+             self.assertRaisesRegex(EPSPeriodNotAvailable, "FUNDAMENTAL_EPS_PERIOD_NOT_AVAILABLE:2026Q2"):
+            a.acquire_fundamentals(["1000"], "TWSE", self.plan, self.root, time.monotonic())
+        self.assertEqual(calls, 2)
+
+    def test_multiple_no_data_quarters_do_not_authorize_even_one_skip(self):
+        import time
+        base = material(self.plan)["fundamental"]
+        calls = 0
+        class Adapter:
+            def __init__(self, **kwargs):
+                self.row_failures = []
+            def fetch_revenue_period(self, market, period):
+                return [{**base["revenue"][0], "market": market, "revenue_period": period,
+                         "official_disclosure_date": "2026-10-01"}]
+            def fetch_eps_period(self, market, year, quarter):
+                nonlocal calls
+                calls += 1
+                if calls <= 2:
+                    raise EPSPeriodNotAvailable(f"{year}Q{quarter}")
+                return [{**base["eps"][0], "market": market, "fiscal_year": year, "quarter": quarter,
+                         "official_disclosure_date": "2026-10-01"}]
+        with patch("src.sources.fundamental_history.MOPSHistoricalFundamentalAdapter", Adapter), \
+             self.assertRaisesRegex(EPSPeriodNotAvailable, "FUNDAMENTAL_EPS_PERIOD_NOT_AVAILABLE:2026Q3"):
+            a.acquire_fundamentals(["1000"], "TWSE", self.plan, self.root, time.monotonic())
+        self.assertEqual(calls, 1)
+
+    def test_formal_fundamental_acquisition_is_exact_main_implementation(self):
+        import ast
+        import inspect
+        import subprocess
+        original = subprocess.check_output(["git", "-C", str(h.ROOT), "show",
+            "40c00f300d6ba64ca06850ba172fd1df222d1c86:src/full_market_history_acquisition.py"]).decode()
+        expected = next(node for node in ast.parse(original).body
+                        if isinstance(node, ast.FunctionDef) and node.name == 'acquire_fundamentals')
+        current = ast.parse(inspect.getsource(a.acquire_fundamentals)).body[0]
+        self.assertEqual(ast.dump(current), ast.dump(expected))
 
 
 if __name__ == "__main__":

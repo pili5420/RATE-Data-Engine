@@ -1,0 +1,58 @@
+name: RATE EPS PR29 PR30 Read-Only Integration
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/sources/fundamental_history.py"
+      - "src/eps_duration_facts/**"
+      - "tests/test_full_market_history*.py"
+      - "tests/test_eps_duration_facts.py"
+      - "scripts/verify_rate_eps_postmerge_integration.py"
+      - ".github/workflows/rate_eps_postmerge_integration_ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    if: github.event.pull_request.number == 29
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pinned verification dependencies
+        run: python -m pip install lxml==6.1.1 PyYAML==6.0.3
+      - name: Validate integration workflow syntax
+        run: >-
+          go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          -shellcheck= -pyflakes= .github/workflows/rate_eps_postmerge_integration_ci.yml
+      - name: Replay accepted isolation and verify prospective integration
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_BASE: ${{ github.event.pull_request.base.sha }}
+        run: >-
+          python -B scripts/verify_rate_eps_postmerge_integration.py
+          --expected-head "$EXPECTED_HEAD"
+          --expected-base "$EXPECTED_BASE"
+          --output-dir "$RUNNER_TEMP/rate-eps-integration-evidence"
+      - name: Retain integration evidence including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_EPS_INTEGRATION_${{ github.run_id }}_${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rate-eps-integration-evidence/
+          if-no-files-found: warn
+          retention-days: 7
+      - name: No tracked checkout mutation
+        if: always()
+        run: git diff --exit-code
