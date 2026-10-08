@@ -6,9 +6,12 @@ on:
     paths:
       - "src/provider_eps_candidate.py"
       - "src/provider_eps_coverage.py"
+      - "src/provider_eps_dispatch.py"
+      - "src/provider_eps_recovery.py"
       - "scripts/*provider_eps_coverage.py"
       - "scripts/verify_provider_eps_candidate.py"
       - "tests/test_provider_eps_coverage.py"
+      - "tests/test_provider_eps_recovery.py"
       - "docs/RATE_PROVIDER_EPS_COVERAGE.md"
       - ".github/workflows/rate_provider_eps_coverage_ci.yml"
 

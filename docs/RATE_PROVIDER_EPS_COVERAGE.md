@@ -33,7 +33,15 @@ requests, full-market subscriber endpoint, account signup or payment is performe
 An existing FINMIND_TOKEN is read only in memory, never logged or written.
 
 Default batch bounds: at most 280 new requests, 3600 seconds, at least 13 seconds
-between request starts, sequentially, zero retries. Documentation says anonymous
+at the capture-call boundary, sequentially, zero retries. A monotonic wait loop
+tops up early-return sleeps and checks again immediately before capture. Waiting
+from the previous capture completion is deliberately conservative. Each immutable
+intent records request/session identity, process-local clock domain, monotonic and
+UTC timestamps, previous dispatch interval and actual wait. UTC is descriptive,
+not the throttle clock. Every new process/session with prior dispatches waits at
+least 13 seconds without comparing distinct monotonic domains. These records do
+not claim to measure HTTP wire starts. Old batch spacing remains UNPROVEN; no
+historical timestamps or spacing are fabricated. Documentation says anonymous
 300/hour and authenticated free members 600/hour; a token does not establish a
 paid tier. Anonymous remaining quota is not observable via authenticated user_info.
 The first needed data request establishes actual access; do not make a redundant
@@ -51,6 +59,40 @@ finish an interrupted intent offline; an intent lacking a receipt is UNKNOWN,
 never silently retried. Existing completed/failed companies are not refetched.
 Only a bounded-batch stop can continue automatically under the same conditions.
 Events are replayed against referenced bytes/receipts before reports are trusted.
+The first VALIDATION_FAILED event is saved and stops before any following capture,
+with a nonzero CLI exit and persistent sealed stop gate. Legitimate NO_EPS and
+HISTORICAL_INSUFFICIENT continue. Shared access/network failures, source/ledger
+integrity failures, unknown outcomes and tooling errors also stop. Restart cannot
+skip an unresolved gate. The OS-held single-writer lock is released on termination,
+not bypassed by deleting events or intents.
+
+## Exact Labels And Offline Recovery
+
+The shared candidate parser accepts type exactly EPS and only the two exact names
+defined in BASIC_LABEL_RULES: the basic EPS name, or that name followed by the
+full-width TWD-unit suffix. No fuzzy match, bracket stripping, type alias, unit
+conversion or diluted substitution is used. Every record preserves the original
+provider_origin_name, with separate normalized label, mapping rule and version.
+
+Before upgrading, validate the old ledger at its original execution head and
+freeze plan/events/intents/reports and referenced source hashes in a local archive
+manifest. The separately invoked `scripts/recover_provider_eps_coverage.py` takes
+that hash-pinned manifest and a new external output root. It never imports the
+transport, reads credentials, or sends a request. It replays original receipts
+through the one shared parser into a V2 successor plan bound to parent plan/hash,
+old/new heads, unchanged universe/window/policy, parser hash and versioned dispatch
+hash. Old events, failures, extra requests and reports remain unchanged.
+
+Each recovered event/row preserves original request/event/receipt identities,
+acquisition times, old/new decisions and revalidation time. Original three-company
+24 rows remain reused. Inherited requests and successor-plan new requests are
+reported separately; all coverage counts are derived from the newly replayed rows.
+Incomplete periods remain missing, without aliasing other raw financial fields.
+
+The successor plan can later use the existing scan CLI with --continue-ledger and
+its exact base/head, transport, universe and input bindings. Continuation checks
+the parent archive and current parser/dispatch hashes before any transport call.
+Recovery does not itself authorize or start remaining-company network acquisition.
 
 Three counts are separate:
 
@@ -85,7 +127,7 @@ are not a new announcement anchor. EPS-only coverage is not complete Fundamental
 New CI uses explicitly synthetic stock/response fixtures and original candidate
 regressions only. It never invokes the scan CLI or supplied local real materials.
 The shared isolation checker permits only this delivery's candidate/helper changes
-and six additions, and fingerprints every other existing tracked file. Existing
+and explicit recovery/dispatch additions, and fingerprints every other existing tracked file. Existing
 Production entries cannot acquire candidate/coverage imports. Original PR #29-#32
 commits/evidence/test files are not overwritten or frozen acceptance replayed.
 

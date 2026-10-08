@@ -18,6 +18,9 @@ SYMBOLS = ("2330", "6488", "1340")
 WINDOW = ("2024Q3", "2024Q4", "2025Q1", "2025Q2", "2025Q3", "2025Q4", "2026Q1", "2026Q2")
 DESCENDING = tuple(reversed(WINDOW))
 BASIC_LABEL = "\u57fa\u672c\u6bcf\u80a1\u76c8\u9918"
+LABEL_MAPPING_VERSION = "FINMIND_BASIC_EPS_EXACT_LABELS_V1"
+BASIC_LABEL_RULES = {BASIC_LABEL: "EXACT_BASIC_NAME",
+                     BASIC_LABEL + "\uff08\u5143\uff09": "EXACT_BASIC_NAME_TWD_UNIT"}
 POLICY = {"source": "FinMind", "dataset": "TaiwanStockFinancialStatements",
           "metric_basis": "PROVIDER_DEFINED_QUARTERLY_BASIC_EPS",
           "source_acceptance": "ACCEPTED_AS_PROVIDER_DATA", "provider_reply_required": False}
@@ -89,6 +92,14 @@ def _canonical(value):
     return json.dumps(value, sort_keys=True, ensure_ascii=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
 
 
+def map_basic_eps_label(provider_type, origin_name):
+    require(provider_type == "EPS", "PROVIDER_EPS_TYPE_MISMATCH")
+    require(isinstance(origin_name, str) and origin_name in BASIC_LABEL_RULES,
+            "PROVIDER_BASIC_LABEL_MISMATCH")
+    return {"normalized_provider_label": BASIC_LABEL, "label_mapping_rule": BASIC_LABEL_RULES[origin_name],
+            "label_mapping_version": LABEL_MAPPING_VERSION}
+
+
 def _reference(value, directory):
     require(isinstance(value, str) and value, "SOURCE_REFERENCE_REQUIRED")
     path = Path(value)
@@ -152,7 +163,7 @@ def extract_provider_eps(rows, query, *, window=WINDOW, issues=None):
         if row["type"] != "EPS" or period not in window:
             continue
         try:
-            require(row["origin_name"] == BASIC_LABEL, "PROVIDER_BASIC_LABEL_MISMATCH")
+            map_basic_eps_label(row["type"], row["origin_name"])
             value = _decimal(row["value"])
         except Rejected as exc:
             if issues is None:
@@ -180,7 +191,8 @@ def extract_provider_eps(rows, query, *, window=WINDOW, issues=None):
 def candidate_record(raw, index, receipt, receipt_path, raw_path, receipt_bytes, **extra):
     period = _quarter(raw["date"])
     return {"symbol": raw["stock_id"], "provider_date": raw["date"], "analysis_quarter": period,
-        "provider_value": str(raw["value"]), "provider_type": "EPS", "provider_origin_name": BASIC_LABEL,
+        "provider_value": str(raw["value"]), "provider_type": raw["type"], "provider_origin_name": raw["origin_name"],
+        **map_basic_eps_label(raw["type"], raw["origin_name"]),
         "provider_basis_label": "BASIC", "raw_row_index_zero_based": index, "json_locator": f"$.data[{index}]",
         "receipt_reference": str(receipt_path), "receipt_sha256": sha256(receipt_bytes),
         "raw_reference": str(raw_path), "raw_sha256": receipt["response_body_sha256"], "raw_bytes": receipt["bytes"],
@@ -261,7 +273,10 @@ def build_candidate(directory, code_binding):
         for period in DESCENDING:
             row = by_key[(symbol, period)]
             _policy(row)
-            require(row.get("provider_type") == "EPS" and row.get("provider_origin_name") == BASIC_LABEL, "PROVIDER_ROW_LABEL_MISMATCH")
+            try:
+                map_basic_eps_label(row.get("provider_type"), row.get("provider_origin_name"))
+            except Rejected as exc:
+                raise Rejected("PROVIDER_ROW_LABEL_MISMATCH") from exc
             require(row.get("provider_basis_label") == "BASIC", "PROVIDER_BASIS_MISMATCH")
             for field in ("filing_id", "revision_id", "public_time"):
                 require(field in row and row[field] is None, "UNSUPPORTED_VERSION_CLAIM:" + field)
@@ -275,6 +290,7 @@ def build_candidate(directory, code_binding):
             require(type(index) is int and index in raw_rows, "RAW_ROW_LOCATOR_INVALID")
             require(row.get("json_locator") == f"$.data[{index}]", "JSON_LOCATOR_MISMATCH")
             raw = raw_rows[index]
+            require(raw["origin_name"] == row["provider_origin_name"], "RAW_LABEL_BINDING_MISMATCH")
             require(raw["stock_id"] == symbol and raw["date"] == row["provider_date"], "RAW_ROW_IDENTITY_MISMATCH")
             require(_reference(row.get("raw_path"), directory) == raw_path, "RAW_REFERENCE_MISMATCH")
             require(row.get("response_sha256") == receipt["response_body_sha256"], "RAW_HASH_BINDING_MISMATCH")
@@ -327,6 +343,8 @@ def consume_candidate(package):
         rows = company.get("quarters")
         require(isinstance(rows, list) and [r.get("analysis_quarter") for r in rows] == list(DESCENDING), "CANDIDATE_QUARTER_ORDER_INVALID")
         for row in rows:
+            mapping = map_basic_eps_label(row.get("provider_type"), row.get("provider_origin_name"))
+            require(all(row.get(k) == v for k, v in mapping.items()), "LABEL_MAPPING_BINDING_MISMATCH")
             require(not {"quarterly_eps", "single_quarter_eps"}.intersection(row), "FORMAL_EPS_ALIAS_FORBIDDEN")
             require(row["symbol"] == company["symbol"] and _quarter(row["provider_date"]) == row["analysis_quarter"], "CANDIDATE_ROW_IDENTITY_INVALID")
             _decimal(row["provider_value"])

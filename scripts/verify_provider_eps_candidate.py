@@ -26,6 +26,9 @@ COVERAGE_CHANGES = {
     "scripts/verify_provider_eps_coverage.py": "A", "tests/test_provider_eps_coverage.py": "A",
     "docs/RATE_PROVIDER_EPS_COVERAGE.md": "A", ".github/workflows/rate_provider_eps_coverage_ci.yml": "A",
 }
+RECOVERY_CHANGES = {**COVERAGE_CHANGES, "src/provider_eps_dispatch.py": "A",
+    "src/provider_eps_recovery.py": "A", "scripts/recover_provider_eps_coverage.py": "A",
+    "tests/test_provider_eps_recovery.py": "A"}
 
 
 def git(*args):
@@ -40,7 +43,9 @@ def binding(base, head):
     changes = git("diff", "--name-status", "--no-renames", base, head).decode().splitlines()
     has_candidate = subprocess.run(["git", "cat-file", "-e", base + ":src/provider_eps_candidate.py"],
                                   cwd=ROOT, capture_output=True).returncode == 0
-    allowed = COVERAGE_CHANGES if has_candidate else {name: "A" for name in ADDITIONS}
+    has_recovery = subprocess.run(["git", "cat-file", "-e", head + ":src/provider_eps_recovery.py"],
+                                 cwd=ROOT, capture_output=True).returncode == 0
+    allowed = (RECOVERY_CHANGES if has_recovery else COVERAGE_CHANGES) if has_candidate else {name: "A" for name in ADDITIONS}
     changed = []
     for line in changes:
         status, name = line.split("\t")

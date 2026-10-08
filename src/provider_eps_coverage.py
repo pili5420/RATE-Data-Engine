@@ -10,6 +10,7 @@ from .eps_duration_facts.model import Rejected, require
 from .eps_duration_facts.raw import sha256
 from .provider_eps_candidate import (API, POLICY, WINDOW, DESCENDING, _canonical,
     _decimal, _json, _policy, _quarter, _time, build_candidate, read_provider_response)
+from .provider_eps_dispatch import DispatchGate
 
 KIND = "PROVIDER_COVERAGE_VALIDATION_ONLY"
 COUNTS = {"TWSE": 1085, "TPEX": 893}
@@ -55,7 +56,7 @@ def load_universe(path, expected_sha256, expected_commit, *, expected_counts=COU
         "catalogue_json_locator": "$.catalogue", "source_run_id": historical["runtime_authority"]["run_id"]}
 
 
-def make_plan(universe, code_binding, transport_binding):
+def make_plan(universe, code_binding, transport_binding, *, recovery_lineage=None):
     require(universe.get("verification_status") == "PASS", "UNIVERSE_NOT_VERIFIED")
     stocks = universe["stocks"]
     require(stocks and len({r["symbol"] for r in stocks}) == len(stocks), "UNIVERSE_DUPLICATE_SYMBOL")
@@ -66,12 +67,20 @@ def make_plan(universe, code_binding, transport_binding):
         "window_role": "PROVIDER_COVERAGE_WINDOW", "historical_cutoff": "2026-10-05",
         "code_binding": code_binding, "transport_binding": transport_binding, "production_eligible": False,
         "original_eight_quarter_coverage_credit": 0, "formal_eight_quarter_acceptance": "NOT_PERFORMED"}
+    if recovery_lineage is not None:
+        require(recovery_lineage["new_head"] == code_binding["head_sha"], "RECOVERY_HEAD_MISMATCH")
+        require(recovery_lineage["parent_plan_id"].startswith("rate-provider-eps-coverage-"), "RECOVERY_PARENT_REQUIRED")
+        require(recovery_lineage["recovery_reason"] == "EXACT_BASIC_LABEL_COMPATIBILITY_AND_STOP_GATE_FIX",
+                "RECOVERY_REASON_INVALID")
+        value["schema_version"] = "RATE_PROVIDER_EPS_COVERAGE_PLAN_V2"
+        value["recovery_lineage"] = recovery_lineage
     value["plan_id"] = "rate-provider-eps-coverage-" + sha256(_canonical(value))
     return value
 
 
 def validate_plan(plan):
-    expected = make_plan(plan["universe"], plan["code_binding"], plan["transport_binding"])
+    expected = make_plan(plan["universe"], plan["code_binding"], plan["transport_binding"],
+                         recovery_lineage=plan.get("recovery_lineage"))
     require(plan == expected, "COVERAGE_PLAN_BINDING_MISMATCH")
     return {r["symbol"]: r["market"] for r in plan["universe"]["stocks"]}
 
@@ -119,12 +128,31 @@ def read_events(root, plan):
     markets = validate_plan(plan)
     events = {}
     core = ("symbol", "provider_date", "analysis_quarter", "provider_value", "raw_sha256", "receipt_sha256",
-            "json_locator", "raw_row_index_zero_based", "acquired_observed_at", "raw_bytes")
+            "json_locator", "raw_row_index_zero_based", "acquired_observed_at", "raw_bytes",
+            "provider_type", "provider_origin_name", "normalized_provider_label", "label_mapping_rule", "label_mapping_version",
+            "same_public_version_status", "historical_pit_status", "q4_raw_or_derived_classification")
     for path in sorted((Path(root) / "events").glob("*.json")):
         entry = _json(path.read_bytes())
         require(entry.get("event_sha256") == sha256(_canonical({k: v for k, v in entry.items() if k != "event_sha256"})), "LEDGER_TAMPERED")
         symbol = entry["symbol"]
         require(entry["plan_id"] == plan["plan_id"] and markets.get(symbol) == entry["market"] and path.stem == symbol and symbol not in events, "LEDGER_PLAN_OR_MARKET_MISMATCH")
+        if entry.get("recovery"):
+            recovery = entry["recovery"]
+            lineage = plan.get("recovery_lineage", {})
+            original_path = recovery["original_event_reference"]
+            original_body = Path(original_path).read_bytes()
+            original = _json(original_body)
+            require(original_path in entry["input_integrity"] and
+                    sha256(original_body) == recovery["original_event_file_sha256"] and
+                    original["event_sha256"] == recovery["original_event_sha256"] and
+                    original["event_sha256"] == sha256(_canonical({k: v for k, v in original.items() if k != "event_sha256"})),
+                    "RECOVERY_EVENT_PROVENANCE_MISMATCH")
+            require(original["symbol"] == symbol and original["market"] == entry["market"] and
+                    original["plan_id"] == lineage.get("parent_plan_id") == recovery["parent_plan_id"] and
+                    original["status"] == recovery["old_status"] and entry["status"] == recovery["new_status"] and
+                    original["receipt_references"] == entry["receipt_references"] == recovery["original_receipt_references"],
+                    "RECOVERY_DECISION_PROVENANCE_MISMATCH")
+            require(all(r.get("recovery_provenance") == recovery for r in entry["rows"]), "RECOVERY_ROW_PROVENANCE_MISMATCH")
         for filename, expected in entry["input_integrity"].items():
             body = Path(filename).read_bytes()
             require(len(body) == expected["bytes"] and sha256(body) == expected["sha256"], "LEDGER_SOURCE_TAMPERED")
@@ -160,6 +188,18 @@ def read_events(root, plan):
     return events
 
 
+def stop_exit_code(stop):
+    return 0 if stop["reason"] in {"ALL_COMPANIES_ACCOUNTED_FOR", "BOUNDED_BATCH_BUDGET"} else 2
+
+
+def persist_stop(root, plan, stop):
+    path = Path(root) / "stop-gate.json"
+    if not path.exists():
+        value = {"plan_id": plan["plan_id"], "stop": stop, "recorded_at": now()}
+        save(path, {**value, "sha256": sha256(_canonical(value))})
+    return stop
+
+
 def reuse_original(root, plan, directory):
     events = read_events(root, plan)
     if all(s in events for s in ("2330", "6488", "1340")):
@@ -185,6 +225,7 @@ def evaluate_receipt(plan, symbol, reference):
         path = reference.parent.parent / receipt["raw_path"]
         body = path.read_bytes()
         inventory[str(path)] = {"bytes": len(body), "sha256": sha256(body)}
+        require(len(body) == receipt["bytes"] and sha256(body) == receipt["response_body_sha256"], "RESPONSE_BYTES_OR_HASH_MISMATCH")
         try:
             payload = _json(body)
             service_status = payload.get("status")
@@ -220,11 +261,33 @@ def evaluate_receipt(plan, symbol, reference):
 def scan(root, plan, capture, *, token=None, max_requests=280, max_seconds=3600, interval_seconds=13,
          sleep=time.sleep, clock=time.monotonic, progress=None):
     require(0 <= max_requests <= 1978 and 0 < max_seconds <= 3600 and interval_seconds >= 13, "UNSAFE_SCAN_BUDGET")
+    gate_path = Path(root) / "stop-gate.json"
+    if gate_path.exists():
+        gate = _json(gate_path.read_bytes())
+        require(gate["plan_id"] == plan["plan_id"] and gate["sha256"] ==
+                sha256(_canonical({k: v for k, v in gate.items() if k != "sha256"})), "STOP_GATE_TAMPERED")
+        return {"reason": "PERSISTED_STOP_GATE", "persisted_reason": gate["stop"]["reason"], "new_requests": 0}
     events = read_events(root, plan)
     for event in events.values():
         if event["shared_host_stop"]:
-            return {"reason": "PERSISTED_SHARED_HOST_STOP", "symbol": event["symbol"], "new_requests": 0}
-    started, requests, last = clock(), 0, None
+            return persist_stop(root, plan, {"reason": "PERSISTED_SHARED_HOST_STOP", "symbol": event["symbol"], "new_requests": 0})
+        if event["status"] == "VALIDATION_FAILED":
+            return persist_stop(root, plan, {"reason": "PERSISTED_VALIDATION_FAILED", "symbol": event["symbol"], "new_requests": 0})
+    for path in (Path(root) / "intents").glob("*.json"):
+        intent = _json(path.read_bytes())
+        require(intent["plan_id"] == plan["plan_id"] and path.stem == intent["symbol"] and
+                intent["symbol"] in validate_plan(plan), "REQUEST_INTENT_PLAN_MISMATCH")
+        if "dispatch_evidence" in intent:
+            evidence = intent["dispatch_evidence"]
+            require(intent["dispatch_evidence_sha256"] == sha256(_canonical(evidence)) and
+                    evidence["request_identity"] == {"plan_id": plan["plan_id"], "symbol": intent["symbol"],
+                        "request_id": "coverage-" + intent["symbol"], "query": {**QUERY, "data_id": intent["symbol"]}},
+                    "DISPATCH_EVIDENCE_TAMPERED")
+        if intent["symbol"] not in events and not (Path(root) / "receipts" / ("coverage-" + intent["symbol"] + ".json")).exists():
+            return persist_stop(root, plan, {"reason": "REQUEST_OUTCOME_UNKNOWN_NO_AUTOMATIC_RETRY", "symbol": intent["symbol"], "new_requests": 0})
+    started, requests = clock(), 0
+    dispatch = DispatchGate(interval_seconds, prior_dispatch=any((Path(root) / "intents").glob("*.json")) or
+        bool(plan.get("recovery_lineage")), clock=clock, sleep=sleep, utc=now)
     for stock in plan["universe"]["stocks"]:
         symbol = stock["symbol"]
         if symbol in events:
@@ -235,23 +298,28 @@ def scan(root, plan, capture, *, token=None, max_requests=280, max_seconds=3600,
             saved_intent = _json(intent.read_bytes())
             require(saved_intent["plan_id"] == plan["plan_id"] and saved_intent["symbol"] == symbol, "REQUEST_INTENT_PLAN_MISMATCH")
             if not reference.exists():
-                return {"reason": "REQUEST_OUTCOME_UNKNOWN_NO_AUTOMATIC_RETRY", "symbol": symbol, "new_requests": requests}
+                return persist_stop(root, plan, {"reason": "REQUEST_OUTCOME_UNKNOWN_NO_AUTOMATIC_RETRY", "symbol": symbol, "new_requests": requests})
         else:
-            delay = 0 if last is None else max(0, interval_seconds - (clock() - last))
+            delay = dispatch.delay()
             if requests >= max_requests or clock() - started + delay + 20 >= max_seconds:
                 return {"reason": "BOUNDED_BATCH_BUDGET", "new_requests": requests}
-            sleep(delay)
+            evidence = dispatch.boundary({"plan_id": plan["plan_id"], "symbol": symbol,
+                "request_id": "coverage-" + symbol, "query": {**QUERY, "data_id": symbol}})
             save(intent, {"plan_id": plan["plan_id"], "symbol": symbol, "market": stock["market"],
-                          "query": {**QUERY, "data_id": symbol}, "started_at": now()})
-            last = clock()
+                          "query": {**QUERY, "data_id": symbol}, "started_at": now(),
+                          "dispatch_evidence": evidence, "dispatch_evidence_sha256": sha256(_canonical(evidence))})
             requests += 1
+            dispatch.check_outbound(evidence)
             capture(Path(root), "coverage-" + symbol, API, symbol, start=QUERY["start_date"], end=QUERY["end_date"], token=token)
+            dispatch.completed()
         event = append_event(root, evaluate_receipt(plan, symbol, reference))
         events[symbol] = event
         if progress is not None:
             progress({"symbol": symbol, "status": event["status"], "valid_quarters": len(event["rows"]), "new_requests": requests})
         if event["shared_host_stop"]:
-            return {"reason": "SHARED_HOST_ACCESS_STOP", "symbol": symbol, "new_requests": requests}
+            return persist_stop(root, plan, {"reason": "SHARED_HOST_ACCESS_STOP", "symbol": symbol, "new_requests": requests})
+        if event["status"] == "VALIDATION_FAILED":
+            return persist_stop(root, plan, {"reason": "VALIDATION_FAILED_STOP", "symbol": symbol, "new_requests": requests})
     return {"reason": "ALL_COMPANIES_ACCOUNTED_FOR", "new_requests": requests}
 
 
@@ -283,6 +351,10 @@ def summary(root, plan, stop):
         "eps_complete_companies": complete, "valid_company_quarters": len(rows), "quarter_denominator": total * 8,
         "unattempted_companies": sum(c["unattempted"] for c in companies), "status_counts": dict(Counter(c["status"] for c in companies)),
         "actual_data_request_intents": len(list((Path(root) / "intents").glob("*.json")))}
+    inherited = sum(bool(e.get("recovery", {}).get("original_request_reference")) for e in events.values())
+    counts["inherited_data_requests"] = inherited
+    counts["new_plan_data_request_intents"] = counts["actual_data_request_intents"]
+    counts["cumulative_data_requests"] = inherited + counts["actual_data_request_intents"]
     latest = max((_time(r["acquired_observed_at"]) for r in rows), default=None)
     return {"artifact_kind": KIND, "plan_id": plan["plan_id"], "source_policy": POLICY, "counts": counts,
         "window": list(WINDOW), "quarter_order": "LATEST_TO_OLDEST", "stop": stop, "companies": companies,

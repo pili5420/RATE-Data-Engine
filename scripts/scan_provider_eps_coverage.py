@@ -9,11 +9,14 @@ import traceback
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from src.eps_duration_facts.model import require
+from src.eps_duration_facts.model import Rejected, require
 from src.eps_duration_facts.raw import sha256
 from src.provider_eps_candidate import build_candidate
 from src.provider_eps_coverage import (initialize, load_universe, make_plan, now, read_events,
-    reuse_original, revenue_inventory, save, scan, summary)
+    reuse_original, revenue_inventory, save, scan, summary, persist_stop, stop_exit_code)
+from src.provider_eps_dispatch import exclusive_scan
+from src.provider_eps_candidate import _json
+from src.provider_eps_recovery import verify_archive, recovery_lineage
 from verify_provider_eps_candidate import binding
 
 
@@ -42,9 +45,18 @@ def main():
     universe = load_universe(args.universe_evidence, args.universe_sha256, args.universe_commit)
     transport_path = Path(args.transport).resolve()
     require(sha256(transport_path.read_bytes()) == args.transport_sha256, "TRANSPORT_CODE_HASH_MISMATCH")
-    plan = make_plan(universe, {"base_sha": args.expected_base, "head_sha": args.expected_head},
-                     {"path": str(transport_path), "sha256": args.transport_sha256})
     root = Path(args.output_dir).resolve()
+    lineage = None
+    if root.exists() and args.continue_ledger:
+        stored = _json((root / "plan.json").read_bytes())
+        lineage = stored.get("recovery_lineage")
+        if lineage:
+            manifest_path = Path(lineage["archive_manifest_reference"])
+            require(sha256(manifest_path.read_bytes()) == lineage["archive_manifest_sha256"], "ARCHIVE_MANIFEST_TAMPERED")
+            manifest, _ = verify_archive(manifest_path)
+            require(recovery_lineage(manifest_path, manifest, args.expected_head) == lineage, "RECOVERY_EXECUTION_IDENTITY_CHANGED")
+    plan = make_plan(universe, {"base_sha": args.expected_base, "head_sha": args.expected_head},
+                     {"path": str(transport_path), "sha256": args.transport_sha256}, recovery_lineage=lineage)
     require(not root.is_relative_to(ROOT) and not root.is_relative_to(Path(args.reuse_input).resolve()), "OUTPUT_MUST_BE_EXTERNAL")
     require("rate-eps-public-research" in root.parts and not any(p.lower() in {"production", "latest", "state", "portfolio", "ledger"} for p in root.parts), "UNSAFE_OUTPUT_PATH")
     require(not any(p.is_symlink() or (hasattr(p, "is_junction") and p.is_junction()) for p in (root, *root.parents)), "LINKED_OUTPUT_FORBIDDEN")
@@ -56,28 +68,41 @@ def main():
     paths = [p for p in paths if p.is_file()] + [transport_path, Path(args.universe_evidence).resolve()]
     before = snapshot(paths)
     root = initialize(root, plan)
-    reuse_original(root, plan, args.reuse_input)
-    spec = importlib.util.spec_from_file_location("saved_finmind_transport", transport_path)
-    transport = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(transport)
+    with exclusive_scan(root):
+        return execute(args, root, plan, transport_path, paths, before, isolation, revenue)
+
+
+def execute(args, root, plan, transport_path, paths, before, isolation, revenue):
     token = os.environ.get("FINMIND_TOKEN")
     started = now()
     try:
+        reuse_original(root, plan, args.reuse_input)
+        spec = importlib.util.spec_from_file_location("saved_finmind_transport", transport_path)
+        transport = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(transport)
         stop = scan(root, plan, transport.capture, token=token, max_requests=args.max_requests,
             max_seconds=args.max_seconds, interval_seconds=args.interval_seconds,
             progress=lambda p: print(json.dumps(p), flush=True))
-    except Exception:
+    except Exception as exc:
         trace = traceback.format_exc()
         if token:
             trace = trace.replace(token, "[REDACTED]")
-        stop = {"reason": "TOOL_ERROR_STOPPED_NO_RETRY", "traceback": trace}
-    report = summary(root, plan, stop)
+        stop = persist_stop(root, plan, {"reason": "SOURCE_OR_LEDGER_VALIDATION_STOP" if isinstance(exc, Rejected)
+            else "TOOL_ERROR_STOPPED_NO_RETRY", "traceback": trace})
+    try:
+        report = summary(root, plan, stop)
+        ledger = list(read_events(root, plan).values())
+    except Exception as exc:
+        stop = persist_stop(root, plan, {"reason": "LEDGER_REPORT_REPLAY_FAILED", "error_class": type(exc).__name__})
+        report = {"plan_id": plan["plan_id"], "counts": None, "stop": stop,
+                  "ledger_replay": "FAILED_NO_COVERAGE_CLAIM", "production_eligible": False}
+        ledger = []
     after = snapshot(paths)
     require(before == after and binding(args.expected_base, args.expected_head) == isolation, "EXISTING_INPUT_OR_PROTECTED_CODE_CHANGED")
     output = root / "reports" / ("report-" + now().replace(":", "").replace(".", ""))
     output.mkdir(exist_ok=False)
     save(output / "coverage-result.json", report)
-    save(output / "request-ledger.json", {"plan_id": plan["plan_id"], "companies": list(read_events(root, plan).values())})
+    save(output / "request-ledger.json", {"plan_id": plan["plan_id"], "companies": ledger})
     save(output / "revenue-availability.json", revenue)
     save(output / "invariance.json", {"unchanged": True, "before": before, "after": after, "isolation": isolation})
     save(output / "execution.json", {"started_at": started, "finished_at": now(), "python": sys.version,
@@ -89,8 +114,12 @@ def main():
             "documentation": "https://finmind.github.io/quickstart/", "retry_count": 0},
         "production_eligible": False, "original_eight_quarter_coverage_credit": 0})
     print(json.dumps({"report_dir": str(output), "plan_id": plan["plan_id"], "counts": report["counts"], "stop": {k: v for k, v in stop.items() if k != "traceback"}}))
-    return 2 if stop["reason"] == "TOOL_ERROR_STOPPED_NO_RETRY" else 0
+    return stop_exit_code(stop)
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except Rejected as exc:
+        print("VALIDATION_STOP: " + str(exc), file=sys.stderr)
+        raise SystemExit(2)

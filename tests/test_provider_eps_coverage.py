@@ -20,6 +20,17 @@ BINDING = {"base_sha": "0" * 40, "head_sha": "1" * 40}
 ENDS = ("2024-09-30", "2024-12-31", "2025-03-31", "2025-06-30", "2025-09-30", "2025-12-31", "2026-03-31", "2026-06-30")
 
 
+class FakeClock:
+    def __init__(self):
+        self.value = 0
+
+    def clock(self):
+        return self.value
+
+    def sleep(self, seconds):
+        self.value += seconds
+
+
 def engineering_universe(path):
     catalogue = {"artifact": "RATE_FULL_MARKET_ELIGIBILITY_CATALOGUE", "as_of": "2026-10-06",
         "trading_date": "2026-10-06", "policy_id": POLICY_ID, "policy_hash": policy_hash(),
@@ -87,7 +98,8 @@ class CoverageEngineeringTests(unittest.TestCase):
         reuse_original(self.root, self.plan, self.original)
 
     def run_scan(self, capture, **kwargs):
-        return scan(self.root, self.plan, capture, sleep=lambda seconds: None, clock=lambda: 0, **kwargs)
+        clock = FakeClock()
+        return scan(self.root, self.plan, capture, sleep=clock.sleep, clock=clock.clock, **kwargs)
 
     def test_more_than_original_three_and_original_24_regression(self):
         before = read_events(self.root, self.plan)
@@ -157,7 +169,8 @@ class CoverageEngineeringTests(unittest.TestCase):
     def test_shared_http_or_service_quota_stops_and_never_retries(self):
         self.run_scan(fake_capture(service_blocked=True))
         stop = self.run_scan(lambda *args, **kwargs: self.fail("NO_BLOCK_BYPASS"))
-        self.assertEqual(stop["reason"], "PERSISTED_SHARED_HOST_STOP")
+        self.assertEqual(stop["reason"], "PERSISTED_STOP_GATE")
+        self.assertEqual(stop["persisted_reason"], "SHARED_HOST_ACCESS_STOP")
         self.assertEqual(read_events(self.root, self.plan)["7777"]["status"], "ACCESS_FAILED")
 
     def test_single_company_validation_failure_does_not_poison_other_companies(self):
@@ -169,7 +182,9 @@ class CoverageEngineeringTests(unittest.TestCase):
         self.run_scan(fake_capture(wrong_identity=True))
         entries = read_events(self.root, self.plan)
         self.assertEqual(entries["7777"]["status"], "VALIDATION_FAILED")
-        self.assertEqual(entries["8888"]["status"], "COMPLETE")
+        self.assertNotIn("8888", entries)
+        pending = next(c for c in summary(self.root, self.plan, {"reason": "VALIDATION_FAILED_STOP"})["companies"] if c["symbol"] == "8888")
+        self.assertEqual(pending["status"], "NOT_ATTEMPTED")
         self.assertTrue(all(entries[s]["status"] == "COMPLETE" for s in ("2330", "6488", "1340")))
 
     def test_common_block_leaves_following_company_unattempted(self):

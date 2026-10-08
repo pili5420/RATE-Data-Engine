@@ -10,7 +10,7 @@ sys.path.insert(0, str(ROOT))
 from src.eps_duration_facts.model import require
 from src.provider_eps_candidate import ENGINEERING
 from src.provider_eps_coverage import initialize, make_plan, now, reuse_original, scan, summary
-from tests.test_provider_eps_coverage import engineering_universe, fake_capture
+from tests.test_provider_eps_coverage import engineering_universe, fake_capture, FakeClock
 from tests.provider_eps_engineering_fixture import make_fixture
 from verify_provider_eps_candidate import binding, new_output, write_json
 
@@ -24,7 +24,7 @@ def main():
     before = binding(args.expected_base, args.expected_head)
     output = new_output(args.output_dir)
     tests = subprocess.run([sys.executable, "-B", "-m", "unittest", "tests.test_provider_eps_candidate",
-        "tests.test_provider_eps_coverage", "-v"], cwd=ROOT, text=True, capture_output=True)
+        "tests.test_provider_eps_coverage", "tests.test_provider_eps_recovery", "-v"], cwd=ROOT, text=True, capture_output=True)
     (output / "engineering-tests.log").write_text(tests.stdout + tests.stderr, encoding="utf-8")
     require(tests.returncode == 0, "COVERAGE_ENGINEERING_TESTS_FAILED")
     with tempfile.TemporaryDirectory(prefix="rate-coverage-ci-") as temporary:
@@ -37,7 +37,8 @@ def main():
             {"path": "SYNTHETIC_FAKE_CAPTURE_NOT_NETWORK", "sha256": "0" * 64})
         root = initialize(temp / "ENGINEERING_COVERAGE", plan)
         reuse_original(root, plan, original)
-        stop = scan(root, plan, fake_capture(), sleep=lambda seconds: None, clock=lambda: 0)
+        clock = FakeClock()
+        stop = scan(root, plan, fake_capture(), sleep=clock.sleep, clock=clock.clock)
         report = summary(root, plan, stop)
         second = scan(root, plan, lambda *args, **kwargs: require(False, "REPEATED_FETCH_FORBIDDEN"))
         require(second["new_requests"] == 0 and report["counts"]["valid_company_quarters"] == 32, "ENGINEERING_CONTINUATION_FAILED")
