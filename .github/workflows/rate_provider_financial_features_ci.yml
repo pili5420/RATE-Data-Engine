@@ -1,0 +1,64 @@
+name: RATE Provider Financial Features V1 Engineering
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/provider_financial_features.py"
+      - "src/provider_financial_feature_inputs.py"
+      - "scripts/*provider_financial_features.py"
+      - "tests/*provider_financial_features*.py"
+      - "docs/contracts/RATE_PROVIDER_FINANCIAL_FEATURES_V1.json"
+      - "docs/RATE_PROVIDER_FINANCIAL_FEATURES_V1.md"
+      - ".github/workflows/rate_provider_financial_features_ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-engineering-only:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Existing offline official parser dependency
+        run: python -m pip install lxml==6.1.1
+      - name: Exact-head synthetic engineering and protected-file checks
+        env:
+          EXPECTED_BASE: ${{ github.event.pull_request.base.sha }}
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          TMPDIR: ${{ runner.temp }}
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
+        run: >-
+          python -B scripts/verify_provider_financial_features.py
+          --expected-base "$EXPECTED_BASE" --expected-head "$EXPECTED_HEAD"
+          --output-dir "$RUNNER_TEMP/provider-financial-features-engineering"
+      - name: Clean worktree
+        if: always()
+        run: test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Retain synthetic engineering evidence only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PROVIDER_FEATURES_ENGINEERING_NOT_REAL_${{ matrix.os }}_${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/provider-financial-features-engineering/
+          if-no-files-found: error
+          retention-days: 14
