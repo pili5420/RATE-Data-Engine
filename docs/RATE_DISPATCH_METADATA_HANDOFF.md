@@ -41,3 +41,21 @@ output/base/head. They are NOT EXECUTED. Separate authorization, clean exact
 checkout, readiness/lineage/source replay, no unresolved stop/unknown outcome and
 single-writer conditions are required before any future network continuation.
 No TTM, official EPS, Fundamental, ranking or Historical PIT claim is made.
+
+## Wait Semantics Compatibility
+
+The V1 writer's actual_wait_seconds measures time inside boundary(), not time
+since the conservative anchor. Work before boundary() legitimately reduces that
+wait, including to zero. The reader enforces the unchanged >=13 second limit on
+monotonic_timestamp - previous_wait_anchor_monotonic. Actual wait must remain
+finite/nonnegative and cannot exceed that total elapsed interval; it need not
+independently reach 13 seconds. Digest, anchor, session and clock-domain checks
+are retained. The writer, financial codec and persisted evidence are unchanged.
+
+The reviewed c4cdbfe reader's false rejection is retained as a historical
+same-bytes regression. Twelve additional tests cover real writer -> disk ->
+process exit -> cold CLI reader -> original digest -> no refetch -> next stock,
+for pre-boundary elapsed 0, 0.0001, 0.25, 13 and 13.25 seconds. Same-session and
+new-session evidence is validated separately, including early sleep/top-up and
+negative short-anchor/missing-anchor/impossible-wait fixtures. The unchanged 81
+previous tests and these 12 new tests are reported separately on Windows/Linux.

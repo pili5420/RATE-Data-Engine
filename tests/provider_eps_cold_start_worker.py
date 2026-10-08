@@ -11,6 +11,7 @@ sys.path.insert(0, str(REPO / "scripts"))
 from scripts import scan_provider_eps_coverage as cli
 from src.eps_duration_facts.raw import sha256
 from src.provider_eps_metadata import read_metadata, validate_dispatches
+from src import provider_eps_coverage as coverage
 from tests.test_provider_eps_coverage import BINDING
 
 
@@ -23,9 +24,19 @@ def main():
     root = directory / "rate-eps-public-research" / "coverage"
     clock = [config.get("clock_start", 100.125)]
     sleeps = []
+    sleep_elapsed = []
     def sleep(seconds):
+        before = clock[0]
         sleeps.append(seconds)
-        clock[0] += seconds / 2 if len(sleeps) == 1 else seconds + 0.25
+        if config.get("exact_sleep"):
+            clock[0] += seconds / 2 if config.get("early_return") and len(sleeps) == 1 else seconds
+        else:
+            clock[0] += seconds / 2 if len(sleeps) == 1 else seconds + 0.25
+        sleep_elapsed.append(clock[0] - before)
+    class BoundaryDelayGate(coverage.DispatchGate):
+        def boundary(self, request_identity):
+            clock[0] += config.get("boundary_pre_elapsed", 0)
+            return super().boundary(request_identity)
     real_scan = cli.scan
     def scan(*args, **kwargs):
         return real_scan(*args, **kwargs, clock=lambda: clock[0], sleep=sleep)
@@ -42,12 +53,14 @@ def main():
     with patch.object(sys, "argv", argv), patch.object(cli, "binding", return_value={"synthetic": True}), \
          patch.object(cli, "load_universe", return_value=universe), patch.object(cli, "revenue_inventory", return_value={"input_integrity": {}}), \
          patch.object(cli, "scan", side_effect=scan), patch.object(socket, "create_connection", side_effect=AssertionError("NO_NETWORK")):
-        code = cli.main()
+        with patch.object(coverage, "DispatchGate", BoundaryDelayGate):
+            code = cli.main()
     plan = read_metadata((root / "plan.json").read_bytes())
     if config["mode"] == "normal" and code == 0:
         validate_dispatches(root, plan)
     with (directory / "worker-results.jsonl").open("a", encoding="utf-8") as stream:
-        stream.write(json.dumps({"code": code, "sleeps": sleeps, "clock": clock[0], "process_id": __import__("os").getpid()}) + "\n")
+        stream.write(json.dumps({"code": code, "sleeps": sleeps, "sleep_elapsed_seconds": sleep_elapsed,
+            "clock": clock[0], "process_id": __import__("os").getpid()}) + "\n")
     return code
 
 

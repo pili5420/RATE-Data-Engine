@@ -82,17 +82,19 @@ def read_intent(path, plan):
     _time(evidence["utc_timestamp"])
     timestamp = number(evidence["monotonic_timestamp"])
     interval = number(evidence["minimum_interval_seconds"], minimum=13)
-    number(evidence["actual_wait_seconds"])
+    wait = number(evidence["actual_wait_seconds"])
     gap, anchor = evidence["previous_dispatch_interval_seconds"], evidence["previous_wait_anchor_monotonic"]
     continuity = evidence["prior_session_continuity"]
     require(continuity in {"NO_PRIOR_DISPATCH", "UNPROVEN_CONSERVATIVE_WAIT", "SAME_MONOTONIC_DOMAIN"},
             "DISPATCH_CONTINUITY_INVALID")
     if anchor is not None:
-        require(timestamp - number(anchor) >= interval, "DISPATCH_INTERVAL_VIOLATION")
+        elapsed = timestamp - number(anchor)
+        require(elapsed >= interval, "DISPATCH_INTERVAL_VIOLATION")
+        require(wait <= elapsed, "DISPATCH_WAIT_INCONSISTENT")
     if continuity == "NO_PRIOR_DISPATCH":
         require(gap is None and anchor is None, "DISPATCH_CONTINUITY_INVALID")
     elif continuity == "UNPROVEN_CONSERVATIVE_WAIT":
-        require(gap is None and anchor is not None and evidence["actual_wait_seconds"] >= interval,
+        require(gap is None and anchor is not None,
                 "DISPATCH_CONTINUITY_INVALID")
     else:
         require(anchor is not None and number(gap, minimum=interval) <= timestamp,

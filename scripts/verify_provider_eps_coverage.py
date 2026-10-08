@@ -31,6 +31,10 @@ def main():
                              cwd=ROOT, text=True, capture_output=True)
     (output / "metadata-cold-start-tests.log").write_text(metadata.stdout + metadata.stderr, encoding="utf-8")
     require(metadata.returncode == 0, "METADATA_COLD_START_TESTS_FAILED")
+    wait = subprocess.run([sys.executable, "-B", "-m", "unittest", "tests.test_provider_eps_wait_semantics", "-v"],
+                          cwd=ROOT, text=True, capture_output=True)
+    (output / "dispatch-wait-semantics-tests.log").write_text(wait.stdout + wait.stderr, encoding="utf-8")
+    require(wait.returncode == 0, "DISPATCH_WAIT_SEMANTICS_TESTS_FAILED")
     with tempfile.TemporaryDirectory(prefix="rate-coverage-ci-") as temporary:
         temp = Path(temporary)
         original = temp / "original"
@@ -52,6 +56,7 @@ def main():
         "real_provider_coverage_scan": "NOT_RUN_IN_PUBLIC_CI", "network_requests": 0,
         "validated_at": now(), "engineering_test_exit_code": tests.returncode,
         "existing_regression_tests": 57, "new_metadata_and_handoff_tests": 24,
+        "pre_existing_total_tests": 81, "new_dispatch_wait_tests": 12, "dispatch_wait_test_exit_code": wait.returncode,
         "new_test_exit_code": metadata.returncode, "platform": sys.platform,
         "actual_base_head_isolation": before, "production_eligible": False,
         "original_eight_quarter_coverage_credit": 0, "formal_eight_quarter_acceptance": "NOT_PERFORMED"})

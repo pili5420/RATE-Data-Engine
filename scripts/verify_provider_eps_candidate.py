@@ -37,6 +37,7 @@ ROUND_TRIP_CHANGES = {
     "scripts/verify_provider_eps_coverage.py": "M", "tests/test_provider_eps_metadata.py": "A",
     "tests/provider_eps_cold_start_worker.py": "A", "tests/provider_eps_mock_transport.py": "A",
     ".github/workflows/rate_provider_eps_coverage_ci.yml": "M", "docs/RATE_DISPATCH_METADATA_HANDOFF.md": "A",
+    "tests/test_provider_eps_wait_semantics.py": "A",
 }
 CANDIDATE_ONLY_ENTRIES = ADDITIONS | set(RECOVERY_CHANGES) | set(ROUND_TRIP_CHANGES)
 

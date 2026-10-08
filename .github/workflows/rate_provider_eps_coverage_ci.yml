@@ -15,6 +15,7 @@ on:
       - "tests/test_provider_eps_coverage.py"
       - "tests/test_provider_eps_recovery.py"
       - "tests/test_provider_eps_metadata.py"
+      - "tests/test_provider_eps_wait_semantics.py"
       - "tests/provider_eps_cold_start_worker.py"
       - "tests/provider_eps_mock_transport.py"
       - "docs/RATE_DISPATCH_METADATA_HANDOFF.md"
