@@ -1,0 +1,39 @@
+{
+  "contract_id": "RATE_PROVIDER_FINANCIAL_FEATURES_V1",
+  "version": "1.0.0",
+  "usage_scope": "PROVIDER_FINANCIAL_FEATURES_ONLY",
+  "contract_effective_at": "2026-10-08T14:24:58.621444+00:00",
+  "window": ["2024Q3", "2024Q4", "2025Q1", "2025Q2", "2025Q3", "2025Q4", "2026Q1", "2026Q2"],
+  "latest4": ["2025Q3", "2025Q4", "2026Q1", "2026Q2"],
+  "previous4": ["2024Q3", "2024Q4", "2025Q1", "2025Q2"],
+  "revenue_months": ["2026-07", "2026-08", "2026-09"],
+  "features": {
+    "finmind_eps_sum_latest4q_unadjusted": {"operation": "EXACT_DECIMAL_SUM", "input_window": "latest4"},
+    "finmind_eps_sum_previous4q_unadjusted": {"operation": "EXACT_DECIMAL_SUM", "input_window": "previous4"},
+    "finmind_eps_delta4q_unadjusted": {"operation": "EXACT_DECIMAL_LATEST_MINUS_PREVIOUS", "input_window": "window"},
+    "official_revenue_yoy_mean_3m": {"operation": "DECIMAL_SUM_DIVIDE_FIXED_3", "input_window": "revenue_months"}
+  },
+  "eps_source": {
+    "source": "FinMind",
+    "dataset": "TaiwanStockFinancialStatements",
+    "metric_basis": "PROVIDER_DEFINED_QUARTERLY_BASIC_EPS",
+    "source_acceptance": "ACCEPTED_AS_PROVIDER_DATA",
+    "provider_reply_required": false
+  },
+  "revenue_source": "MOPS Official",
+  "revenue_scale": "OFFICIAL_YOY_PERCENT_NUMBER_NOT_FRACTION",
+  "revenue_input_numeric_rule": "DECIMAL_OF_EXISTING_PARSER_JSON_NORMALIZED_NUMBER",
+  "revenue_mean_decimal_places": 12,
+  "revenue_mean_rounding": "ROUND_HALF_EVEN",
+  "serialization": "DECIMAL_STRINGS_EPS_EXACT_REVENUE_MEAN_FIXED_12_PLACES_NULL_NOT_ZERO",
+  "universe_policy": "RETAIN_EVERY_BOUND_CATALOGUE_SYMBOL_AND_MARKET",
+  "missing_policy": "FEATURE_LOCAL_NULL_NO_ZERO_IMPUTATION_NO_PERIOD_SUBSTITUTION",
+  "share_basis_alignment": "NOT_ADJUSTED",
+  "not_official_ttm": true,
+  "historical_cutoff": "2026-10-05",
+  "historical_pit_status": "UNPROVEN",
+  "feature_calculation_allowed": true,
+  "decision_eligible": false,
+  "production_eligible": false,
+  "original_eight_quarter_coverage_credit": 0
+}
