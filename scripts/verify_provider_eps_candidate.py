@@ -29,6 +29,17 @@ COVERAGE_CHANGES = {
 RECOVERY_CHANGES = {**COVERAGE_CHANGES, "src/provider_eps_dispatch.py": "A",
     "src/provider_eps_recovery.py": "A", "scripts/recover_provider_eps_coverage.py": "A",
     "tests/test_provider_eps_recovery.py": "A"}
+ROUND_TRIP_CHANGES = {
+    "src/provider_eps_metadata.py": "A", "src/provider_eps_handoff.py": "A",
+    "src/provider_eps_coverage.py": "M", "src/provider_eps_recovery.py": "M",
+    "scripts/scan_provider_eps_coverage.py": "M", "scripts/recover_provider_eps_coverage.py": "M",
+    "scripts/handoff_provider_eps_coverage.py": "A", "scripts/verify_provider_eps_candidate.py": "M",
+    "scripts/verify_provider_eps_coverage.py": "M", "tests/test_provider_eps_metadata.py": "A",
+    "tests/provider_eps_cold_start_worker.py": "A", "tests/provider_eps_mock_transport.py": "A",
+    ".github/workflows/rate_provider_eps_coverage_ci.yml": "M", "docs/RATE_DISPATCH_METADATA_HANDOFF.md": "A",
+    "tests/test_provider_eps_wait_semantics.py": "A",
+}
+CANDIDATE_ONLY_ENTRIES = ADDITIONS | set(RECOVERY_CHANGES) | set(ROUND_TRIP_CHANGES)
 
 
 def git(*args):
@@ -45,7 +56,10 @@ def binding(base, head):
                                   cwd=ROOT, capture_output=True).returncode == 0
     has_recovery = subprocess.run(["git", "cat-file", "-e", head + ":src/provider_eps_recovery.py"],
                                  cwd=ROOT, capture_output=True).returncode == 0
-    allowed = (RECOVERY_CHANGES if has_recovery else COVERAGE_CHANGES) if has_candidate else {name: "A" for name in ADDITIONS}
+    base_has_recovery = subprocess.run(["git", "cat-file", "-e", base + ":src/provider_eps_recovery.py"],
+                                      cwd=ROOT, capture_output=True).returncode == 0
+    allowed = ROUND_TRIP_CHANGES if base_has_recovery else (
+        (RECOVERY_CHANGES if has_recovery else COVERAGE_CHANGES) if has_candidate else {name: "A" for name in ADDITIONS})
     changed = []
     for line in changes:
         status, name = line.split("\t")
@@ -64,11 +78,13 @@ def binding(base, head):
             continue
         require(head_tree.get(name_bytes) == mode_blob, "BASE_FILE_BLOB_CHANGED:" + name)
         body = (ROOT / name).read_bytes()
-        if name.startswith(("src/", "scripts/")) and name.endswith(".py") and name not in ADDITIONS:
-            require(b"provider_eps_candidate" not in body and b"provider_eps_coverage" not in body,
+        if name.startswith(("src/", "scripts/")) and name.endswith(".py") and name not in CANDIDATE_ONLY_ENTRIES:
+            require(not any(term in body for term in (b"provider_eps_candidate", b"provider_eps_coverage",
+                    b"provider_eps_metadata", b"provider_eps_handoff")),
                     "EXISTING_ENTRY_DEPENDS_ON_CANDIDATE:" + name)
         protected[name] = {"git_tree_entry": mode_blob.decode(), "working_bytes": len(body), "working_sha256": sha256(body)}
     return {"base_sha": base, "head_sha": head, "changed_files": sorted(changed),
+            "isolation_profile": "DISPATCH_JSON_ROUND_TRIP" if base_has_recovery else "HISTORICAL_ADDITIVE",
             "existing_tracked_file_count": len(protected), "existing_tracked_files": protected,
             "existing_files_unchanged": not any(status == "M" for status in allowed.values()),
             "authorized_modified_files": sorted(name for name, status in allowed.items() if status == "M"),

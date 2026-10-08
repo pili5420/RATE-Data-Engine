@@ -8,10 +8,17 @@ on:
       - "src/provider_eps_coverage.py"
       - "src/provider_eps_dispatch.py"
       - "src/provider_eps_recovery.py"
+      - "src/provider_eps_metadata.py"
+      - "src/provider_eps_handoff.py"
       - "scripts/*provider_eps_coverage.py"
       - "scripts/verify_provider_eps_candidate.py"
       - "tests/test_provider_eps_coverage.py"
       - "tests/test_provider_eps_recovery.py"
+      - "tests/test_provider_eps_metadata.py"
+      - "tests/test_provider_eps_wait_semantics.py"
+      - "tests/provider_eps_cold_start_worker.py"
+      - "tests/provider_eps_mock_transport.py"
+      - "docs/RATE_DISPATCH_METADATA_HANDOFF.md"
       - "docs/RATE_PROVIDER_EPS_COVERAGE.md"
       - ".github/workflows/rate_provider_eps_coverage_ci.yml"
 
@@ -20,10 +27,17 @@ permissions:
 
 jobs:
   engineering-only:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     env:
       PYTHONDONTWRITEBYTECODE: "1"
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
         with:
@@ -39,6 +53,10 @@ jobs:
         env:
           EXPECTED_BASE: ${{ github.event.pull_request.base.sha }}
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          # Use the full runner path, not Windows' inherited 8.3 TEMP alias.
+          TMPDIR: ${{ runner.temp }}
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
         run: >-
           python -B scripts/verify_provider_eps_coverage.py
           --expected-base "$EXPECTED_BASE" --expected-head "$EXPECTED_HEAD"
@@ -50,7 +68,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: PROVIDER_COVERAGE_ENGINEERING_NOT_REAL_${{ github.event.pull_request.head.sha }}
+          name: PROVIDER_COVERAGE_ENGINEERING_NOT_REAL_${{ matrix.os }}_${{ github.event.pull_request.head.sha }}
           path: ${{ runner.temp }}/provider-coverage-engineering-evidence/
           if-no-files-found: error
           retention-days: 14

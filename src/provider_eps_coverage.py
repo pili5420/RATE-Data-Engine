@@ -11,6 +11,7 @@ from .eps_duration_facts.raw import sha256
 from .provider_eps_candidate import (API, POLICY, WINDOW, DESCENDING, _canonical,
     _decimal, _json, _policy, _quarter, _time, build_candidate, read_provider_response)
 from .provider_eps_dispatch import DispatchGate
+from .provider_eps_metadata import read_metadata, read_intent, validate_dispatches
 
 KIND = "PROVIDER_COVERAGE_VALIDATION_ONLY"
 COUNTS = {"TWSE": 1085, "TPEX": 893}
@@ -70,7 +71,8 @@ def make_plan(universe, code_binding, transport_binding, *, recovery_lineage=Non
     if recovery_lineage is not None:
         require(recovery_lineage["new_head"] == code_binding["head_sha"], "RECOVERY_HEAD_MISMATCH")
         require(recovery_lineage["parent_plan_id"].startswith("rate-provider-eps-coverage-"), "RECOVERY_PARENT_REQUIRED")
-        require(recovery_lineage["recovery_reason"] == "EXACT_BASIC_LABEL_COMPATIBILITY_AND_STOP_GATE_FIX",
+        require(recovery_lineage["recovery_reason"] in {"EXACT_BASIC_LABEL_COMPATIBILITY_AND_STOP_GATE_FIX",
+                "DISPATCH_METADATA_JSON_ROUND_TRIP_CODE_HANDOFF"},
                 "RECOVERY_REASON_INVALID")
         value["schema_version"] = "RATE_PROVIDER_EPS_COVERAGE_PLAN_V2"
         value["recovery_lineage"] = recovery_lineage
@@ -89,7 +91,7 @@ def initialize(root, plan):
     root = Path(root).resolve()
     validate_plan(plan)
     if root.exists():
-        require(_json((root / "plan.json").read_bytes()) == plan, "DIFFERENT_COVERAGE_PLAN_FORBIDDEN")
+        require(read_metadata((root / "plan.json").read_bytes()) == plan, "DIFFERENT_COVERAGE_PLAN_FORBIDDEN")
     else:
         root.mkdir(parents=True, exist_ok=False)
         save(root / "plan.json", plan)
@@ -118,7 +120,7 @@ def result_entry(plan, symbol, rows=(), issues=(), *, status=None, reason=None, 
 
 def append_event(root, entry):
     root = Path(root)
-    require(entry["plan_id"] == _json((root / "plan.json").read_bytes())["plan_id"], "LEDGER_PLAN_MISMATCH")
+    require(entry["plan_id"] == read_metadata((root / "plan.json").read_bytes())["plan_id"], "LEDGER_PLAN_MISMATCH")
     entry = {**entry, "event_sha256": sha256(_canonical(entry))}
     save(root / "events" / (entry["symbol"] + ".json"), entry)
     return entry
@@ -132,7 +134,7 @@ def read_events(root, plan):
             "provider_type", "provider_origin_name", "normalized_provider_label", "label_mapping_rule", "label_mapping_version",
             "same_public_version_status", "historical_pit_status", "q4_raw_or_derived_classification")
     for path in sorted((Path(root) / "events").glob("*.json")):
-        entry = _json(path.read_bytes())
+        entry = read_metadata(path.read_bytes())
         require(entry.get("event_sha256") == sha256(_canonical({k: v for k, v in entry.items() if k != "event_sha256"})), "LEDGER_TAMPERED")
         symbol = entry["symbol"]
         require(entry["plan_id"] == plan["plan_id"] and markets.get(symbol) == entry["market"] and path.stem == symbol and symbol not in events, "LEDGER_PLAN_OR_MARKET_MISMATCH")
@@ -141,7 +143,7 @@ def read_events(root, plan):
             lineage = plan.get("recovery_lineage", {})
             original_path = recovery["original_event_reference"]
             original_body = Path(original_path).read_bytes()
-            original = _json(original_body)
+            original = read_metadata(original_body)
             require(original_path in entry["input_integrity"] and
                     sha256(original_body) == recovery["original_event_file_sha256"] and
                     original["event_sha256"] == recovery["original_event_sha256"] and
@@ -158,7 +160,7 @@ def read_events(root, plan):
             require(len(body) == expected["bytes"] and sha256(body) == expected["sha256"], "LEDGER_SOURCE_TAMPERED")
         replay = {}
         for reference in entry["receipt_references"]:
-            receipt = _json(Path(reference).read_bytes())
+            receipt = read_metadata(Path(reference).read_bytes())
             require(receipt.get("query", {}).get("data_id") == symbol, "LEDGER_RECEIPT_SYMBOL_MISMATCH")
             if receipt.get("http_status") == 200 and receipt.get("raw_capture_status") == "COMPLETE" and entry["status"] != "ACCESS_FAILED":
                 try:
@@ -217,7 +219,7 @@ def reuse_original(root, plan, directory):
 
 def evaluate_receipt(plan, symbol, reference):
     reference = Path(reference).resolve()
-    receipt = _json(reference.read_bytes())
+    receipt = read_metadata(reference.read_bytes())
     require(receipt.get("query") == {**QUERY, "data_id": symbol}, "COVERAGE_REQUEST_MISMATCH")
     inventory = {str(reference): {"bytes": reference.stat().st_size, "sha256": sha256(reference.read_bytes())}}
     service_status, access_requirement = None, False
@@ -263,7 +265,7 @@ def scan(root, plan, capture, *, token=None, max_requests=280, max_seconds=3600,
     require(0 <= max_requests <= 1978 and 0 < max_seconds <= 3600 and interval_seconds >= 13, "UNSAFE_SCAN_BUDGET")
     gate_path = Path(root) / "stop-gate.json"
     if gate_path.exists():
-        gate = _json(gate_path.read_bytes())
+        gate = read_metadata(gate_path.read_bytes())
         require(gate["plan_id"] == plan["plan_id"] and gate["sha256"] ==
                 sha256(_canonical({k: v for k, v in gate.items() if k != "sha256"})), "STOP_GATE_TAMPERED")
         return {"reason": "PERSISTED_STOP_GATE", "persisted_reason": gate["stop"]["reason"], "new_requests": 0}
@@ -273,16 +275,7 @@ def scan(root, plan, capture, *, token=None, max_requests=280, max_seconds=3600,
             return persist_stop(root, plan, {"reason": "PERSISTED_SHARED_HOST_STOP", "symbol": event["symbol"], "new_requests": 0})
         if event["status"] == "VALIDATION_FAILED":
             return persist_stop(root, plan, {"reason": "PERSISTED_VALIDATION_FAILED", "symbol": event["symbol"], "new_requests": 0})
-    for path in (Path(root) / "intents").glob("*.json"):
-        intent = _json(path.read_bytes())
-        require(intent["plan_id"] == plan["plan_id"] and path.stem == intent["symbol"] and
-                intent["symbol"] in validate_plan(plan), "REQUEST_INTENT_PLAN_MISMATCH")
-        if "dispatch_evidence" in intent:
-            evidence = intent["dispatch_evidence"]
-            require(intent["dispatch_evidence_sha256"] == sha256(_canonical(evidence)) and
-                    evidence["request_identity"] == {"plan_id": plan["plan_id"], "symbol": intent["symbol"],
-                        "request_id": "coverage-" + intent["symbol"], "query": {**QUERY, "data_id": intent["symbol"]}},
-                    "DISPATCH_EVIDENCE_TAMPERED")
+    for intent in validate_dispatches(root, plan):
         if intent["symbol"] not in events and not (Path(root) / "receipts" / ("coverage-" + intent["symbol"] + ".json")).exists():
             return persist_stop(root, plan, {"reason": "REQUEST_OUTCOME_UNKNOWN_NO_AUTOMATIC_RETRY", "symbol": intent["symbol"], "new_requests": 0})
     started, requests = clock(), 0
@@ -295,7 +288,7 @@ def scan(root, plan, capture, *, token=None, max_requests=280, max_seconds=3600,
         intent = Path(root) / "intents" / (symbol + ".json")
         reference = Path(root) / "receipts" / ("coverage-" + symbol + ".json")
         if intent.exists():
-            saved_intent = _json(intent.read_bytes())
+            saved_intent = read_intent(intent, plan)
             require(saved_intent["plan_id"] == plan["plan_id"] and saved_intent["symbol"] == symbol, "REQUEST_INTENT_PLAN_MISMATCH")
             if not reference.exists():
                 return persist_stop(root, plan, {"reason": "REQUEST_OUTCOME_UNKNOWN_NO_AUTOMATIC_RETRY", "symbol": symbol, "new_requests": requests})

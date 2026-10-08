@@ -15,7 +15,7 @@ from src.provider_eps_candidate import build_candidate
 from src.provider_eps_coverage import (initialize, load_universe, make_plan, now, read_events,
     reuse_original, revenue_inventory, save, scan, summary, persist_stop, stop_exit_code)
 from src.provider_eps_dispatch import exclusive_scan
-from src.provider_eps_candidate import _json
+from src.provider_eps_metadata import read_metadata as _json
 from src.provider_eps_recovery import verify_archive, recovery_lineage
 from verify_provider_eps_candidate import binding
 
@@ -51,10 +51,14 @@ def main():
         stored = _json((root / "plan.json").read_bytes())
         lineage = stored.get("recovery_lineage")
         if lineage:
-            manifest_path = Path(lineage["archive_manifest_reference"])
-            require(sha256(manifest_path.read_bytes()) == lineage["archive_manifest_sha256"], "ARCHIVE_MANIFEST_TAMPERED")
-            manifest, _ = verify_archive(manifest_path)
-            require(recovery_lineage(manifest_path, manifest, args.expected_head) == lineage, "RECOVERY_EXECUTION_IDENTITY_CHANGED")
+            if lineage["recovery_reason"] == "DISPATCH_METADATA_JSON_ROUND_TRIP_CODE_HANDOFF":
+                from src.provider_eps_handoff import verify_handoff
+                verify_handoff(root, stored, args.expected_head)
+            else:
+                manifest_path = Path(lineage["archive_manifest_reference"])
+                require(sha256(manifest_path.read_bytes()) == lineage["archive_manifest_sha256"], "ARCHIVE_MANIFEST_TAMPERED")
+                manifest, _ = verify_archive(manifest_path)
+                require(recovery_lineage(manifest_path, manifest, args.expected_head) == lineage, "RECOVERY_EXECUTION_IDENTITY_CHANGED")
     plan = make_plan(universe, {"base_sha": args.expected_base, "head_sha": args.expected_head},
                      {"path": str(transport_path), "sha256": args.transport_sha256}, recovery_lineage=lineage)
     require(not root.is_relative_to(ROOT) and not root.is_relative_to(Path(args.reuse_input).resolve()), "OUTPUT_MUST_BE_EXTERNAL")
