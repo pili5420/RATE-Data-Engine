@@ -52,6 +52,10 @@ jobs:
         env:
           EXPECTED_BASE: ${{ github.event.pull_request.base.sha }}
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          # Use the full runner path, not Windows' inherited 8.3 TEMP alias.
+          TMPDIR: ${{ runner.temp }}
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
         run: >-
           python -B scripts/verify_provider_eps_coverage.py
           --expected-base "$EXPECTED_BASE" --expected-head "$EXPECTED_HEAD"
