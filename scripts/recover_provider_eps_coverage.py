@@ -10,6 +10,7 @@ sys.path.insert(0, str(ROOT))
 from src.eps_duration_facts.model import require
 from src.eps_duration_facts.raw import sha256
 from src.provider_eps_candidate import _json, _quarter
+from src.provider_eps_metadata import read_metadata
 from src.provider_eps_coverage import now, read_events, save, summary
 from src.provider_eps_recovery import replay_archive, verify_archive
 from verify_provider_eps_candidate import binding
@@ -48,7 +49,7 @@ def main():
             continue
         event = events[symbol]
         reference = event["receipt_references"][0]
-        receipt = _json(Path(reference).read_bytes())
+        receipt = read_metadata(Path(reference).read_bytes())
         body = _json((Path(reference).parent.parent / receipt["raw_path"]).read_bytes())
         bank_replays.append({"symbol": symbol, "old_status": event["recovery"]["old_status"], "new_status": event["status"],
             "receipt_reference": reference, "raw_sha256": receipt["response_body_sha256"], "raw_bytes": receipt["bytes"],
@@ -58,7 +59,7 @@ def main():
                 "provider_origin_name": r["origin_name"], "json_locator": f"$.data[{i}]"}
                 for i, r in enumerate(body["data"]) if _quarter(r["date"]) in {"2026Q1", "2026Q2"}]})
     save(report / "four-bank-same-bytes-replay.json", {"companies": bank_replays, "type_alias_added": False})
-    old_execution = _json(Path(manifest["execution_reference"]).read_bytes())
+    old_execution = read_metadata(Path(manifest["execution_reference"]).read_bytes())
     command = old_execution["command_without_credentials"].copy()
     command[command.index("--output-dir") + 1] = str(root)
     command[command.index("--expected-head") + 1] = args.expected_head
@@ -71,7 +72,7 @@ def main():
         "remaining_companies": result["counts"]["unattempted_companies"]})
     revenue_path = Path(manifest["execution_reference"]).parent / "revenue-availability.json"
     require(str(revenue_path) in manifest["files"], "REVENUE_REPORT_NOT_ARCHIVED")
-    save(report / "revenue-availability.json", _json(revenue_path.read_bytes()))
+    save(report / "revenue-availability.json", read_metadata(revenue_path.read_bytes()))
     markets = {}
     for market in ("TWSE", "TPEX"):
         companies = [c for c in result["companies"] if c["market"] == market]

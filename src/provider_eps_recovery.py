@@ -3,7 +3,8 @@ from pathlib import Path
 
 from .eps_duration_facts.model import require
 from .eps_duration_facts.raw import sha256
-from .provider_eps_candidate import _canonical, _json, read_provider_response
+from .provider_eps_candidate import _canonical, read_provider_response
+from .provider_eps_metadata import read_metadata as _json
 from .provider_eps_coverage import append_event, evaluate_receipt, initialize, make_plan, now, result_entry, validate_plan
 
 
