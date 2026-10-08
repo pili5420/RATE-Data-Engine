@@ -1,0 +1,40 @@
+{
+  "scope": "PROVIDER_FUNDAMENTAL_SHADOW_ONLY",
+  "version": "1.0.0",
+  "score_field": "provider_fundamental_shadow_score_v1",
+  "effective_at": "2026-10-08T15:52:49.844159+00:00",
+  "feature_contract": "RATE_PROVIDER_FINANCIAL_FEATURES_V1",
+  "eps_window": ["2024Q3", "2024Q4", "2025Q1", "2025Q2", "2025Q3", "2025Q4", "2026Q1", "2026Q2"],
+  "revenue_window": ["2026-07", "2026-08", "2026-09"],
+  "components": [
+    {"feature": "official_revenue_yoy_mean_3m", "weight": 0.50},
+    {"feature": "finmind_eps_delta4q_unadjusted", "weight": 0.30},
+    {"feature": "finmind_eps_sum_latest4q_unadjusted", "weight": 0.20}
+  ],
+  "eligibility": "ALL_FOUR_FEATURES_COMPUTABLE_SOURCE_REPLAY_AND_TIME_VALIDATED",
+  "minimum_after_filter": 20,
+  "percentile": {
+    "path": "src/feature_math.py",
+    "function": "pctl",
+    "sha256": "346dd60b6eb965df032ef89b3a6cb41853200315488e6b146fc239a8b672f9dc",
+    "source_byte_representation": "GIT_BLOB_LF_CRLF_CHECKOUT_NORMALIZED_TO_LF_ONLY",
+    "conversion": "PYTHON_FLOAT_FINITE_ONLY",
+    "ties": "AVERAGE_1_BASED_ORDINAL",
+    "formula": "round(100*(average_rank-1)/(n-1),2)",
+    "rounding": "PYTHON_ROUND_BINARY_FLOAT_2_DECIMALS"
+  },
+  "contribution_order": "REVENUE_THEN_EPS_DELTA_THEN_LATEST4",
+  "score_rounding": "NO_ADDITIONAL_ROUNDING_PYTHON_FLOAT_WEIGHTED_SUM",
+  "rank": "COMPETITION_1_PLUS_COUNT_STRICTLY_GREATER_EXACT_FLOAT_SCORE",
+  "display_order": "SCORE_DESCENDING_SYMBOL_ASCENDING_NO_SYMBOL_SCORE_ADJUSTMENT",
+  "sensitivity": "B_MINUS_A_FOR_EPS_C_MINUS_A_FOR_REVENUE_NO_MIXED_SCORE",
+  "share_basis_alignment": "NOT_ADJUSTED",
+  "not_official_ttm": true,
+  "historical_cutoff": "2026-10-05",
+  "historical_pit_status": "UNPROVEN",
+  "shadow_calculation_allowed": true,
+  "decision_eligible": false,
+  "production_eligible": false,
+  "original_eight_quarter_coverage_credit": 0,
+  "provider_reply_required": false
+}
