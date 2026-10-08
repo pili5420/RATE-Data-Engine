@@ -18,6 +18,9 @@ SYMBOLS = ("2330", "6488", "1340")
 WINDOW = ("2024Q3", "2024Q4", "2025Q1", "2025Q2", "2025Q3", "2025Q4", "2026Q1", "2026Q2")
 DESCENDING = tuple(reversed(WINDOW))
 BASIC_LABEL = "\u57fa\u672c\u6bcf\u80a1\u76c8\u9918"
+LABEL_MAPPING_VERSION = "FINMIND_BASIC_EPS_EXACT_LABELS_V1"
+BASIC_LABEL_RULES = {BASIC_LABEL: "EXACT_BASIC_NAME",
+                     BASIC_LABEL + "\uff08\u5143\uff09": "EXACT_BASIC_NAME_TWD_UNIT"}
 POLICY = {"source": "FinMind", "dataset": "TaiwanStockFinancialStatements",
           "metric_basis": "PROVIDER_DEFINED_QUARTERLY_BASIC_EPS",
           "source_acceptance": "ACCEPTED_AS_PROVIDER_DATA", "provider_reply_required": False}
@@ -89,6 +92,14 @@ def _canonical(value):
     return json.dumps(value, sort_keys=True, ensure_ascii=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
 
 
+def map_basic_eps_label(provider_type, origin_name):
+    require(provider_type == "EPS", "PROVIDER_EPS_TYPE_MISMATCH")
+    require(isinstance(origin_name, str) and origin_name in BASIC_LABEL_RULES,
+            "PROVIDER_BASIC_LABEL_MISMATCH")
+    return {"normalized_provider_label": BASIC_LABEL, "label_mapping_rule": BASIC_LABEL_RULES[origin_name],
+            "label_mapping_version": LABEL_MAPPING_VERSION}
+
+
 def _reference(value, directory):
     require(isinstance(value, str) and value, "SOURCE_REFERENCE_REQUIRED")
     path = Path(value)
@@ -104,18 +115,19 @@ def _read(path, inventory):
     return body
 
 
-def _receipt(path, directory, inventory):
+def _receipt(path, directory, inventory, *, symbols=SYMBOLS, window=WINDOW, issues=None):
     receipt_bytes = _read(path, inventory)
     receipt = _json(receipt_bytes)
     require(isinstance(receipt, dict), "INVALID_RECEIPT")
     query = receipt.get("query")
     require(isinstance(query, dict) and set(query) == {"dataset", "data_id", "start_date", "end_date"}, "REQUEST_PARAMETERS_INVALID")
-    require(query["dataset"] == POLICY["dataset"] and query["data_id"] in SYMBOLS, "REQUEST_BINDING_INVALID")
+    require(query["dataset"] == POLICY["dataset"] and query["data_id"] in symbols, "REQUEST_BINDING_INVALID")
     _quarter(query["start_date"])
     _quarter(query["end_date"])
     require(query["start_date"] <= query["end_date"], "REQUEST_WINDOW_INVALID")
     require(receipt.get("requested_url") == API, "WRONG_ENDPOINT")
-    require(receipt.get("status") == "SAMPLE_BODY_ACQUIRED" and receipt.get("raw_capture_status") == "COMPLETE", "RECEIPT_NOT_COMPLETE")
+    accepted = {"SAMPLE_BODY_ACQUIRED"} if issues is None else {"SAMPLE_BODY_ACQUIRED", "VALIDATION_BLOCKED"}
+    require(receipt.get("status") in accepted and receipt.get("raw_capture_status") == "COMPLETE", "RECEIPT_NOT_COMPLETE")
     require(receipt.get("content_encoding") in (None, "", "identity"), "UNEXPECTED_CONTENT_ENCODING")
     target = API + "?" + urlencode({key: query[key] for key in ("dataset", "data_id", "start_date", "end_date")})
     raw_path = _reference(receipt.get("raw_path"), path.parent.parent)
@@ -131,23 +143,79 @@ def _receipt(path, directory, inventory):
     require(_time(receipt.get("started_at")) <= observed <= _time(receipt.get("finished_at")), "RECEIPT_TIME_ORDER_INVALID")
     payload = _json(body)
     require(isinstance(payload, dict) and payload.get("status") == 200 and isinstance(payload.get("data"), list), "FINMIND_SCHEMA_INVALID")
-    selected = {}
-    keys = {}
-    for index, row in enumerate(payload["data"]):
+    selected = extract_provider_eps(payload["data"], query, window=window, issues=issues)
+    return receipt, raw_path, selected, receipt_bytes
+
+
+def extract_provider_eps(rows, query, *, window=WINDOW, issues=None):
+    """One parser: strict candidate mode or isolated coverage-position failures."""
+    selected, keys = {}, {}
+    for index, row in enumerate(rows):
         require(isinstance(row, dict) and {"stock_id", "date", "type", "origin_name", "value"} <= row.keys(), "FINMIND_ROW_SCHEMA_INVALID")
         require(row["stock_id"] == query["data_id"], "RAW_SYMBOL_MISMATCH")
         period = _quarter(row["date"])
-        require(query["start_date"] <= row["date"] <= query["end_date"], "RAW_REQUEST_WINDOW_MISMATCH")
-        if row["type"] != "EPS" or period not in WINDOW:
+        in_request = query["start_date"] <= row["date"] <= query["end_date"]
+        if not in_request and issues is not None:
+            issues.append({"reason": "EXTRA_PROVIDER_PERIOD", "analysis_quarter": period,
+                           "json_locator": f"$.data[{index}]", "target_position": False})
             continue
-        require(row["origin_name"] == BASIC_LABEL, "PROVIDER_BASIC_LABEL_MISMATCH")
-        value = _decimal(row["value"])
+        require(in_request, "RAW_REQUEST_WINDOW_MISMATCH")
+        if row["type"] != "EPS" or period not in window:
+            continue
+        try:
+            map_basic_eps_label(row["type"], row["origin_name"])
+            value = _decimal(row["value"])
+        except Rejected as exc:
+            if issues is None:
+                raise
+            value = None
+            issues.append({"reason": str(exc), "analysis_quarter": period,
+                           "json_locator": f"$.data[{index}]", "target_position": True})
         key = (row["stock_id"], period)
         if key in keys:
-            raise Rejected("RAW_CONFLICTING_VALUE" if keys[key] != value else "RAW_DUPLICATE_KEY")
-        keys[key] = value
-        selected[index] = row
-    return receipt, raw_path, selected, receipt_bytes
+            prior = keys[key]
+            reason = "RAW_CONFLICTING_VALUE" if prior["value"] != value else "RAW_DUPLICATE_KEY"
+            if issues is None:
+                raise Rejected(reason)
+            selected.pop(prior["index"], None)
+            issues.append({"reason": reason, "analysis_quarter": period, "target_position": True,
+                           "locators": [f"$.data[{prior['index']}]", f"$.data[{index}]"],
+                           "values": [str(prior["row"]["value"]), str(row["value"])]})
+        else:
+            keys[key] = {"value": value, "index": index, "row": row}
+            if value is not None:
+                selected[index] = row
+    return selected
+
+
+def candidate_record(raw, index, receipt, receipt_path, raw_path, receipt_bytes, **extra):
+    period = _quarter(raw["date"])
+    return {"symbol": raw["stock_id"], "provider_date": raw["date"], "analysis_quarter": period,
+        "provider_value": str(raw["value"]), "provider_type": raw["type"], "provider_origin_name": raw["origin_name"],
+        **map_basic_eps_label(raw["type"], raw["origin_name"]),
+        "provider_basis_label": "BASIC", "raw_row_index_zero_based": index, "json_locator": f"$.data[{index}]",
+        "receipt_reference": str(receipt_path), "receipt_sha256": sha256(receipt_bytes),
+        "raw_reference": str(raw_path), "raw_sha256": receipt["response_body_sha256"], "raw_bytes": receipt["bytes"],
+        "acquired_observed_at": receipt["received_at"], "verified_observed_at": datetime.now(timezone.utc).isoformat(),
+        "filing_id": None, "revision_id": None, "public_time": None,
+        "same_public_version_status": "UNPROVEN", "historical_pit_status": "UNPROVEN",
+        "q4_raw_or_derived_classification": "UNPROVEN" if period.endswith("Q4") else "NOT_Q4_DATE",
+        **POLICY, "production_eligible": False, "original_eight_quarter_coverage_credit": 0,
+        "historical_cutoff": "2026-10-05", **extra}
+
+
+def read_provider_response(path, *, symbols=SYMBOLS, window=WINDOW):
+    """Offline partial coverage replay, using the same receipt and row validator."""
+    path = Path(path).resolve()
+    inventory, issues = {}, []
+    receipt, raw_path, selected, receipt_bytes = _receipt(path, path.parent.parent, inventory,
+        symbols=symbols, window=window, issues=issues)
+    rows = [candidate_record(raw, index, receipt, path, raw_path, receipt_bytes) for index, raw in selected.items()]
+    rows.sort(key=lambda r: window.index(r["analysis_quarter"]), reverse=True)
+    for filename, expected in inventory.items():
+        body = Path(filename).read_bytes()
+        require(len(body) == expected["bytes"] and sha256(body) == expected["sha256"], "INPUT_CHANGED_DURING_VERIFICATION")
+    return {"rows": rows, "issues": issues, "input_integrity": inventory, "receipt": receipt}
 
 
 def _identity(companies):
@@ -205,7 +273,10 @@ def build_candidate(directory, code_binding):
         for period in DESCENDING:
             row = by_key[(symbol, period)]
             _policy(row)
-            require(row.get("provider_type") == "EPS" and row.get("provider_origin_name") == BASIC_LABEL, "PROVIDER_ROW_LABEL_MISMATCH")
+            try:
+                map_basic_eps_label(row.get("provider_type"), row.get("provider_origin_name"))
+            except Rejected as exc:
+                raise Rejected("PROVIDER_ROW_LABEL_MISMATCH") from exc
             require(row.get("provider_basis_label") == "BASIC", "PROVIDER_BASIS_MISMATCH")
             for field in ("filing_id", "revision_id", "public_time"):
                 require(field in row and row[field] is None, "UNSUPPORTED_VERSION_CLAIM:" + field)
@@ -219,6 +290,7 @@ def build_candidate(directory, code_binding):
             require(type(index) is int and index in raw_rows, "RAW_ROW_LOCATOR_INVALID")
             require(row.get("json_locator") == f"$.data[{index}]", "JSON_LOCATOR_MISMATCH")
             raw = raw_rows[index]
+            require(raw["origin_name"] == row["provider_origin_name"], "RAW_LABEL_BINDING_MISMATCH")
             require(raw["stock_id"] == symbol and raw["date"] == row["provider_date"], "RAW_ROW_IDENTITY_MISMATCH")
             require(_reference(row.get("raw_path"), directory) == raw_path, "RAW_REFERENCE_MISMATCH")
             require(row.get("response_sha256") == receipt["response_body_sha256"], "RAW_HASH_BINDING_MISMATCH")
@@ -228,21 +300,9 @@ def build_candidate(directory, code_binding):
             require(row.get("observed_at") == receipt["received_at"], "OBSERVATION_TIME_BINDING_MISMATCH")
             observed_times.append(_time(receipt["received_at"]))
             referenced.add((receipt_path, index))
-            verified_rows.append({"symbol": symbol, "provider_date": raw["date"], "analysis_quarter": period,
-                "provider_value": row["provider_value"], "provider_type": "EPS", "provider_origin_name": BASIC_LABEL,
-                "provider_basis_label": "BASIC", "raw_row_index_zero_based": index, "json_locator": f"$.data[{index}]",
-                "receipt_reference": str(receipt_path), "receipt_sha256": sha256(receipt_bytes),
-                "raw_reference": str(raw_path), "raw_sha256": receipt["response_body_sha256"],
-                "raw_bytes": receipt["bytes"],
-                "acquired_observed_at": receipt["received_at"], "acquisition_executed_at": row.get("acquisition_executed_at"),
-                "verified_observed_at": datetime.now(timezone.utc).isoformat(),
-                "filing_id": None, "revision_id": None, "public_time": None,
-                "same_public_version_status": "UNPROVEN", "historical_pit_status": "UNPROVEN",
-                "q4_raw_or_derived_classification": row.get("q4_raw_or_derived_classification"),
-                "material_origin": row.get("material_origin"),
-                "official_numeric_corroboration": row.get("official_numeric_corroboration"),
-                **POLICY, "production_eligible": False, "original_eight_quarter_coverage_credit": 0,
-                "historical_cutoff": "2026-10-05"})
+            verified_rows.append(candidate_record(raw, index, receipt, receipt_path, raw_path, receipt_bytes,
+                acquisition_executed_at=row.get("acquisition_executed_at"), material_origin=row.get("material_origin"),
+                official_numeric_corroboration=row.get("official_numeric_corroboration")))
         companies.append({"symbol": symbol, "quarter_order": "LATEST_TO_OLDEST", "quarters": verified_rows})
     require(referenced == {(path, i) for path, (_, _, raw_rows, _) in cache.items() for i in raw_rows}, "UNREFERENCED_TARGET_RAW_EPS")
     complete_at = max(observed_times)
@@ -283,6 +343,8 @@ def consume_candidate(package):
         rows = company.get("quarters")
         require(isinstance(rows, list) and [r.get("analysis_quarter") for r in rows] == list(DESCENDING), "CANDIDATE_QUARTER_ORDER_INVALID")
         for row in rows:
+            mapping = map_basic_eps_label(row.get("provider_type"), row.get("provider_origin_name"))
+            require(all(row.get(k) == v for k, v in mapping.items()), "LABEL_MAPPING_BINDING_MISMATCH")
             require(not {"quarterly_eps", "single_quarter_eps"}.intersection(row), "FORMAL_EPS_ALIAS_FORBIDDEN")
             require(row["symbol"] == company["symbol"] and _quarter(row["provider_date"]) == row["analysis_quarter"], "CANDIDATE_ROW_IDENTITY_INVALID")
             _decimal(row["provider_value"])

@@ -20,6 +20,15 @@ ADDITIONS = {
     "docs/RATE_PROVIDER_EPS_CANDIDATE.md",
     ".github/workflows/rate_provider_eps_candidate_ci.yml",
 }
+COVERAGE_CHANGES = {
+    "src/provider_eps_candidate.py": "M", "scripts/verify_provider_eps_candidate.py": "M",
+    "src/provider_eps_coverage.py": "A", "scripts/scan_provider_eps_coverage.py": "A",
+    "scripts/verify_provider_eps_coverage.py": "A", "tests/test_provider_eps_coverage.py": "A",
+    "docs/RATE_PROVIDER_EPS_COVERAGE.md": "A", ".github/workflows/rate_provider_eps_coverage_ci.yml": "A",
+}
+RECOVERY_CHANGES = {**COVERAGE_CHANGES, "src/provider_eps_dispatch.py": "A",
+    "src/provider_eps_recovery.py": "A", "scripts/recover_provider_eps_coverage.py": "A",
+    "tests/test_provider_eps_recovery.py": "A"}
 
 
 def git(*args):
@@ -32,12 +41,17 @@ def binding(base, head):
     require(subprocess.run(["git", "merge-base", "--is-ancestor", base, head], cwd=ROOT).returncode == 0, "BASE_NOT_ANCESTOR")
     require(not git("status", "--porcelain", "--untracked-files=all"), "WORKTREE_NOT_CLEAN")
     changes = git("diff", "--name-status", "--no-renames", base, head).decode().splitlines()
+    has_candidate = subprocess.run(["git", "cat-file", "-e", base + ":src/provider_eps_candidate.py"],
+                                  cwd=ROOT, capture_output=True).returncode == 0
+    has_recovery = subprocess.run(["git", "cat-file", "-e", head + ":src/provider_eps_recovery.py"],
+                                 cwd=ROOT, capture_output=True).returncode == 0
+    allowed = (RECOVERY_CHANGES if has_recovery else COVERAGE_CHANGES) if has_candidate else {name: "A" for name in ADDITIONS}
     changed = []
     for line in changes:
         status, name = line.split("\t")
-        require(status == "A" and name in ADDITIONS, "EXISTING_OR_UNAUTHORIZED_FILE_CHANGED:" + name)
+        require(allowed.get(name) == status, "EXISTING_OR_UNAUTHORIZED_FILE_CHANGED:" + name)
         changed.append(name)
-    require(set(changed) == ADDITIONS, "CANDIDATE_ADDITIONS_INCOMPLETE")
+    require(set(changed) == set(allowed), "CANDIDATE_ADDITIONS_INCOMPLETE")
     base_tree = git("ls-tree", "-r", "-z", base).split(b"\0")
     head_tree = dict(entry.split(b"\t", 1)[::-1] for entry in git("ls-tree", "-r", "-z", head).split(b"\0") if entry)
     protected = {}
@@ -46,14 +60,19 @@ def binding(base, head):
             continue
         mode_blob, name_bytes = entry.split(b"\t", 1)
         name = name_bytes.decode()
+        if allowed.get(name) == "M":
+            continue
         require(head_tree.get(name_bytes) == mode_blob, "BASE_FILE_BLOB_CHANGED:" + name)
         body = (ROOT / name).read_bytes()
-        if name.startswith(("src/", "scripts/")) and name.endswith(".py"):
-            require(b"provider_eps_candidate" not in body, "EXISTING_ENTRY_DEPENDS_ON_CANDIDATE:" + name)
+        if name.startswith(("src/", "scripts/")) and name.endswith(".py") and name not in ADDITIONS:
+            require(b"provider_eps_candidate" not in body and b"provider_eps_coverage" not in body,
+                    "EXISTING_ENTRY_DEPENDS_ON_CANDIDATE:" + name)
         protected[name] = {"git_tree_entry": mode_blob.decode(), "working_bytes": len(body), "working_sha256": sha256(body)}
     return {"base_sha": base, "head_sha": head, "changed_files": sorted(changed),
             "existing_tracked_file_count": len(protected), "existing_tracked_files": protected,
-            "existing_files_unchanged": True, "active_consumer_dependency_added": False}
+            "existing_files_unchanged": not any(status == "M" for status in allowed.values()),
+            "authorized_modified_files": sorted(name for name, status in allowed.items() if status == "M"),
+            "protected_existing_files_unchanged": True, "active_consumer_dependency_added": False}
 
 
 def write_json(path, value):
