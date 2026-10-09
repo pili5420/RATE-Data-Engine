@@ -20,7 +20,21 @@ def main() -> int:
     ap.add_argument('--actions-job-id', default=os.getenv('ACTIONS_JOB_ID') or os.getenv('GITHUB_JOB'))
     ap.add_argument('--event-name', default=os.getenv('GITHUB_EVENT_NAME'))
     ap.add_argument('--reset-state-root', action='store_true')
+    ap.add_argument('--public-official-partial', action='store_true')
     args = ap.parse_args()
+    if args.public_official_partial:
+        from src.public_official_partial_valid import run
+        try:
+            if args.reset_state_root:
+                raise RuntimeError('PUBLIC_STATE_RESET_FORBIDDEN')
+            result = run(source_bundle=args.source_bundle, previous_evidence=args.cer076_persisted_evidence,
+                         output_dir=args.output_dir, state_root=args.state_root, cadence='12:00')
+            print(json.dumps(result, sort_keys=True))
+            return 0
+        except Exception as exc:
+            atomic_write_json(Path(args.output_dir)/'RATE_PUBLIC_OFFICIAL_RUNTIME_RESULT.json',
+                              {'report_runtime_status':'FAIL_CLOSED', 'reason':str(exc)})
+            return 1
     out = Path(args.output_dir); out.mkdir(parents=True, exist_ok=True)
     write_fail_closed(out, run_head_sha=args.run_head_sha, actions_run_id=args.actions_run_id, actions_job_id=args.actions_job_id, event_name=args.event_name)
     try:

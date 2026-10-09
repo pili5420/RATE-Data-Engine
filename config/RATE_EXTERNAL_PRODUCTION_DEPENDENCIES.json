@@ -14,7 +14,10 @@
       "fallback_allowed": false,
       "soak_credit_allowed_while_blocked": false,
       "cer081_completion_allowed_while_blocked": false,
-      "production_acceptance_allowed_while_blocked": false
+      "production_acceptance_allowed_while_blocked": false,
+      "report_production_allowed_while_intraday_blocked": true,
+      "allowed_report_scope": "PUBLIC_OFFICIAL_EVIDENCE_PARTIAL_VALID_ONLY",
+      "report_runtime_contract": "RATE-0930-1200-PUBLIC-OFFICIAL-PARTIAL-VALID-V1"
     }
   ],
   "validation_status": "PASS"
