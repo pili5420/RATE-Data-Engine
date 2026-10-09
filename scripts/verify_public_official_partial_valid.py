@@ -56,7 +56,7 @@ def test_run(repo, output, modules):
 
 
 def extract(revision, directory):
-    body = subprocess.check_output(["git", "archive", "--format=zip", revision], cwd=ROOT)
+    body = subprocess.check_output(["git", "-c", "core.autocrlf=false", "archive", "--format=zip", revision], cwd=ROOT)
     with zipfile.ZipFile(io.BytesIO(body)) as archive:
         for item in archive.infolist():
             if not (directory / item.filename).resolve().is_relative_to(directory.resolve()):
