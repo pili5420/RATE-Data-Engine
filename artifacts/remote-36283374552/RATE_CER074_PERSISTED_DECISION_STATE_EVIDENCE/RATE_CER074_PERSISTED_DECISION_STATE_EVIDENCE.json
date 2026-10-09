@@ -1,0 +1,257 @@
+{
+  "actions_job_id": "108519396362",
+  "actions_run_id": "36283374552",
+  "artifact": "RATE_CER074_PERSISTED_DECISION_STATE_EVIDENCE",
+  "execution_scope": "PRODUCTION",
+  "fundamental_analytical_hash": "b42982f676d8e19fdbc0b6a6cb5716a2e1cc9af8904e0371b9fe1d63b3aee10c",
+  "historical_state_digest": "dddf63b85477aa7cd52ff284d3aba70cf449275406cb6e5e7091acc232d58e3a",
+  "main_head": "beae3ed542888cc647d64bbcecab7d907a7744aa",
+  "main_modified": false,
+  "new_production_decision_state_records": 1,
+  "persisted_decision_state_hash": "85638ea952a2e7345257491b80fe3d17bb9a3f59c9b36cd2844c89e5b44ca5f3",
+  "persisted_decision_state_id": "rate-state-85638ea952a2e7345257491b",
+  "persistence_result": {
+    "chain_count": 1,
+    "duplicate_record_count": 0,
+    "new_record_count": 1,
+    "state_entry": {
+      "current_state_id": "rate-state-85638ea952a2e7345257491b",
+      "decision_payload_hash": "85638ea952a2e7345257491b80fe3d17bb9a3f59c9b36cd2844c89e5b44ca5f3",
+      "decision_time": "07:30",
+      "execution_scope": "PRODUCTION",
+      "fundamental_analytical_hash": "b42982f676d8e19fdbc0b6a6cb5716a2e1cc9af8904e0371b9fe1d63b3aee10c",
+      "historical_state_digest": "dddf63b85477aa7cd52ff284d3aba70cf449275406cb6e5e7091acc232d58e3a",
+      "input_snapshot_hash": "94830351492c4a1b186112810932a92b99b66ff071a21ec52a020c692e79142d",
+      "input_snapshot_id": "rate-prod-snapshot-94830351492c4a1b18611281",
+      "previous_state_id": null,
+      "previous_state_resolution": "FIRST_PRODUCTION_BOOTSTRAP",
+      "prior_stage_package_digest": "706eb813da43b112bfd9459d459f1892591371700140e9626e411ad8ad0bceef",
+      "source_bundle_hash": "2404b7cb0c113f6b70e0f3c31bf3d2a1815c23077dfe148702dd5380fb4271c8",
+      "stage_state_schema_version": "RATE-PERSISTED-STAGE-V1",
+      "symbols": {
+        "2313": {
+          "M7_score": 47.96,
+          "MHE_score": 61.04,
+          "Rotation_class": "FLAT",
+          "Rotation_score": 51.7,
+          "stage_current": "BASE_BUILDING"
+        },
+        "2317": {
+          "M7_score": 62.23,
+          "MHE_score": 52.42,
+          "Rotation_class": "FLAT",
+          "Rotation_score": 53.08,
+          "stage_current": "HIGH_CONSOLIDATION"
+        },
+        "2330": {
+          "M7_score": 66.08,
+          "MHE_score": 63.27,
+          "Rotation_class": "WEAKENING",
+          "Rotation_score": 40.15,
+          "stage_current": "PRE_MARKUP"
+        },
+        "2337": {
+          "M7_score": 37.0,
+          "MHE_score": 25.17,
+          "Rotation_class": "STRENGTHENING",
+          "Rotation_score": 67.09,
+          "stage_current": "DEFENSIVE"
+        },
+        "2344": {
+          "M7_score": 50.8,
+          "MHE_score": 51.04,
+          "Rotation_class": "FLAT",
+          "Rotation_score": 45.5,
+          "stage_current": "HIGH_CONSOLIDATION"
+        },
+        "2345": {
+          "M7_score": 31.09,
+          "MHE_score": 16.03,
+          "Rotation_class": "WEAKENING",
+          "Rotation_score": 36.78,
+          "stage_current": "DEFENSIVE"
+        },
+        "2356": {
+          "M7_score": 40.21,
+          "MHE_score": 39.14,
+          "Rotation_class": "WEAKENING",
+          "Rotation_score": 33.41,
+          "stage_current": "CONSOLIDATION"
+        },
+        "2368": {
+          "M7_score": 42.53,
+          "MHE_score": 39.65,
+          "Rotation_class": "FLAT",
+          "Rotation_score": 57.57,
+          "stage_current": "CONSOLIDATION"
+        },
+        "2376": {
+          "M7_score": 69.31,
+          "MHE_score": 70.17,
+          "Rotation_class": "STRENGTHENING",
+          "Rotation_score": 76.98,
+          "stage_current": "PRE_MARKUP"
+        },
+        "2383": {
+          "M7_score": 34.79,
+          "MHE_score": 27.59,
+          "Rotation_class": "WEAKENING",
+          "Rotation_score": 38.57,
+          "stage_current": "DEFENSIVE"
+        },
+        "2408": {
+          "M7_score": 61.38,
+          "MHE_score": 73.28,
+          "Rotation_class": "FLAT",
+          "Rotation_score": 50.37,
+          "stage_current": "CONSOLIDATION"
+        },
+        "2449": {
+          "M7_score": 71.1,
+          "MHE_score": 63.1,
+          "Rotation_class": "FLAT",
+          "Rotation_score": 60.18,
+          "stage_current": "PRE_MARKUP"
+        },
+        "3014": {
+          "M7_score": 64.79,
+          "MHE_score": 46.04,
+          "Rotation_class": "FLAT",
+          "Rotation_score": 62.78,
+          "stage_current": "DEFENSIVE"
+        },
+        "3017": {
+          "M7_score": 70.39,
+          "MHE_score": 80.86,
+          "Rotation_class": "FLAT",
+          "Rotation_score": 52.38,
+          "stage_current": "PRE_MARKUP"
+        },
+        "3034": {
+          "M7_score": 78.96,
+          "MHE_score": 66.9,
+          "Rotation_class": "FLAT",
+          "Rotation_score": 56.71,
+          "stage_current": "MARKUP"
+        },
+        "3035": {
+          "M7_score": 68.57,
+          "MHE_score": 62.76,
+          "Rotation_class": "ACCELERATING",
+          "Rotation_score": 82.23,
+          "stage_current": "PRE_MARKUP"
+        },
+        "3036": {
+          "M7_score": 51.92,
+          "MHE_score": 50.0,
+          "Rotation_class": "ACCELERATING",
+          "Rotation_score": 80.84,
+          "stage_current": "DEFENSIVE"
+        },
+        "3037": {
+          "M7_score": 52.93,
+          "MHE_score": 44.65,
+          "Rotation_class": "WEAKENING",
+          "Rotation_score": 41.97,
+          "stage_current": "HIGH_ROTATION"
+        },
+        "3081": {
+          "M7_score": 45.74,
+          "MHE_score": 64.65,
+          "Rotation_class": "WARNING",
+          "Rotation_score": 25.74,
+          "stage_current": "CONSOLIDATION"
+        },
+        "3227": {
+          "M7_score": 17.81,
+          "MHE_score": 30.86,
+          "Rotation_class": "WARNING",
+          "Rotation_score": 28.45,
+          "stage_current": "DEFENSIVE"
+        },
+        "3231": {
+          "M7_score": 67.8,
+          "MHE_score": 71.9,
+          "Rotation_class": "FLAT",
+          "Rotation_score": 53.1,
+          "stage_current": "PRE_MARKUP"
+        },
+        "3413": {
+          "M7_score": 33.14,
+          "MHE_score": 42.76,
+          "Rotation_class": "FLAT",
+          "Rotation_score": 48.6,
+          "stage_current": "DEFENSIVE"
+        },
+        "3443": {
+          "M7_score": 73.22,
+          "MHE_score": 98.97,
+          "Rotation_class": "STRENGTHENING",
+          "Rotation_score": 71.96,
+          "stage_current": "PRE_MARKUP"
+        },
+        "3661": {
+          "M7_score": 28.35,
+          "MHE_score": 27.24,
+          "Rotation_class": "FLAT",
+          "Rotation_score": 47.32,
+          "stage_current": "DEFENSIVE"
+        },
+        "5388": {
+          "M7_score": 24.03,
+          "MHE_score": 38.1,
+          "Rotation_class": "FLAT",
+          "Rotation_score": 51.98,
+          "stage_current": "DEFENSIVE"
+        },
+        "6187": {
+          "M7_score": 41.48,
+          "MHE_score": 60.86,
+          "Rotation_class": "WARNING",
+          "Rotation_score": 24.06,
+          "stage_current": "HIGH_ROTATION"
+        },
+        "6274": {
+          "M7_score": 44.75,
+          "MHE_score": 33.96,
+          "Rotation_class": "FLAT",
+          "Rotation_score": 62.52,
+          "stage_current": "CONSOLIDATION"
+        },
+        "6442": {
+          "M7_score": 38.85,
+          "MHE_score": 29.48,
+          "Rotation_class": "WARNING",
+          "Rotation_score": 21.13,
+          "stage_current": "CONSOLIDATION"
+        },
+        "6510": {
+          "M7_score": 64.04,
+          "MHE_score": 67.42,
+          "Rotation_class": "WEAKENING",
+          "Rotation_score": 30.13,
+          "stage_current": "CONSOLIDATION"
+        },
+        "6669": {
+          "M7_score": 17.31,
+          "MHE_score": 0.69,
+          "Rotation_class": "WEAKENING",
+          "Rotation_score": 34.49,
+          "stage_current": "DEFENSIVE"
+        }
+      },
+      "trading_date": "2026-09-18"
+    },
+    "status": "PERSISTED"
+  },
+  "previous_staging_head": "3112ab78f4b47282b5706e8494edeffaecf8c7bf",
+  "prior_stage_package_digest": "706eb813da43b112bfd9459d459f1892591371700140e9626e411ad8ad0bceef",
+  "production_decision_state_persisted": "YES",
+  "rate_live_e2e_enabled": "YES_FOR_CER074_ACCEPTANCE_ONLY",
+  "recurring_production_scheduler_enabled": false,
+  "run_head_sha": "80b3a5b0c69b2b8dc0f890cd40dee99092a95abf",
+  "source_bundle_hash": "2404b7cb0c113f6b70e0f3c31bf3d2a1815c23077dfe148702dd5380fb4271c8",
+  "time_slot": "07:30",
+  "trading_date": "2026-09-18",
+  "validation_status": "PASS"
+}
