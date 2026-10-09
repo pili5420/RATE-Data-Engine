@@ -9,9 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-
 from src.eps_duration_facts.model import require
-from scripts.verify_eps_b1_noninterference import git, tracked_hashes, put
 
 ADDITIONS = {
     "docs/contracts/RATE_FINMIND_INTRADAY_QUALIFICATION_V1.json",
@@ -22,6 +20,16 @@ ADDITIONS = {
     "tests/test_finmind_intraday_qualification.py",
     ".github/workflows/rate_finmind_intraday_qualification.yml",
 }
+
+def git(*args):
+    return subprocess.check_output(["git", *args], cwd=ROOT)
+
+def tracked_hashes(paths):
+    return {path: git("rev-parse", "HEAD:" + path).decode().strip() for path in paths}
+
+def put(root, name, value):
+    path = Path(root) / name
+    path.write_text(json.dumps(value, sort_keys=True, indent=2) + "\n", encoding="utf-8")
 
 def run_module(module):
     proc = subprocess.run([sys.executable, "-B", "-m", "unittest", module, "-v"], cwd=ROOT,
