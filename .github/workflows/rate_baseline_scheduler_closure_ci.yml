@@ -1,0 +1,29 @@
+name: RATE Baseline Scheduler Closure (Synthetic Only)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/cer081_unattended_soak.py
+      - tests/test_cer081_unattended_soak.py
+      - tests/test_cer081_scheduler_lock_validation.py
+      - .github/workflows/rate_baseline_scheduler_closure_ci.yml
+permissions:
+  contents: read
+jobs:
+  scheduler-regression:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install lxml==6.1.1 tzdata==2025.2
+      - name: Six unchanged CER081 regressions plus eight negative coverage tests
+        run: python -B -m unittest tests.test_cer081_unattended_soak tests.test_cer081_scheduler_lock_validation -v

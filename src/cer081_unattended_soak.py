@@ -68,12 +68,28 @@ def source_failure_gates() -> dict:
     return {"source_failure_gates": {name: {"validation": "FAIL", "publish": "BLOCKED", "previous_production_state_preserved": "PASS", "failure_artifact_preserved": "PASS", "silent_fallback": "NO"} for name in failures}, "failure_gate_result": "PASS"}
 
 
+def _shared_writer_concurrency(text: str) -> bool:
+    # Recognize the bounded top-level scheduler block, not a match in a job/comment.
+    blocks = []
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        if line == "concurrency:":
+            block = []
+            for child in lines[index + 1:]:
+                if child.strip() and not child[0].isspace():
+                    break
+                if child.strip() and not child.lstrip().startswith("#"):
+                    block.append(child.strip())
+            blocks.append(block)
+    return blocks == [["group: rate-production-0730-0930-1200-1930-${{ github.ref }}", "cancel-in-progress: false"]]
+
+
 def scheduler_definition_evidence() -> dict:
     definitions = {}
     for cadence, path in SCHEDULER_WORKFLOWS.items():
         text = Path(path).read_text(encoding="utf-8")
         expected = SCHEDULER_CRONS[cadence]
-        definitions[cadence] = {"workflow_path": path, "expected_cron": expected, "scheduler_defined": "PASS" if "schedule:" in text and expected in text else "FAIL", "timezone": "Asia/Taipei", "production_safe_runtime": "PASS" if "PRODUCTION_SCHEDULER" in text and "YES_FOR_CER074_ACCEPTANCE_ONLY" not in text else "FAIL", "rate_source_url_configured_in_workflow": "PASS" if "RATE_SOURCE_URL" in text else "FAIL", "concurrency": "PASS" if f"rate-production-{cadence.replace(':','')}" in text else "FAIL", "manual_dispatch_not_soak_substitute": "PASS"}
+        definitions[cadence] = {"workflow_path": path, "expected_cron": expected, "scheduler_defined": "PASS" if "schedule:" in text and expected in text else "FAIL", "timezone": "Asia/Taipei", "production_safe_runtime": "PASS" if "PRODUCTION_SCHEDULER" in text and "YES_FOR_CER074_ACCEPTANCE_ONLY" not in text else "FAIL", "rate_source_url_configured_in_workflow": "PASS" if "RATE_SOURCE_URL" in text else "FAIL", "concurrency": "PASS" if _shared_writer_concurrency(text) else "FAIL", "manual_dispatch_not_soak_substitute": "PASS"}
     status = "PASS" if all(v["scheduler_defined"] == "PASS" and v["production_safe_runtime"] == "PASS" and v["concurrency"] == "PASS" and v["rate_source_url_configured_in_workflow"] == "PASS" for v in definitions.values()) else "FAIL"
     return {"scheduler_coverage": status, "definitions": definitions}
 
