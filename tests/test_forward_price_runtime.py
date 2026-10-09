@@ -444,5 +444,121 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(len(calls),1)
 
 
+class BenchmarkCompatibilityTests(unittest.TestCase):
+    """SYNTHETIC ONLY: exact benchmark aliases, not stock-price aliases."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix="SYNTHETIC-benchmark-schema-")
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.now = "2026-09-02T06:00:00+00:00"
+        clock = patch.object(d, "instant", return_value=self.now)
+        clock.start()
+        self.addCleanup(clock.stop)
+
+    def payload(self, aliases=None):
+        aliases = {"收市": "1,234.50"} if aliases is None else aliases
+        return {"synthetic_only": True, "tables": [{"fields": ["日期", *aliases],
+            "data": [["115/09/01", *aliases.values()]]}]}
+
+    def receipt(self, market="TPEX"):
+        target = next(t for t in r.targets("2026-09-01T00:00:00Z", "2026-09-02")
+            if t["market"] == market and t["domain"] == "benchmark")
+        return {**target, "http_status": 200, "observed_at": self.now, "synthetic_only": True}
+
+    def parse(self, payload, market="TPEX"):
+        return d.benchmark_rows(self.receipt(market), payload, "2026-09-02", self.now)
+
+    def test_tpex_exact_close_alias_reaches_existing_helper(self):
+        rows = self.parse(self.payload())
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["close"], 1234.5)
+        self.assertEqual(rows[0]["trade_date"], "2026-09-01")
+
+    def test_multiple_close_aliases_same_numeric_value_pass(self):
+        rows = self.parse(self.payload({"收市": "1,234.50", "ClosingIndex": 1234.5, "close": "1234.500"}))
+        self.assertEqual(rows[0]["close"], 1234.5)
+
+    def test_multiple_close_aliases_conflicting_values_rejected(self):
+        with self.assertRaisesRegex(Exception, "^DAILY_BENCHMARK_CLOSE_FIELD_CONFLICT$"):
+            self.parse(self.payload({"收市": "1234.50", "ClosingIndex": "1234.51"}))
+
+    def test_conflict_not_hidden_by_float_rounding(self):
+        with self.assertRaisesRegex(Exception, "^DAILY_BENCHMARK_CLOSE_FIELD_CONFLICT$"):
+            self.parse(self.payload({"收市": "1234.50000000000000001", "ClosingIndex": "1234.50000000000000002"}))
+
+    def test_empty_non_numeric_zero_negative_close_rejected_in_domain(self):
+        for value in (None, "", "--", "not-a-number", 0, -1, True, "NaN", "Infinity", "1e9999"):
+            with self.subTest(value=value), self.assertRaisesRegex(Exception, "^DAILY_BENCHMARK_CLOSE_INVALID$"):
+                self.parse(self.payload({"收市": value}))
+
+    def test_invalid_secondary_alias_not_ignored(self):
+        with self.assertRaisesRegex(Exception, "^DAILY_BENCHMARK_CLOSE_INVALID$"):
+            self.parse(self.payload({"收市": "1234.5", "ClosingIndex": None}))
+
+    def test_unknown_close_field_rejected(self):
+        with self.assertRaisesRegex(Exception, "^DAILY_BENCHMARK_CLOSE_FIELD_MISSING$"):
+            self.parse(self.payload({"未知欄位": "1234.5"}))
+
+    def test_similar_names_not_fuzzy_matched(self):
+        for name in ("收市價", "收市 ", "今日收市", "收", "市"):
+            with self.subTest(name=name), self.assertRaisesRegex(Exception, "^DAILY_BENCHMARK_CLOSE_FIELD_MISSING$"):
+                self.parse(self.payload({name: "1234.5"}))
+
+    def test_stock_price_close_alias_not_accepted_as_benchmark(self):
+        with self.assertRaisesRegex(Exception, "^DAILY_BENCHMARK_CLOSE_FIELD_MISSING$"):
+            self.parse(self.payload({"ClosingPrice": "1234.5"}))
+
+    def test_tpex_alias_not_accepted_for_twse(self):
+        with self.assertRaisesRegex(Exception, "^DAILY_BENCHMARK_CLOSE_FIELD_MISSING$"):
+            self.parse({"fields": ["日期", "收市"], "data": [["115/09/01", "1234.5"]]}, "TWSE")
+
+    def test_twse_existing_aliases_unchanged(self):
+        for name in ("ClosingIndex", "收盤指數", "close"):
+            with self.subTest(name=name):
+                rows = self.parse({"fields": ["日期", name], "data": [["115/09/01", "1234.5"]]}, "TWSE")
+                self.assertEqual(rows[0]["close"], 1234.5)
+
+    def test_mapping_preserves_raw_value_field_and_exact_locator(self):
+        mapping = self.parse(self.payload())[0]["close_compatibility"]
+        self.assertEqual(mapping["original_field"], "收市")
+        self.assertEqual(mapping["canonical_field"], "close")
+        self.assertEqual(mapping["raw_value"], "1,234.50")
+        self.assertEqual(mapping["json_locator"], "$.tables[0].data[0][1]")
+        self.assertEqual(mapping["raw_row_index"], 0)
+        self.assertEqual(mapping["trade_date"], "2026-09-01")
+
+    def test_dictionary_row_locator(self):
+        mapping = self.parse({"data": [{"Date": "2026-09-01", "收市": "1234.5"}]})[0]["close_compatibility"]
+        self.assertEqual(mapping["json_locator"], '$.data[0]["收市"]')
+
+    def test_raw_receipt_and_payload_not_mutated(self):
+        payload = self.payload()
+        raw = self.root / "synthetic.raw"
+        receipt = self.root / "synthetic.receipt.json"
+        raw.write_bytes(_canonical(payload))
+        receipt.write_bytes(_canonical({**self.receipt(), "raw_sha256": sha256(raw.read_bytes())}))
+        before = (raw.read_bytes(), receipt.read_bytes(), deepcopy(payload))
+        self.parse(payload)
+        self.assertEqual(before, (raw.read_bytes(), receipt.read_bytes(), payload))
+
+    def test_all_rows_reach_helper_without_parser_row_loss(self):
+        payload = self.payload()
+        payload["tables"][0]["data"].append(["115/09/02", "1235.5"])
+        rows = self.parse(payload)
+        self.assertEqual([row["trade_date"] for row in rows], ["2026-09-01", "2026-09-02"])
+        self.assertEqual([row["close"] for row in rows], [1234.5, 1235.5])
+
+    def test_normalized_payload_not_misrepresented_as_raw(self):
+        original = self.payload()
+        original_helper = d._benchmark_month_rows
+        with patch.object(d, "_benchmark_month_rows", wraps=original_helper) as helper:
+            self.parse(original)
+        adapter = helper.call_args.args[0]
+        self.assertIsNot(adapter.payload, original)
+        self.assertEqual(adapter.payload["data"][0]["close"], "1234.50")
+        self.assertNotIn("close", original["tables"][0]["fields"])
+
+
 if __name__ == "__main__":
     unittest.main()

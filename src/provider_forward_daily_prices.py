@@ -1,10 +1,11 @@
 """Opt-in immutable market-wide archive. No HTTP or changes to formal parsers."""
 from datetime import date, timedelta, timezone
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 import math
 import json
 
-from .eps_duration_facts.model import require
+from .eps_duration_facts.model import require, Rejected
 from .eps_duration_facts.raw import sha256
 from .provider_eps_candidate import _time
 from .provider_eps_metadata import read_metadata
@@ -91,21 +92,71 @@ def reference(pin, receipt, *, day, symbol=None, index=None, locator=None):
         "raw_row_index": index, "json_locator": locator}
 
 
+def _benchmark_locations(payload):
+    containers = [(f"$.tables[{i}]", table) for i, table in enumerate(payload["tables"])
+        if isinstance(table, dict)] if isinstance(payload.get("tables"), list) else [("$", payload)]
+    locations = []
+    for prefix, container in containers:
+        for key in ("records", "data", "decision_input_records", "normalized_records", "rows"):
+            if isinstance(container.get(key), list):
+                fields = container.get("fields")
+                if isinstance(fields, list):
+                    require(all(isinstance(f, str) for f in fields) and len(set(fields)) == len(fields),
+                        "DAILY_BENCHMARK_SCHEMA_MISMATCH")
+                for i, row in enumerate(container[key]):
+                    if isinstance(row, dict) or isinstance(row, list) and isinstance(fields, list):
+                        locations.append((f"{prefix}.{key}[{i}]", fields if isinstance(row, list) else None))
+                break
+    return locations
+
+
+def _benchmark_close(raw, aliases):
+    present = [field for field in aliases if field in raw]
+    require(present, "DAILY_BENCHMARK_CLOSE_FIELD_MISSING")
+    values = []
+    for field in present:
+        require(not isinstance(raw[field], bool), "DAILY_BENCHMARK_CLOSE_INVALID")
+        try:
+            value = Decimal(str(raw[field]).replace(",", ""))
+            require(value.is_finite() and value > 0 and math.isfinite(float(value)) and float(value) > 0,
+                "DAILY_BENCHMARK_CLOSE_INVALID")
+        except (InvalidOperation, OverflowError, TypeError, ValueError) as error:
+            raise Rejected("DAILY_BENCHMARK_CLOSE_INVALID") from error
+        values.append(value)
+    require(all(value == values[0] for value in values), "DAILY_BENCHMARK_CLOSE_FIELD_CONFLICT")
+    return present, values[0]
+
+
 def benchmark_rows(receipt, payload, through, as_of):
     market, period = receipt["market"], receipt["period"]
     endpoint_ok(receipt)
     raw_rows = _rows(payload)
     require(isinstance(payload, dict) and (raw_rows or payload.get("data") == [] or payload.get("tables") == []), "DAILY_BENCHMARK_SCHEMA_MISMATCH")
-    seen = set()
-    for raw in raw_rows:
+    locations = _benchmark_locations(payload)
+    require(len(locations) == len(raw_rows), "DAILY_BENCHMARK_SCHEMA_MISMATCH")
+    aliases = ("ClosingIndex", "收盤指數", "close")
+    if market == "TPEX":
+        aliases = ("收市", *aliases)
+    seen, normalized, mappings = set(), [], {}
+    for index, raw in enumerate(raw_rows):
         day = (normalize_twse_date if market == "TWSE" else normalize_tpex_date)(raw.get("Date") or raw.get("日期") or raw.get("trade_date"))
-        value = raw.get("ClosingIndex", raw.get("收盤指數", raw.get("close")))
-        require(day.replace("-", "")[:6] == period and day not in seen and number(str(value).replace(",", "")) > 0,
+        present, value = _benchmark_close(raw, aliases)
+        require(day.replace("-", "")[:6] == period and day not in seen,
             "DAILY_BENCHMARK_SESSION_IDENTITY")
         seen.add(day)
         post_close(day, receipt["observed_at"], as_of)
-    rows = _benchmark_month_rows(ArchivedAdapter(receipt, payload), market, period, (date.fromisoformat(through) + timedelta(days=1)).isoformat())
+        locator, fields = locations[index]
+        evidence = [{"original_field": field, "raw_value": raw[field],
+            "json_locator": locator + (f"[{fields.index(field)}]" if fields is not None else "[" + json.dumps(field, ensure_ascii=False) + "]")}
+            for field in present]
+        mappings[day] = {**evidence[0], "canonical_field": "close", "raw_row_index": index,
+            "trade_date": day, "mapping_rule": "BENCHMARK_EXACT_CLOSE_ALIASES_V1", "alias_evidence": evidence}
+        # Separate in-memory payload for the unchanged helper; never mutate archived bytes.
+        normalized.append({**raw, "close": str(value)})
+    rows = _benchmark_month_rows(ArchivedAdapter(receipt, {"data": normalized}), market, period, (date.fromisoformat(through) + timedelta(days=1)).isoformat())
     require({row["trade_date"] for row in rows} == {day for day in seen if day <= through}, "DAILY_BENCHMARK_PARSER_ROW_LOSS")
+    for row in rows:
+        row["close_compatibility"] = mappings[row["trade_date"]]
     return rows
 
 
@@ -144,6 +195,7 @@ def load_daily_prices(pin, manifest, *, as_of, available_at):
                     continue
                 require(day not in sessions[market], "DAILY_DUPLICATE_SESSION")
                 ref = reference(item, receipt, day=day, index=i, locator={"normalized_benchmark_row": i})
+                ref["close_compatibility"] = row["close_compatibility"]
                 sessions[market][day] = {"date": day, "close_at": close_at(day), "reference": ref}
                 benchmark_pins[(market, day)] = item
         else:
