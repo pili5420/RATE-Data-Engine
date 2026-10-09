@@ -15,7 +15,7 @@ import unittest
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-BASE = "af5ed52a78a7cea761e985011d234aa66f18b3e1"
+BASE = "af120232facc083f4f3fd934efb6b3058b0d9200"
 OLD_MODULES = ["test_cer074_acceptance", "test_cer075_scheduler", "test_cer076_incremental_0930",
     "test_cer077_incremental_1200", "test_cer078_evening_1930", "test_cer079_full_day_chain",
     "test_cer080_multi_day_continuity", "test_cer081_unattended_soak", "test_production_scheduler_change_control",

@@ -51,7 +51,7 @@ jobs:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
         run: >
           python -B scripts/verify_public_official_partial_valid.py
-          --expected-base af5ed52a78a7cea761e985011d234aa66f18b3e1
+          --expected-base af120232facc083f4f3fd934efb6b3058b0d9200
           --expected-head "${{ env.EXPECTED_HEAD }}"
           --output-dir "${{ runner.temp }}/public-official-partial-verification"
       - name: Preserve all synthetic results including baseline failures
