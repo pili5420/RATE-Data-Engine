@@ -1,0 +1,93 @@
+{
+  "policy_id": "CR-RATE-PUBLIC-INTRADAY-REFERENCE-GOVERNANCE-V1",
+  "status": "APPROVED",
+  "approved_by": "CONTROL_CENTER",
+  "scope": "REPORT_REFERENCE_GOVERNANCE_ONLY",
+  "effective_cadences": ["09:30", "12:00"],
+  "formal_report_cadence_remains_enabled": true,
+  "public_intraday_reference_layer_allowed": true,
+  "automated_acquisition_rule": {
+    "allowed_only_when": [
+      "PROVIDER_PUBLISHED_TERMS_EXPLICITLY_ALLOW_AUTOMATED_ACCESS",
+      "OFFICIAL_DOCUMENTED_API_OR_FEED_IS_USED_WITHIN_ITS_TERMS",
+      "WRITTEN_PROVIDER_PERMISSION_OR_CONTRACT_EXISTS"
+    ],
+    "website_scraping_without_permission_allowed": false,
+    "undocumented_endpoint_reverse_engineering_allowed": false,
+    "robots_or_access_control_bypass_allowed": false
+  },
+  "source_classes": {
+    "AUTHORIZED_AUTOMATED_API": {
+      "github_actions_automation_allowed": true,
+      "report_reference_allowed": true,
+      "production_market_intraday_gate_credit": "SEPARATE_ACCEPTANCE_REQUIRED",
+      "paper_trade_execution_credit": "SEPARATE_ACCEPTANCE_REQUIRED"
+    },
+    "MANUAL_REFERENCE_ONLY": {
+      "github_actions_automation_allowed": false,
+      "report_reference_allowed": true,
+      "production_market_intraday_gate_credit": false,
+      "paper_trade_execution_credit": false,
+      "decision_state_mutation_allowed": false
+    },
+    "OPEN_OFFICIAL_NON_INTRADAY_API": {
+      "github_actions_automation_allowed": true,
+      "report_reference_allowed": true,
+      "production_market_intraday_gate_credit": false,
+      "paper_trade_execution_credit": false
+    }
+  },
+  "current_source_classification": [
+    {
+      "source_id": "YAHOO_TW_STOCK_WEB",
+      "provider": "Yahoo Taiwan",
+      "source_class": "MANUAL_REFERENCE_ONLY",
+      "automation_status": "EXPRESS_PRIOR_PERMISSION_REQUIRED",
+      "github_actions_automation_allowed": false,
+      "formal_report_reference_allowed": true,
+      "production_eligible": false,
+      "paper_trade_execution_allowed": false
+    },
+    {
+      "source_id": "TWSE_MIS_OR_GENERAL_WEBSITE_REALTIME",
+      "provider": "TWSE",
+      "source_class": "MANUAL_REFERENCE_ONLY",
+      "automation_status": "TWSE_APPROVED_METHOD_OR_CONSENT_REQUIRED",
+      "github_actions_automation_allowed": false,
+      "formal_report_reference_allowed": true,
+      "production_eligible": false,
+      "paper_trade_execution_allowed": false
+    },
+    {
+      "source_id": "TWSE_OPENAPI",
+      "provider": "TWSE",
+      "source_class": "OPEN_OFFICIAL_NON_INTRADAY_API",
+      "automation_status": "DOCUMENTED_API",
+      "github_actions_automation_allowed": true,
+      "formal_report_reference_allowed": true,
+      "production_market_intraday_gate_credit": false,
+      "paper_trade_execution_allowed": false
+    }
+  ],
+  "report_semantics": {
+    "reference_data_must_be_labeled": true,
+    "reference_section_label": "EXTERNAL_REFERENCE_ONLY",
+    "reference_signal_label": "REFERENCE_SIGNAL_ONLY",
+    "must_not_be_presented_as_authorized_intraday_evidence": true,
+    "must_not_mutate_formal_decision_state": true,
+    "must_not_create_paper_trade_execution": true
+  },
+  "unchanged_formal_gate": {
+    "dependency_id": "EXTERNAL_AUTHORIZED_INTRADAY_FEED_DEPENDENCY",
+    "09:30_status": "BLOCKED_EXTERNAL",
+    "12:00_status": "BLOCKED_EXTERNAL",
+    "fallback_allowed": false,
+    "production_acceptance_allowed_while_blocked": false
+  },
+  "implementation_authority": {
+    "runtime_scraper_change_authorized": false,
+    "production_registry_change_authorized": false,
+    "scheduler_change_authorized": false,
+    "separate_change_request_required_for_implementation": true
+  }
+}
