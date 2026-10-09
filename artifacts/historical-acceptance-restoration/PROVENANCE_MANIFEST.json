@@ -1,0 +1,122 @@
+{
+  "artifact_kind": "RATE_CONTROLLED_HISTORICAL_ACCEPTANCE_MATERIAL_RESTORATION_V1",
+  "authorization": "CONTROLLED_HISTORICAL_ACCEPTANCE_MATERIAL_RESTORATION",
+  "byte_preservation": "ZIP_MEMBER_EXACT_BYTES_NO_REENCODING_NO_RESERIALIZATION",
+  "credential_scan": "NO_NONEMPTY_CREDENTIAL_FIELDS_OR_KNOWN_TOKEN_PRIVATE_KEY_PATTERNS",
+  "dependency_pr": 43,
+  "expected_state_hashes_modified": false,
+  "historical_pins_modified": false,
+  "original_artifacts": [
+    {
+      "archive_sha256": "665b1021963a5f29e1c52e901cc5086c774b88181df44cadb1e45a31f1278298",
+      "artifact_id": 10919292036,
+      "artifact_url": "https://github.com/pili5420/RATE-Data-Engine/actions/runs/36281974051/artifacts/10919292036",
+      "cer": "CER073",
+      "created_at": "2026-09-27T00:22:54Z",
+      "downloaded_at": "2026-10-09T16:31:51.800830+00:00",
+      "expires_at": "2026-12-26T00:15:56Z",
+      "members": [
+        {
+          "bytes": 50928505,
+          "path": "RATE_CER073_FINAL_SOURCE_BUNDLE.json",
+          "restored_path": "artifacts/remote-36281974051/RATE_CER073_FINAL_SOURCE_BUNDLE/RATE_CER073_FINAL_SOURCE_BUNDLE.json",
+          "sha256": "e4d16b3bb4208b3cd3d586f7117308e1dda55f0624d3ca4f9e5a35d4fdae4ba5"
+        }
+      ],
+      "name": "RATE_CER073_FINAL_SOURCE_BUNDLE",
+      "producer_head": "3112ab78f4b47282b5706e8494edeffaecf8c7bf",
+      "repository": "pili5420/RATE-Data-Engine",
+      "run_id": 36281974051
+    },
+    {
+      "archive_sha256": "fd63f809a48a3587b60ba4318c6188bd212dad2c7d510ada0bffaec90d37592b",
+      "artifact_id": 10920115463,
+      "artifact_url": "https://github.com/pili5420/RATE-Data-Engine/actions/runs/36283374552/artifacts/10920115463",
+      "cer": "CER074",
+      "created_at": "2026-09-27T00:44:12Z",
+      "downloaded_at": "2026-10-09T16:31:53.888420+00:00",
+      "expires_at": "2026-12-26T00:43:46Z",
+      "members": [
+        {
+          "bytes": 8528,
+          "path": "RATE_CER074_PERSISTED_DECISION_STATE_EVIDENCE.json",
+          "restored_path": "artifacts/remote-36283374552/RATE_CER074_PERSISTED_DECISION_STATE_EVIDENCE/RATE_CER074_PERSISTED_DECISION_STATE_EVIDENCE.json",
+          "sha256": "d4e7121313e587ed0b1796c8ebef4284db9672f726147a2832c694f6ae95c6c6"
+        }
+      ],
+      "name": "RATE_CER074_PERSISTED_DECISION_STATE_EVIDENCE",
+      "producer_head": "80b3a5b0c69b2b8dc0f890cd40dee99092a95abf",
+      "repository": "pili5420/RATE-Data-Engine",
+      "run_id": 36283374552
+    },
+    {
+      "archive_sha256": "0606bce57ad084eccafee758f67d46e11abe00625f7dbf9188943d13705acd00",
+      "artifact_id": 10926721309,
+      "artifact_url": "https://github.com/pili5420/RATE-Data-Engine/actions/runs/36303940988/artifacts/10926721309",
+      "cer": "CER075",
+      "created_at": "2026-09-27T07:43:05Z",
+      "downloaded_at": "2026-10-09T16:31:56.403941+00:00",
+      "expires_at": "2026-12-26T07:42:43Z",
+      "members": [
+        {
+          "bytes": 2026,
+          "path": "RATE_CER075_PERSIST_RESULT_EVIDENCE.json",
+          "restored_path": "artifacts/remote-36303940988/RATE_CER075_PERSIST_RESULT_EVIDENCE/RATE_CER075_PERSIST_RESULT_EVIDENCE.json",
+          "sha256": "ec8e1e355bc22ba9d2ed30710f95adabf8e0139d0a1c7f8287dfb49d9e3a7713"
+        }
+      ],
+      "name": "RATE_CER075_PERSIST_RESULT_EVIDENCE",
+      "producer_head": "2a7a31fb53054882f17f323ca87884d8b1589704",
+      "repository": "pili5420/RATE-Data-Engine",
+      "run_id": 36303940988
+    },
+    {
+      "archive_sha256": "58f47792d8f9ccfaafac0be81a1251f73b85d40da6770a5cea1c5399084ac3e7",
+      "artifact_id": 10926463840,
+      "artifact_url": "https://github.com/pili5420/RATE-Data-Engine/actions/runs/36304601795/artifacts/10926463840",
+      "cer": "CER076",
+      "created_at": "2026-09-27T07:56:20Z",
+      "downloaded_at": "2026-10-09T16:31:58.693065+00:00",
+      "expires_at": "2026-12-26T07:55:37Z",
+      "members": [
+        {
+          "bytes": 2115,
+          "path": "RATE_CER076_PERSIST_RESULT_EVIDENCE.json",
+          "restored_path": "artifacts/remote-36304601795/RATE_CER076_PERSIST_RESULT_EVIDENCE/RATE_CER076_PERSIST_RESULT_EVIDENCE.json",
+          "sha256": "5cc7f62547749d7ab84aa42c2514eda6717a743defc17570945cb56d36a79286"
+        }
+      ],
+      "name": "RATE_CER076_PERSIST_RESULT_EVIDENCE",
+      "producer_head": "b276db71bf00664d3198efa6bb6090eedbacf2d4",
+      "repository": "pili5420/RATE-Data-Engine",
+      "run_id": 36304601795
+    },
+    {
+      "archive_sha256": "945c32a349253704b2c69ef228a9f4a369a6236ad4a0c8a92fb5e27ee9d43c37",
+      "artifact_id": 10926728094,
+      "artifact_url": "https://github.com/pili5420/RATE-Data-Engine/actions/runs/36305190527/artifacts/10926728094",
+      "cer": "CER077",
+      "created_at": "2026-09-27T08:07:34Z",
+      "downloaded_at": "2026-10-09T16:32:00.800376+00:00",
+      "expires_at": "2026-12-26T08:07:04Z",
+      "members": [
+        {
+          "bytes": 2115,
+          "path": "RATE_CER077_PERSIST_RESULT_EVIDENCE.json",
+          "restored_path": "artifacts/remote-36305190527/RATE_CER077_PERSIST_RESULT_EVIDENCE/RATE_CER077_PERSIST_RESULT_EVIDENCE.json",
+          "sha256": "89463deb5a201227d81c9e4145bc88bfd46712112b3ccdef62bc800019e3c9e4"
+        }
+      ],
+      "name": "RATE_CER077_PERSIST_RESULT_EVIDENCE",
+      "producer_head": "ec9f42ac7759a5237159721092dc7d26538a074d",
+      "repository": "pili5420/RATE-Data-Engine",
+      "run_id": 36305190527
+    }
+  ],
+  "production_publication": false,
+  "restoration_base": "826796fc0311b4670c760fc826c692e8b2aa32ef",
+  "restoration_scope": "ORIGINAL_ACCEPTANCE_MATERIALS_ONLY_NOT_PRODUCTION_PUBLICATION",
+  "restored_at": "2026-10-09T16:32:48.602316+00:00",
+  "reviewed_main": "af5ed52a78a7cea761e985011d234aa66f18b3e1",
+  "synthetic_substitution": false
+}

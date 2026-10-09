@@ -1,0 +1,42 @@
+{
+  "actions_job_id": "108576757689",
+  "actions_run_id": "36303940988",
+  "artifact": "RATE_CER075_PERSIST_RESULT_EVIDENCE",
+  "commit_sha": "2a7a31fb53054882f17f323ca87884d8b1589704",
+  "current_state_hash": "2b57e03bf0a6e1262b862e9d6eb1d920d333a9c371a3e34a310841cdb8ee29aa",
+  "current_state_id": "rate-state-2b57e03bf0a6e1262b862e9d",
+  "event_name": "workflow_dispatch",
+  "execution_scope": "PRODUCTION",
+  "first_persist_new_record_count": 1,
+  "main_head": "beae3ed542888cc647d64bbcecab7d907a7744aa",
+  "main_modified": false,
+  "persist_result": {
+    "chain_count": 2,
+    "duplicate_record_count": 0,
+    "new_record_count": 1,
+    "state_entry": {
+      "current_state_id": "rate-state-2b57e03bf0a6e1262b862e9d",
+      "decision_payload_hash": "2b57e03bf0a6e1262b862e9d6eb1d920d333a9c371a3e34a310841cdb8ee29aa",
+      "decision_time": "07:30",
+      "execution_scope": "PRODUCTION",
+      "fundamental_analytical_hash": "b42982f676d8e19fdbc0b6a6cb5716a2e1cc9af8904e0371b9fe1d63b3aee10c",
+      "historical_state_digest": "dddf63b85477aa7cd52ff284d3aba70cf449275406cb6e5e7091acc232d58e3a",
+      "input_snapshot_hash": "8702cb5b899654046db1f6b2288fa033cd0cb03d9336233bd1f5ea6ab045793f",
+      "input_snapshot_id": "rate-prod-snapshot-8702cb5b899654046db1f6b2",
+      "previous_state_id": "rate-state-85638ea952a2e7345257491b",
+      "previous_state_resolution": "PERSISTED_PRODUCTION_STATE",
+      "prior_stage_package_digest": "706eb813da43b112bfd9459d459f1892591371700140e9626e411ad8ad0bceef",
+      "scheduler_runtime": "PRODUCTION_SCHEDULER",
+      "source_bundle_hash": "2404b7cb0c113f6b70e0f3c31bf3d2a1815c23077dfe148702dd5380fb4271c8",
+      "trading_date": "2026-09-18"
+    },
+    "status": "PERSISTED"
+  },
+  "previous_state_id": "rate-state-85638ea952a2e7345257491b",
+  "rate_live_e2e_enabled": "PRODUCTION_SCHEDULER",
+  "run_head_sha": "2a7a31fb53054882f17f323ca87884d8b1589704",
+  "time_slot": "07:30",
+  "trading_date": "2026-09-18",
+  "validation_status": "PASS",
+  "workflow_run_id": "36303940988"
+}

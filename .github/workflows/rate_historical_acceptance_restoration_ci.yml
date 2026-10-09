@@ -1,0 +1,95 @@
+name: RATE Controlled Historical Acceptance Restoration
+
+on:
+  pull_request:
+    branches: [main, codex/baseline-scheduler-regression-closure]
+    paths:
+      - artifacts/remote-36281974051/**
+      - artifacts/remote-36283374552/**
+      - artifacts/remote-36303940988/**
+      - artifacts/remote-36304601795/**
+      - artifacts/remote-36305190527/**
+      - artifacts/historical-acceptance-restoration/**
+      - .github/workflows/rate_historical_acceptance_restoration_ci.yml
+permissions:
+  contents: read
+
+jobs:
+  historical-acceptance:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - name: Preserve Git blob bytes on both platforms
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install lxml==6.1.1 tzdata==2025.2
+      - name: Exact material hashes, unchanged Base files, and original 131 regressions
+        shell: python
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          import hashlib, json, os, pathlib, subprocess, sys, unittest
+          root = pathlib.Path.cwd()
+          sys.path.insert(0, str(root))
+          head = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode().strip()
+          assert head == os.environ["EXPECTED_HEAD"], "EXACT_HEAD_MISMATCH"
+          manifest_path = "artifacts/historical-acceptance-restoration/PROVENANCE_MANIFEST.json"
+          manifest = json.loads((root / manifest_path).read_bytes())
+          base = "826796fc0311b4670c760fc826c692e8b2aa32ef"
+          assert manifest["restoration_base"] == base
+          expected = {36281974051:10919292036, 36283374552:10920115463,
+                      36303940988:10926721309, 36304601795:10926463840, 36305190527:10926728094}
+          artifacts = manifest["original_artifacts"]
+          assert len(artifacts) == 5
+          assert {a["run_id"]:a["artifact_id"] for a in artifacts} == expected
+          before = {}
+          for artifact in artifacts:
+              assert len(artifact["members"]) == 1
+              for member in artifact["members"]:
+                  path = member["restored_path"]
+                  body = (root / path).read_bytes()
+                  assert len(body) == member["bytes"]
+                  assert hashlib.sha256(body).hexdigest() == member["sha256"], "ORIGINAL_MEMBER_HASH_MISMATCH"
+                  blob = subprocess.check_output(["git", "show", head + ":" + path])
+                  assert body == blob, "CHECKOUT_BYTES_DIFFER_FROM_COMMITTED_ORIGINAL"
+                  before[path] = member["sha256"]
+          allowed = set(before) | {manifest_path, ".github/workflows/rate_historical_acceptance_restoration_ci.yml"}
+          changes = subprocess.check_output(["git", "diff", "--name-status", base, head]).decode().splitlines()
+          assert len(changes) == len(allowed)
+          assert {line.split("\t")[1] for line in changes} == allowed
+          assert all(line.startswith("A\t") for line in changes), "EXISTING_BASE_FILE_CHANGED"
+          modules = ["test_cer074_acceptance", "test_cer075_scheduler", "test_cer076_incremental_0930",
+              "test_cer077_incremental_1200", "test_cer078_evening_1930", "test_cer079_full_day_chain",
+              "test_cer080_multi_day_continuity", "test_cer081_unattended_soak", "test_production_scheduler_change_control",
+              "test_rate_soak_005", "test_rate_production_source_acquisition", "test_production_source_latest_publisher",
+              "test_fundamental", "test_spec_formulas", "test_logic", "test_production_integration", "test_trading_status"]
+          suite = unittest.defaultTestLoader.loadTestsFromNames(["tests." + name for name in modules])
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          unchanged = all(hashlib.sha256((root / path).read_bytes()).hexdigest() == digest for path, digest in before.items())
+          summary = {"base": base, "head": head, "platform": os.name, "tests_run": result.testsRun,
+              "passed": result.testsRun - len(result.failures) - len(result.errors) - len(result.skipped),
+              "failures": [t.id() for t, _ in result.failures], "errors": [t.id() for t, _ in result.errors],
+              "skipped": [t.id() for t, _ in result.skipped], "original_materials_unchanged": unchanged,
+              "evidence_scope": "ORIGINAL_HISTORICAL_ACCEPTANCE_NOT_PRODUCTION_PUBLICATION",
+              "historical_pins_and_all_existing_base_files_unchanged": True}
+          pathlib.Path("restoration-regression-result.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+          print(json.dumps(summary, sort_keys=True))
+          assert result.testsRun == 131 and result.wasSuccessful() and not result.skipped and unchanged, "STRICT_131_ACCEPTANCE_FAILED"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: historical-restoration-verification-${{ matrix.os }}
+          path: restoration-regression-result.json
+          if-no-files-found: error
