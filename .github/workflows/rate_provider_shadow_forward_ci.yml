@@ -1,0 +1,60 @@
+name: RATE Provider Shadow Forward V1 Engineering
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/provider_shadow_forward*.py"
+      - "scripts/*provider_shadow_forward.py"
+      - "tests/test_provider_shadow_forward.py"
+      - "docs/RATE_PROVIDER_SHADOW_FORWARD_VALIDATION_V1.md"
+      - "docs/contracts/RATE_PROVIDER_SHADOW_FORWARD_VALIDATION_V1.json"
+      - ".github/workflows/rate_provider_shadow_forward_ci.yml"
+permissions:
+  contents: read
+jobs:
+  synthetic-forward-only:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Existing offline parser dependency
+        run: python -m pip install lxml==6.1.1
+      - name: Exact-head forward synthetic and 211 regression tests
+        env:
+          EXPECTED_BASE: ${{ github.event.pull_request.base.sha }}
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
+          TMPDIR: ${{ runner.temp }}
+        run: >-
+          python -B scripts/verify_provider_shadow_forward.py
+          --expected-base "$EXPECTED_BASE" --expected-head "$EXPECTED_HEAD"
+          --output-dir "$RUNNER_TEMP/shadow-forward-engineering"
+      - name: Clean worktree
+        if: always()
+        run: test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Synthetic evidence only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SHADOW_FORWARD_SYNTHETIC_NOT_REAL_${{ matrix.os }}_${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/shadow-forward-engineering/
+          if-no-files-found: error
+          retention-days: 14
