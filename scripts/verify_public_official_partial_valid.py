@@ -110,8 +110,13 @@ def chain_proof(output):
 
 
 def main():
+    global ROOT
     if len(sys.argv) > 1 and sys.argv[1] == "--test-child":
         return child(Path(sys.argv[2]), sys.argv[3:])
+    if len(sys.argv) > 1 and sys.argv[1] == "--chain-child":
+        ROOT = Path.cwd()
+        chain_proof(Path(sys.argv[2]))
+        return 0
     parser = argparse.ArgumentParser()
     parser.add_argument("--expected-base", required=True)
     parser.add_argument("--expected-head", required=True)
@@ -146,11 +151,18 @@ def main():
         old = test_run(base, output / "base-regressions.json", OLD_MODULES)
         current = test_run(head, output / "head-regressions.json", OLD_MODULES)
         new = test_run(head, output / "new-tests.json", ["test_public_official_partial_valid", "test_partial_to_evening_acceptance"])
+        # Use the same exact Git archive for the E2E proof and frozen-file byte checks.
+        chain = subprocess.run([sys.executable, "-B", str(Path(__file__).resolve()), "--chain-child", str(output)],
+            cwd=head, capture_output=True, text=True, encoding="utf-8",
+            env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8"})
+        (output / "synthetic-chain.log").write_text(chain.stdout + chain.stderr, encoding="utf-8")
+        if chain.returncode:
+            raise RuntimeError("FULL_EVENING_CHAIN_PROOF_FAILED")
     def outcomes(report):
         return sorted((kind, item["test_id"], item["traceback"].strip().splitlines()[-1])
             for kind in ("failures", "errors") for item in report[kind])
     no_new = outcomes(old) == outcomes(current) and old["tests_run"] == current["tests_run"] and not current["skipped"]
-    proof = chain_proof(output)
+    proof = json.loads((output / "synthetic-chain-proof.json").read_text(encoding="utf-8"))
     result = {"base_sha": BASE, "head_sha": args.expected_head, "changed_files": changed,
         "evidence_scope": "SYNTHETIC_ONLY", "existing_test_count": current["tests_run"], "existing_passed": current["passed"],
         "existing_failure_count": len(current["failures"]), "existing_error_count": len(current["errors"]),
