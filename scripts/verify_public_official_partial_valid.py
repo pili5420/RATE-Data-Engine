@@ -134,7 +134,8 @@ def main():
                 raise RuntimeError("PROTECTED_FILE_CHANGED:" + path)
             protected[path] = old_blob
     write(output / "protected-files.json", protected)
-    with tempfile.TemporaryDirectory(prefix="rate-public-partial-regression-") as temporary:
+    # Keep legacy atomic-write filenames below Windows MAX_PATH without weakening tests.
+    with tempfile.TemporaryDirectory(prefix="rpv-", dir=ROOT.parent) as temporary:
         root = Path(temporary)
         base, head = root / "base", root / "head"
         extract(BASE, base)
