@@ -89,3 +89,28 @@ No live production state was published by the engineering run. This PR does not
 enable a new schedule; it changes only the two existing intraday schedule paths.
 No ranking, strategy, model weight, source authorization or Shadow/Forward
 definition is modified.
+# Full Evening Handoff Closure
+
+`run_cer078_evening_1930_acceptance.py --continue-partial-state` loads the canonical
+12:00 state and executes `run_evening_decision`, persists its 19:30 result and uses
+the existing scheduled state publisher. Historical CER078 replay remains the
+default mode with its original hash pins unchanged.
+
+The explicit mode requires a complete, fresh formal EOD source bundle and 30
+unique same-day closes bound to the normalized official market datasets. The
+source builder retains those closes separately from technical scores; no close
+is inferred from Stage, rank, an intraday quote, or a previous date. Evening
+evidence is appended to each preserved record. Accounts, all transactions, and
+ranking/model state remain unchanged. The publisher replays the evening engine
+against the actual canonical predecessor before publication.
+
+The earlier `PARTIAL_VALID` outcome is preserved in `predecessor_partial_report`;
+it is not promoted to full Production acceptance. The evening report is
+`EOD_CLOSURE_VALID`, while `full_production_acceptance=NOT_ALLOWED`,
+`market_intraday_price_gate=BLOCKED_EXTERNAL`, and `fallback_allowed=false` remain.
+
+The synthetic full-chain proof executes separate 09:30, 12:00 and 19:30 CLI
+processes, publishes each state, cold-loads 19:30 in another process and repeats
+the evening invocation idempotently. It is engineering evidence, not a live
+market run or scheduled-soak credit. Strict existing regression CI remains
+blocking until the independent baseline defects are actually closed.

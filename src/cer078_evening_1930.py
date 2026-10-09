@@ -97,6 +97,8 @@ def closing_state(source_bundle, predecessor_hash):
 
 
 def run_evening_decision(snapshot, state_1200, source_bundle):
+    if snapshot.get("schema_version") == "RATE-PARTIAL-TO-EOD-SNAPSHOT-V1":
+        return _run_partial_evening_decision(snapshot, state_1200, source_bundle)
     if snapshot.get("previous_state_id")!=PREVIOUS_1200_STATE_ID or snapshot.get("previous_state_hash")!=PREVIOUS_1200_STATE_HASH: raise RuntimeError("LINEAGE_MISMATCH")
     if snapshot.get("previous_state_resolution")=="FIRST_PRODUCTION_BOOTSTRAP": raise RuntimeError("BOOTSTRAP_FORBIDDEN")
     if snapshot.get("trading_date")!=AS_OF_DATE or snapshot.get("cadence")!=CADENCE: raise RuntimeError("SCOPE_MISMATCH")
@@ -108,6 +110,138 @@ def run_evening_decision(snapshot, state_1200, source_bundle):
     cstate=closing_state(source_bundle,state_1200["decision_payload_hash"])
     decision={"schema_version":"RATE-CER078-1930-EVENING-DECISION-STATE-V1","execution_scope":EXECUTION_SCOPE,"trading_date":AS_OF_DATE,"cadence":CADENCE,"previous_state_resolution":"PERSISTED_PRODUCTION_STATE","previous_state_id":PREVIOUS_1200_STATE_ID,"previous_state_hash":PREVIOUS_1200_STATE_HASH,"input_snapshot_id":snapshot["input_snapshot_id"],"input_snapshot_hash":snapshot["input_snapshot_hash"],"source_bundle_hash":CER073_SOURCE_BUNDLE_HASH,"fundamental_analytical_hash":FUNDAMENTAL_HASH,"prior_stage_package_digest":PRIOR_STAGE_DIGEST,"historical_state_digest":HISTORICAL_STATE_DIGEST,"scheduler_runtime":SCHEDULER_RUNTIME_FLAG,"predecessor_1200_state_id":state_1200["current_state_id"],"predecessor_1200_state_hash":state_1200["decision_payload_hash"],"records":snapshot["records"],"top50":copy.deepcopy(state_1200["top50"]),"short_top30":copy.deepcopy(state_1200["short_top30"]),"long_top30":copy.deepcopy(state_1200["long_top30"]),**cstate,"incremental_delta":{k:delta[k] for k in ("changed_field_count","protected_field_violation_count","decision_deltas")}}
     h=sha256(strip_runtime(decision)); return {"current_state_id":"rate-state-"+h[:24],"previous_state_id":PREVIOUS_1200_STATE_ID,"previous_state_hash":PREVIOUS_1200_STATE_HASH,"previous_state_resolution":"PERSISTED_PRODUCTION_STATE","input_snapshot_id":snapshot["input_snapshot_id"],"input_snapshot_hash":snapshot["input_snapshot_hash"],"decision_payload_hash":h,"decision":decision,"top50":decision["top50"],"short_top30":decision["short_top30"],"long_top30":decision["long_top30"],"closing_state":cstate}
+
+
+def _partial_eod_snapshot(previous, bundle):
+    import math
+    from scripts.publish_production_source_bundle_latest import validate_production_source_bundle, EOD_REQUIRED_DATASETS
+    from src.production_live_state import require
+    from src.public_official_partial_valid import validate_partial_state
+    decision = previous["decision"]
+    validate_partial_state(decision)
+    day = decision["trading_date"]
+    require(decision["cadence"] == "12:00", "EVENING_PARTIAL_PREDECESSOR_INVALID")
+    require(previous["decision_payload_hash"] == sha256(strip_runtime(decision)), "EVENING_PREDECESSOR_HASH_INVALID")
+    require(bundle.get("artifact") == "RATE_PRODUCTION_SOURCE_BUNDLE" and bundle.get("cadence") == CADENCE
+        and bundle.get("trading_date") == day, "EVENING_EOD_IDENTITY_INVALID")
+    require(validate_production_source_bundle(bundle, trading_date=day, cadence=CADENCE)["validation_status"] == "PASS",
+        "EVENING_EOD_DATA_GATE_FAIL")
+    require(set(EOD_REQUIRED_DATASETS) <= set(bundle.get("datasets_present", []))
+        and not bundle.get("datasets_missing") and bundle.get("freshness_matrix", {}).get("validation_status") == "PASS",
+        "EVENING_EOD_DATA_GATE_FAIL")
+    closes = bundle.get("eod_close_records", [])
+    require(bundle.get("eod_close_content_sha256") == sha256(closes), "EVENING_EOD_HASH_INVALID")
+    symbols = [r["symbol"] for r in decision["records"]]
+    require(len(symbols) == 30 and len(set(symbols)) == 30
+        and len(closes) == 30 and {r["symbol"] for r in closes} == set(symbols), "EVENING_EOD_COVERAGE_INVALID")
+    datasets = bundle.get("official_source_transformation", {}).get("datasets", [])
+    by_symbol = {}
+    for close in closes:
+        require(close["symbol"] not in by_symbol and close.get("trade_date") == day, "EVENING_EOD_CLOSE_IDENTITY_INVALID")
+        require(any(d.get("domain") == "market_daily" and d.get("source") == close.get("source")
+            and d.get("dataset_id") == close.get("dataset_id") and d.get("body_sha256") == close.get("body_sha256")
+            and d.get("parser_version") == close.get("parser_version") and d.get("normalization_status") == "PASS"
+            for d in datasets) and isinstance(close.get("body_sha256"), str) and len(close["body_sha256"]) == 64,
+            "EVENING_EOD_SOURCE_BINDING_INVALID")
+        for key in ("close", "volume", "turnover"):
+            value = close.get(key)
+            require(isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+                and (value > 0 if key == "close" else value >= 0), "EVENING_EOD_CLOSE_INVALID")
+        by_symbol[close["symbol"]] = close
+    rows = []
+    for row in decision["records"]:
+        current = copy.deepcopy(row)
+        current["Evening_evidence"] = copy.deepcopy(by_symbol[row["symbol"]])
+        current["Evening_output"] = {"evening_decision": "HOLD", "transaction_allowed": False,
+            "reason": "EOD_CLOSURE_NO_NEW_EXECUTION"}
+        rows.append(current)
+    snapshot = {"schema_version": "RATE-PARTIAL-TO-EOD-SNAPSHOT-V1", "trading_date": day, "cadence": CADENCE,
+        "previous_state_id": previous["current_state_id"], "previous_state_hash": previous["decision_payload_hash"],
+        "previous_state_resolution": "PERSISTED_PRODUCTION_STATE", "source_bundle_hash": sha256(bundle), "records": rows}
+    digest = sha256(snapshot)
+    snapshot.update(input_snapshot_id="rate-prod-1930-snapshot-" + digest[:24], input_snapshot_hash=digest)
+    return snapshot
+
+
+def _run_partial_evening_decision(snapshot, previous, bundle):
+    from src.production_live_state import require
+    require(snapshot == _partial_eod_snapshot(previous, bundle), "EVENING_EOD_SNAPSHOT_MISMATCH")
+    delta = incremental_delta(previous, snapshot)
+    require(delta["protected_baseline_integrity"] == "PASS" and delta["evening_incremental_evidence_boundary"] == "PASS",
+        "INCREMENTAL_BOUNDARY_FAIL")
+    decision = copy.deepcopy(previous["decision"])
+    # Preserve the intraday outcome as history, never promote it to full acceptance.
+    history = {key: decision.pop(key) for key in (
+        "public_official_bundle", "public_official_evidence_gate", "report_runtime_status", "full_production_acceptance")}
+    decision.update(cadence=CADENCE, previous_state_id=previous["current_state_id"],
+        previous_state_hash=previous["decision_payload_hash"], predecessor_partial_report=history,
+        report_runtime_status="EOD_CLOSURE_VALID", full_production_acceptance="NOT_ALLOWED", full_production_pass=False,
+        evening_acceptance_mode="PARTIAL_PREDECESSOR_FORMAL_EOD", eod_source_bundle=copy.deepcopy(bundle),
+        input_snapshot_id=snapshot["input_snapshot_id"], input_snapshot_hash=snapshot["input_snapshot_hash"],
+        records=snapshot["records"], scheduler_runtime=SCHEDULER_RUNTIME_FLAG,
+        evening_closure={"validation_status": "PASS", "new_transactions": [], "state_reinitialized": False})
+    digest = sha256(strip_runtime(decision))
+    return {"current_state_id": "rate-state-" + digest[:24], "decision_payload_hash": digest,
+        "previous_state_id": previous["current_state_id"], "decision": decision}
+
+
+def validate_partial_evening_state(decision):
+    from src.production_live_state import require
+    history = decision.get("predecessor_partial_report", {})
+    require(decision.get("cadence") == CADENCE and decision.get("report_runtime_status") == "EOD_CLOSURE_VALID"
+        and decision.get("full_production_acceptance") == "NOT_ALLOWED" and decision.get("full_production_pass") is False
+        and decision.get("market_intraday_price_gate") == "BLOCKED_EXTERNAL" and decision.get("fallback_allowed") is False
+        and history.get("report_runtime_status") == "PARTIAL_VALID" and history.get("full_production_acceptance") == "NOT_ALLOWED",
+        "EVENING_ACCEPTANCE_PROMOTION_FORBIDDEN")
+    bundle = decision.get("eod_source_bundle", {})
+    closes = bundle.get("eod_close_records", [])
+    require(bundle.get("eod_close_content_sha256") == sha256(closes), "EVENING_EOD_HASH_INVALID")
+    rows = decision.get("records", [])
+    require(len(rows) == len(closes) == 30 and len({r["symbol"] for r in closes}) == 30, "EVENING_EOD_COVERAGE_INVALID")
+    by_symbol = {r["symbol"]: r for r in closes}
+    for row in rows:
+        require(row.get("current_price") is None and row.get("current_volume") is None
+            and row.get("Evening_evidence") == by_symbol.get(row["symbol"]), "EVENING_PRICE_REPLAY_INVALID")
+
+
+def build_partial_evening_artifacts(*, source_bundle, previous_evidence, state_root, output_dir):
+    from src.production_live_state import PERSIST_NAME, CADENCE_DIR, load_live_state, require, validate_material
+    path = Path(previous_evidence).resolve()
+    require(path.name == PERSIST_NAME and path.parent.name == "1200" and path.parents[2].name == "live",
+        "EVENING_CANONICAL_PREDECESSOR_REQUIRED")
+    day = path.parents[1].name
+    loaded = load_live_state(path.parents[3], day, "12:00")
+    require(loaded["path"].resolve() == path, "EVENING_PREDECESSOR_PATH_MISMATCH")
+    previous = loaded["state"]
+    require(_verify_model_freeze().get("status") == "PASS", "MODEL_FREEZE_FAIL")
+    snapshot = _partial_eod_snapshot(previous, source_bundle)
+    state = run_evening_decision(snapshot, previous, source_bundle)
+    validate_partial_evening_state(state["decision"])
+    require(state == run_evening_decision(copy.deepcopy(snapshot), previous, source_bundle), "EVENING_NONDETERMINISTIC")
+    for key in ("roy_portfolio", "ai_paper_portfolio", "ai_paper_portfolio_ledger", "transaction_ledger",
+                "model_learning_state", "top50", "short_top30", "long_top30"):
+        require(state["decision"].get(key) == previous["decision"].get(key), "EVENING_CONTINUITY_FAIL:" + key)
+    entry = {key: state["decision"][key] for key in ("trading_date", "cadence", "execution_scope",
+        "previous_state_resolution", "previous_state_id")}
+    entry.update(current_state_id=state["current_state_id"], decision_payload_hash=state["decision_payload_hash"])
+    persist = {"artifact": "RATE_CER078_PERSIST_RESULT_EVIDENCE", "validation_status": "PASS",
+        "current_state_id": state["current_state_id"], "current_state_hash": state["decision_payload_hash"],
+        "previous_state_id": state["previous_state_id"], "persist_result": {"status": "PERSISTED", "state_entry": entry}}
+    material = {"state_entry": entry, "decision_state": state}
+    validate_material(persist, material, day, CADENCE)
+    target = Path(state_root) / "decision_state" / CADENCE_DIR[CADENCE] / (state["current_state_id"] + ".json")
+    if target.exists():
+        require(load_json(target) == material, "EVENING_IDEMPOTENCY_CONFLICT")
+    else:
+        atomic_write_json(target, material)
+    proof = {"artifact": "RATE_PARTIAL_TO_EOD_FULL_ACCEPTANCE", "validation_status": "PASS",
+        "1930_full_legacy_acceptance": "PASS", "previous_state_id": previous["current_state_id"],
+        "current_state_id": state["current_state_id"], "source_bundle_hash": sha256(source_bundle),
+        "roy_portfolio_continuity": "PASS", "ai_paper_portfolio_continuity": "PASS",
+        "transaction_ledger_continuity": "PASS", "new_intraday_fills": 0, "state_reinitialized": False,
+        "full_production_acceptance": "NOT_ALLOWED", "fallback_allowed": False}
+    return {"RATE_CER078_PERSIST_RESULT_EVIDENCE.json": persist,
+        "RATE_PARTIAL_TO_EOD_FULL_ACCEPTANCE.json": proof}
 
 
 def chain_paths(state_root):

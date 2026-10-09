@@ -46,6 +46,13 @@ def publish_state(*, persist_evidence_path, trading_date, cadence, artifacts_roo
         require(state["previous_state_id"] == previous["state"]["current_state_id"]
                 and state["decision"].get("previous_state_hash") == previous["state"]["decision_payload_hash"], "LIVE_STATE_LINEAGE_INVALID")
         report_status = {}
+        if state["decision"].get("evening_acceptance_mode") == "PARTIAL_PREDECESSOR_FORMAL_EOD":
+            from src.cer078_evening_1930 import _partial_eod_snapshot, run_evening_decision
+            bundle = state["decision"]["eod_source_bundle"]
+            require(state == run_evening_decision(_partial_eod_snapshot(previous["state"], bundle), previous["state"], bundle),
+                "EVENING_STATE_REPLAY_MISMATCH")
+            report_status = {key: state["decision"][key] for key in ("report_runtime_status",
+                "market_intraday_price_gate", "full_intraday_decision_status", "full_production_acceptance")}
         if state["decision"].get("report_runtime_status") == "PARTIAL_VALID":
             from src.public_official_partial_valid import validate_bundle
             # Source bytes must already travel with the slot before its ready manifest is published.

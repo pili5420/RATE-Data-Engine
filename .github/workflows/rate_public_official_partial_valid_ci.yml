@@ -6,16 +6,19 @@ on:
     paths:
       - "src/public_official_partial_valid.py"
       - "src/production_live_state.py"
+      - "src/cer078_evening_1930.py"
       - "scripts/*public_official_partial_valid.py"
       - "scripts/build_production_source_bundle_from_official.py"
       - "scripts/publish_production*latest.py"
-      - "scripts/run_cer07[67]*.py"
+      - "scripts/run_cer07[678]*.py"
       - "tests/test_public_official_partial_valid.py"
+      - "tests/test_partial_to_evening_acceptance.py"
       - "config/RATE_PUBLIC_OFFICIAL_PARTIAL_VALID_RUNTIME_V1.json"
       - "config/RATE_EXTERNAL_PRODUCTION_DEPENDENCIES.json"
       - "docs/RATE_PUBLIC_OFFICIAL_PARTIAL_VALID_RUNTIME_V1.md"
       - ".github/workflows/rate_production_0930_scheduler.yml"
       - ".github/workflows/rate_production_1200_scheduler.yml"
+      - ".github/workflows/rate_production_1930_scheduler.yml"
       - ".github/workflows/rate_public_official_partial_valid_ci.yml"
 
 permissions:

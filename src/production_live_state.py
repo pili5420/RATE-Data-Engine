@@ -79,6 +79,9 @@ def validate_material(persist, material, trading_date, cadence):
         validate_partial_state(decision)
         require(persist.get("report_runtime_status") == "PARTIAL_VALID"
                 and persist.get("full_production_acceptance") == "NOT_ALLOWED", "PUBLIC_PERSIST_GATE_INVALID")
+    if decision.get("evening_acceptance_mode") == "PARTIAL_PREDECESSOR_FORMAL_EOD" or "predecessor_partial_report" in decision:
+        from src.cer078_evening_1930 import validate_partial_evening_state
+        validate_partial_evening_state(decision)
     return state
 
 

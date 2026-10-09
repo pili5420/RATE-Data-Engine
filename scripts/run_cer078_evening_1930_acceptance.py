@@ -21,7 +21,23 @@ def main() -> int:
     ap.add_argument('--actions-job-id', default=os.getenv('ACTIONS_JOB_ID') or os.getenv('GITHUB_JOB'))
     ap.add_argument('--event-name', default=os.getenv('GITHUB_EVENT_NAME'))
     ap.add_argument('--reset-state-root', action='store_true')
+    ap.add_argument('--continue-partial-state', action='store_true')
     args = ap.parse_args()
+    if args.continue_partial_state:
+        from src.cer078_evening_1930 import build_partial_evening_artifacts
+        try:
+            if args.reset_state_root:
+                raise RuntimeError('EVENING_STATE_RESET_FORBIDDEN')
+            artifacts = build_partial_evening_artifacts(source_bundle=load_json(args.source_bundle),
+                previous_evidence=args.cer077_persisted_evidence, state_root=args.state_root, output_dir=args.output_dir)
+            for filename, payload in artifacts.items():
+                atomic_write_json(Path(args.output_dir)/filename, payload)
+            print(json.dumps(artifacts['RATE_PARTIAL_TO_EOD_FULL_ACCEPTANCE.json'], sort_keys=True))
+            return 0
+        except Exception as exc:
+            atomic_write_json(Path(args.output_dir)/'RATE_PARTIAL_TO_EOD_FULL_ACCEPTANCE.json',
+                {'validation_status': 'FAIL_CLOSED', 'reason': str(exc)})
+            return 1
     out = Path(args.output_dir); out.mkdir(parents=True, exist_ok=True)
     write_fail_closed(out, run_head_sha=args.run_head_sha, actions_run_id=args.actions_run_id, actions_job_id=args.actions_job_id, event_name=args.event_name)
     try:

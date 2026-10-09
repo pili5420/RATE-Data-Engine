@@ -1406,6 +1406,21 @@ def assemble_production_bundle(*, normalized_sources: list[dict[str, Any]], trad
         "explicit_production_watchlist": [],
         **NO_FALLBACK,
     }
+    if cadence == "19:30":
+        closes = []
+        for source in normalized_sources:
+            if source.get("domain") != "market_daily" or source.get("normalization_status") != "PASS":
+                continue
+            for index, record in enumerate(source.get("normalized_records") or []):
+                latest = record.get("raw_market_latest")
+                if latest and latest.get("symbol") in universe and latest.get("trade_date") == trading_date:
+                    closes.append({"symbol": latest["symbol"], "trade_date": trading_date,
+                        "close": latest["close"], "volume": latest["volume"], "turnover": latest["turnover"],
+                        "source": source["source"], "dataset_id": source.get("dataset_id"),
+                        "body_sha256": source.get("body_sha256"), "parser_version": source.get("parser_version"),
+                        "normalized_record_locator": f"$.normalized_records[{index}].raw_market_latest"})
+        bundle["eod_close_records"] = closes
+        bundle["eod_close_content_sha256"] = sha256_value(closes)
     return bundle, transformation, matrix
 
 

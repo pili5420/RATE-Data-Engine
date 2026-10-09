@@ -30,6 +30,8 @@ ALLOWED = {
     "scripts/publish_production_state_latest.py", "scripts/run_cer076_incremental_0930_acceptance.py",
     "scripts/run_cer077_incremental_1200_acceptance.py", "scripts/verify_public_official_partial_valid.py",
     "tests/test_public_official_partial_valid.py", "docs/RATE_PUBLIC_OFFICIAL_PARTIAL_VALID_RUNTIME_V1.md",
+    ".github/workflows/rate_production_1930_scheduler.yml", "src/cer078_evening_1930.py",
+    "scripts/run_cer078_evening_1930_acceptance.py", "tests/test_partial_to_evening_acceptance.py",
 }
 
 
@@ -76,25 +78,26 @@ def child(output, modules):
 
 def chain_proof(output):
     sys.path.insert(0, str(ROOT))
-    from tests.test_public_official_partial_valid import PublicOfficialPartialValidTests
+    from tests.test_partial_to_evening_acceptance import PartialToEveningAcceptanceTests
     from scripts.resolve_production_runtime_context import resolve_context
     from src.production_live_state import load_live_state
-    test = PublicOfficialPartialValidTests()
+    test = PartialToEveningAcceptanceTests()
     test.setUp()
     try:
-        test.test_actual_cli_opt_in_0930_to_1200_cold_process()
+        test.test_full_four_cadence_cli_eod_acceptance()
         morning = load_live_state(test.artifacts / "production_state", test.day, "09:30")["state"]
         midday = load_live_state(test.artifacts / "production_state", test.day, "12:00")["state"]
-        evening = resolve_context(cadence="19:30", event_name="workflow_dispatch", dispatch_trading_date=test.day,
-            state_root=test.artifacts / "production_state")
+        evening = load_live_state(test.artifacts / "production_state", test.day, "19:30")["state"]
         protected = ("roy_portfolio", "ai_paper_portfolio", "transaction_ledger")
         proof = {"evidence_scope": "SYNTHETIC_ENGINEERING_ONLY_NOT_LIVE", "real_financial_requests": 0,
             "previous_0730_state_id": test.previous["current_state_id"],
             "0930_state_id": morning["current_state_id"], "1200_state_id": midday["current_state_id"],
             "0930_to_1200": midday["previous_state_id"] == morning["current_state_id"],
-            "1200_to_1930_resolver": evening["previous_state_id"] == midday["current_state_id"],
-            "1930_full_legacy_acceptance": "NOT_CERTIFIED",
-            "no_execution_or_ledger_mutation": all(test.previous["decision"][key] == morning["decision"][key] == midday["decision"][key] for key in protected),
+            "1930_state_id": evening["current_state_id"],
+            "1200_to_1930_full_runtime": evening["previous_state_id"] == midday["current_state_id"],
+            "1930_full_legacy_acceptance": test.proof["1930_full_legacy_acceptance"],
+            "evening_acceptance": test.proof,
+            "no_execution_or_ledger_mutation": all(test.previous["decision"][key] == morning["decision"][key] == midday["decision"][key] == evening["decision"][key] for key in protected),
             "gates": {key: midday["decision"][key] for key in ("public_official_evidence_gate", "market_intraday_price_gate",
                 "report_runtime_status", "full_intraday_decision_status", "full_production_acceptance", "fallback_allowed")}}
         shutil.copytree(test.artifacts, output / "synthetic-chain")
@@ -142,7 +145,7 @@ def main():
         extract(args.expected_head, head)
         old = test_run(base, output / "base-regressions.json", OLD_MODULES)
         current = test_run(head, output / "head-regressions.json", OLD_MODULES)
-        new = test_run(head, output / "new-tests.json", ["test_public_official_partial_valid"])
+        new = test_run(head, output / "new-tests.json", ["test_public_official_partial_valid", "test_partial_to_evening_acceptance"])
     def outcomes(report):
         return sorted((kind, item["test_id"], item["traceback"].strip().splitlines()[-1])
             for kind in ("failures", "errors") for item in report[kind])
