@@ -560,5 +560,144 @@ class BenchmarkCompatibilityTests(unittest.TestCase):
         self.assertNotIn("close", original["tables"][0]["fields"])
 
 
+class DailyMissingCloseTests(unittest.TestCase):
+    """SYNTHETIC ONLY: missing representations in the candidate TPEx bridge."""
+
+    def row(self, value="100", **aliases):
+        return {"Date": "2026-09-01", "SecuritiesCompanyCode": "1000", "Close": value, **aliases}
+
+    def parse(self, value="100", **aliases):
+        return d.daily_rows([self.row(value, **aliases)], "TPEX")[1][0]
+
+    def invalid(self, value, **aliases):
+        with self.assertRaisesRegex(Exception, "^DAILY_CLOSE_INVALID$"):
+            self.parse(value, **aliases)
+
+    def test_leading_space_missing(self):
+        self.assertIsNone(self.parse(" ---")["close"])
+
+    def test_trailing_space_missing(self):
+        self.assertIsNone(self.parse("--- ")["close"])
+
+    def test_surrounding_spaces_missing(self):
+        self.assertIsNone(self.parse("  ---  ")["close"])
+
+    def test_all_exact_tokens_with_whitespace(self):
+        for token in ("", "-", "--", "---"):
+            with self.subTest(token=token):
+                row = self.parse(" \t" + token + " \n")
+                self.assertIsNone(row["close"])
+                self.assertEqual(row["normalized_missing_token"], token)
+                self.assertEqual(row["reason"], "OFFICIAL_CLOSE_NOT_REPORTED")
+
+    def test_none_retains_existing_missing_semantics(self):
+        row = self.parse(None)
+        self.assertIsNone(row["close"])
+        self.assertIsNone(row["raw_close"])
+        self.assertIsNone(row["normalized_missing_token"])
+
+    def test_lookalikes_not_missing(self):
+        for value in ("- --", "---x", "x---"):
+            with self.subTest(value=value):
+                self.invalid(value)
+
+    def test_bool_rejected_in_daily_domain(self):
+        for value in (True, False):
+            self.invalid(value)
+
+    def test_nonfinite_rejected_in_daily_domain(self):
+        for value in ("NaN", "Infinity", "-Infinity", float("nan"), float("inf")):
+            with self.subTest(value=value):
+                self.invalid(value)
+
+    def test_nonnumeric_rejected_in_daily_domain(self):
+        for value in ("not-a-number", {}, []):
+            with self.subTest(value=value):
+                self.invalid(value)
+
+    def test_zero_negative_overflow_underflow_rejected(self):
+        for value in (0, -1, "0", "-0", "1e9999", "1e-9999"):
+            with self.subTest(value=value):
+                self.invalid(value)
+
+    def test_both_aliases_missing_pass(self):
+        for first, second in ((" ---", "-- "), (None, " "), ("-", "---")):
+            row = self.parse(first, ClosingPrice=second)
+            self.assertIsNone(row["close"])
+            self.assertEqual(len(row["close_alias_evidence"]), 2)
+
+    def test_missing_numeric_alias_conflict(self):
+        for first, second in ((" ---", "100"), ("100", "--- ")):
+            with self.assertRaisesRegex(Exception, "^DAILY_CLOSE_FIELD_CONFLICT$"):
+                self.parse(first, ClosingPrice=second)
+
+    def test_equivalent_numeric_aliases_pass(self):
+        for first, second in (("100.00", "1e2"), (100, "100.0"), ("1,234.50", "1234.500")):
+            row = self.parse(first, ClosingPrice=second)
+            self.assertEqual(float(row["close"]), float(str(first).replace(",", "")))
+
+    def test_differing_numeric_aliases_conflict(self):
+        with self.assertRaisesRegex(Exception, "^DAILY_CLOSE_FIELD_CONFLICT$"):
+            self.parse("100", ClosingPrice="101")
+
+    def test_decimal_conflict_not_hidden_by_float(self):
+        with self.assertRaisesRegex(Exception, "^DAILY_CLOSE_FIELD_CONFLICT$"):
+            self.parse("100.00000000000000001", ClosingPrice="100.00000000000000002")
+
+    def test_invalid_secondary_alias_not_ignored(self):
+        self.invalid("100", ClosingPrice="---x")
+
+    def test_benchmark_alias_not_accepted(self):
+        row = self.row()
+        del row["Close"]
+        row["收市"] = "100"
+        with self.assertRaisesRegex(Exception, "^DAILY_MARKET_SCHEMA_MISMATCH$"):
+            d.daily_rows([row], "TPEX")
+
+    def test_twse_existing_closingprice_behavior_unchanged(self):
+        for value in ("100.50", None, "", "-", "--", "---"):
+            raw = {"Date": "2026-09-01", "Code": "1000", "ClosingPrice": value, "Close": "ignored"}
+            row = d.daily_rows([raw], "TWSE")[1][0]
+            self.assertEqual(row["close"], "100.5" if value == "100.50" else None)
+        with self.assertRaises(Exception):
+            d.daily_rows([{"Date": "2026-09-01", "Code": "1000", "Close": "100"}], "TWSE")
+
+    def test_original_value_token_and_locators_preserved(self):
+        row = self.parse(" ---")
+        self.assertEqual(row["raw_close"], " ---")
+        self.assertEqual(row["normalized_missing_token"], "---")
+        self.assertEqual(row["raw_row_index"], 0)
+        self.assertEqual(row["json_locator"], "$[0]")
+        self.assertEqual(row["raw_close_locator"], '$[0]["Close"]')
+        self.assertEqual(row["close_alias_evidence"][0]["raw_value"], " ---")
+
+    def test_raw_receipt_and_payload_bytes_unchanged(self):
+        with tempfile.TemporaryDirectory(prefix="SYNTHETIC-daily-missing-") as directory:
+            raw, receipt = Path(directory) / "raw.json", Path(directory) / "receipt.json"
+            payload = [self.row(" ---")]
+            raw.write_bytes(_canonical(payload))
+            receipt.write_bytes(_canonical({"synthetic_only": True, "raw_sha256": sha256(raw.read_bytes())}))
+            before = raw.read_bytes(), receipt.read_bytes(), deepcopy(payload)
+            d.daily_rows(payload, "TPEX")
+            self.assertEqual(before, (raw.read_bytes(), receipt.read_bytes(), payload))
+
+    def test_full_synthetic_payload_no_row_loss(self):
+        payload = [{**self.row(" ---" if i % 3 == 0 else "100.5"), "SecuritiesCompanyCode": str(10000 + i)}
+            for i in range(12221)]
+        day, rows = d.daily_rows(payload, "TPEX")
+        self.assertEqual(day, "2026-09-01")
+        self.assertEqual(len(rows), len(payload))
+        self.assertEqual(sum(row["close"] is None for row in rows), 4074)
+        self.assertEqual([row["raw_row_index"] for row in rows], list(range(len(payload))))
+
+    def test_duplicate_missing_symbol_still_rejected(self):
+        with self.assertRaisesRegex(Exception, "^DAILY_DUPLICATE_OR_CONFLICTING_SYMBOL$"):
+            d.daily_rows([self.row(" ---"), self.row("--- ")], "TPEX")
+
+    def test_mixed_dates_still_rejected(self):
+        with self.assertRaisesRegex(Exception, "^DAILY_MIXED_OR_WRONG_DATE$"):
+            d.daily_rows([self.row(" ---"), {**self.row(), "Date": "2026-09-02", "SecuritiesCompanyCode": "1001"}], "TPEX")
+
+
 if __name__ == "__main__":
     unittest.main()

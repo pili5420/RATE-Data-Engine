@@ -41,6 +41,31 @@ def post_close(day, observed_at, as_of):
     require(_time(close_at(day)) <= _time(observed_at) <= _time(as_of) <= _time(instant()), "DAILY_PRE_CLOSE_OR_FUTURE_OBSERVATION")
 
 
+def _daily_close_aliases(raw, fields, index):
+    evidence, values = [], []
+    for field in fields:
+        if field not in raw:
+            continue
+        value = raw[field]
+        token = value.strip() if isinstance(value, str) else None
+        missing = value is None or isinstance(value, str) and token in ("", "-", "--", "---")
+        decimal = None
+        if not missing:
+            require(not isinstance(value, bool), "DAILY_CLOSE_INVALID")
+            try:
+                decimal = Decimal(str(value).replace(",", ""))
+                require(decimal.is_finite() and decimal > 0 and math.isfinite(float(decimal)) and float(decimal) > 0,
+                    "DAILY_CLOSE_INVALID")
+            except (InvalidOperation, OverflowError, TypeError, ValueError) as error:
+                raise Rejected("DAILY_CLOSE_INVALID") from error
+        values.append(decimal)
+        evidence.append({"original_field": field, "raw_value": value,
+            "normalized_missing_token": token if missing else None,
+            "json_locator": f"$[{index}][" + json.dumps(field) + "]"})
+    require(all(value == values[0] for value in values), "DAILY_CLOSE_FIELD_CONFLICT")
+    return values[0], evidence
+
+
 def daily_rows(payload, market):
     require(market in DAILY and isinstance(payload, list) and payload, "DAILY_MARKET_SCHEMA_MISMATCH")
     output, seen, dates = [], set(), set()
@@ -56,6 +81,20 @@ def daily_rows(payload, market):
         seen.add(symbol)
         dates.add(day)
         value = next(raw[k] for k in close_fields if k in raw)
+        if market == "TPEX":
+            decimal, aliases = _daily_close_aliases(raw, close_fields, index)
+            preserved = {"raw_close": value, "raw_row_index": index, "json_locator": f"$[{index}]",
+                "raw_close_locator": aliases[0]["json_locator"], "close_alias_evidence": aliases}
+            if decimal is None:
+                output.append({"symbol": symbol, "day": day, "close": None,
+                    "reason": "OFFICIAL_CLOSE_NOT_REPORTED",
+                    "normalized_missing_token": aliases[0]["normalized_missing_token"], **preserved})
+                continue
+            normalized_close = _number(value)
+            require(_symbol(symbol) == symbol and math.isfinite(normalized_close) and normalized_close > 0 and
+                Decimal(str(normalized_close)) == decimal, "DAILY_CLOSE_INVALID")
+            output.append({"symbol": symbol, "day": day, "close": str(normalized_close), **preserved})
+            continue
         require(all(str(raw[k]) == str(value) for k in close_fields if k in raw), "DAILY_CONFLICTING_CLOSE_FIELDS")
         if value in (None, "", "-", "--", "---"):
             output.append({"symbol": symbol, "day": day, "close": None,
