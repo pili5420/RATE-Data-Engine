@@ -270,7 +270,9 @@ def qualify(token, *, universe_path=None, opener=urlopen, now=None, max_stock_ag
             "missing_count": len(missing),
             "missing_sample": missing[:20],
         }
-        coverage_gate = not missing and len(expected) == 1978\n        if len(expected) != 1978:\n            coverage["status"] = "FAIL_CLOSED:EXPECTED_1978_UNIVERSE"
+        coverage_gate = not missing and len(expected) == 1978
+        if len(expected) != 1978:
+            coverage["status"] = "FAIL_CLOSED:EXPECTED_1978_UNIVERSE"
 
     timestamp_assumption_present = any(r["timestamp_timezone_assumed_asia_taipei"] for r in stock + indices + futures)
 
