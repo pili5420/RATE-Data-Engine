@@ -40,8 +40,9 @@ jobs:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
           PYTHONDONTWRITEBYTECODE: "1"
         run: |
-          import hashlib, json, os, pathlib, subprocess, unittest
+          import hashlib, json, os, pathlib, subprocess, sys, unittest
           root = pathlib.Path.cwd()
+          sys.path.insert(0, str(root))
           head = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode().strip()
           assert head == os.environ["EXPECTED_HEAD"], "EXACT_HEAD_MISMATCH"
           manifest_path = "artifacts/historical-acceptance-restoration/PROVENANCE_MANIFEST.json"
