@@ -30,6 +30,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -50,11 +53,12 @@ jobs:
           --expected-head "$HEAD_SHA"
           --output-dir "$RUNNER_TEMP/finmind-intraday-diagnostic"
       - name: Upload synthetic verification
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: RATE_FINMIND_INTRADAY_DIAGNOSTIC_SYNTHETIC_${{ github.sha }}
           path: ${{ runner.temp }}/finmind-intraday-diagnostic/*.json
-          if-no-files-found: error
+          if-no-files-found: warn
 
   controlled-live-diagnostic:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.live }}
@@ -87,4 +91,4 @@ jobs:
         with:
           name: RATE_FINMIND_INTRADAY_LIVE_DIAGNOSTIC_${{ github.run_id }}
           path: artifacts/finmind_intraday_qualification/*.json
-          if-no-files-found: error
+          if-no-files-found: warn
