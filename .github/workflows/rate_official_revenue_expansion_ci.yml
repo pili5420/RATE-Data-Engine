@@ -1,22 +1,20 @@
-name: RATE Provider Financial Features V1 Engineering
-
+name: RATE Official Revenue Expansion V1 Engineering
 on:
   pull_request:
     branches: [main]
     paths:
-      - "src/provider_financial_features.py"
+      - "src/provider_revenue_snapshot.py"
       - "src/provider_financial_feature_inputs.py"
-      - "scripts/*provider_financial_features.py"
-      - "tests/*provider_financial_features*.py"
-      - "docs/contracts/RATE_PROVIDER_FINANCIAL_FEATURES_V1.json"
-      - "docs/RATE_PROVIDER_FINANCIAL_FEATURES_V1.md"
+      - "scripts/expand_official_revenue.py"
+      - "scripts/verify_official_revenue_expansion.py"
+      - "tests/test_provider_revenue_snapshot.py"
+      - "docs/RATE_OFFICIAL_REVENUE_EXPANSION_V1.md"
+      - ".github/workflows/rate_official_revenue_expansion_ci.yml"
       - ".github/workflows/rate_provider_financial_features_ci.yml"
-
 permissions:
   contents: read
-
 jobs:
-  synthetic-engineering-only:
+  synthetic-revenue-only:
     strategy:
       fail-fast: false
       matrix:
@@ -38,30 +36,27 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Existing offline official parser dependency
+      - name: Existing offline parser dependency
         run: python -m pip install lxml==6.1.1
-      - name: Exact-head synthetic engineering and protected-file checks
+      - name: Exact-head synthetic regression and opt-in isolation
         env:
           EXPECTED_BASE: ${{ github.event.pull_request.base.sha }}
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
-          TMPDIR: ${{ runner.temp }}
           TEMP: ${{ runner.temp }}
           TMP: ${{ runner.temp }}
-        run: |
-          verifier=scripts/verify_provider_financial_features.py
-          if test -f scripts/verify_official_revenue_expansion.py; then
-            verifier=scripts/verify_official_revenue_expansion.py
-          fi
-          python -B "$verifier" --expected-base "$EXPECTED_BASE" --expected-head "$EXPECTED_HEAD" \
-            --output-dir "$RUNNER_TEMP/provider-financial-features-engineering"
+          TMPDIR: ${{ runner.temp }}
+        run: >-
+          python -B scripts/verify_official_revenue_expansion.py
+          --expected-base "$EXPECTED_BASE" --expected-head "$EXPECTED_HEAD"
+          --output-dir "$RUNNER_TEMP/official-revenue-engineering"
       - name: Clean worktree
         if: always()
         run: test -z "$(git status --porcelain --untracked-files=all)"
-      - name: Retain synthetic engineering evidence only
+      - name: Synthetic evidence only
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: PROVIDER_FEATURES_ENGINEERING_NOT_REAL_${{ matrix.os }}_${{ github.event.pull_request.head.sha }}
-          path: ${{ runner.temp }}/provider-financial-features-engineering/
+          name: OFFICIAL_REVENUE_SYNTHETIC_NOT_REAL_${{ matrix.os }}_${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/official-revenue-engineering/
           if-no-files-found: error
           retention-days: 14

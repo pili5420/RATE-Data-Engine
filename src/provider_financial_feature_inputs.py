@@ -109,6 +109,9 @@ def load_closeout(manifest_reference, expected_sha256):
 
 
 def replay_binding(binding):
+    if binding.get("input_mode") == "OFFICIAL_REVENUE_SNAPSHOT_INPUT_V1":
+        from .provider_revenue_snapshot import replay_snapshot_binding
+        return replay_snapshot_binding(binding)
     result = load_closeout(binding["closeout_manifest_reference"], binding["closeout_manifest_sha256"])
     require(result["source_binding"] == binding, "FEATURE_SOURCE_BINDING_CHANGED")
     return result
