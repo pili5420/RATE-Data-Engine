@@ -1,0 +1,18 @@
+{
+  "contract_id": "RATE-0930-1200-PUBLIC-OFFICIAL-PARTIAL-VALID-V1",
+  "version": 1,
+  "cadences": ["09:30", "12:00"],
+  "report_production_allowed_while_intraday_blocked": true,
+  "full_production_acceptance": "NOT_ALLOWED",
+  "fallback_allowed": false,
+  "required_dataset_ids": ["twse_market_daily", "tpex_market_daily", "twse_benchmark", "twse_fundamental_revenue", "tpex_fundamental_revenue", "twse_trading_metadata", "tpex_trading_metadata"],
+  "observation_max_age_minutes": {"09:30": 30, "12:00": 30},
+  "daily_effective_date": "EXACT_PREVIOUS_LEGAL_TRADING_DAY",
+  "publication_max_age_days": {"fundamental": 62, "trading_metadata": 31},
+  "unconfigured_evidence": ["material_announcements", "attention", "disposition", "suspension", "tpex_benchmark"],
+  "unconfigured_evidence_status": "NOT_CONFIGURED_NOT_ASSERTED_CLEAR",
+  "blocked_modules": ["current_individual_stock_price", "current_individual_stock_volume", "live_gap", "live_price_trigger", "intraday_top30_rerank", "intraday_stage", "intraday_mhe", "ai_paper_execution"],
+  "updated_modules": ["previous_state_lineage", "official_public_evidence_state", "public_official_evidence_delta", "watchlist_evidence", "report_commentary_inputs"],
+  "strategy_changes_allowed": false,
+  "scheduled_soak_credit": false
+}

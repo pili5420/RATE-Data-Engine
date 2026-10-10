@@ -84,6 +84,7 @@ jobs:
         if: ${{ github.event_name != 'push' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
         run: >
           python scripts/build_production_source_bundle_from_official.py
+          --public-official-partial
           --trading-date "${{ env.RATE_PRODUCTION_TRADING_DATE }}"
           --cadence "${{ env.RATE_PRODUCTION_CADENCE }}"
           --rate-source-url "$RATE_SOURCE_URL"
@@ -98,14 +99,31 @@ jobs:
           GITHUB_EVENT_NAME: ${{ github.event_name }}
         run: >
           python scripts/run_cer077_incremental_1200_acceptance.py
+          --public-official-partial
           --source-bundle artifacts/production_1200/RATE_PRODUCTION_SOURCE_BUNDLE.json
           --cer074-persisted-evidence "$RATE_PREVIOUS_STATE_EVIDENCE_PATH" --cer075-persisted-evidence "$RATE_PREVIOUS_STATE_EVIDENCE_PATH" --cer076-persisted-evidence "$RATE_PREVIOUS_STATE_EVIDENCE_PATH"
           --output-dir artifacts/production_1200
           --state-root data/production/scheduler_1200
           --actions-job-id "$ACTIONS_JOB_ID"
 
-      - name: Publish live production state pointer
+      - name: Archive public report-consumption evidence before state readiness
         if: ${{ success() && github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
+        run: >
+          python scripts/publish_production_source_bundle_latest.py
+          --public-official-partial
+          --source-bundle artifacts/production_1200/RATE_PRODUCTION_SOURCE_BUNDLE.json
+          --trading-date "${{ env.RATE_PRODUCTION_TRADING_DATE }}"
+          --cadence "12:00"
+          --artifacts-root artifacts
+          --workflow-run-id "${{ github.run_id }}"
+          --workflow-job-id "$ACTIONS_JOB_ID"
+          --evidence-output artifacts/production_1200/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST_UPDATE_EVIDENCE.json
+
+      - name: Publish live production state pointer after source replay
+        if: ${{ success() && github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
         run: >
           python scripts/publish_production_state_latest.py
           --persist-evidence artifacts/production_1200/RATE_CER077_PERSIST_RESULT_EVIDENCE.json
@@ -116,21 +134,6 @@ jobs:
           --workflow-run-id "${{ github.run_id }}"
           --workflow-job-id "$ACTIONS_JOB_ID"
           --evidence-output artifacts/production_1200/RATE_PRODUCTION_STATE_LIVE_UPDATE_EVIDENCE.json
-
-      - name: Publish immutable production source bundle latest
-        if: ${{ success() && github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
-        env:
-          GITHUB_SHA: ${{ github.sha }}
-          GITHUB_RUN_ID: ${{ github.run_id }}
-        run: >
-          python scripts/publish_production_source_bundle_latest.py
-          --source-bundle artifacts/production_1200/RATE_PRODUCTION_SOURCE_BUNDLE.json
-          --trading-date "${{ env.RATE_PRODUCTION_TRADING_DATE }}"
-          --cadence "12:00"
-          --artifacts-root artifacts
-          --workflow-run-id "${{ github.run_id }}"
-          --workflow-job-id "$ACTIONS_JOB_ID"
-          --evidence-output artifacts/production_1200/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST_UPDATE_EVIDENCE.json
 
       - name: Commit authorized production pointers
         if: ${{ success() && github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
@@ -152,7 +155,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: RATE_LIVE_PRODUCTION_STATE_1200_${{ env.RATE_PRODUCTION_TRADING_DATE }}_${{ github.run_id }}
-          path: artifacts/production_state/live/${{ env.RATE_PRODUCTION_TRADING_DATE }}/1200/*.json
+          path: artifacts/production_state/live/${{ env.RATE_PRODUCTION_TRADING_DATE }}/1200/**
           if-no-files-found: error
 
       - name: Upload production cadence artifacts
@@ -160,6 +163,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: RATE_PRODUCTION_1200_SCHEDULER_ARTIFACTS
-          path: artifacts/production_1200/*.json
+          path: artifacts/production_1200/**
           if-no-files-found: warn
 

@@ -45,6 +45,24 @@ def publish_state(*, persist_evidence_path, trading_date, cadence, artifacts_roo
         previous = load_live_state(root / "production_state", previous_date, CADENCE_PREDECESSOR[cadence])
         require(state["previous_state_id"] == previous["state"]["current_state_id"]
                 and state["decision"].get("previous_state_hash") == previous["state"]["decision_payload_hash"], "LIVE_STATE_LINEAGE_INVALID")
+        report_status = {}
+        if state["decision"].get("evening_acceptance_mode") == "PARTIAL_PREDECESSOR_FORMAL_EOD":
+            from src.cer078_evening_1930 import _partial_eod_snapshot, run_evening_decision
+            bundle = state["decision"]["eod_source_bundle"]
+            require(state == run_evening_decision(_partial_eod_snapshot(previous["state"], bundle), previous["state"], bundle),
+                "EVENING_STATE_REPLAY_MISMATCH")
+            report_status = {key: state["decision"][key] for key in ("report_runtime_status",
+                "market_intraday_price_gate", "full_intraday_decision_status", "full_production_acceptance")}
+        if state["decision"].get("report_runtime_status") == "PARTIAL_VALID":
+            from src.public_official_partial_valid import validate_bundle
+            # Source bytes must already travel with the slot before its ready manifest is published.
+            validate_bundle(state["decision"]["public_official_bundle"], trading_date=trading_date,
+                cadence=cadence, archive_directory=root / "production_state/live" / trading_date / CADENCE_DIR[cadence])
+            for key in ("roy_portfolio", "ai_paper_portfolio", "ai_paper_portfolio_ledger", "transaction_ledger",
+                        "top50", "short_top30", "long_top30", "model_learning_state"):
+                require(state["decision"].get(key) == previous["state"]["decision"].get(key), "PUBLIC_PROTECTED_STATE_CHANGED:" + key)
+            report_status = {key: state["decision"][key] for key in ("report_runtime_status",
+                "public_official_evidence_gate", "market_intraday_price_gate", "full_intraday_decision_status", "full_production_acceptance")}
         # The decision engine owns account changes; transport must preserve the entire transaction prefix.
         old_ledger = previous["state"]["decision"]["transaction_ledger"]["transactions"]
         new_ledger = state["decision"]["transaction_ledger"]["transactions"]
@@ -64,6 +82,7 @@ def publish_state(*, persist_evidence_path, trading_date, cadence, artifacts_roo
             atomic_write_json(directory / STATE_NAME, material)
             atomic_write_json(directory / PERSIST_NAME, payload)
             manifest = {"artifact": "RATE_PRODUCTION_STATE_MANIFEST", "validation_status": "PASS",
+                        **report_status,
                         "trading_date": trading_date, "cadence": cadence, "event_name": event_name,
                         "ref": ref, "commit_sha": commit_sha, "workflow_run_id": workflow_run_id,
                         "workflow_job_id": workflow_job_id, "current_state_id": state_id,
@@ -77,11 +96,13 @@ def publish_state(*, persist_evidence_path, trading_date, cadence, artifacts_roo
         slot = (trading_date, cadence)
         if not latest or (latest.get("trading_date", ""), latest.get("cadence", "")) <= slot:
             atomic_write_json(latest_path, {"artifact": "RATE_PRODUCTION_STATE_LATEST", "validation_status": "PASS",
+                **report_status,
                 "trading_date": trading_date, "cadence": cadence, "workflow_run_id": verified["manifest"]["workflow_run_id"],
                 "workflow_job_id": verified["manifest"]["workflow_job_id"], "current_state_id": state_id,
                 "current_state_hash": state["decision_payload_hash"], "previous_state_id": state["previous_state_id"],
                 "live_state_evidence_path": (directory / PERSIST_NAME).as_posix()})
         out.update(validation_status="PASS", live_state_updated=True,
+                   **report_status,
                    live_state_evidence_path=(directory / PERSIST_NAME).as_posix(), current_state_id=state_id,
                    current_state_hash=state["decision_payload_hash"],
                    checks={"complete_state": True, "previous_state_binding": True, "ledger_history_preserved": True},

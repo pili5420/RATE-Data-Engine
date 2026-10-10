@@ -358,6 +358,7 @@ def publish_latest(*, source_bundle_path: str | Path, trading_date: str, cadence
 def main() -> int:
     parser = argparse.ArgumentParser(description="Publish immutable RATE production source bundle snapshot and atomically update LATEST after PASS validation.")
     parser.add_argument("--source-bundle", required=True)
+    parser.add_argument("--public-official-partial", action="store_true")
     parser.add_argument("--trading-date", required=True)
     parser.add_argument("--cadence", required=True, choices=["07:30", "09:30", "12:00", "19:30"])
     parser.add_argument("--artifacts-root", default="artifacts")
@@ -365,7 +366,11 @@ def main() -> int:
     parser.add_argument("--workflow-job-id", default=os.getenv("ACTIONS_JOB_ID") or os.getenv("GITHUB_JOB"))
     parser.add_argument("--evidence-output", default="artifacts/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST_UPDATE_EVIDENCE.json")
     args = parser.parse_args()
-    evidence = publish_latest(source_bundle_path=args.source_bundle, trading_date=args.trading_date, cadence=args.cadence, artifacts_root=args.artifacts_root, workflow_run_id=args.workflow_run_id, workflow_job_id=args.workflow_job_id, evidence_output=args.evidence_output)
+    if args.public_official_partial:
+        from src.public_official_partial_valid import publish_report
+        evidence = publish_report(source_bundle_path=args.source_bundle, trading_date=args.trading_date, cadence=args.cadence, artifacts_root=args.artifacts_root, workflow_run_id=args.workflow_run_id, workflow_job_id=args.workflow_job_id, evidence_output=args.evidence_output)
+    else:
+        evidence = publish_latest(source_bundle_path=args.source_bundle, trading_date=args.trading_date, cadence=args.cadence, artifacts_root=args.artifacts_root, workflow_run_id=args.workflow_run_id, workflow_job_id=args.workflow_job_id, evidence_output=args.evidence_output)
     print(json.dumps(evidence, ensure_ascii=False, sort_keys=True))
     return 0 if evidence.get("publish_result") == "PASS" else 1
 

@@ -196,9 +196,9 @@ def _host_allowed(source: str, url: str) -> bool:
     return any(host == allowed or host.endswith("." + allowed) for allowed in OFFICIAL_DOMAINS.get(source, ()))
 
 
-def fetch_url(url: str, timeout: int = 20) -> dict[str, Any]:
+def fetch_url(url: str, timeout: int = 20, *, preserve_body: bool = False) -> dict[str, Any]:
     request = urllib.request.Request(url, headers={"User-Agent": "RATE-Production-Source-Acquisition/1.0", "Accept": "application/json,text/plain,*/*"})
-    if url == "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap05_O":
+    if not preserve_body and url == "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap05_O":
         result = fetch_official_json(request, opener=urllib.request.urlopen)
         return {"url": url, **result["diagnostics"], "retrieval_timestamp": utc_now(),
                 "json_parse_status": "PASS", "raw_payload": result["payload"]}
@@ -209,7 +209,8 @@ def fetch_url(url: str, timeout: int = 20) -> dict[str, Any]:
         parsed = None
         if "json" in content_type.lower() or text.strip().startswith(("{", "[")):
             parsed = json.loads(text)
-        return {"url": url, "http_status": response.getcode(), "content_type": content_type, "retrieval_timestamp": utc_now(), "body_sha256": sha256_bytes(body), "json_parse_status": "PASS" if parsed is not None else "FAIL", "raw_payload": parsed}
+        return {"url": url, "http_status": response.getcode(), "content_type": content_type, "retrieval_timestamp": utc_now(), "body_sha256": sha256_bytes(body), "json_parse_status": "PASS" if parsed is not None else "FAIL", "raw_payload": parsed,
+                **({"raw_bytes": body, "final_url": response.geturl()} if preserve_body else {})}
 
 
 def _normalize_technical(row: Mapping[str, Any]) -> dict[str, Any] | None:
@@ -1405,6 +1406,21 @@ def assemble_production_bundle(*, normalized_sources: list[dict[str, Any]], trad
         "explicit_production_watchlist": [],
         **NO_FALLBACK,
     }
+    if cadence == "19:30":
+        closes = []
+        for source in normalized_sources:
+            if source.get("domain") != "market_daily" or source.get("normalization_status") != "PASS":
+                continue
+            for index, record in enumerate(source.get("normalized_records") or []):
+                latest = record.get("raw_market_latest")
+                if latest and latest.get("symbol") in universe and latest.get("trade_date") == trading_date:
+                    closes.append({"symbol": latest["symbol"], "trade_date": trading_date,
+                        "close": latest["close"], "volume": latest["volume"], "turnover": latest["turnover"],
+                        "source": source["source"], "dataset_id": source.get("dataset_id"),
+                        "body_sha256": source.get("body_sha256"), "parser_version": source.get("parser_version"),
+                        "normalized_record_locator": f"$.normalized_records[{index}].raw_market_latest"})
+        bundle["eod_close_records"] = closes
+        bundle["eod_close_content_sha256"] = sha256_value(closes)
     return bundle, transformation, matrix
 
 
@@ -1440,7 +1456,10 @@ def _blocked_bundle(*, trading_date: str, cadence: str, retrieval_timestamp: str
     }
 
 
-def build_bundle(*, rate_source_url: str, trading_date: str, cadence: str, output: str | Path, evidence_output: str | Path, requirement_matrix_output: str | Path | None = None, universe_contract: str | Path | None = None, universe_binding_output: str | Path | None = None, freshness_matrix_output: str | Path | None = None, feature_input_contract_output: str | Path | None = None, source_registry: str | Path | None = None) -> dict[str, Any]:
+def build_bundle(*, rate_source_url: str, trading_date: str, cadence: str, output: str | Path, evidence_output: str | Path, requirement_matrix_output: str | Path | None = None, universe_contract: str | Path | None = None, universe_binding_output: str | Path | None = None, freshness_matrix_output: str | Path | None = None, feature_input_contract_output: str | Path | None = None, source_registry: str | Path | None = None, public_official_partial: bool = False) -> dict[str, Any]:
+    if public_official_partial:
+        from src.public_official_partial_valid import acquire
+        return acquire(trading_date=trading_date, cadence=cadence, output=output, evidence_output=evidence_output)
     if cadence not in CADENCES:
         raise RuntimeError("CADENCE_INVALID")
     acquisition_started_at = utc_now()
@@ -1581,8 +1600,9 @@ def main() -> int:
     parser.add_argument("--universe-binding-output", default=None)
     parser.add_argument("--freshness-matrix-output", default=None)
     parser.add_argument("--feature-input-contract-output", default=None)
+    parser.add_argument("--public-official-partial", action="store_true")
     args = parser.parse_args()
-    evidence = build_bundle(rate_source_url=args.rate_source_url, trading_date=args.trading_date, cadence=args.cadence, output=args.output, evidence_output=args.evidence_output, requirement_matrix_output=args.requirement_matrix_output, universe_contract=args.universe_contract, universe_binding_output=args.universe_binding_output, freshness_matrix_output=args.freshness_matrix_output, feature_input_contract_output=args.feature_input_contract_output, source_registry=args.source_registry)
+    evidence = build_bundle(rate_source_url=args.rate_source_url, trading_date=args.trading_date, cadence=args.cadence, output=args.output, evidence_output=args.evidence_output, requirement_matrix_output=args.requirement_matrix_output, universe_contract=args.universe_contract, universe_binding_output=args.universe_binding_output, freshness_matrix_output=args.freshness_matrix_output, feature_input_contract_output=args.feature_input_contract_output, source_registry=args.source_registry, public_official_partial=args.public_official_partial)
     print(json.dumps(evidence, ensure_ascii=False, sort_keys=True))
     return 0 if evidence["validation_status"] == "PASS" else 1
 

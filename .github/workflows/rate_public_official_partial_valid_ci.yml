@@ -1,0 +1,64 @@
+name: RATE Public Official Partial-Valid Engineering
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/public_official_partial_valid.py"
+      - "src/production_live_state.py"
+      - "src/cer078_evening_1930.py"
+      - "scripts/*public_official_partial_valid.py"
+      - "scripts/build_production_source_bundle_from_official.py"
+      - "scripts/publish_production*latest.py"
+      - "scripts/run_cer07[678]*.py"
+      - "tests/test_public_official_partial_valid.py"
+      - "tests/test_partial_to_evening_acceptance.py"
+      - "config/RATE_PUBLIC_OFFICIAL_PARTIAL_VALID_RUNTIME_V1.json"
+      - "config/RATE_EXTERNAL_PRODUCTION_DEPENDENCIES.json"
+      - "docs/RATE_PUBLIC_OFFICIAL_PARTIAL_VALID_RUNTIME_V1.md"
+      - ".github/workflows/rate_production_0930_scheduler.yml"
+      - ".github/workflows/rate_production_1200_scheduler.yml"
+      - ".github/workflows/rate_production_1930_scheduler.yml"
+      - ".github/workflows/rate_public_official_partial_valid_ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-exact-head:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Existing runtime dependencies
+        run: python -m pip install lxml==6.1.1 tzdata==2025.2
+      - name: Unmodified base/head regressions and new tests (strict gate)
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: >
+          python -B scripts/verify_public_official_partial_valid.py
+          --expected-base af120232facc083f4f3fd934efb6b3058b0d9200
+          --expected-head "${{ env.EXPECTED_HEAD }}"
+          --output-dir "${{ runner.temp }}/public-official-partial-verification"
+      - name: Preserve all synthetic results including baseline failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PUBLIC_PARTIAL_SYNTHETIC_ONLY_${{ matrix.os }}_${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/public-official-partial-verification/
+          if-no-files-found: error
+          retention-days: 14
