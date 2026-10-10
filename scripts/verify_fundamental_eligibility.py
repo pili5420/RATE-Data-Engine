@@ -19,11 +19,12 @@ ALLOWED = {"src/fundamental_eligibility.py", "scripts/build_fundamental_eligibil
     "docs/RATE_FUNDAMENTAL_ELIGIBILITY_SUBGATE_V1.md",
     "docs/contracts/RATE_FUNDAMENTAL_ELIGIBILITY_SUBGATE_V1.json",
     ".github/workflows/rate_fundamental_eligibility_ci.yml"}
-STRATEGY_MODULES = ["test_technical_features", "test_rotation_history", "test_stage_evidence", "test_stage_history",
-    "test_institutional_rotation_features", "test_full_rate_replay", "test_state_engine", "test_validation_pipeline",
-    "test_stage_bootstrap_state", "test_decision_record_wiring", "test_live_decision_inputs",
-    "test_production_layer", "test_live_runtime_closure", "test_t86_stage_history_adapter", "test_user_directed_t86_policy"]
-GROUPS = {**PRIOR_GROUPS, "ranking_strategy_additional_existing": (STRATEGY_MODULES, 125),
+STRATEGY_COUNTS = {"test_technical_features": 20, "test_rotation_history": 4, "test_stage_evidence": 11,
+    "test_stage_history": 3, "test_institutional_rotation_features": 22, "test_full_rate_replay": 5,
+    "test_state_engine": 10, "test_validation_pipeline": 2, "test_stage_bootstrap_state": 2,
+    "test_decision_record_wiring": 11, "test_live_decision_inputs": 1, "test_production_layer": 2,
+    "test_live_runtime_closure": 6, "test_t86_stage_history_adapter": 1, "test_user_directed_t86_policy": 5}
+GROUPS = {**PRIOR_GROUPS, "ranking_strategy_additional_existing": (list(STRATEGY_COUNTS), sum(STRATEGY_COUNTS.values())),
           "eligibility_new": (["test_fundamental_eligibility"], 68)}
 
 
