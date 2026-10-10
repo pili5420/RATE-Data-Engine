@@ -1,0 +1,50 @@
+name: RATE Formal EPS Qualification (synthetic only)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/formal_eps_qualification.py
+      - scripts/qualify_formal_eps.py
+      - scripts/verify_formal_eps_qualification.py
+      - tests/test_formal_eps_qualification.py
+      - docs/RATE_FORMAL_EPS_QUALIFICATION.md
+      - docs/contracts/RATE_FORMAL_EPS_PERIOD_QUALIFICATION_V1.json
+      - .github/workflows/rate_formal_eps_qualification_ci.yml
+permissions:
+  contents: read
+jobs:
+  exact-head:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install lxml==6.1.1 tzdata==2025.2 PyYAML==6.0.3
+      - name: Exact-head strict synthetic and protected regression gates
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: >
+          python -B scripts/verify_formal_eps_qualification.py
+          --expected-base 57b1d053d7374a100cdb97a24c6a8e01ad5061e9
+          --expected-head "${{ env.EXPECTED_HEAD }}"
+          --output-dir "${{ runner.temp }}/eps-qualification"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: EPS_QUALIFICATION_SYNTHETIC_${{ matrix.os }}_${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/eps-qualification/
+          if-no-files-found: error
+          retention-days: 14
