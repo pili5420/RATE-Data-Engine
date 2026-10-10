@@ -57,6 +57,13 @@ def main():
         raise ValueError("EXISTING_PROTECTED_BLOB_CHANGED")
     a.output_dir.mkdir(parents=True)
     write(a.output_dir / "protected-blobs.json", old)
+    # Windows runner TEMP can use an 8.3 alias; fixtures and readers must see one identity.
+    test_temp = a.output_dir.resolve() / "temporary"
+    test_temp.mkdir()
+    write(a.output_dir / "temporary-directory-binding.json", {
+        "runner_default_temp": tempfile.gettempdir(),
+        "runner_default_resolved": str(Path(tempfile.gettempdir()).resolve()),
+        "test_temp": str(test_temp), "test_temp_resolved": str(test_temp.resolve())})
     results = {}
     with tempfile.TemporaryDirectory(prefix="finmindq-", dir=ROOT.parent) as tmp:
         mirror = Path(tmp) / "head"
@@ -66,7 +73,8 @@ def main():
             out = a.output_dir.resolve() / (name + ".json")
             run = subprocess.run([sys.executable, "-B", str(mirror / "scripts/verify_finmind_formal_qualification.py"),
                 "--test-child", str(out), *modules], cwd=mirror, capture_output=True, text=True, encoding="utf-8",
-                env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8"})
+                env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8",
+                     "TEMP": str(test_temp), "TMP": str(test_temp)})
             (a.output_dir / (name + ".log")).write_text(run.stdout + run.stderr, encoding="utf-8")
             result = json.loads(out.read_text(encoding="utf-8"))
             result.update(exit_code=run.returncode, exact_count_pass=result["tests_run"] == count)
