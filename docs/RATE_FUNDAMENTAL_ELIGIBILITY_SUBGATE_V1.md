@@ -22,8 +22,9 @@ it cannot turn unqualified data into a qualified source. No writer for these
 owner verdicts is installed in any Production workflow in this change.
 
 EPS and revenue readiness describe their respective input evidence. Fundamental
-additionally requires formal EPS period identity and the existing Fundamental
-owner's finite output. A calendar-contract PASS does **not** satisfy formal EPS
+input readiness additionally requires formal EPS period identity, not its own
+calculated output. Ranking separately requires the existing Fundamental owner's
+finite output. A calendar-contract PASS does **not** satisfy formal EPS
 qualification. A null or UNDEFINED_ZERO_BASE revenue period is not PASS. Missing
 required periods use MISSING_REQUIRED_PERIOD, preserving each missing reason.
 Unknown technical inputs remain NOT_EVALUATED, not inferred from EPS coverage.
@@ -34,11 +35,17 @@ Top50 and Long require all their own components, tie inputs and Fundamental
 requirements. Otherwise score/rank are null. Short does not depend on Fundamental
 but still requires M7, Rotation, SmartMoney, MHE, Stage, RelativeStrength and
 Liquidity. Long does not gain a new Rotation dependency. Stage, Rotation, M7
-and MHE readiness reflect their respective owner's required inputs only.
+and MHE readiness reflect their respective owner's required inputs only. A
+validated input verdict may have a null component value before calculation:
+input readiness remains true, but a dependent ranking reports NOT_COMPUTED and
+stays ineligible until that owner supplies its finite component value.
 
 The gate returns INPUT_READY_NOT_CALCULATED until an existing ranking owner
-supplies a result. `gate_owner_ranking` is only a mask: it either preserves that
-result exactly or returns null. It never computes scores, changes weights,
+supplies a verified result bound to symbol, market, population, input-row digest
+and ranking kind. `gate_owner_ranking` is only a mask: it either preserves that
+result exactly or returns null. The caller remains responsible for validating
+the existing owner's calculation; a binding hash alone is not such validation.
+It never computes scores, changes weights,
 renormalizes factors, supplies zero, sorts ranks or changes tie rules. An eligible
 engineering result is still not a trade or Production authorization.
 

@@ -63,13 +63,19 @@ def overlay(bundle=None, universe=None, context=None, previous=None, generated_a
                            context=c, previous=previous, generated_at=generated_at)
 
 
+def owner_result(r, kind, result):
+    return {"symbol": r["symbol"], "market": r["market"], "population_id": POPULATION,
+            "input_row_sha256": e.digest(r), "ranking_kind": kind, **result}
+
+
 class EligibilityTests(unittest.TestCase):
     def evaluate(self, r=None):
         r = row() if r is None else r
         return e.issuer_eligibility(r, symbol="S0000", market="TWSE", as_of=AS_OF, population_id=POPULATION)
 
     def gate(self, r, kind, result=None):
-        return e.gate_owner_ranking(r, kind=kind, owner_result={"score": 50.125, "rank": 1} if result is None else result,
+        result = owner_result(r, kind, {"score": 50.125, "rank": 1} if result is None else result)
+        return e.gate_owner_ranking(r, kind=kind, owner_result=result,
             symbol="S0000", market="TWSE", as_of=AS_OF, population_id=POPULATION)
 
     def test_complete_all_mandatory_fundamental(self):
@@ -162,6 +168,28 @@ class EligibilityTests(unittest.TestCase):
         self.assertEqual(self.evaluate()["ranking_gates"]["short"]["status"], "INPUT_READY_NOT_CALCULATED")
         self.assertIsNone(self.evaluate()["ranking_gates"]["short"]["score"])
 
+    def test_fundamental_inputs_ready_before_own_score_exists(self):
+        r = row()
+        del r["inputs"]["Fundamental"]
+        state = self.evaluate(r)
+        self.assertTrue(state["fundamental_ready"])
+        self.assertFalse(state["long_rank_input_ready"])
+        self.assertFalse(state["top50_input_ready"])
+
+    def test_stage_inputs_ready_before_own_score_exists(self):
+        r = row()
+        r["inputs"]["Stage"]["value"] = None
+        state = self.evaluate(r)
+        self.assertTrue(state["stage_input_ready"])
+        self.assertFalse(state["short_rank_input_ready"])
+        self.assertTrue(any(reason["status"] == "NOT_COMPUTED" for reason in state["ranking_gates"]["short"]["missing_reasons"]))
+
+    def test_uncomputed_component_never_renormalized(self):
+        r = row()
+        r["inputs"]["Fundamental"]["value"] = None
+        self.assertTrue(self.evaluate(r)["fundamental_ready"])
+        self.assertIsNone(self.gate(r, "long")["score"])
+
     def test_formal_period_qualification_not_bypassed(self):
         state = self.evaluate(block(row(), "formal_eps_period_identity", "NOT_AUTHORIZED"))
         self.assertTrue(state["eps_ready"])
@@ -223,6 +251,12 @@ class EligibilityTests(unittest.TestCase):
         for rank in (0, True, 1.5, 1979):
             with self.subTest(rank=rank), self.assertRaises(Rejected):
                 self.gate(row(), "short", {"score": 20, "rank": rank})
+
+    def test_owner_ranking_wrong_identity_rejected(self):
+        for key, value in (("symbol", "wrong"), ("market", "wrong"), ("population_id", "wrong"),
+                           ("input_row_sha256", "0" * 64), ("ranking_kind", "long")):
+            with self.subTest(key=key), self.assertRaisesRegex(Rejected, "RANKING_BINDING_INVALID"):
+                self.gate(row(), "short", {"score": 20, "rank": 1, key: value})
 
     def test_zero_score_preserved(self):
         self.assertEqual(self.gate(row(), "short", {"score": 0, "rank": 1})["score"], 0)

@@ -35,7 +35,7 @@ STATUSES = {"PASS", "MISSING_REQUIRED_PERIOD", "NOT_EVALUATED", "NOT_AUTHORIZED"
 REQUIREMENTS = {
     "eps_ready": ("eps_8q",),
     "revenue_ready": ("revenue_3m",),
-    "fundamental_ready": ("eps_8q", "revenue_3m", "formal_eps_period_identity", "Fundamental"),
+    "fundamental_ready": ("eps_8q", "revenue_3m", "formal_eps_period_identity"),
     "stage_input_ready": ("Stage",),
     "rotation_input_ready": ("Rotation",),
     "m7_input_ready": ("M7",),
@@ -111,9 +111,9 @@ def _verdict(name, value, as_of):
                 "ELIGIBILITY_PERIOD_VERDICT_CONFLICT:" + name)
     if name not in {"eps_8q", "revenue_3m", "formal_eps_period_identity"}:
         require(value["population_id"] is not None, "ELIGIBILITY_COMPONENT_POPULATION_REQUIRED:" + name)
-        require(value["value"] is None if not passed else value["value"] is not None,
+        require(passed or value["value"] is None,
                 "ELIGIBILITY_COMPONENT_VALUE_CONFLICT:" + name)
-        if passed:
+        if value["value"] is not None:
             _score_number(value["value"])
     else:
         require(value["value"] is None and value["population_id"] is None, "ELIGIBILITY_NON_SCORE_VALUE_FORBIDDEN")
@@ -139,10 +139,13 @@ def issuer_eligibility(row, *, symbol, market, as_of, population_id):
     state["fundamental_missing_reasons"] = fundamental_reasons
     rankings = {}
     for kind, inputs in RANK_INPUTS.items():
-        eligible = ready(inputs) and (kind == "short" or state["fundamental_ready"])
+        eligible = ready(inputs) and all(verdicts[name].get("value") is not None for name in inputs)
+        eligible = eligible and (kind == "short" or state["fundamental_ready"])
         state[{"top50": "top50_input_ready", "short": "short_rank_input_ready", "long": "long_rank_input_ready"}[kind]] = eligible
         reasons = [{"input": name, "status": verdicts[name]["status"], "reason": verdicts[name]["reason"]}
                    for name in inputs if verdicts[name]["status"] != "PASS"]
+        reasons += [{"input": name, "status": "NOT_COMPUTED", "reason": "OWNER_COMPONENT_NOT_COMPUTED"}
+                    for name in inputs if verdicts[name]["status"] == "PASS" and verdicts[name].get("value") is None]
         if kind != "short":
             reasons += [r for r in fundamental_reasons if r["input"] not in inputs]
         rankings[kind] = {"ranking_eligible": eligible, "score": None, "rank": None,
@@ -157,7 +160,11 @@ def gate_owner_ranking(row, *, kind, owner_result, symbol, market, as_of, popula
     gate = issuer_eligibility(row, symbol=symbol, market=market, as_of=as_of, population_id=population_id)["ranking_gates"][kind]
     if not gate["ranking_eligible"]:
         return gate
-    require(isinstance(owner_result, dict) and set(owner_result) == {"score", "rank"}, "ELIGIBILITY_OWNER_RANKING_REQUIRED")
+    require(isinstance(owner_result, dict) and set(owner_result) == {"score", "rank", "symbol", "market",
+            "population_id", "input_row_sha256", "ranking_kind"}, "ELIGIBILITY_OWNER_RANKING_REQUIRED")
+    require(owner_result["symbol"] == symbol and owner_result["market"] == market
+            and owner_result["population_id"] == population_id and owner_result["input_row_sha256"] == digest(row)
+            and owner_result["ranking_kind"] == kind, "ELIGIBILITY_OWNER_RANKING_BINDING_INVALID")
     _score_number(owner_result["score"])
     require(type(owner_result["rank"]) is int and 1 <= owner_result["rank"] <= sum(COUNTS.values()),
             "ELIGIBILITY_OWNER_RANKING_INVALID")

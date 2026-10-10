@@ -22,9 +22,9 @@ ALLOWED = {"src/fundamental_eligibility.py", "scripts/build_fundamental_eligibil
 STRATEGY_MODULES = ["test_technical_features", "test_rotation_history", "test_stage_evidence", "test_stage_history",
     "test_institutional_rotation_features", "test_full_rate_replay", "test_state_engine", "test_validation_pipeline",
     "test_stage_bootstrap_state", "test_decision_record_wiring", "test_live_decision_inputs",
-    "test_production_layer", "test_live_runtime_closure"]
-GROUPS = {**PRIOR_GROUPS, "ranking_strategy_additional_existing": (STRATEGY_MODULES, 119),
-          "eligibility_new": (["test_fundamental_eligibility"], 64)}
+    "test_production_layer", "test_live_runtime_closure", "test_t86_stage_history_adapter", "test_user_directed_t86_policy"]
+GROUPS = {**PRIOR_GROUPS, "ranking_strategy_additional_existing": (STRATEGY_MODULES, 125),
+          "eligibility_new": (["test_fundamental_eligibility"], 68)}
 
 
 def deny_network(event, args):
@@ -33,14 +33,14 @@ def deny_network(event, args):
 
 
 def proof(directory):
-    from tests.test_fundamental_eligibility import fixture, overlay, LATER
+    from tests.test_fundamental_eligibility import fixture, overlay, owner_result, LATER
     from src.fundamental_eligibility import gate_owner_ranking
     bundle, universe, context = fixture()
     first = overlay(bundle, universe, context)
     bundle["as_of"] = LATER
     second = overlay(bundle, universe, context, previous=first, generated_at=LATER)
     row = bundle["rows"][1]
-    results = {kind: gate_owner_ranking(row, kind=kind, owner_result={"score": 50.125, "rank": 1},
+    results = {kind: gate_owner_ranking(row, kind=kind, owner_result=owner_result(row, kind, {"score": 50.125, "rank": 1}),
         symbol=row["symbol"], market=row["market"], as_of=LATER, population_id=bundle["universe_id"])
         for kind in ("top50", "long", "short")}
     write(directory / "synthetic-first-overlay.json", first)
