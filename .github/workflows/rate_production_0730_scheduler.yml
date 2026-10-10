@@ -43,7 +43,7 @@ jobs:
   production-0730:
     runs-on: ubuntu-latest
     env:
-      EXECUTION_AUTHORITY: MAIN_ONLY
+      EXECUTION_AUTHORITY: ${{ inputs.phase2 && 'MAIN_ONLY' || '' }}
       RATE_LIVE_E2E_ENABLED: PRODUCTION_SCHEDULER
       RATE_SOURCE_URL: "https://openapi.twse.com.tw/v1;https://www.tpex.org.tw/openapi/v1;https://www.tdcc.com.tw/portal/zh/smWeb/qryStock;https://mops.twse.com.tw/mops/web/ajax_t05st10_ifrs"
       RATE_PRODUCTION_CADENCE: "07:30"

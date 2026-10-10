@@ -108,6 +108,31 @@ def chain_proof(output):
 
 
 class Phase2CompatibilityTests(unittest.TestCase):
+    def test_phase2_source_publisher_requires_explicit_opt_in(self):
+        from scripts import publish_production_source_bundle_latest as publisher
+        with patch.object(sys, "argv", ["publisher", "--source-bundle", "unused", "--trading-date", "2026-10-06", "--cadence", "19:30"]), \
+                patch.object(publisher, "load_json", return_value={"schema_version": phase2.SOURCE_SCHEMA}), \
+                patch.object(publisher, "publish_latest", side_effect=AssertionError("IMPLICIT_PUBLICATION")):
+            self.assertEqual(publisher.main(), 1)
+
+    def test_phase2_state_publisher_requires_explicit_opt_in(self):
+        from scripts import publish_production_state_latest as publisher
+        with patch.object(publisher, "read_object", return_value={"current_state_id": "rate-state-" + "a" * 24}), \
+                patch.object(publisher, "validate_material", return_value={"decision": {"phase2": True, "report_runtime_status": "EOD_VALIDATED"}}), \
+                patch.object(publisher, "load_live_state", side_effect=AssertionError("IMPLICIT_PUBLICATION")):
+            result = publisher.publish_state(persist_evidence_path="unused", trading_date="2026-10-06", cadence="19:30",
+                state_root="unused", workflow_run_id="100", workflow_job_id="200", event_name="schedule", commit_sha="b" * 40, ref="refs/heads/main")
+            self.assertEqual(result["blocking_reason"], "PHASE2_EXPLICIT_OPT_IN_REQUIRED")
+            self.assertFalse(result["live_state_updated"])
+
+    def test_default_schedulers_do_not_gain_phase2_source_authority(self):
+        import yaml
+        for slot in ("0730", "1930"):
+            workflow = yaml.safe_load((ROOT / f".github/workflows/rate_production_{slot}_scheduler.yml").read_text())
+            self.assertFalse(workflow[True]["workflow_dispatch"]["inputs"]["phase2"]["default"])
+            self.assertEqual(workflow["jobs"]["production-" + slot]["env"]["EXECUTION_AUTHORITY"],
+                "${{ inputs.phase2 && 'MAIN_ONLY' || '' }}")
+
     def test_full_cold_four_cadence_chain(self):
         self.assertEqual(chain_proof(None)["four_cadence_continuity"], "PASS")
 

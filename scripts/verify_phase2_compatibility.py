@@ -29,7 +29,7 @@ GROUPS = {
     "report_soak_48": (["test_report_production_soak"], 48),
     "scheduler_lock_8": (["test_cer081_scheduler_lock_validation"], 8),
     "phase2_43": (["test_phase2_production", "test_full_market_rotation", "test_full_market_materialization"], 43),
-    "compatibility_new_9": (["test_phase2_compatibility"], 9),
+    "compatibility_new_12": (["test_phase2_compatibility"], 12),
 }
 
 
@@ -93,6 +93,8 @@ def main():
             cwd=mirror, capture_output=True, text=True, encoding="utf-8",
             env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8"})
         (output / "proof.log").write_text(cold.stdout + cold.stderr, encoding="utf-8")
+    if git("rev-parse", "HEAD") != args.expected_head or git("status", "--porcelain"):
+        raise RuntimeError("EXECUTION_HEAD_OR_WORKTREE_CHANGED_DURING_VERIFICATION")
     passed = all(r["all_pass"] and r["exact_count_pass"] and r["exit_code"] == 0 for r in results.values()) and cold.returncode == 0
     package = {"base_sha": BASE, "head_sha": args.expected_head, "changed_files": changed, "results": results,
         "proof_exit_code": cold.returncode, "protected_files_unchanged": len(protected),

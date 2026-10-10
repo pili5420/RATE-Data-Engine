@@ -7,7 +7,7 @@ Scope: CODE INTEGRATION ONLY. This is not warmup or Production acceptance.
 ## Per-file integration decisions
 
 - Scheduler 09:30 and 12:00: retain MAIN bytes, public-official builder, runtime, report archive and publisher. Never switch to the former full-intraday path.
-- Scheduler 07:30 and 19:30: retain cron, concurrency, default runtime and publication conditions. Add default-false manual opt-in preparation; it cannot satisfy scheduled publication conditions. No dispatch is performed in Phase A.
+- Scheduler 07:30 and 19:30: retain cron, concurrency, default runtime and publication conditions. Add default-false manual opt-in preparation; it cannot satisfy scheduled publication conditions. MAIN_ONLY source authority is set only by the explicit opt-in, not inherited by scheduled/default legacy runs. No dispatch is performed in Phase A.
 - Source builder: additive `--phase2` path for 07:30 / 19:30. For 09:30 / 12:00 the flag selects the existing public-official partial mode, not the old intraday materializer.
 - Source publisher: recognize the distinct Phase2 schema; explicit CLI `--phase2` keeps MAIN/schedule/source authority validation. Do not impose PR24's obsolete blanket rejection of existing MAIN public reports.
 - State publisher: additive `--phase2` replay and canonical binding. Preserve MAIN's public source replay, protected-account checks and immutable ready-manifest ordering.
@@ -33,7 +33,7 @@ There is no candidate FinMind-to-formal EPS alias or coverage credit transfer.
 
 The strict Windows/Linux exact-head workflow uses the Phase A verifier when the
 new contract is present; it retains every existing assertion and runs 131 legacy,
-56 PR42, 48 report-soak, 8 scheduler-lock, 43 imported Phase2 and 9 new integration
+56 PR42, 48 report-soak, 8 scheduler-lock, 43 imported Phase2 and 12 new integration
 tests separately. No existing verifier or test is edited. The verifier also
 replays the legacy four-cadence proof, the separated three-day soak proof and a
 new cold-CLI Phase2 07:30 -> public 09:30 -> public 12:00 -> Phase2 19:30 chain.

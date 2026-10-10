@@ -309,7 +309,8 @@ class Phase2ProductionTests(unittest.TestCase):
             else:
                 self.assertIn("run_phase2_production.py", text)
                 self.assertIn("--phase2", text)
-                self.assertIn("EXECUTION_AUTHORITY: MAIN_ONLY", text)
+                self.assertEqual(yaml.safe_load(text)["jobs"]["production-" + slot]["env"]["EXECUTION_AUTHORITY"],
+                    "${{ inputs.phase2 && 'MAIN_ONLY' || '' }}")
                 self.assertFalse(yaml.safe_load(text)[True]["workflow_dispatch"]["inputs"]["phase2"]["default"])
 
 

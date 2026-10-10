@@ -370,6 +370,10 @@ def main() -> int:
     parser.add_argument("--workflow-job-id", default=os.getenv("ACTIONS_JOB_ID") or os.getenv("GITHUB_JOB"))
     parser.add_argument("--evidence-output", default="artifacts/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST_UPDATE_EVIDENCE.json")
     args = parser.parse_args()
+    if not args.public_official_partial and not args.phase2 and load_json(args.source_bundle).get("schema_version") == "RATE-FULL-MARKET-PRODUCTION-SOURCE-BUNDLE-V1":
+        print(json.dumps({"validation_status": "FAIL", "publish_result": "BLOCKED",
+                          "blocking_reason": "PHASE2_EXPLICIT_OPT_IN_REQUIRED"}))
+        return 1
     if args.phase2:
         from src.phase2_production import SOURCE_SCHEMA, main_authority
         bundle = load_json(args.source_bundle)

@@ -40,6 +40,10 @@ def publish_state(*, persist_evidence_path, trading_date, cadence, artifacts_roo
         require(source_path.resolve().is_relative_to(source_root), "LIVE_STATE_PATH_ESCAPE")
         material = read_object(source_path)
         state = validate_material(payload, material, trading_date, cadence)
+        require(phase2 or state["decision"].get("phase2") is not True
+                or state["decision"].get("report_runtime_status") == "PARTIAL_VALID"
+                or state["decision"].get("evening_acceptance_mode") == "PARTIAL_PREDECESSOR_FORMAL_EOD",
+                "PHASE2_EXPLICIT_OPT_IN_REQUIRED")
         root = Path(artifacts_root)
         if phase2:
             from src.phase2_production import latest_predecessor, prepare_bundle_state
