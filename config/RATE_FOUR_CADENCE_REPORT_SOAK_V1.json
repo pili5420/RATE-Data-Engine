@@ -1,0 +1,19 @@
+{
+  "acceptance_id": "RATE-FOUR-CADENCE-REPORT-SOAK-V1",
+  "change_request": "RATE-REPORT-SOAK-SEPARATION-V1",
+  "schema_version": 1,
+  "required_trading_days": 3,
+  "required_scheduled_runs": 12,
+  "required_intraday_chains": 3,
+  "required_cross_day_transitions": 2,
+  "cadences": ["07:30", "09:30", "12:00", "19:30"],
+  "accepted_event": "schedule",
+  "credit_scope": "PUBLIC_OFFICIAL_EVIDENCE_PARTIAL_VALID_REPORT_SOAK_ONLY",
+  "cer081_credit": 0,
+  "full_production_acceptance": "NOT_ALLOWED",
+  "fallback_allowed": false,
+  "synthetic_evidence_grants_live_credit": false,
+  "strategy_changes_allowed": false,
+  "ranking_changes_allowed": false,
+  "model_weight_changes_allowed": false
+}
