@@ -1,0 +1,82 @@
+{
+  "contract_id": "RATE-FUNDAMENTAL-ELIGIBILITY-SUBGATE-V1",
+  "schema_version": "RATE_FUNDAMENTAL_ELIGIBILITY_SUBGATE_V1",
+  "artifact_kind": "FUNDAMENTAL_ELIGIBILITY_ENGINEERING_ONLY",
+  "policy_direction": "APPROVED_POLICY_DIRECTION",
+  "policy": "FUNDAMENTAL_ELIGIBILITY_SUBGATE",
+  "missingness_semantics": "MISSING_REQUIRED_PERIOD",
+  "scope": "SCHEMA_ELIGIBILITY_ENGINE_FAIL_CLOSED_RANKING_GATES_ONLY",
+  "universe": {"TWSE": 1085, "TPEX": 893, "TOTAL": 1978, "identity": "EXACT_PINNED_CATALOGUE_NOT_COUNTS_ONLY"},
+  "eps_window": ["2024Q3", "2024Q4", "2025Q1", "2025Q2", "2025Q3", "2025Q4", "2026Q1", "2026Q2"],
+  "revenue_window": ["2026-07", "2026-08", "2026-09"],
+  "input_bundle": {
+    "artifact_kind": "RATE_OWNER_INPUT_VERDICTS_V1",
+    "required": ["artifact_kind", "universe_id", "as_of", "rows"],
+    "issuer_required": ["symbol", "market", "inputs"],
+    "verdict_required": ["status", "reason", "owner", "observed_at", "validated_at", "evidence_references", "period_statuses", "value", "population_id"],
+    "allowed_statuses": ["PASS", "MISSING_REQUIRED_PERIOD", "NOT_EVALUATED", "NOT_AUTHORIZED", "UNDEFINED_ZERO_BASE", "BLOCKED_EXTERNAL", "INVALID_EVIDENCE", "NOT_COMPUTED"],
+    "evidence_reference_required": ["path", "sha256", "json_locator"],
+    "period_statuses": "EXACT_REQUIRED_PERIOD_KEYS_PASS_IFF_ALL_PASS",
+    "score_value": "FINITE_0_TO_100_ON_PASS_NULL_OTHERWISE",
+    "trust_boundary": "EXISTING_OWNER_VERDICTS_PLUS_OUT_OF_BAND_INPUT_HASH_AND_PINNED_UNIVERSE",
+    "source_integrity": "REPLAY_REFERENCE_BYTES_IS_NOT_A_SUBSTITUTE_FOR_OWNER_SOURCE_SEMANTIC_VALIDATION"
+  },
+  "readiness_requirements": {
+    "universe_eligible": ["EXACT_PINNED_CATALOGUE_MEMBERSHIP"],
+    "eps_ready": ["eps_8q"],
+    "revenue_ready": ["revenue_3m"],
+    "fundamental_ready": ["eps_8q", "revenue_3m", "formal_eps_period_identity", "Fundamental"],
+    "stage_input_ready": ["Stage"],
+    "rotation_input_ready": ["Rotation"],
+    "m7_input_ready": ["M7"],
+    "mhe_input_ready": ["MHE"],
+    "top50_input_ready": ["M7", "MHE", "Stage", "Rotation", "SmartMoney", "Fundamental", "RelativeStrength", "Liquidity", "fundamental_ready"],
+    "long_rank_input_ready": ["Fundamental", "Stage", "MHE", "SmartMoney", "RelativeStrength", "M7", "Liquidity", "fundamental_ready"],
+    "short_rank_input_ready": ["M7", "Rotation", "SmartMoney", "MHE", "Stage", "RelativeStrength", "Liquidity"]
+  },
+  "owner_verdict_semantics": {
+    "eps_8q": "ALL_EIGHT_REQUIRED_PERIOD_EVIDENCE_VERDICTS_NOT_PROVIDER_ACTIVATION",
+    "revenue_3m": "ALL_THREE_REQUIRED_FINITE_YOY_VERDICTS_NOT_OBSERVATION_COUNT_ONLY",
+    "formal_eps_period_identity": "EXISTING_FORMAL_QUALIFICATION_OWNER_NOT_CALENDAR_CONTRACT_PROMOTION",
+    "Fundamental": "EXISTING_FUNDAMENTAL_OWNER_ALL_MANDATORY_INPUTS_AND_FINITE_SCORE",
+    "Stage": "EXISTING_STAGE_OWNER_ALL_OWN_MANDATORY_INPUTS",
+    "Rotation": "EXISTING_ROTATION_OWNER_ALL_OWN_MANDATORY_INPUTS",
+    "M7": "EXISTING_M7_OWNER_ALL_OWN_MANDATORY_INPUTS",
+    "MHE": "EXISTING_MHE_OWNER_ALL_OWN_MANDATORY_INPUTS",
+    "SmartMoney": "EXISTING_SMART_MONEY_OWNER_ALL_OWN_MANDATORY_INPUTS",
+    "RelativeStrength": "EXISTING_TECHNICAL_OWNER_ALL_OWN_MANDATORY_INPUTS",
+    "Liquidity": "EXISTING_TECHNICAL_OWNER_RANKING_TIE_INPUT"
+  },
+  "ranking": {
+    "owner": "src/rate_logic.py",
+    "weights": "BYTE_IDENTICAL_NO_NEW_FORMULA",
+    "tie_rule": "UNCHANGED_EXISTING_OWNER",
+    "gate_only": true,
+    "ineligible": {"ranking_eligible": false, "score": null, "rank": null},
+    "ready_without_owner_result": "INPUT_READY_NOT_CALCULATED_SCORE_AND_RANK_NULL",
+    "imputation_allowed": false,
+    "renormalization_allowed": false,
+    "weight_redistribution_allowed": false,
+    "technical_population": "UNCHANGED_PINNED_MARKET_UNIVERSE_NEVER_EPS_PREFILTERED"
+  },
+  "continuity": {
+    "artifact": "SEPARATE_ELIGIBILITY_OVERLAY_NOT_DECISION_STATE_REPLACEMENT",
+    "preserved": ["issuer_history", "roy_portfolio", "ai_paper_portfolio", "transaction_ledger"],
+    "eligibility_history": "APPEND_ONLY_PARENT_SNAPSHOT_HASH_BOUND",
+    "held_ineligible": "RANKING_INELIGIBLE_HELD_POSITION",
+    "trade_owner": "UNCHANGED_NO_ORDER_NO_FORCED_EXIT_NO_FILL",
+    "changed_account_context": "REQUIRES_SEPARATE_FORMAL_OWNER_TRANSITION_NOT_THIS_OVERLAY"
+  },
+  "governance": {
+    "production_eligible": false,
+    "decision_eligible": false,
+    "fallback_allowed": false,
+    "formal_provider_activation": "NOT_AUTHORIZED",
+    "warmup_activation": "NOT_AUTHORIZED",
+    "warmup_acceptance": "UNCHANGED_NOT_PERFORMED",
+    "historical_pit": "UNPROVEN",
+    "full_production_acceptance": "NOT_ALLOWED",
+    "external_authorized_intraday_feed_dependency": "BLOCKED_EXTERNAL",
+    "original_eight_quarter_coverage_credit": 0
+  }
+}
