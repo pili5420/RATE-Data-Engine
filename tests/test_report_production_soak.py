@@ -63,6 +63,51 @@ class ReportProductionSoakTests(unittest.TestCase):
         self.assertEqual(result["RATE_REPORT_PRODUCTION_SOAK"], "PASS")
         self.assertEqual((result["trading_days"], result["scheduled_runs"], result["intraday_chains"], result["cross_day_transitions"]), (3, 12, 3, 2))
 
+    def test_one_cross_day_transition_cannot_pass_completion(self):
+        # Exercise the shared aggregate gate with twelve accepted-run evidence rows.
+        # Full source/state evaluation additionally rejects this broken lineage.
+        accepted = copy.deepcopy(self.evaluate()["runs"])
+        accepted[8]["previous_state_id"] = "unlinked-evening-state"
+        result = report._completion(accepted, report.governance())
+        self.assertEqual((result["trading_days"], result["scheduled_runs"],
+            result["intraday_chains"], result["cross_day_transitions"]), (3, 12, 3, 1))
+        self.assertEqual(result["RATE_REPORT_PRODUCTION_SOAK"], "HOLD")
+        self.assertEqual(result["validation_status"], "NOT_ACCEPTED")
+
+    def test_each_completion_requirement_is_gated(self):
+        accepted = self.evaluate()["runs"]
+        for key, minimum in (("trading_days", 4), ("scheduled_runs", 13),
+                             ("intraday_chains", 4), ("cross_day_transitions", 3)):
+            contract = report.governance()
+            contract["required_" + key] = minimum
+            with self.subTest(key=key):
+                self.assertEqual(report._completion(accepted, contract)["RATE_REPORT_PRODUCTION_SOAK"], "HOLD")
+
+    def assert_contract_rejected(self, field, value):
+        original_reader = report.read_object
+        contract = report.governance()
+        contract[field] = value
+        def reader(path):
+            return contract if path == report.CONTRACT else original_reader(path)
+        with patch.object(report, "read_object", side_effect=reader):
+            with self.assertRaisesRegex(RuntimeError, "CONTRACT_INVARIANT_INVALID"):
+                self.evaluate()
+
+    def test_contract_cannot_allow_full_acceptance(self):
+        self.assert_contract_rejected("full_production_acceptance", "PASS")
+
+    def test_contract_cannot_allow_fallback(self):
+        self.assert_contract_rejected("fallback_allowed", True)
+
+    def test_contract_cannot_grant_synthetic_live_credit(self):
+        self.assert_contract_rejected("synthetic_evidence_grants_live_credit", True)
+
+    def test_contract_false_flags_require_boolean_false(self):
+        for field in ("fallback_allowed", "synthetic_evidence_grants_live_credit"):
+            for value in (0, None, "false"):
+                with self.subTest(field=field, value=value):
+                    self.assert_contract_rejected(field, value)
+
     def test_partial_valid_receives_report_credit(self):
         partial = [run for run in self.evaluate()["runs"] if run["cadence"] in ("09:30", "12:00")]
         self.assertEqual(len(partial), 6)

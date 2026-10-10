@@ -35,6 +35,10 @@ def governance():
         and dependency["report_soak_acceptance_id"] == KIND
         and dependency["report_soak_credit_allowed_while_intraday_blocked"] is True
         and dependency["status"] == "BLOCKED_EXTERNAL", "REPORT_SOAK_GOVERNANCE_INVALID")
+    require(contract.get("full_production_acceptance") == "NOT_ALLOWED"
+        and contract.get("fallback_allowed") is False
+        and contract.get("synthetic_evidence_grants_live_credit") is False,
+        "REPORT_SOAK_CONTRACT_INVARIANT_INVALID")
     for field in ("fallback_allowed", "soak_credit_allowed_while_blocked",
                   "cer081_completion_allowed_while_blocked", "production_acceptance_allowed_while_blocked"):
         require(dependency[field] is False, "REPORT_SOAK_FULL_GATE_CHANGED")
@@ -90,6 +94,22 @@ def _eod_source(source, day):
             value = row.get(key)
             require(type(value) in (int, float) and math.isfinite(value)
                 and (value > 0 if key == "close" else value >= 0), "REPORT_SOAK_EOD_PRICE_INVALID")
+
+
+def _completion(accepted, contract):
+    ordered = sorted(accepted, key=lambda run: (run["trading_date"], contract["cadences"].index(run["cadence"])))
+    slots = {(run["trading_date"], run["cadence"]) for run in ordered}
+    complete_days = [day for day in {day for day, _ in slots}
+        if all((day, cadence) in slots for cadence in contract["cadences"])]
+    metrics = {"trading_days": len(complete_days), "scheduled_runs": len(ordered),
+        "intraday_chains": len(complete_days),
+        "cross_day_transitions": sum(1 for a, b in zip(ordered, ordered[1:])
+            if a["cadence"] == "19:30" and b["cadence"] == "07:30"
+            and a["trading_date"] != b["trading_date"]
+            and b["previous_state_id"] == a["current_state_id"])}
+    complete = all(metrics[key] >= contract["required_" + key] for key in metrics)
+    return {**metrics, "validation_status": "PASS" if complete else "NOT_ACCEPTED",
+        "RATE_REPORT_PRODUCTION_SOAK": "PASS" if complete else "HOLD"}
 
 
 def evaluate(*, evidence, state_root):
@@ -159,16 +179,11 @@ def evaluate(*, evidence, state_root):
             "report_runtime_status": decision.get("report_runtime_status", "PRODUCTION_REPORT_VALID"),
             "report_soak_credit": 1, "cer081_credit": 0, "ai_paper_intraday_executions": 0, "new_intraday_fills": 0})
         previous = state
-    complete_days = [day for day in days if all((day, c) in slots for c in contract["cadences"])]
-    complete = (len(complete_days) >= contract["required_trading_days"] and len(accepted) >= contract["required_scheduled_runs"])
-    return {"artifact": KIND, "validation_status": "PASS" if complete else "NOT_ACCEPTED",
-        "RATE_REPORT_PRODUCTION_SOAK": "PASS" if complete else "HOLD",
+    return {"artifact": KIND, **_completion(accepted, contract),
         "CER081_FULL_PRODUCTION_SOAK": "BLOCKED_EXTERNAL", "cer081_credit": 0,
         "evidence_scope": "SYNTHETIC_ENGINEERING_ONLY" if synthetic else "SCHEDULED_PRODUCTION_EVIDENCE",
         "live_scheduled_report_credit": 0 if synthetic else len(accepted),
         "report_soak_credit_scope": contract["credit_scope"], "report_soak_credit_allowed_while_intraday_blocked": True,
-        "trading_days": len(complete_days), "scheduled_runs": len(accepted), "intraday_chains": len(complete_days),
-        "cross_day_transitions": sum(1 for a, b in zip(runs, runs[1:]) if a["cadence"] == "19:30" and b["cadence"] == "07:30"),
         "runs": accepted, "contract_sha256": file_hash(CONTRACT), "input_content_sha256": sha256(evidence),
         "full_production_acceptance": "NOT_ALLOWED", "fallback_allowed": False,
         "external_dependency_status": "BLOCKED_EXTERNAL", "production_acceptance_granted": False}

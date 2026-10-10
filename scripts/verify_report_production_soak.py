@@ -1,5 +1,6 @@
 """Exact-base/head, synthetic-only verification. Reuse the strict PR42 harness."""
 import argparse
+import copy
 import json
 import os
 from pathlib import Path
@@ -39,6 +40,15 @@ def proof(output):
         (output / "cold-report-acceptance.log").write_text(cold.stdout + cold.stderr, encoding="utf-8")
         if cold.returncode: raise RuntimeError("REPORT_SOAK_COLD_READ_FAILED")
         result = read_object(output / "cold-report-acceptance/REPORT_SOAK_ACCEPTANCE.json")
+        one_transition = copy.deepcopy(result["runs"])
+        one_transition[8]["previous_state_id"] = "unlinked-evening-state"
+        negative = report._completion(one_transition, report.governance())
+        if tuple(negative[key] for key in ("trading_days", "scheduled_runs", "intraday_chains", "cross_day_transitions")) != (3, 12, 3, 1) or negative["RATE_REPORT_PRODUCTION_SOAK"] != "HOLD":
+            raise RuntimeError("CROSS_DAY_COMPLETION_NEGATIVE_PROOF_FAILED")
+        write(output / "CROSS_DAY_GATE_NEGATIVE_PROOF.json", {
+            "scope": "SYNTHETIC_ACCEPTED_RUN_AGGREGATION_NOT_SOURCE_ACCEPTANCE",
+            "runs": one_transition, "result": negative,
+            "full_evaluator_lineage_gate": "UNCHANGED_FAIL_CLOSED"})
         atomic_write_json(output / "synthetic-cer080.json", cer080_persisted_fixture())
         atomic_write_json(output / "synthetic-cer081-runs.json", {"runs": [dict(run, event_name="schedule") for run in result["runs"]]})
         cer = subprocess.run([sys.executable, "-B", "scripts/run_cer081_unattended_soak_acceptance.py",
@@ -108,7 +118,7 @@ def main():
             "--proof-child", str(output)], cwd=mirror, capture_output=True, text=True, encoding="utf-8",
             env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8"})
         (output / "three-day-proof.log").write_text(child.stdout + child.stderr, encoding="utf-8")
-    passed = all(r["all_pass"] for r in (old, pr42, scheduler, new)) and (old["tests_run"], pr42["tests_run"], scheduler["tests_run"], new["tests_run"]) == (131, 56, 8, 42) and child.returncode == 0
+    passed = all(r["all_pass"] for r in (old, pr42, scheduler, new)) and (old["tests_run"], pr42["tests_run"], scheduler["tests_run"], new["tests_run"]) == (131, 56, 8, 48) and child.returncode == 0
     package = {"base_sha": BASE, "head_sha": args.expected_head, "changed_files": changed, "evidence_scope": "SYNTHETIC_ONLY",
         "existing_131": old, "pr42_56": pr42, "scheduler_lock_8": scheduler, "new_tests": new,
         "three_day_proof_exit_code": child.returncode, "protected_files_unchanged": len(protected),
