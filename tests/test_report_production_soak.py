@@ -218,6 +218,70 @@ class ReportProductionSoakTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(read_object(output / "REPORT_SOAK_ACCEPTANCE.json")["scheduled_runs"], 12)
 
+    def replace_source(self, index, mutate):
+        reference_value = self.evidence["runs"][index]["source_bundle"]
+        self.rewrite(reference_value, mutate)
+        source = read_object(reference_value["path"])
+        def bind(decision):
+            decision["source_bundle_hash"] = sha256(source)
+            if index % 4 == 3:
+                decision["eod_source_bundle"] = source
+                by_symbol = {r["symbol"]: r for r in source["eod_close_records"]}
+                for row in decision["records"]:
+                    row["Evening_evidence"] = by_symbol[row["symbol"]]
+        self.change_decision(index, bind)
+
+    def test_synthetic_cannot_claim_live_credit(self):
+        self.evidence["synthetic_only"] = False
+        with self.assertRaisesRegex(RuntimeError, "LIVE_SOURCE_REQUIRED"):
+            self.evaluate()
+
+    def test_stale_morning_official_source(self):
+        self.replace_source(0, lambda b: b["source_provenance"].update(retrieval_timestamp="2026-01-01T00:00:00Z"))
+        with self.assertRaisesRegex(RuntimeError, "OFFICIAL_SOURCE_INVALID"):
+            self.evaluate()
+
+    def test_future_morning_official_source(self):
+        self.replace_source(0, lambda b: b["source_provenance"].update(retrieval_timestamp="2099-01-01T00:00:00Z"))
+        with self.assertRaisesRegex(RuntimeError, "OFFICIAL_SOURCE_INVALID"):
+            self.evaluate()
+
+    def test_eod_wrong_price_date(self):
+        def mutate(bundle):
+            bundle["eod_close_records"][0]["trade_date"] = "2026-10-02"
+            bundle["eod_close_content_sha256"] = sha256(bundle["eod_close_records"])
+        self.replace_source(3, mutate)
+        with self.assertRaisesRegex(RuntimeError, "EOD_PRICE_SOURCE_INVALID"):
+            self.evaluate()
+
+    def test_eod_invalid_price(self):
+        def mutate(bundle):
+            bundle["eod_close_records"][0]["close"] = 0
+            bundle["eod_close_content_sha256"] = sha256(bundle["eod_close_records"])
+        self.replace_source(3, mutate)
+        with self.assertRaisesRegex(RuntimeError, "EOD_PRICE_INVALID"):
+            self.evaluate()
+
+    def test_yahoo_or_mis_fallback_rejected(self):
+        self.replace_source(3, lambda b: b["official_source_transformation"]["datasets"][0].update(endpoint="https://mis.twse.com.tw/stock/api/getStockInfo.jsp"))
+        with self.assertRaisesRegex(RuntimeError, "UNAPPROVED_SOURCE"):
+            self.evaluate()
+
+    def test_raw_response_tamper(self):
+        bundle = read_object(self.evidence["runs"][1]["source_bundle"]["path"])
+        receipt = read_object(bundle["sources"][0]["receipt_path"])
+        path = Path(receipt["raw_path"])
+        original = path.read_bytes()
+        self.addCleanup(path.write_bytes, original)
+        path.write_bytes(original + b" ")
+        with self.assertRaisesRegex(RuntimeError, "RAW_HASH_MISMATCH"):
+            self.evaluate()
+
+    def test_trade_intent_execution_rejected(self):
+        self.change_decision(1, lambda d: d.update(trade_intent_status="EXECUTED"))
+        with self.assertRaisesRegex(RuntimeError, "INTRADAY_EXECUTION"):
+            self.evaluate()
+
 
 class CER081CreditHardeningTests(unittest.TestCase):
     def test_each_partial_gate_zero_credit(self):

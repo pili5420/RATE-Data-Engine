@@ -227,7 +227,10 @@ def build_cer081_artifacts(*, cer080_persisted: Mapping[str, Any], scheduled_run
     if rejected_report_runs or currently_blocked: hold_status = "HOLD:BLOCKED_EXTERNAL"
     base_metrics = {**sm, "reset_violation_count": 0, "lineage_violation_count": 0, "protected_field_violation_count": 0, "portfolio_continuity_violations": 0, "ledger_continuity_violations": 0, "model_freeze_violations": 0 if freeze.get("status") == "PASS" else 1, "automatic_recovery_count": 0, "manual_recovery_count": 0, "unrecovered_failure_count": 0, "duplicate_production_record_count": 0, "average_scheduler_delay_seconds": None, "max_scheduler_delay_seconds": None, "average_runtime_seconds": None, "max_runtime_seconds": None, "eod_closure_pass_count": sum(1 for row in matrix if row.get("EOD Closure") == "PASS"), "cross_day_handoff_pass_count": sum(1 for row in matrix if row.get("Cross-Day Ready") == "PASS")}
     base_metrics.update(acceptance_id="CER081_FULL_PRODUCTION_SOAK",
-        CER081_FULL_PRODUCTION_SOAK="BLOCKED_EXTERNAL" if rejected_report_runs or currently_blocked else ("PASS" if hard_pass else "NOT_ACCEPTED"),
+        CER081_FULL_PRODUCTION_SOAK="BLOCKED_EXTERNAL" if rejected_report_runs or currently_blocked else
+            ("NOT_ACCEPTED_LEGACY_REPLAY_ONLY" if current_dependency is None else ("PASS" if hard_pass else "NOT_ACCEPTED")),
+        current_cer081_credit=len(scheduled_runs) if current_dependency is not None and not currently_blocked else 0,
+        production_acceptance_granted=hard_pass and current_dependency is not None,
         governance_scope="CURRENT_PRODUCTION" if current_dependency is not None else "LEGACY_HISTORICAL_REPLAY_ONLY",
         report_only_runs=rejected_report_runs, report_only_run_count=len(rejected_report_runs),
         soak_credit_allowed_while_blocked=False, cer081_completion_allowed_while_blocked=False,

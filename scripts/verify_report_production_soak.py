@@ -108,7 +108,7 @@ def main():
             "--proof-child", str(output)], cwd=mirror, capture_output=True, text=True, encoding="utf-8",
             env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8"})
         (output / "three-day-proof.log").write_text(child.stdout + child.stderr, encoding="utf-8")
-    passed = all(r["all_pass"] for r in (old, pr42, scheduler, new)) and (old["tests_run"], pr42["tests_run"], scheduler["tests_run"], new["tests_run"]) == (131, 56, 8, 34) and child.returncode == 0
+    passed = all(r["all_pass"] for r in (old, pr42, scheduler, new)) and (old["tests_run"], pr42["tests_run"], scheduler["tests_run"], new["tests_run"]) == (131, 56, 8, 42) and child.returncode == 0
     package = {"base_sha": BASE, "head_sha": args.expected_head, "changed_files": changed, "evidence_scope": "SYNTHETIC_ONLY",
         "existing_131": old, "pr42_56": pr42, "scheduler_lock_8": scheduler, "new_tests": new,
         "three_day_proof_exit_code": child.returncode, "protected_files_unchanged": len(protected),

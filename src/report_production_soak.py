@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import math
 from pathlib import Path
+from urllib.parse import urlparse
 
-from scripts.publish_production_source_bundle_latest import validate_production_source_bundle
+from scripts.publish_production_source_bundle_latest import EOD_REQUIRED_DATASETS, validate_production_source_bundle
+from scripts.build_production_source_bundle_from_official import NO_FALLBACK
 from scripts.resolve_production_runtime_context import _previous_legal_trading_day, is_trading_day
 from src.cer074_acceptance import sha256
 from src.cer078_evening_1930 import validate_partial_evening_state
@@ -60,6 +63,35 @@ def _lineage(previous, current):
             require(not after[name].get("reset"), "REPORT_SOAK_ACCOUNT_RESET")
 
 
+def _formal_source(source, *, synthetic):
+    provenance = source.get("source_provenance", {})
+    require(all(provenance.get(key) == value for key, value in NO_FALLBACK.items()), "REPORT_SOAK_FALLBACK_FORBIDDEN")
+    if not synthetic:
+        require(source.get("synthetic_only") is not True and provenance.get("production_evidence_authoritative") is True
+            and provenance.get("execution_authority") == "MAIN_ONLY", "REPORT_SOAK_LIVE_SOURCE_REQUIRED")
+    datasets = source.get("official_source_transformation", {}).get("datasets", [])
+    require(datasets and all(row.get("normalization_status") == "PASS" for row in datasets), "REPORT_SOAK_SOURCE_NORMALIZATION_INVALID")
+    for row in datasets:
+        host = urlparse(row.get("endpoint", "")).hostname
+        allowed = {"openapi.twse.com.tw", "www.twse.com.tw", "www.tpex.org.tw", "www.tdcc.com.tw", "mops.twse.com.tw"}
+        require(host in allowed or (synthetic and host == "example.invalid"), "REPORT_SOAK_UNAPPROVED_SOURCE")
+
+
+def _eod_source(source, day):
+    require(set(EOD_REQUIRED_DATASETS) <= set(source.get("datasets_present", []))
+        and not source.get("datasets_missing") and source.get("freshness_matrix", {}).get("validation_status") == "PASS",
+        "REPORT_SOAK_EOD_SOURCE_INVALID")
+    datasets = source["official_source_transformation"]["datasets"]
+    for row in source.get("eod_close_records", []):
+        require(row.get("trade_date") == day and any(d.get("domain") == "market_daily"
+            and all(d.get(key) == row.get(key) for key in ("source", "dataset_id", "body_sha256", "parser_version")) for d in datasets),
+            "REPORT_SOAK_EOD_PRICE_SOURCE_INVALID")
+        for key in ("close", "volume", "turnover"):
+            value = row.get(key)
+            require(type(value) in (int, float) and math.isfinite(value)
+                and (value > 0 if key == "close" else value >= 0), "REPORT_SOAK_EOD_PRICE_INVALID")
+
+
 def evaluate(*, evidence, state_root):
     contract = governance()
     require(evidence.get("artifact") == KIND + "-INPUT", "REPORT_SOAK_INPUT_IDENTITY_INVALID")
@@ -105,21 +137,19 @@ def evaluate(*, evidence, state_root):
         if cadence in ("09:30", "12:00"):
             partial.validate_partial_state(decision)
             require(decision["public_official_bundle"] == source, "REPORT_SOAK_SOURCE_BINDING_INVALID")
-            partial.validate_bundle(source, trading_date=day, cadence=cadence, as_of=checked)
+            partial.validate_bundle(source, trading_date=day, cadence=cadence, as_of=checked.isoformat())
             require(decision.get("trade_intent_status") == "PRESERVED_NOT_EXECUTED"
                 and decision.get("scheduled_soak_credit") is False, "REPORT_SOAK_INTRADAY_EXECUTION")
         else:
             require(validate_production_source_bundle(source, trading_date=day, cadence=cadence, now=checked)["validation_status"] == "PASS",
                 "REPORT_SOAK_OFFICIAL_SOURCE_INVALID")
+            _formal_source(source, synthetic=synthetic)
             if cadence == "19:30":
                 validate_partial_evening_state(decision)
                 require(decision.get("eod_source_bundle") == source
                     and decision.get("evening_closure") == {"validation_status": "PASS", "new_transactions": [], "state_reinitialized": False},
                     "REPORT_SOAK_EOD_CLOSURE_INVALID")
-                # Reuse the EOD bridge's source/date/numeric/coverage checks at its recorded validation time.
-                require(set(source.get("datasets_missing", [])) == set()
-                    and source.get("freshness_matrix", {}).get("validation_status") == "PASS",
-                    "REPORT_SOAK_EOD_SOURCE_INVALID")
+                _eod_source(source, day)
             else:
                 require(decision.get("source_bundle_hash") == sha256(source), "REPORT_SOAK_SOURCE_BINDING_INVALID")
         accepted.append({"trading_date": day, "cadence": cadence, "workflow_run_id": manifest["workflow_run_id"],
