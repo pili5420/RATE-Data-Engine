@@ -120,10 +120,18 @@ def main() -> int:
     parser.add_argument("--state-root", default="artifacts/production_state")
     parser.add_argument("--evidence-output", default="artifacts/production_runtime/RATE_PRODUCTION_RUNTIME_CONTEXT.json")
     parser.add_argument("--env-output", default=None)
+    parser.add_argument("--phase2", action="store_true")
     args = parser.parse_args()
-    context = resolve_context(cadence=args.cadence, event_name=args.event_name, dispatch_trading_date=args.dispatch_trading_date, state_root=Path(args.state_root))
+    resolver = resolve_context
+    if args.phase2 and args.cadence not in {"09:30", "12:00"}:
+        from src.phase2_production import resolve_phase2_context
+        resolver = resolve_phase2_context
+    try:
+        context = resolver(cadence=args.cadence, event_name=args.event_name, dispatch_trading_date=args.dispatch_trading_date, state_root=Path(args.state_root))
+    except RuntimeError as exc:
+        context = {"validation_status": "BLOCKED", "blocking_reason": str(exc)}
     atomic_write_json(Path(args.evidence_output), context)
-    if args.env_output:
+    if args.env_output and context["validation_status"] == "PASS":
         write_env(Path(args.env_output), context)
     print(json.dumps(context, ensure_ascii=False, sort_keys=True))
     if context["validation_status"] == "BLOCKED" and args.event_name in {"schedule", "workflow_dispatch"}:

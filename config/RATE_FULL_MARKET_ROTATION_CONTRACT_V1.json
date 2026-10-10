@@ -1,0 +1,30 @@
+{
+  "artifact": "RATE_FULL_MARKET_ROTATION_CONTRACT",
+  "schema_version": "RATE-FULL-MARKET-ROTATION-CONTRACT-V1",
+  "continuity_baseline_source": "PREVIOUS_VALIDATION_PASS_DECISION_STATE_SHORT_TERM_TOP30",
+  "candidate_universe_source": "FULL_TAIWAN_ELIGIBLE_MARKET_UNIVERSE",
+  "ranking_refresh_source": "FULL_MARKET_SCAN",
+  "markets": ["TWSE", "TPEX"],
+  "eligibility_policy_id": "CR-RATE-PHASE2-ELIGIBILITY-AND-FIRST-REFRESH-V1",
+  "eligibility_policy_sha256": "94b341554c3c2b20e8d4cc19bb1b9e454b92d2fa6b50e97f78dd70ef18f78b9a",
+  "validation_status": "PASS",
+  "bootstrap_seed_normal_production_allowed": false,
+  "fallback_allowed": false,
+  "market_history_minimum_sessions": 180,
+  "stage_history_sessions": 7,
+  "ranking_owner": "src.rate_logic.rank_composites / src.rate_logic.rank_candidates",
+  "top30_selection_scope": "FULL_MARKET_SCAN_PRESERVE_EXISTING_RANK_CANDIDATES_CALLS",
+  "cadence_modes": {
+    "19:30": "FULL_MARKET_REFRESH",
+    "07:30": "CONSUME_LATEST_PASS_1930",
+    "09:30": "PUBLIC_OFFICIAL_PARTIAL_VALID_EXISTING_RUNTIME",
+    "12:00": "PUBLIC_OFFICIAL_PARTIAL_VALID_EXISTING_RUNTIME"
+  },
+  "review_only": false,
+  "production_activation_allowed": false,
+  "first_refresh_authority": "FIRST_FULL_MARKET_REFRESH_AUTHORITY",
+  "production_activation_requirement": "SEPARATE_CONTROL_CENTER_AUTHORIZATION_AFTER_PHASE_A_CODE_INTEGRATION",
+  "integration_scope": "CODE_INTEGRATION_ONLY",
+  "full_production_acceptance": "NOT_ALLOWED",
+  "external_authorized_intraday_feed_dependency": "BLOCKED_EXTERNAL"
+}

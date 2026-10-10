@@ -9,6 +9,11 @@ on:
       trading_date:
         description: Explicit legal Taiwan trading date YYYY-MM-DD for controlled recovery/testing
         required: true
+      phase2:
+        description: Opt-in Phase A preparation only; no publication or activation
+        type: boolean
+        default: false
+        required: false
   push:
     branches:
       - rate-v2-6-1r2-staging
@@ -38,6 +43,7 @@ jobs:
   production-0730:
     runs-on: ubuntu-latest
     env:
+      EXECUTION_AUTHORITY: ${{ inputs.phase2 && 'MAIN_ONLY' || '' }}
       RATE_LIVE_E2E_ENABLED: PRODUCTION_SCHEDULER
       RATE_SOURCE_URL: "https://openapi.twse.com.tw/v1;https://www.tpex.org.tw/openapi/v1;https://www.tdcc.com.tw/portal/zh/smWeb/qryStock;https://mops.twse.com.tw/mops/web/ajax_t05st10_ifrs"
       RATE_PRODUCTION_CADENCE: "07:30"
@@ -66,6 +72,7 @@ jobs:
         run: |
           mkdir -p artifacts/production_0730 artifacts/production_runtime
           python scripts/resolve_production_runtime_context.py \
+            ${{ inputs.phase2 && '--phase2' || '' }} \
             --cadence "07:30" \
             --event-name "${{ github.event_name }}" \
             --dispatch-trading-date "${{ inputs.trading_date }}" \
@@ -84,6 +91,9 @@ jobs:
         if: ${{ github.event_name != 'push' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
         run: >
           python scripts/build_production_source_bundle_from_official.py
+          ${{ inputs.phase2 && '--phase2' || '' }}
+          --state-root artifacts/production_state
+          --history-root data/production/full_market_history
           --trading-date "${{ env.RATE_PRODUCTION_TRADING_DATE }}"
           --cadence "${{ env.RATE_PRODUCTION_CADENCE }}"
           --rate-source-url "$RATE_SOURCE_URL"
@@ -91,7 +101,7 @@ jobs:
           --evidence-output artifacts/cer075/RATE_PRODUCTION_OFFICIAL_SOURCE_INGESTION_EVIDENCE.json
 
       - name: Execute production-safe 07:30 runtime path
-        if: ${{ github.event_name != 'push' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
+        if: ${{ !inputs.phase2 && github.event_name != 'push' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
         env:
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_RUN_ID: ${{ github.run_id }}
@@ -100,6 +110,18 @@ jobs:
           python scripts/run_cer075_scheduler_acceptance.py
           --source-bundle artifacts/cer075/RATE_PRODUCTION_SOURCE_BUNDLE.json
           --cer074-persisted-evidence "$RATE_PREVIOUS_STATE_EVIDENCE_PATH" --workflow-path .github/workflows/rate_production_0730_scheduler.yml
+          --output-dir artifacts/cer075
+          --state-root data/production/scheduler_0730
+          --actions-job-id "$ACTIONS_JOB_ID"
+
+      - name: Prepare opt-in Phase A state without publication
+        if: ${{ inputs.phase2 && github.event_name == 'workflow_dispatch' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
+        run: >
+          python scripts/run_phase2_production.py
+          --cadence "07:30"
+          --canonical-state-root artifacts/production_state
+          --expected-previous-state-evidence "$RATE_PREVIOUS_STATE_EVIDENCE_PATH"
+          --source-bundle artifacts/cer075/RATE_PRODUCTION_SOURCE_BUNDLE.json
           --output-dir artifacts/cer075
           --state-root data/production/scheduler_0730
           --actions-job-id "$ACTIONS_JOB_ID"
@@ -162,4 +184,3 @@ jobs:
           name: RATE_PRODUCTION_0730_SCHEDULER_ARTIFACTS
           path: artifacts/cer075/*.json
           if-no-files-found: warn
-

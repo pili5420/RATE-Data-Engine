@@ -29,6 +29,16 @@ on:
       - ".github/workflows/rate_production_1200_scheduler.yml"
       - ".github/workflows/rate_production_1930_scheduler.yml"
       - ".github/workflows/rate_public_official_partial_valid_ci.yml"
+      - "config/RATE_FULL_MARKET_ROTATION_CONTRACT_V1.json"
+      - "src/phase2_production.py"
+      - "src/full_market_rotation.py"
+      - "src/full_market_materialization.py"
+      - "scripts/*phase2*.py"
+      - "scripts/run_full_market_rotation.py"
+      - "tests/test_phase2*.py"
+      - "tests/test_full_market*.py"
+      - ".github/workflows/rate_production_0730_scheduler.yml"
+      - "docs/RATE_PR24_COMPATIBILITY_PHASE_A.md"
 
 permissions:
   contents: read
@@ -40,7 +50,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 40
     env:
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONIOENCODING: "utf-8"
@@ -54,7 +64,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Existing runtime dependencies
-        run: python -m pip install lxml==6.1.1 tzdata==2025.2
+        run: python -m pip install lxml==6.1.1 tzdata==2025.2 PyYAML==6.0.3
       - name: Unmodified base/head regressions and new tests (strict gate)
         if: ${{ hashFiles('config/RATE_FOUR_CADENCE_REPORT_SOAK_V1.json') == '' }}
         env:
@@ -65,12 +75,21 @@ jobs:
           --expected-head "${{ env.EXPECTED_HEAD }}"
           --output-dir "${{ runner.temp }}/public-official-partial-verification"
       - name: Exact-head report soak separation (131 + 56 + 8 + new, strict gate)
-        if: ${{ hashFiles('config/RATE_FOUR_CADENCE_REPORT_SOAK_V1.json') != '' }}
+        if: ${{ hashFiles('config/RATE_FOUR_CADENCE_REPORT_SOAK_V1.json') != '' && hashFiles('config/RATE_FULL_MARKET_ROTATION_CONTRACT_V1.json') == '' }}
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
         run: >
           python -B scripts/verify_report_production_soak.py
           --expected-base 1cc808d0e809822db057ff88afa0c55dedef13b7
+          --expected-head "${{ env.EXPECTED_HEAD }}"
+          --output-dir "${{ runner.temp }}/public-official-partial-verification"
+      - name: Exact-head PR24 compatibility (131 + 56 + 48 + 8 + 43 + new, strict gate)
+        if: ${{ hashFiles('config/RATE_FULL_MARKET_ROTATION_CONTRACT_V1.json') != '' }}
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: >
+          python -B scripts/verify_phase2_compatibility.py
+          --expected-base b1d4376c1e774bf09b16bde619a352cc9d48dcc2
           --expected-head "${{ env.EXPECTED_HEAD }}"
           --output-dir "${{ runner.temp }}/public-official-partial-verification"
       - name: Preserve all synthetic results including baseline failures
