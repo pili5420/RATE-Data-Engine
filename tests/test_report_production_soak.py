@@ -75,13 +75,13 @@ class ReportProductionSoakTests(unittest.TestCase):
         self.assertEqual(result["validation_status"], "NOT_ACCEPTED")
 
     def test_each_completion_requirement_is_gated(self):
-        accepted = self.evaluate()["runs"]
         for key, minimum in (("trading_days", 4), ("scheduled_runs", 13),
                              ("intraday_chains", 4), ("cross_day_transitions", 3)):
             contract = report.governance()
             contract["required_" + key] = minimum
             with self.subTest(key=key):
-                self.assertEqual(report._completion(accepted, contract)["RATE_REPORT_PRODUCTION_SOAK"], "HOLD")
+                with patch.object(report, "governance", return_value=contract):
+                    self.assertEqual(self.evaluate()["RATE_REPORT_PRODUCTION_SOAK"], "HOLD")
 
     def assert_contract_rejected(self, field, value):
         original_reader = report.read_object
