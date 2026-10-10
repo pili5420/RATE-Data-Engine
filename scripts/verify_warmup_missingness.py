@@ -14,7 +14,7 @@ from scripts.verify_public_official_partial_valid import child, extract, git, wr
 from scripts.verify_fundamental_eligibility import GROUPS as PRIOR_GROUPS, deny_network
 
 BASE = "e8aa0f923c4605e57709446dde2ec23cc9edfb17"
-ALLOWED = {"src/warmup_missingness.py", "scripts/build_warmup_missingness.py", "scripts/verify_warmup_missingness.py",
+ALLOWED = {"scripts/warmup_inventory_acceptance.py", "scripts/build_warmup_missingness.py", "scripts/verify_warmup_missingness.py",
     "tests/test_warmup_missingness.py", "docs/RATE_FULL_MARKET_WARMUP_MISSINGNESS_V1.md",
     "docs/contracts/RATE_FULL_MARKET_WARMUP_MISSINGNESS_V1.json", ".github/workflows/rate_warmup_missingness_ci.yml"}
 GROUPS = {**PRIOR_GROUPS, "warmup_inventory_new": (["test_warmup_missingness"], 47)}
@@ -23,7 +23,7 @@ GROUPS = {**PRIOR_GROUPS, "warmup_inventory_new": (["test_warmup_missingness"], 
 def proof(directory):
     from tests.test_warmup_missingness import material, AS_OF, LATER
     from src.fundamental_eligibility import digest
-    from src.warmup_missingness import build_inventory, verify_inventory
+    from scripts.warmup_inventory_acceptance import build_inventory, verify_inventory
     directory.mkdir(parents=True, exist_ok=True)
     source, universe, context, _ = material(directory)
     kwargs = {"expected_projection_sha256": digest(source), "expected_universe_sha256": digest(universe), "context": context}

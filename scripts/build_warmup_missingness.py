@@ -9,7 +9,7 @@ sys.path.insert(0, str(ROOT))
 from src.fundamental_eligibility import digest, read_pinned, replay_references
 from src.eps_duration_facts.model import require
 from src.provider_eps_coverage import load_universe, save
-from src.warmup_missingness import build_inventory, verify_inventory
+from scripts.warmup_inventory_acceptance import build_inventory, verify_inventory
 
 
 def main():

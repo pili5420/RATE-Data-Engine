@@ -3,7 +3,7 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - src/warmup_missingness.py
+      - scripts/warmup_inventory_acceptance.py
       - scripts/build_warmup_missingness.py
       - scripts/verify_warmup_missingness.py
       - tests/test_warmup_missingness.py
