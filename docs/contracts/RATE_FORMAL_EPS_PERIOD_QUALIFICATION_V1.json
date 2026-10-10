@@ -1,0 +1,20 @@
+{
+  "contract_id": "RATE_FORMAL_EPS_PERIOD_QUALIFICATION_V1",
+  "status": "QUALIFICATION_PROTOCOL_ONLY_NOT_ACTIVE_EPS_CONTRACT",
+  "production_eligible": false,
+  "fallback_allowed": false,
+  "original_eight_quarter_coverage_credit": 0,
+  "formal_warmup_gate": "FUNDAMENTAL_EPS_PERIOD_IDENTITY_UNPROVEN",
+  "required_evidence": [
+    "Exact issuer and market identity in verified source bytes",
+    "Explicit fiscal calendar and absolute context start/end; QUARTER not YTD or ANNUAL",
+    "Exact BASIC concept, CONSOLIDATED scope and TWD/shares unit",
+    "Eight unique consecutive quarters selected from a complete bounded filing index",
+    "Source-attested publication timestamp and exact public-version hash, not retrieval or report-generation date",
+    "Complete original/revision lineage through cutoff, with no conflicting branch",
+    "Receipt/source/body integrity and deterministic fact replay"
+  ],
+  "reuse": ["eps_duration_facts.parser", "eps_duration_facts.validator", "eps_duration_facts.pit", "sources.mops_raw_evidence"],
+  "forbidden": ["quarter synthesis", "fuzzy label mapping", "annual subtraction", "retrieval-time publication substitution", "implicit FinMind promotion", "production activation"],
+  "historical_pit_status": "UNPROVEN_UNTIL_SOURCE_VERSION_EVIDENCE_PASSES"
+}
