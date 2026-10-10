@@ -1,0 +1,48 @@
+name: RATE Fundamental Eligibility (synthetic only)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/fundamental_eligibility.py
+      - scripts/build_fundamental_eligibility.py
+      - scripts/verify_fundamental_eligibility.py
+      - tests/test_fundamental_eligibility.py
+      - docs/RATE_FUNDAMENTAL_ELIGIBILITY_SUBGATE_V1.md
+      - docs/contracts/RATE_FUNDAMENTAL_ELIGIBILITY_SUBGATE_V1.json
+      - .github/workflows/rate_fundamental_eligibility_ci.yml
+permissions:
+  contents: read
+jobs:
+  exact-head:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install lxml==6.1.1 tzdata==2025.2 PyYAML==6.0.3
+      - name: Exact-head additive isolation and unchanged regression gates
+        run: >
+          python -B scripts/verify_fundamental_eligibility.py
+          --expected-base af1c9f6c13ab61749d7a465152daebd4ff53bec8
+          --expected-head "${{ github.event.pull_request.head.sha }}"
+          --output-dir "${{ runner.temp }}/fundamental-eligibility"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ELIGIBILITY_SYNTHETIC_${{ matrix.os }}_${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/fundamental-eligibility/
+          if-no-files-found: error
+          retention-days: 14
