@@ -8,7 +8,7 @@ import sys
 import tempfile
 import unittest
 
-from src import warmup_missingness as w
+from scripts import warmup_inventory_acceptance as w
 from src import fundamental_eligibility as e
 from src.eps_duration_facts.model import Rejected
 from tests.test_fundamental_eligibility import AS_OF, LATER, block, fixture, row
@@ -270,7 +270,7 @@ class WarmupMissingnessTests(unittest.TestCase):
             self.assertEqual(first.returncode, 0, first.stderr)
             output = root / "first/WARMUP_INVENTORY.json"
             frozen = output.read_bytes()
-            code = "from src.fundamental_eligibility import read_pinned; from src.warmup_missingness import verify_inventory; import sys; verify_inventory(read_pinned(sys.argv[1],sys.argv[2]))"
+            code = "from src.fundamental_eligibility import read_pinned; from scripts.warmup_inventory_acceptance import verify_inventory; import sys; verify_inventory(read_pinned(sys.argv[1],sys.argv[2]))"
             cold = subprocess.run([sys.executable, "-B", "-c", code, str(output), hashlib.sha256(frozen).hexdigest()], cwd=ROOT, capture_output=True, text=True)
             self.assertEqual(cold.returncode, 0, cold.stderr)
             self.assertNotEqual(subprocess.run(command, capture_output=True).returncode, 0)

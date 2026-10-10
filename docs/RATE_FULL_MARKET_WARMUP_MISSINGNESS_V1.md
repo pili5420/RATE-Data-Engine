@@ -4,6 +4,9 @@ CR: `RATE-FULL-MARKET-WARMUP-MISSINGNESS-V1`.
 
 This opt-in acceptance concerns universe inventory only, not execution of the
 legacy Production warmup. Its artifact is not a Decision State or source bundle.
+The implementation lives in `scripts/warmup_inventory_acceptance.py`, an
+offline engineering layer, not a new `src/` Production entry. This preserves
+Phase G's existing source-entry isolation regression without changing its test.
 No existing consumer imports this engine. Existing formal warmup, ranking,
 publisher and provider activation gates remain unchanged.
 

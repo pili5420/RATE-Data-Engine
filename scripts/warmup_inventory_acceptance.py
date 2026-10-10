@@ -2,10 +2,10 @@
 from collections import Counter
 from copy import deepcopy
 
-from .eps_duration_facts.model import require
-from .fundamental_eligibility import (COUNTS, FLAGS as ELIGIBILITY_FLAGS, REVENUE_PERIODS,
+from src.eps_duration_facts.model import require
+from src.fundamental_eligibility import (COUNTS, FLAGS as ELIGIBILITY_FLAGS, REVENUE_PERIODS,
     WINDOW, digest, issuer_eligibility, replay_references)
-from .provider_eps_candidate import _time
+from src.provider_eps_candidate import _time
 
 VERSION = "RATE_FULL_MARKET_WARMUP_MISSINGNESS_V1"
 KIND = "WARMUP_INVENTORY_ACCEPTANCE_ONLY"
