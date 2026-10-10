@@ -1,0 +1,22 @@
+{
+  "contract_id": "RATE-FINMIND-FORMAL-EPS-PROVIDER-V1",
+  "status": "QUALIFICATION_CANDIDATE_NOT_ACTIVATED",
+  "provider": "FinMind",
+  "dataset": "TaiwanStockFinancialStatements",
+  "metric_candidate": "PROVIDER_DEFINED_QUARTERLY_BASIC_EPS",
+  "window": ["2024Q3", "2024Q4", "2025Q1", "2025Q2", "2025Q3", "2025Q4", "2026Q1", "2026Q2"],
+  "date_mapping": "EXACT_QUARTER_END_V1_CALENDAR_ONLY_NOT_FISCAL_PROOF",
+  "label_mapping": "FINMIND_BASIC_EPS_EXACT_LABELS_V1",
+  "formal_period_requires": "Independent fiscal year/quarter and report-period meaning, not merely quarter-end-shaped dates",
+  "prospective_condition": "Formal period identity qualified, separate activation approved, then provider observation at or after activation",
+  "historical_condition": "Verified publication/availability and revision/as-of selection; provider_date and observation cannot substitute",
+  "historical_cutoff": "2026-10-05",
+  "revision_history": "UNPROVEN",
+  "sum_boundary": "PROVIDER_DEFINED_UNADJUSTED_QUARTER_SUM_NOT_OFFICIAL_TTM",
+  "activation_required": "FORMAL_PROVIDER_ACTIVATION_CR",
+  "formal_warmup_gate": "FUNDAMENTAL_EPS_PERIOD_IDENTITY_UNPROVEN",
+  "provider_reply_required": false,
+  "production_eligible": false,
+  "fallback_allowed": false,
+  "original_eight_quarter_coverage_credit": 0
+}
