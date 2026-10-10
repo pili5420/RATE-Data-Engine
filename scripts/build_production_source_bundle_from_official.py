@@ -1601,7 +1601,21 @@ def main() -> int:
     parser.add_argument("--freshness-matrix-output", default=None)
     parser.add_argument("--feature-input-contract-output", default=None)
     parser.add_argument("--public-official-partial", action="store_true")
+    parser.add_argument("--phase2", action="store_true")
+    parser.add_argument("--state-root", default="artifacts/production_state")
+    parser.add_argument("--history-root", default="data/production/full_market_history")
     args = parser.parse_args()
+    if args.phase2 and args.cadence not in {"09:30", "12:00"}:
+        if args.public_official_partial:
+            parser.error("PHASE2_PUBLIC_MODE_CONFLICT")
+        from scripts.build_phase2_production_source import build_phase2_bundle
+        evidence = build_phase2_bundle(trading_date=args.trading_date, cadence=args.cadence,
+            output=args.output, evidence_output=args.evidence_output, state_root=args.state_root,
+            history_root=args.history_root)
+        print(json.dumps(evidence, sort_keys=True))
+        return 0 if evidence["validation_status"] == "PASS" else 1
+    if args.phase2:
+        args.public_official_partial = True
     evidence = build_bundle(rate_source_url=args.rate_source_url, trading_date=args.trading_date, cadence=args.cadence, output=args.output, evidence_output=args.evidence_output, requirement_matrix_output=args.requirement_matrix_output, universe_contract=args.universe_contract, universe_binding_output=args.universe_binding_output, freshness_matrix_output=args.freshness_matrix_output, feature_input_contract_output=args.feature_input_contract_output, source_registry=args.source_registry, public_official_partial=args.public_official_partial)
     print(json.dumps(evidence, ensure_ascii=False, sort_keys=True))
     return 0 if evidence["validation_status"] == "PASS" else 1
