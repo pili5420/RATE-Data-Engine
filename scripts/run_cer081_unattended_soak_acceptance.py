@@ -31,6 +31,9 @@ def main() -> int:
         scheduled = []
         if args.scheduled_runs_json:
             scheduled = load_json(args.scheduled_runs_json)
+        dependencies = load_json(Path(__file__).resolve().parents[1] / "config/RATE_EXTERNAL_PRODUCTION_DEPENDENCIES.json")
+        dependency = next(item for item in dependencies["dependencies"]
+            if item["dependency_id"] == "EXTERNAL_AUTHORIZED_INTRADAY_FEED_DEPENDENCY")
         artifacts = build_cer081_artifacts(
             cer080_persisted=load_json(args.cer080_persisted_evidence),
             scheduled_runs_raw=scheduled,
@@ -39,6 +42,7 @@ def main() -> int:
             actions_run_id=args.actions_run_id,
             actions_job_id=args.actions_job_id,
             event_name=args.event_name,
+            current_dependency=dependency,
         )
         for filename, payload in artifacts.items():
             atomic_write_json(out / filename, payload)

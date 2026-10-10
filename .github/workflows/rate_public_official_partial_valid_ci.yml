@@ -4,6 +4,15 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - "src/report_production_soak.py"
+      - "src/cer081_unattended_soak.py"
+      - "scripts/run_cer081_unattended_soak_acceptance.py"
+      - "scripts/run_report_production_soak_acceptance.py"
+      - "scripts/verify_report_production_soak.py"
+      - "tests/report_soak_support.py"
+      - "tests/test_report_production_soak.py"
+      - "config/RATE_FOUR_CADENCE_REPORT_SOAK_V1.json"
+      - "docs/RATE_FOUR_CADENCE_REPORT_SOAK_V1.md"
       - "src/public_official_partial_valid.py"
       - "src/production_live_state.py"
       - "src/cer078_evening_1930.py"
@@ -47,11 +56,21 @@ jobs:
       - name: Existing runtime dependencies
         run: python -m pip install lxml==6.1.1 tzdata==2025.2
       - name: Unmodified base/head regressions and new tests (strict gate)
+        if: ${{ hashFiles('config/RATE_FOUR_CADENCE_REPORT_SOAK_V1.json') == '' }}
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
         run: >
           python -B scripts/verify_public_official_partial_valid.py
           --expected-base af120232facc083f4f3fd934efb6b3058b0d9200
+          --expected-head "${{ env.EXPECTED_HEAD }}"
+          --output-dir "${{ runner.temp }}/public-official-partial-verification"
+      - name: Exact-head report soak separation (131 + 56 + 8 + new, strict gate)
+        if: ${{ hashFiles('config/RATE_FOUR_CADENCE_REPORT_SOAK_V1.json') != '' }}
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: >
+          python -B scripts/verify_report_production_soak.py
+          --expected-base 1cc808d0e809822db057ff88afa0c55dedef13b7
           --expected-head "${{ env.EXPECTED_HEAD }}"
           --output-dir "${{ runner.temp }}/public-official-partial-verification"
       - name: Preserve all synthetic results including baseline failures

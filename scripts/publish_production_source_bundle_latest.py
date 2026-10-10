@@ -155,11 +155,11 @@ def validate_freshness(bundle: Mapping[str, Any], *, trading_date: str, cadence:
     }
 
 
-def validate_production_source_bundle(bundle: Mapping[str, Any], *, trading_date: str, cadence: str) -> dict:
+def validate_production_source_bundle(bundle: Mapping[str, Any], *, trading_date: str, cadence: str, now: datetime | None = None) -> dict:
     source_provenance = bundle.get("source_provenance") or {}
     retrieval_timestamp = source_provenance.get("retrieval_timestamp") or bundle.get("retrieval_timestamp")
     records = bundle.get("decision_records") if "decision_records" in bundle else (bundle.get("records") or [])
-    freshness = validate_freshness(bundle, trading_date=trading_date, cadence=cadence)
+    freshness = validate_freshness(bundle, trading_date=trading_date, cadence=cadence, now=now)
     coverage = bundle.get("coverage") or (bundle.get("decision_record_coverage") or {}).get("coverage")
     record_count = len(records) if isinstance(records, list) else 0
     checks = {

@@ -104,14 +104,33 @@ def build_expected_state(predecessor: Mapping[str, Any], trading_date: str, cade
     return {**payload, "current_state_id": "rate-state-" + h[:24], "current_state_hash": h}
 
 
-def normalize_scheduled_runs(raw: Any) -> list[dict]:
+def full_production_disqualifiers(value: Any) -> list[str]:
+    """A report result must never acquire full-soak credit through a wrapper."""
+    forbidden = {"report_runtime_status": "PARTIAL_VALID",
+        "market_intraday_price_gate": "BLOCKED_EXTERNAL",
+        "full_intraday_decision_status": "BLOCKED_EXTERNAL",
+        "full_production_acceptance": "NOT_ALLOWED"}
+    reasons = set()
+    if isinstance(value, dict):
+        reasons.update(key for key, blocked in forbidden.items() if value.get(key) == blocked)
+        for child in value.values():
+            reasons.update(full_production_disqualifiers(child))
+    elif isinstance(value, list):
+        for child in value:
+            reasons.update(full_production_disqualifiers(child))
+    return sorted(reasons)
+
+
+def normalize_scheduled_runs(raw: Any, *, include_report_only: bool = False) -> list[dict]:
     if isinstance(raw, dict) and "runs" in raw: raw = raw["runs"]
     if not isinstance(raw, list): return []
     out = []
     for item in raw:
         if not isinstance(item, dict): continue
-        if item.get("event_name") != "schedule" and item.get("event") != "schedule": continue
+        events = [item[key] for key in ("event_name", "event") if key in item]
+        if not events or any(event != "schedule" for event in events): continue
         if item.get("validation_status") not in (None, "PASS") or item.get("publish_result") not in (None, "PASS"): continue
+        if not include_report_only and full_production_disqualifiers(item): continue
         td = item.get("trading_date"); cadence = item.get("cadence")
         if td and cadence in CADENCES:
             out.append(dict(item))
@@ -168,27 +187,54 @@ def build_daily_artifacts(scheduled_runs: list[dict], c: Mapping[str, Any]) -> d
             artifacts[name + ".json"] = {"artifact": name, **base, **body}
     return artifacts
 
-def build_cer081_artifacts(*, cer080_persisted: Mapping[str, Any], scheduled_runs_raw: Any = None, rate_source_url: str | None = None, token_present: bool | None = None, run_head_sha=None, actions_run_id=None, actions_job_id=None, event_name=None) -> dict[str, dict]:
+def build_cer081_artifacts(*, cer080_persisted: Mapping[str, Any], scheduled_runs_raw: Any = None, rate_source_url: str | None = None, token_present: bool | None = None, run_head_sha=None, actions_run_id=None, actions_job_id=None, event_name=None, current_dependency: Mapping[str, Any] | None = None) -> dict[str, dict]:
     validate_cer080_predecessor(cer080_persisted)
     token_present = bool(os.getenv("RATE_SOURCE_TOKEN")) if token_present is None else token_present
     source = production_source_ssot(rate_source_url or os.getenv("RATE_SOURCE_URL"), token_present)
     scheduler = scheduler_definition_evidence()
     freeze = _verify_model_freeze()
+    observed = normalize_scheduled_runs(scheduled_runs_raw or [], include_report_only=True)
+    rejected_report_runs = [{"trading_date": run["trading_date"], "cadence": run["cadence"],
+        "workflow_run_id": run.get("workflow_run_id"), "cer081_credit": 0,
+        "reasons": full_production_disqualifiers(run)} for run in observed if full_production_disqualifiers(run)]
     scheduled_runs = normalize_scheduled_runs(scheduled_runs_raw or [])
+    # The live CLI always supplies governance. Omitted governance retains only the
+    # historical CER081 pure-function replay contract, not current production approval.
+    currently_blocked = current_dependency is not None and current_dependency.get("status") == "BLOCKED_EXTERNAL"
+    if current_dependency is not None:
+        for flag in ("fallback_allowed", "soak_credit_allowed_while_blocked", "cer081_completion_allowed_while_blocked",
+                     "production_acceptance_allowed_while_blocked"):
+            if current_dependency.get(flag) is not False: raise RuntimeError("CER081_GOVERNANCE_GATE_CHANGED")
+    if currently_blocked:
+        rejected_report_runs = [{"trading_date": run["trading_date"], "cadence": run["cadence"],
+            "workflow_run_id": run.get("workflow_run_id"), "cer081_credit": 0,
+            "reasons": full_production_disqualifiers(run) or ["CURRENT_EXTERNAL_DEPENDENCY_BLOCKED"]} for run in observed]
+        scheduled_runs = []
     sm = scheduled_run_metrics(scheduled_runs)
     matrix = build_daily_matrix(scheduled_runs)
     replay = deterministic_replay(scheduled_runs)
     source_failures = source_failure_gates()
     c = common(run_head_sha, actions_run_id, actions_job_id, event_name)
-    hard_pass = all([source["production_source_ssot"] == "PASS", scheduler["scheduler_coverage"] == "PASS", freeze.get("status") == "PASS", sm["trading_days_tested"] >= 3, sm["successful_cadence_runs"] >= 12, sm["missing_cadence_runs"] == 0, sm["duplicate_cadence_runs"] == 0, source_failures["failure_gate_result"] == "PASS", replay["deterministic_audit_replay"] == "PASS"])
+    hard_pass = all([not currently_blocked, not rejected_report_runs, source["production_source_ssot"] == "PASS", scheduler["scheduler_coverage"] == "PASS", freeze.get("status") == "PASS", sm["trading_days_tested"] >= 3, sm["successful_cadence_runs"] >= 12, sm["missing_cadence_runs"] == 0, sm["duplicate_cadence_runs"] == 0, source_failures["failure_gate_result"] == "PASS", replay["deterministic_audit_replay"] == "PASS"])
     blockers = []
+    if rejected_report_runs or currently_blocked: blockers.append("BLOCKED_EXTERNAL_REPORT_ONLY_RUNS_NOT_FULL_PRODUCTION")
     if source["production_source_ssot"] != "PASS": blockers.append("PRODUCTION_SOURCE_SSOT_NOT_READY")
     if scheduler["scheduler_coverage"] != "PASS": blockers.append("SCHEDULER_COVERAGE_NOT_READY")
     if freeze.get("status") != "PASS": blockers.append("MODEL_FREEZE_FAIL")
     if sm["trading_days_tested"] < 3 or sm["successful_cadence_runs"] < 12: blockers.append("AWAITING_3_TRADING_DAYS_12_SCHEDULED_RUNS")
     final_result = "PASS" if hard_pass else "FAIL"
     hold_status = "ACCEPTED_CLOSED" if hard_pass else "HOLD:AWAITING_SCHEDULED_SOAK_EVIDENCE"
+    if rejected_report_runs or currently_blocked: hold_status = "HOLD:BLOCKED_EXTERNAL"
     base_metrics = {**sm, "reset_violation_count": 0, "lineage_violation_count": 0, "protected_field_violation_count": 0, "portfolio_continuity_violations": 0, "ledger_continuity_violations": 0, "model_freeze_violations": 0 if freeze.get("status") == "PASS" else 1, "automatic_recovery_count": 0, "manual_recovery_count": 0, "unrecovered_failure_count": 0, "duplicate_production_record_count": 0, "average_scheduler_delay_seconds": None, "max_scheduler_delay_seconds": None, "average_runtime_seconds": None, "max_runtime_seconds": None, "eod_closure_pass_count": sum(1 for row in matrix if row.get("EOD Closure") == "PASS"), "cross_day_handoff_pass_count": sum(1 for row in matrix if row.get("Cross-Day Ready") == "PASS")}
+    base_metrics.update(acceptance_id="CER081_FULL_PRODUCTION_SOAK",
+        CER081_FULL_PRODUCTION_SOAK="BLOCKED_EXTERNAL" if rejected_report_runs or currently_blocked else
+            ("NOT_ACCEPTED_LEGACY_REPLAY_ONLY" if current_dependency is None else ("PASS" if hard_pass else "NOT_ACCEPTED")),
+        current_cer081_credit=len(scheduled_runs) if current_dependency is not None and not currently_blocked else 0,
+        production_acceptance_granted=hard_pass and current_dependency is not None,
+        governance_scope="CURRENT_PRODUCTION" if current_dependency is not None else "LEGACY_HISTORICAL_REPLAY_ONLY",
+        report_only_runs=rejected_report_runs, report_only_run_count=len(rejected_report_runs),
+        soak_credit_allowed_while_blocked=False, cer081_completion_allowed_while_blocked=False,
+        production_acceptance_allowed_while_blocked=False)
     artifacts = build_daily_artifacts(scheduled_runs, c)
     artifacts.update({
         "RATE_CER081_PRODUCTION_SOURCE_SSOT_EVIDENCE.json": {"artifact": "RATE_CER081_PRODUCTION_SOURCE_SSOT_EVIDENCE", **c, **source},
