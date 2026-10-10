@@ -1,0 +1,48 @@
+name: RATE Warmup Inventory Missingness (synthetic only)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/warmup_missingness.py
+      - scripts/build_warmup_missingness.py
+      - scripts/verify_warmup_missingness.py
+      - tests/test_warmup_missingness.py
+      - docs/RATE_FULL_MARKET_WARMUP_MISSINGNESS_V1.md
+      - docs/contracts/RATE_FULL_MARKET_WARMUP_MISSINGNESS_V1.json
+      - .github/workflows/rate_warmup_missingness_ci.yml
+permissions:
+  contents: read
+jobs:
+  exact-head:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install lxml==6.1.1 tzdata==2025.2 PyYAML==6.0.3
+      - name: Exact-head isolated inventory and unchanged regression gates
+        run: >
+          python -B scripts/verify_warmup_missingness.py
+          --expected-base e8aa0f923c4605e57709446dde2ec23cc9edfb17
+          --expected-head "${{ github.event.pull_request.head.sha }}"
+          --output-dir "${{ runner.temp }}/warmup-inventory"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: WARMUP_INVENTORY_SYNTHETIC_${{ matrix.os }}_${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/warmup-inventory/
+          if-no-files-found: error
+          retention-days: 14
