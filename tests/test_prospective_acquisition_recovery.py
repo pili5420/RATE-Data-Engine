@@ -33,7 +33,7 @@ class RecoveryTests(unittest.TestCase):
             "legacy_checkout":str(CHECKOUT), "legacy_execution":f.EXECUTION,
             "legacy_pipeline_sha256":sha256((CHECKOUT/"scripts/run_prospective_provider_activation.py").read_bytes()),
             "authority_root":str(self.case.authority),"authority_sha256":self.case.authority_pin,
-            "authority_id":r.load(self.case.authority,self.case.authority_pin)["authority_id"],
+            "authority_id":f.a.load(self.case.authority,self.case.authority_pin)["authority_id"],
             "config_sha256":self.case.pin,"trusted_head_before_failure":self.head,
             "failures":self.refs,"dispatches":self.dispatches,"acceptance_target":False}
         def git(command, **kwargs):
@@ -54,7 +54,7 @@ class RecoveryTests(unittest.TestCase):
     def add_failure(self, singleton=False):
         ident=str(uuid4()); root=self.case.root
         directory=root/"captures"/ident
-        auth=r.load(self.case.authority,self.case.authority_pin)
+        auth=f.a.load(self.case.authority,self.case.authority_pin)
         target={"market":"TWSE","period":"2026-09"}; url=f.p.endpoint(**target)
         tick=[100.0]; gate=DispatchGate(13,prior_dispatch=True,clock=lambda:tick[0],utc=lambda:f.LATER)
         tick[0]=113.0; dispatch=gate.boundary(ident)

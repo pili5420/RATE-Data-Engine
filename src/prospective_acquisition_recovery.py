@@ -13,7 +13,6 @@ from .provider_eps_candidate import _canonical, _time
 from .provider_eps_metadata import read_metadata, number
 from .provider_eps_dispatch import exclusive_scan, DispatchGate
 from .provider_revenue_snapshot import endpoint
-from .prospective_provider_activation import load
 from .sources.mops_raw_evidence import NORMALIZATION_VERSION
 
 KIND = "RATE_PROSPECTIVE_KNOWN_FAILURE_RESOLUTION_V1"
@@ -75,7 +74,7 @@ def load_binding(path, trusted_sha256):
         spec.loader.exec_module(engine)
     finally:
         sys.path[:] = before
-    auth = load(binding["authority_root"], binding["authority_sha256"])
+    auth = engine.load(binding["authority_root"], binding["authority_sha256"])
     require(auth["authority_id"] == binding["authority_id"], "RECOVERY_AUTHORITY_MISMATCH")
     return binding, config, auth, engine
 
