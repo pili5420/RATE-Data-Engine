@@ -15,7 +15,7 @@ from scripts.verify_first_refresh_readiness import GROUPS as INHERITED_GROUPS
 from src.prospective_acquisition_recovery import offline_network_guard
 
 BASE = "29f1781e3c460ccf9a816c5b9774b00374cedfe1"
-NEW_COUNT = 43
+NEW_COUNT = 51
 ALLOWED = {
     "src/fundamental_first_refresh_execution.py",
     "scripts/run_fundamental_first_refresh_execution.py",
