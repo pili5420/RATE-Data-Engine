@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from src.eps_duration_facts.model import Rejected
 from src import fundamental_first_refresh_execution as e
@@ -135,6 +136,25 @@ class PlanTests(unittest.TestCase):
         self.assertFalse(p["ranking_authorized"])
         self.assertFalse(p["fallback_allowed"])
 
+    def test_authority_drift_rejected(self):
+        p = plan(); p["authority_id"] = "other"
+        with self.assertRaisesRegex(Rejected, "PLAN_DRIFT"):
+            e.validate_plan(p, universe(), "synthetic-authority", e.CONTRACT["base_sha"])
+
+    def test_same_count_universe_identity_drift_rejected(self):
+        u = universe(); u["stocks"][0]["symbol"] = "T9999"
+        with self.assertRaisesRegex(Rejected, "PLAN_DRIFT"):
+            e.validate_plan(plan(), u, "synthetic-authority", e.CONTRACT["base_sha"])
+
+    def test_valid_main_drift_rejected_by_existing_plan(self):
+        with self.assertRaisesRegex(Rejected, "PLAN_DRIFT"):
+            e.validate_plan(plan(), universe(), "synthetic-authority", "0" * 40)
+
+    def test_destination_drift_rejected(self):
+        p = plan(); p["publication_destination"]["path"] = "other.json"
+        with self.assertRaisesRegex(Rejected, "PLAN_DRIFT"):
+            e.validate_plan(p, universe(), "synthetic-authority", e.CONTRACT["base_sha"])
+
 
 class DispatchTests(unittest.TestCase):
     class Inner:
@@ -188,6 +208,13 @@ class SimulationTests(unittest.TestCase):
     def test_crash_before_dispatch_does_not_consume_entry(self):
         r = e.simulate_full_plan(plan(), universe(), crash_before_at=10)
         self.assertEqual((r["dispatch_count"], r["completed_count"], r["next_ordinal"]), (9, 9, 10))
+        self.assertFalse(r["auto_resume_allowed"])
+
+    def test_crash_after_immutable_success_is_not_resent(self):
+        r = e.simulate_full_plan(plan(), universe(), crash_after_success_at=10)
+        self.assertEqual((r["dispatch_count"], r["completed_count"]), (10, 10))
+        self.assertTrue(r["cold_replay_proves_completed"])
+        self.assertFalse(r["would_resend_completed_request"])
         self.assertFalse(r["auto_resume_allowed"])
 
     def test_duplicate_ordinal_fails_closed(self):
@@ -314,6 +341,12 @@ class PublicationTests(unittest.TestCase):
         e.publish_fundamental_atomic(minimal_snapshot(), artifacts_root=self.root, expected_previous_latest=None)
         self.assertEqual(before, self.global_latest.read_bytes())
 
+    def test_staging_failure_preserves_pointer_absence(self):
+        with patch.object(e, "_put_object", side_effect=OSError("synthetic staging failure")):
+            with self.assertRaises(OSError):
+                e.publish_fundamental_atomic(minimal_snapshot(), artifacts_root=self.root, expected_previous_latest=None)
+        self.assertFalse((self.root / e.LATEST_NAME).exists())
+
 
 class AuthorizationTests(unittest.TestCase):
     def valid_auth(self):
@@ -351,6 +384,26 @@ class AuthorizationTests(unittest.TestCase):
         self.assertIn("acquisition_owner", seal["owner_sha256"])
         self.assertIn("atomic_publication_owner", seal["owner_sha256"])
         self.assertFalse(seal["first_refresh_authorized"])
+
+    def test_resume_requires_new_control_center_continuation(self):
+        with self.assertRaisesRegex(Rejected, "CONTROL_CENTER_CONTINUATION"):
+            e.resume_execution()
+
+
+class CheckpointTests(unittest.TestCase):
+    def test_checkpoint_tamper_fails_closed(self):
+        p = plan()
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            h = e._checkpoint(root, p, p["entries"][0], event_sha256=e.digest({"event": 1}),
+                              completed_keys=[p["entries"][0]["request_key"]], previous_checkpoint_sha256=None)
+            path = next((root / "execution-checkpoints").iterdir())
+            value = e.verify_checkpoint(path, p, None)
+            self.assertEqual(value["last_completed_ordinal"], 1)
+            self.assertEqual(h, path.stem.split("-", 1)[1])
+            path.write_bytes(path.read_bytes() + b" ")
+            with self.assertRaisesRegex(Rejected, "CHECKPOINT_TAMPER"):
+                e.verify_checkpoint(path, p, None)
 
 
 class GovernanceTests(unittest.TestCase):
