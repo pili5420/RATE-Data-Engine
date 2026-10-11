@@ -112,7 +112,7 @@ def inspect_source(provider, target, raw, receipt_bytes, raw_sha256, receipt_sha
         "requested_at": requested, "received_at": received, "source_observed_at": received,
         "original_publication_timestamp": None, "historical_pit": "UNPROVEN",
         "raw_sha256": raw_sha256, "receipt_sha256": receipt_sha256, "parser_version": identity,
-        "source_parser_sha256": source_parser_sha,
+        "source_parser_sha256": source_parser_sha if provider == "MOPS Official" else None,
         "validation_timestamp": validated_at, "expected_symbols": expected_symbols, "required_periods": required,
         "rows": rows, "source_identity_gate": "PASS", "fallback_allowed": False}
 

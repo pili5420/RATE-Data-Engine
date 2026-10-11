@@ -38,6 +38,8 @@ validation_timestamp, immutable snapshot ID and row locators. Original parser by
 validation parser bytes are separately identified. Original CRLF/LF parser representation
 may be replayed only if its normalized code bytes exactly match; the original code pin is
 never replaced by the validator hash. Raw and receipt bytes are never normalized.
+Legacy FinMind receipts did not capture a source-parser hash; that field remains null.
+The current validation parser hash must not masquerade as captured acquisition provenance.
 
 ## Observation Chain and Availability
 

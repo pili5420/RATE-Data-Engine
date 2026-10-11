@@ -77,7 +77,10 @@ class AcceptanceTests(unittest.TestCase):
             raw, _canonical(receipt), ACTIVATION, now)
 
     def test_identity_eps_pass(self):
-        self.assertEqual(self.inspect()["source_identity_gate"], "PASS")
+        inspected = self.inspect()
+        self.assertEqual(inspected["source_identity_gate"], "PASS")
+        self.assertIsNone(inspected["source_parser_sha256"])
+        self.assertEqual(inspected["parser_version"], parser_identity("FinMind"))
 
     def test_identity_mops_pass(self):
         value = self.inspect(revenue(), "MOPS Official", {"market": "TWSE", "period": "2026-07"})
