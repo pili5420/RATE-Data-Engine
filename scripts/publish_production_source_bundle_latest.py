@@ -16,6 +16,9 @@ if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 
 from src.thin_work_manifest import build_shadow_manifest, validate_shadow_manifest
+from src import production_refresh_commit as refresh
+
+_AUTO_PREVIOUS = object()
 
 LATEST_RELATIVE = Path("artifacts/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json")
 SNAPSHOT_ROOT_RELATIVE = Path("artifacts/production_source_snapshots")
@@ -53,10 +56,11 @@ def atomic_write_json(path: Path, value: Any) -> None:
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(tmp, path)
+        refresh.sync_directory(path.parent)
     finally:
         try:
             os.unlink(tmp)
-        except FileNotFoundError:
+        except OSError:
             pass
 
 
@@ -233,15 +237,28 @@ def build_snapshot(bundle: Mapping[str, Any], *, trading_date: str, cadence: str
     }
 
 
-def publish_latest(*, source_bundle_path: str | Path, trading_date: str, cadence: str, artifacts_root: str | Path = "artifacts", workflow_run_id: str | None = None, workflow_job_id: str | None = None, evidence_output: str | Path | None = None) -> dict:
-    root = Path(artifacts_root)
+def publish_latest(*, source_bundle_path: str | Path, trading_date: str, cadence: str, artifacts_root: str | Path = "artifacts", workflow_run_id: str | None = None, workflow_job_id: str | None = None, evidence_output: str | Path | None = None, expected_previous_latest=_AUTO_PREVIOUS) -> dict:
+    root = refresh.safe(artifacts_root)
     latest_path = root / "RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json"
-    snapshot_root = root / "production_source_snapshots"
+    prior_identity = refresh.current_identity(latest_path)
+    if evidence_output:
+        output_path = refresh.safe(evidence_output)
+        refresh.require(output_path not in (latest_path, root / MANIFEST_LATEST_NAME)
+            and not output_path.is_relative_to(root / "production_source_snapshots"), "REFRESH_EVIDENCE_PATH_COLLISION")
+    expected_previous_latest = prior_identity if expected_previous_latest is _AUTO_PREVIOUS else expected_previous_latest
+    if prior_identity is not None:
+        prior_body = latest_path.read_bytes()
+        refresh.require(refresh.digest(prior_body) == prior_identity, "REFRESH_PRIOR_CHANGED_DURING_READ")
+        prior = refresh.decode(prior_body)
+        refresh.require(prior.get("validation_status") == "PASS" and bool(prior.get("snapshot_id")), "REFRESH_PRIOR_LATEST_INVALID")
+        if "artifact_kind" in prior: refresh.read_committed(latest_path, prior_identity)
+    else:
+        prior = {}
     workflow_run_id = workflow_run_id or os.getenv("GITHUB_RUN_ID") or "local"
     workflow_job_id = workflow_job_id or os.getenv("ACTIONS_JOB_ID") or os.getenv("GITHUB_JOB")
-    bundle = load_json(source_bundle_path)
+    bundle = refresh.decode(Path(source_bundle_path).read_bytes())
     validation = validate_production_source_bundle(bundle, trading_date=trading_date, cadence=cadence)
-    previous_snapshot_id = latest_snapshot_id(latest_path)
+    previous_snapshot_id = prior.get("snapshot_id")
     evidence = {
         "artifact": "RATE_PRODUCTION_SOURCE_BUNDLE_LATEST_UPDATE_EVIDENCE",
         "trading_date": trading_date,
@@ -261,10 +278,13 @@ def publish_latest(*, source_bundle_path: str | Path, trading_date: str, cadence
         return evidence
     retrieval_timestamp = validation["retrieval_timestamp"] or utc_now()
     snapshot = build_snapshot(bundle, trading_date=trading_date, cadence=cadence, workflow_run_id=workflow_run_id, workflow_job_id=workflow_job_id, previous_snapshot_id=previous_snapshot_id, retrieval_timestamp=retrieval_timestamp)
-    snapshot_dir = snapshot_root / trading_date / cadence.replace(":", "") / snapshot["snapshot_id"]
-    snapshot_path = snapshot_dir / "RATE_PRODUCTION_SOURCE_BUNDLE_SNAPSHOT.json"
-    immutable_bundle_path = snapshot_dir / "RATE_PRODUCTION_SOURCE_BUNDLE.json"
-    manifest_path = snapshot_dir / MANIFEST_FILE_NAME
+    # Stage every object immutably before the only authoritative pointer can move.
+    bundle_ref = refresh.put_object(root, "source_bundle", snapshot["bundle"])
+    snapshot_ref = refresh.put_object(root, "source_snapshot", snapshot)
+    immutable_bundle_path = root / bundle_ref["path"]
+    snapshot_path = root / snapshot_ref["path"]
+    # The final Thin Work object is content-addressed after validation below.
+    manifest_path = root / "production_source_snapshots" / "pending-thin-work-manifest.json"
     manifest_latest_path = root / MANIFEST_LATEST_NAME
     delivery_targets = build_delivery_targets(
         snapshot_path=snapshot_path,
@@ -281,7 +301,6 @@ def publish_latest(*, source_bundle_path: str | Path, trading_date: str, cadence
         if evidence_output:
             atomic_write_json(Path(evidence_output), evidence)
         return evidence
-    atomic_write_json(immutable_bundle_path, snapshot["bundle"])
     manifest = build_shadow_manifest(
         production_artifact_path=immutable_bundle_path,
         cadence=cadence,
@@ -304,10 +323,14 @@ def publish_latest(*, source_bundle_path: str | Path, trading_date: str, cadence
         evidence["manifest_validation"] = manifest_validation
         if evidence_output:
             atomic_write_json(Path(evidence_output), evidence)
-        try:
-            immutable_bundle_path.unlink()
-        except FileNotFoundError:
-            pass
+        return evidence
+    manifest_ref = refresh.put_object(root, "thin_work_manifest", {**manifest, "contract_validation": manifest_validation})
+    manifest_path = root / manifest_ref["path"]
+    delivery_targets = build_delivery_targets(snapshot_path=snapshot_path, immutable_bundle_path=immutable_bundle_path,
+        manifest_path=manifest_path, latest_path=latest_path, manifest_latest_path=manifest_latest_path)
+    delivery_target_validation = validate_delivery_targets(delivery_targets)
+    if delivery_target_validation["validation_status"] != "PASS":
+        evidence.update(blocking_reason="DUPLICATE_DELIVERY_TARGET", delivery_target_validation=delivery_target_validation)
         return evidence
     latest = {k: snapshot[k] for k in REQUIRED_LATEST_FIELDS}
     latest.update({
@@ -320,10 +343,15 @@ def publish_latest(*, source_bundle_path: str | Path, trading_date: str, cadence
         "immutable_bundle_path": str(immutable_bundle_path).replace("\\", "/"),
         "schema_version": "RATE-PRODUCTION-SOURCE-LATEST-V1",
     })
-    atomic_write_json(snapshot_path, snapshot)
-    atomic_write_json(manifest_path, {**manifest, "contract_validation": manifest_validation})
-    atomic_write_json(latest_path, latest)
-    atomic_write_json(manifest_latest_path, {
+    latest.update({"artifact_kind": refresh.KIND, "authoritative_commit_points": 1,
+        "transaction_status": "COMMITTED", "prior_latest_identity": prior_identity,
+        "commit_timestamp": utc_now(), "required_artifacts": {"source_bundle": bundle_ref,
+            "source_snapshot": snapshot_ref, "thin_work_manifest": manifest_ref},
+        "refresh_transaction_id": "rate-refresh-" + refresh.digest(refresh.encode({
+            "snapshot_sha256": snapshot_ref["sha256"], "prior_latest_identity": prior_identity}))})
+    latest["refresh_manifest_sha256"] = refresh.manifest_digest(latest)
+    committed = refresh.commit(root, latest, expected_previous_latest, atomic_write_json)
+    compatibility = {
         "artifact": "RATE_THIN_WORK_PRODUCTION_BUNDLE_MANIFEST_LATEST",
         "schema_version": "RATE-THIN-WORK-PRODUCTION-BUNDLE-MANIFEST-LATEST-V1",
         "validation_status": "PASS",
@@ -333,7 +361,14 @@ def publish_latest(*, source_bundle_path: str | Path, trading_date: str, cadence
         "production_snapshot_id": manifest["production_snapshot_id"],
         "commit_sha": manifest["commit_sha"],
         "payload_reference": manifest["payload_references"][0],
-    })
+        "authoritative": False, "derived_from_latest_identity": committed["latest_identity"],
+        "authoritative_manifest_path": str(latest_path),
+    }
+    warnings = committed["warnings"]
+    try:
+        atomic_write_json(manifest_latest_path, compatibility)
+    except Exception as exc:
+        warnings.append("NON_AUTHORITATIVE_COMPATIBILITY_WRITE_FAILED:" + type(exc).__name__)
     evidence.update({
         "validation_status": "PASS",
         "snapshot_id": snapshot["snapshot_id"],
@@ -352,9 +387,18 @@ def publish_latest(*, source_bundle_path: str | Path, trading_date: str, cadence
         "delivery_target_validation": delivery_target_validation,
         "latest_updated": True,
         "publish_result": "PASS",
+        "transaction_status": "COMMITTED",
+        "refresh_transaction_id": latest["refresh_transaction_id"],
+        "authoritative_latest_identity": committed["latest_identity"],
+        "authoritative_commit_points": 1,
+        "compatibility_authoritative": False,
+        "post_commit_warnings": warnings,
     })
     if evidence_output:
-        atomic_write_json(Path(evidence_output), evidence)
+        try:
+            atomic_write_json(Path(evidence_output), evidence)
+        except Exception as exc:
+            warnings.append("NON_AUTHORITATIVE_EVIDENCE_WRITE_FAILED:" + type(exc).__name__)
     return evidence
 
 
@@ -369,6 +413,7 @@ def main() -> int:
     parser.add_argument("--workflow-run-id", default=os.getenv("GITHUB_RUN_ID"))
     parser.add_argument("--workflow-job-id", default=os.getenv("ACTIONS_JOB_ID") or os.getenv("GITHUB_JOB"))
     parser.add_argument("--evidence-output", default="artifacts/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST_UPDATE_EVIDENCE.json")
+    parser.add_argument("--expected-previous-latest", help="Expected authoritative pointer bytes SHA256; NONE requires absence.")
     args = parser.parse_args()
     if not args.public_official_partial and not args.phase2 and load_json(args.source_bundle).get("schema_version") == "RATE-FULL-MARKET-PRODUCTION-SOURCE-BUNDLE-V1":
         print(json.dumps({"validation_status": "FAIL", "publish_result": "BLOCKED",
@@ -390,7 +435,8 @@ def main() -> int:
         from src.public_official_partial_valid import publish_report
         evidence = publish_report(source_bundle_path=args.source_bundle, trading_date=args.trading_date, cadence=args.cadence, artifacts_root=args.artifacts_root, workflow_run_id=args.workflow_run_id, workflow_job_id=args.workflow_job_id, evidence_output=args.evidence_output)
     else:
-        evidence = publish_latest(source_bundle_path=args.source_bundle, trading_date=args.trading_date, cadence=args.cadence, artifacts_root=args.artifacts_root, workflow_run_id=args.workflow_run_id, workflow_job_id=args.workflow_job_id, evidence_output=args.evidence_output)
+        expected = _AUTO_PREVIOUS if args.expected_previous_latest is None else (None if args.expected_previous_latest == "NONE" else args.expected_previous_latest)
+        evidence = publish_latest(source_bundle_path=args.source_bundle, trading_date=args.trading_date, cadence=args.cadence, artifacts_root=args.artifacts_root, workflow_run_id=args.workflow_run_id, workflow_job_id=args.workflow_job_id, evidence_output=args.evidence_output, expected_previous_latest=expected)
     print(json.dumps(evidence, ensure_ascii=False, sort_keys=True))
     return 0 if evidence.get("publish_result") == "PASS" else 1
 

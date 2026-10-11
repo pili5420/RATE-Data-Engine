@@ -1,0 +1,20 @@
+{
+  "change_request": "RATE-ATOMIC-PUBLICATION-OWNER-V1",
+  "artifact_kind": "RATE_PRODUCTION_REFRESH_MANIFEST_V1",
+  "owner": "scripts/publish_production_source_bundle_latest.py",
+  "authoritative_pointer": "RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json",
+  "authoritative_commit_points": 1,
+  "required_artifacts": ["source_bundle", "source_snapshot", "thin_work_manifest"],
+  "immutable_staging": "EXCLUSIVE_CONTENT_ADDRESSED_WRITE_FLUSH_FSYNC_COLD_VERIFY",
+  "compare_and_swap": "EXPECTED_PREVIOUS_BYTES_SHA256_UNDER_OS_WRITER_LOCK",
+  "commit": "SAME_DIRECTORY_ATOMIC_REPLACE",
+  "post_commit_compatibility_failures": "COMMITTED_WITH_WARNING_NOT_PARTIAL",
+  "compatibility_pointer": "RATE_THIN_WORK_PRODUCTION_BUNDLE_MANIFEST_LATEST.json",
+  "compatibility_authoritative": false,
+  "consumer": "src.production_refresh_commit.read_committed",
+  "first_refresh_authorized": false,
+  "fallback_allowed": false,
+  "historical_pit": "UNPROVEN",
+  "windows_power_loss_durability_claim": false,
+  "state_portfolio_ledger_semantics_changed": false
+}
