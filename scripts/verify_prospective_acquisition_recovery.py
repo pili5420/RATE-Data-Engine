@@ -5,10 +5,11 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from scripts.verify_public_official_partial_valid import child, git, write
+from scripts.verify_public_official_partial_valid import child, extract, git, write
 from scripts.verify_prospective_provider_activation import GROUPS as PRIOR_GROUPS
 from src.prospective_acquisition_recovery import offline_network_guard
 
@@ -41,19 +42,22 @@ def main():
         raise ValueError("PROTECTED_EXISTING_BLOB_CHANGED")
     if args.output_dir.exists(): raise ValueError("OUTPUT_MUST_BE_NEW")
     args.output_dir.mkdir(parents=True)
-    temp = args.output_dir.resolve() / "synthetic-temp"; temp.mkdir()
-    env = {**os.environ, "PYTHONDONTWRITEBYTECODE":"1", "PYTHONIOENCODING":"utf-8", "TEMP":str(temp), "TMP":str(temp)}
     results = {}
-    for name, (modules, count) in GROUPS.items():
-        output = args.output_dir.resolve() / (name + ".json")
-        run = subprocess.run([sys.executable, "-B", str(Path(__file__).resolve()), "--test-child", str(output), *modules],
-            cwd=ROOT, capture_output=True, text=True, encoding="utf-8", env=env)
-        write(args.output_dir / (name + "-execution.json"), {"exit_code":run.returncode})
-        (args.output_dir / (name + ".log")).write_text(run.stdout + run.stderr, encoding="utf-8")
-        result = json.loads(output.read_text(encoding="utf-8"))
-        result.update(exit_code=run.returncode, exact_count_pass=result["tests_run"] == count)
-        results[name] = result
-        print(json.dumps({"group":name,"tests":result["tests_run"],"pass":result["all_pass"]}), flush=True)
+    with tempfile.TemporaryDirectory(prefix="kr-", dir=ROOT.parent) as directory:
+        mirror = Path(directory) / "head"; extract(args.expected_head, mirror)
+        (mirror / ".git").write_text("gitdir: " + git("rev-parse", "--absolute-git-dir") + "\n", encoding="utf-8")
+        temp = Path(directory) / "tmp"; temp.mkdir()
+        env = {**os.environ, "PYTHONDONTWRITEBYTECODE":"1", "PYTHONIOENCODING":"utf-8", "TEMP":str(temp), "TMP":str(temp)}
+        for name, (modules, count) in GROUPS.items():
+            output = args.output_dir.resolve() / (name + ".json")
+            run = subprocess.run([sys.executable, "-B", str(mirror / "scripts/verify_prospective_acquisition_recovery.py"), "--test-child", str(output), *modules],
+                cwd=mirror, capture_output=True, text=True, encoding="utf-8", env=env)
+            write(args.output_dir / (name + "-execution.json"), {"exit_code":run.returncode})
+            (args.output_dir / (name + ".log")).write_text(run.stdout + run.stderr, encoding="utf-8")
+            result = json.loads(output.read_text(encoding="utf-8"))
+            result.update(exit_code=run.returncode, exact_count_pass=result["tests_run"] == count)
+            results[name] = result
+            print(json.dumps({"group":name,"tests":result["tests_run"],"pass":result["all_pass"]}), flush=True)
     passed = all(r["all_pass"] and r["exact_count_pass"] and not r["exit_code"] and not r["skipped"] for r in results.values())
     if git("status", "--porcelain") or git("rev-parse", "HEAD") != args.expected_head:
         raise ValueError("HEAD_OR_WORKTREE_CHANGED")
