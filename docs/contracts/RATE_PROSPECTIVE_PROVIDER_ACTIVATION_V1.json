@@ -1,0 +1,21 @@
+{
+  "contract_id": "RATE-PROSPECTIVE-PROVIDER-ACTIVATION-V1",
+  "change_request": "RATE-PHASE-I-A2-PROSPECTIVE-FUNDAMENTAL-PROVIDER-ACTIVATION",
+  "providers": {"FinMind": "TaiwanStockFinancialStatements", "MOPS Official": "MOPS_MONTHLY_REVENUE_ARCHIVE"},
+  "provider_authorization": "AUTHORIZED_PROSPECTIVE_ONLY",
+  "activation_timestamp": null,
+  "activation_rule": "IMMUTABLE_MAIN_AUTHORIZATION_COMMIT_GITHUB_MERGED_AT",
+  "authorization_before_verified_main_seal": "NOT_EFFECTIVE",
+  "acquisition_rule": "activation_timestamp <= requested_at <= received_at <= validation_timestamp <= first_seen_at",
+  "legacy_acquisition_relabeling_allowed": false,
+  "mops_request_started_at_required": true,
+  "historical_pit": "UNPROVEN",
+  "original_eight_quarter_coverage_credit": 0,
+  "fallback_allowed": false,
+  "decision_eligible": false,
+  "production_eligible": false,
+  "first_refresh_allowed": false,
+  "ranking_activation_allowed": false,
+  "production_publication_allowed": false,
+  "external_authorized_intraday_feed_dependency": "BLOCKED_EXTERNAL"
+}
