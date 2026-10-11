@@ -1,0 +1,56 @@
+name: RATE First Refresh Readiness (synthetic only)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/first_refresh_readiness.py
+      - scripts/run_first_refresh_readiness.py
+      - scripts/verify_first_refresh_readiness.py
+      - tests/test_first_refresh_readiness.py
+      - docs/contracts/RATE_FIRST_REFRESH_READINESS_V1.json
+      - docs/RATE_FIRST_REFRESH_READINESS_V1.md
+      - .github/workflows/rate_first_refresh_readiness_ci.yml
+permissions:
+  contents: read
+jobs:
+  exact-head:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install lxml==6.1.1 tzdata==2025.2 PyYAML==6.0.3
+      - name: Exact-head inherited regressions and new readiness tests
+        run: >
+          python -B scripts/verify_first_refresh_readiness.py
+          --expected-base dbd0983caf883fa9a39eb187fb3d01f192ecd61e
+          --expected-head "${{ github.event.pull_request.head.sha }}"
+          --output-dir "${{ runner.temp }}/first-refresh-readiness"
+      - name: Current-main replacement compatibility gate
+        run: >
+          python -B scripts/verify_ci_applicability.py
+          --expected-base dbd0983caf883fa9a39eb187fb3d01f192ecd61e
+          --expected-head "${{ github.event.pull_request.head.sha }}"
+          --output-dir "${{ runner.temp }}/first-refresh-replacement"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: FIRST_REFRESH_READINESS_SYNTHETIC_${{ matrix.os }}_${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/first-refresh-readiness/
+            ${{ runner.temp }}/first-refresh-replacement/
+          if-no-files-found: error
+          retention-days: 14
