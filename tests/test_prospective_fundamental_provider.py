@@ -80,7 +80,9 @@ class AcceptanceTests(unittest.TestCase):
         self.assertEqual(self.inspect()["source_identity_gate"], "PASS")
 
     def test_identity_mops_pass(self):
-        self.assertEqual(self.inspect(revenue(), "MOPS Official", {"market": "TWSE", "period": "2026-07"})["source_identity_gate"], "PASS")
+        value = self.inspect(revenue(), "MOPS Official", {"market": "TWSE", "period": "2026-07"})
+        self.assertEqual(value["source_identity_gate"], "PASS")
+        self.assertEqual(value["rows"][0]["json_locator"], {"market":"TWSE","symbol":"1000","period":"2026-07","parsed_row_index_zero_based":0})
 
     def test_endpoint_mismatch(self):
         with self.assertRaises(Rejected): self.inspect(eps(requested_url="https://example.org"))

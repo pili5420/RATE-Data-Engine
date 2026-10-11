@@ -99,7 +99,7 @@ def inspect_source(provider, target, raw, receipt_bytes, raw_sha256, receipt_sha
             rows.append({"symbol": row["symbol"], "market": row["market"], "period": row["revenue_period"],
                 "value": str(row["revenue_yoy"]) if row["revenue_yoy"] is not None else None,
                 "numeric_status": row["revenue_yoy_status"], "json_locator": {"parsed_row_index_zero_based": index,
-                    "symbol": row["symbol"], "period": row["revenue_period"]}})
+                    "symbol": row["symbol"], "market": row["market"], "period": row["revenue_period"]}})
         expected_symbols = sorted(s for s, m in markets.items() if m == target["market"])
         required, scope = [target["period"]], {"provider": provider, **target}
     verify_receipt(metadata, raw, source_url)
