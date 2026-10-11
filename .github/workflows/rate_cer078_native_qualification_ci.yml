@@ -1,0 +1,48 @@
+name: RATE CER078 Native Qualification (synthetic diagnostics)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/cer078_native_diagnostics.py
+      - scripts/run_cer078_native_diagnostics.py
+      - scripts/verify_cer078_native_qualification.py
+      - tests/test_cer078_native_diagnostics.py
+      - docs/contracts/RATE_CER078_NATIVE_QUALIFICATION_V1.json
+      - docs/RATE_CER078_NATIVE_QUALIFICATION_V1.md
+      - .github/workflows/rate_cer078_native_qualification_ci.yml
+permissions:
+  contents: read
+jobs:
+  exact-head:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install lxml==6.1.1 tzdata==2025.2 PyYAML==6.0.3
+      - name: Unchanged regression suite with read-only diagnostics
+        run: >
+          python -B scripts/verify_cer078_native_qualification.py
+          --expected-base d419c545f075b93e994d4b732c754e8fa77b1eed
+          --expected-head "${{ github.event.pull_request.head.sha }}"
+          --output-dir "${{ runner.temp }}/cer078-qualification"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: CER078_DIAGNOSTICS_SYNTHETIC_${{ matrix.os }}_${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/cer078-qualification/
+          if-no-files-found: error
+          retention-days: 14

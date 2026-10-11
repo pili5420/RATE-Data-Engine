@@ -1,0 +1,19 @@
+{
+  "change_request": "RATE-CER078-NATIVE-BASELINE-QUALIFICATION-V1",
+  "scope": "READ_ONLY_SYNTHETIC_DIAGNOSTICS",
+  "baseline": "66d52f73be78c6116420ac556668c7c158ca768d",
+  "final_verification_base": "d419c545f075b93e994d4b732c754e8fa77b1eed",
+  "original_execution_head": "b2569865ea6163e5a56bf74cff764d4c4963599f",
+  "original_error": "CER078_TERMINAL_GATE_FAIL",
+  "original_test": "tests.test_cer079_full_day_chain.CER079FullDayChainTests.test_full_day_acceptance_artifacts_pass",
+  "root_cause": "UNRESOLVED",
+  "historical_classification": "UNRESOLVED_HISTORICAL_NONREPRODUCIBLE",
+  "disposition_if_reproduction_and_forward_diagnostics_pass": "HISTORICAL_NONREPRODUCIBLE_DISPOSITION_ACCEPTED",
+  "disposition_is_product_defect_resolution": false,
+  "reopen_root_cause_only_with_new_recurrence_evidence": true,
+  "green_rerun_resolves_original_failure": false,
+  "sut_or_assertion_change_allowed": false,
+  "first_refresh_authorized": false,
+  "production_eligible": false,
+  "fallback_allowed": false
+}
