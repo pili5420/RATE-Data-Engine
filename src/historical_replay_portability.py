@@ -62,7 +62,7 @@ def relative(name):
 
 def clean_env():
     value = {k:v for k,v in os.environ.items() if not k.startswith("GIT_")}
-    value.update(GIT_OPTIONAL_LOCKS="0", GIT_NO_REPLACE_OBJECTS="1", GIT_CONFIG_NOSYSTEM="1",
+    value.update(GIT_OPTIONAL_LOCKS="0", GIT_NO_REPLACE_OBJECTS="1", GIT_NO_LAZY_FETCH="1", GIT_CONFIG_NOSYSTEM="1",
                  GIT_CONFIG_GLOBAL=os.devnull, GIT_TERMINAL_PROMPT="0", PYTHONDONTWRITEBYTECODE="1")
     return value
 

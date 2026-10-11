@@ -3,6 +3,7 @@
 This opt-in offline execution environment separates immutable acquisition
 producer identity, current main baseline, and readiness consumer identity.
 It neither changes PR #56 nor authorizes First Refresh.
+Git lazy-fetch is disabled; a missing local object cannot trigger acquisition.
 
 The accepted external reader and every original function execute unchanged.
 Per-module import and subprocess interfaces resolve historical logical paths

@@ -210,6 +210,11 @@ class PortabilityTests(unittest.TestCase):
         guard=p.ReadOnlyRuntime(self.root / "result.json",[self.repo])
         for event,args in (("socket.connect",()),("urllib.Request",("https://example.invalid",))):
             with self.subTest(event=event),self.assertRaisesRegex(ValueError,"NETWORK_FORBIDDEN"): guard(event,args)
+    def test_git_lazy_fetch_disabled(self):
+        self.assertEqual(p.clean_env()["GIT_NO_LAZY_FETCH"],"1")
+        resolver=p.GitResolver({str(self.primary):str(self.repo)})
+        with self.assertRaisesRegex(ValueError,"SHARED_REF_MUTATION_FORBIDDEN"):
+            resolver.run(["git","fetch","origin"],cwd=self.primary)
     def test_non_git_process_rejected(self):
         with self.assertRaises(ValueError): p.GitResolver({}).run(["curl","example.invalid"],cwd=self.repo)
     def test_protected_write_rejected(self):
