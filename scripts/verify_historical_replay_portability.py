@@ -58,6 +58,8 @@ def main():
             result=json.loads(path.read_text(encoding="utf-8")); result.update(exit_code=run.returncode,exact_count_pass=result["tests_run"]==count)
             results[name]=result
             print(json.dumps({"group":name,"tests":result["tests_run"],"pass":result["all_pass"]}),flush=True)
+            if not result["all_pass"]:
+                print(json.dumps({"group":name,"failures":result["failures"],"errors":result["errors"]}),flush=True)
     passed=all(r["all_pass"] and r["exact_count_pass"] and not r["exit_code"] and not r["skipped"] for r in results.values())
     if git("status","--porcelain") or git("rev-parse","HEAD")!=args.expected_head: raise ValueError("HEAD_OR_WORKTREE_CHANGED")
     write(args.output_dir/"VERIFICATION_PACKAGE.json",{"base_sha":BASE,"head_sha":args.expected_head,"changed_files":sorted(ALLOWED),
