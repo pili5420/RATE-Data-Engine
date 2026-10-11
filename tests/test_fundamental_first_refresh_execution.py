@@ -365,7 +365,7 @@ class GovernanceTests(unittest.TestCase):
         source = Path(e.__file__).read_text(encoding="utf-8")
         self.assertNotIn("phase2_production", source)
         self.assertNotIn("rank_full_market", source)
-        self.assertNotIn("Decision State", source)
+        self.assertNotIn("production_live_state", source)
 
     def test_destination_does_not_mutate_global_source_latest(self):
         self.assertFalse(e.CONTRACT["publication_destination"]["mutates_global_source_bundle_latest"])
