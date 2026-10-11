@@ -192,8 +192,9 @@ def publication_readiness():
 
 class ReadOnlyGuard:
     """Allow new evidence output only; financial network and all other writes fail."""
-    def __init__(self, output):
+    def __init__(self, output, portability_command=None):
         self.output = Path(output).resolve()
+        self.portability_command = tuple(portability_command) if portability_command else None
 
     def write_path(self, path):
         require(isinstance(path, (str, bytes, os.PathLike)), "READINESS_WRITE_FD_FORBIDDEN")
@@ -222,6 +223,10 @@ class ReadOnlyGuard:
             if isinstance(command, str):
                 import shlex
                 command = [part.strip('"') for part in shlex.split(command, posix=False)]
+            if self.portability_command and tuple(command) == self.portability_command:
+                require(Path(args[0]).resolve() == Path(self.portability_command[0]).resolve()
+                        and Path(args[2]).resolve() == ROOT, "READINESS_PORTABILITY_PROCESS_BINDING")
+                return
             require(isinstance(command, (list, tuple)) and len(command) >= 2
                     and Path(command[0]).stem.lower() == "git"
                     and command[1] in {"rev-parse", "merge-base", "show", "rev-list", "cat-file", "status", "ls-files", "ls-tree"},

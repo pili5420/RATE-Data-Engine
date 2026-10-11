@@ -13,8 +13,8 @@ from scripts.verify_public_official_partial_valid import child, extract, git, wr
 from scripts.verify_ci_applicability import CURRENT_MAIN_GROUPS, GOVERNANCE_TEST_COUNT
 from src.prospective_acquisition_recovery import offline_network_guard
 
-BASE = "dbd0983caf883fa9a39eb187fb3d01f192ecd61e"
-NEW_COUNT = 55
+BASE = "2e65ef3c0a5e08ba9a5b87ad248f79fca3882eed"
+NEW_COUNT = 65
 CER078_DIAGNOSTIC_COUNT = 14
 ALLOWED = {"src/first_refresh_readiness.py", "scripts/run_first_refresh_readiness.py",
     "scripts/verify_first_refresh_readiness.py", "tests/test_first_refresh_readiness.py",
@@ -23,6 +23,7 @@ ALLOWED = {"src/first_refresh_readiness.py", "scripts/run_first_refresh_readines
 GROUPS = {**CURRENT_MAIN_GROUPS,
     "ci_applicability_inherited": (["test_ci_applicability"], GOVERNANCE_TEST_COUNT),
     "cer078_diagnostics_inherited": (["test_cer078_native_diagnostics"], CER078_DIAGNOSTIC_COUNT),
+    "historical_portability_inherited": (["test_historical_replay_portability"], 29),
     "first_refresh_readiness_new": (["test_first_refresh_readiness"], NEW_COUNT)}
 
 
@@ -50,11 +51,11 @@ def main():
     if args.output_dir.exists(): raise ValueError("OUTPUT_MUST_BE_NEW")
     args.output_dir.mkdir(parents=True)
     results = {}
-    with tempfile.TemporaryDirectory(prefix="j-", dir=ROOT.parent) as directory:
+    with tempfile.TemporaryDirectory(prefix="j-", dir=ROOT.parent.resolve()) as directory:
         mirror = Path(directory) / "head"; extract(args.expected_head, mirror)
         (mirror / ".git").write_text("gitdir: " + git("rev-parse", "--absolute-git-dir") + "\n", encoding="utf-8")
         temp = Path(directory) / "tmp"; temp.mkdir()
-        env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8", "TEMP": str(temp), "TMP": str(temp)}
+        env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8", "TEMP": str(temp.resolve()), "TMP": str(temp.resolve())}
         for name, (modules, count) in GROUPS.items():
             output = args.output_dir.resolve() / (name + ".json")
             run = subprocess.run([sys.executable, "-B", str(mirror / "scripts/verify_first_refresh_readiness.py"),
@@ -65,6 +66,8 @@ def main():
             result.update(exit_code=run.returncode, exact_count_pass=result["tests_run"] == count)
             results[name] = result
             print(json.dumps({"group": name, "tests": result["tests_run"], "pass": result["all_pass"]}), flush=True)
+            if not result["all_pass"]:
+                print(json.dumps({"group": name, "failures": result["failures"], "errors": result["errors"]}), flush=True)
     passed = all(r["all_pass"] and r["exact_count_pass"] and not r["exit_code"] and not r["skipped"] for r in results.values())
     if git("status", "--porcelain") or git("rev-parse", "HEAD") != args.expected_head:
         raise ValueError("HEAD_OR_WORKTREE_CHANGED")

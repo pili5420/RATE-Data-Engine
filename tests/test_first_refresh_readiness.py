@@ -314,4 +314,99 @@ class SourceGateTests(unittest.TestCase):
                              j.sha256(raw), j.sha256(rb), universe(), VALIDATED)
 
 
+class PortabilityIntegrationTests(unittest.TestCase):
+    """Synthetic pins only; real historical replay is separately local."""
+    def setUp(self):
+        from scripts import run_first_refresh_readiness as runner
+        self.runner = runner
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name).resolve()
+        self.output = self.root / "output"
+        self.output.mkdir()
+        def pin(name, value):
+            path = self.root / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            body = _canonical(value); path.write_bytes(body)
+            return {"path": str(path), "sha256": j.sha256(body)}
+        self.pin = pin
+        self.binding = {"execution": {"base_sha": j.CONTRACT["base_sha"], "head_sha": "a" * 40},
+            "accepted_continuation_reader": pin("continuation.py", {"synthetic": True}),
+            "continuation_root": str(self.root)}
+        for name in ("recovery_binding", "recovery_checkpoint", "continuation_checkpoint"):
+            self.binding[name] = pin(name + ".json", {"synthetic": name})
+        self.portable = {"artifact_kind": j.CONTRACT["historical_replay_contract"],
+            "producer_sha": j.CONTRACT["historical_producer_sha"],
+            "current_main_sha": j.CONTRACT["base_sha"], "consumer_head_sha": "a" * 40,
+            "consumer_checkout": str(runner.ROOT), "repository_checkout": str(runner.ROOT),
+            "accepted_reader": self.binding["accepted_continuation_reader"],
+            "accepted_output": pin("accepted.json", {"same_count": 1, "identity": "original"}),
+            "fallback_allowed": False,
+            "evidence_pins": {name: self.binding[name] for name in
+                ("recovery_binding", "recovery_checkpoint", "continuation_checkpoint")}}
+        self.portable["evidence_pins"]["configuration"] = pin("continuation-evidence/CONFIG.json", {"synthetic": True})
+        self.bind()
+
+    def bind(self):
+        self.binding["historical_replay_portability"] = self.pin("PORTABILITY.json", self.portable)
+
+    def command(self):
+        return self.runner.portability_command(self.binding, self.output)
+
+    def test_three_distinct_identities_and_exact_command(self):
+        command = self.command()
+        self.assertEqual(len({self.portable[k] for k in ("producer_sha", "current_main_sha", "consumer_head_sha")}), 3)
+        self.assertEqual(command[:3], [sys.executable, "-B", str(self.runner.ROOT / "scripts/run_historical_replay_portability.py")])
+        self.assertEqual(command[-1], str(self.output / "historical-replay"))
+
+    def test_wrong_producer_rejected(self):
+        self.portable["producer_sha"] = "b" * 40; self.bind()
+        with self.assertRaisesRegex(Rejected, "EXECUTION_BINDING"): self.command()
+
+    def test_stale_main_rejected(self):
+        self.portable["current_main_sha"] = "b" * 40; self.bind()
+        with self.assertRaisesRegex(Rejected, "EXECUTION_BINDING"): self.command()
+
+    def test_stale_consumer_rejected(self):
+        self.portable["consumer_head_sha"] = "b" * 40; self.bind()
+        with self.assertRaisesRegex(Rejected, "EXECUTION_BINDING"): self.command()
+
+    def test_reader_substitution_rejected(self):
+        self.portable["accepted_reader"] = self.portable["accepted_output"]; self.bind()
+        with self.assertRaisesRegex(Rejected, "READER_BINDING"): self.command()
+
+    def test_recovery_substitution_rejected(self):
+        self.portable["evidence_pins"]["recovery_binding"] = self.portable["accepted_output"]; self.bind()
+        with self.assertRaisesRegex(Rejected, "EVIDENCE_BINDING"): self.command()
+
+    def test_binding_tamper_rejected(self):
+        Path(self.binding["historical_replay_portability"]["path"]).write_bytes(b"{}")
+        with self.assertRaisesRegex(Rejected, "TAMPER"): self.command()
+
+    def test_guard_only_allows_exact_worker_command_and_cwd(self):
+        command = self.command(); guard = j.ReadOnlyGuard(self.output, command)
+        guard("subprocess.Popen", (sys.executable, command, str(j.ROOT), {}))
+        for altered in (command + ["--anything"], [sys.executable, "-c", "print('other')"]):
+            with self.subTest(command=altered), self.assertRaisesRegex(Rejected, "CHILD_EXECUTION"):
+                guard("subprocess.Popen", (sys.executable, altered, str(j.ROOT), {}))
+        with self.assertRaisesRegex(Rejected, "PROCESS_BINDING"):
+            guard("subprocess.Popen", (sys.executable, command, str(self.root), {}))
+
+    def test_worker_failure_preserved_without_fallback(self):
+        from unittest.mock import patch
+        with patch.object(self.runner.subprocess, "run", return_value=subprocess.CompletedProcess([], 1, b"", b"synthetic failure")) as run:
+            with self.assertRaisesRegex(Rejected, "WORKER_FAILED"):
+                self.runner.replay_continuation(self.binding, self.output)
+            self.assertEqual(run.call_count, 1)
+        self.assertEqual((self.output / "portability-worker.stderr.txt").read_bytes(), b"synthetic failure")
+
+    def test_same_counts_changed_full_object_rejected(self):
+        from unittest.mock import patch
+        path = self.output / "historical-replay/REPLAY.json"
+        path.parent.mkdir(); path.write_bytes(_canonical({"same_count": 1, "identity": "changed"}))
+        with patch.object(self.runner.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, b"{}", b"")):
+            with self.assertRaisesRegex(ValueError, "^PORTABILITY_HISTORICAL_OUTPUT_MISMATCH$"):
+                self.runner.replay_continuation(self.binding, self.output)
+
+
 if __name__ == "__main__": unittest.main()

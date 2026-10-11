@@ -36,13 +36,13 @@ jobs:
       - name: Exact-head inherited regressions and new readiness tests
         run: >
           python -B scripts/verify_first_refresh_readiness.py
-          --expected-base dbd0983caf883fa9a39eb187fb3d01f192ecd61e
+          --expected-base 2e65ef3c0a5e08ba9a5b87ad248f79fca3882eed
           --expected-head "${{ github.event.pull_request.head.sha }}"
           --output-dir "${{ runner.temp }}/first-refresh-readiness"
       - name: Current-main replacement compatibility gate
         run: >
           python -B scripts/verify_ci_applicability.py
-          --expected-base dbd0983caf883fa9a39eb187fb3d01f192ecd61e
+          --expected-base 2e65ef3c0a5e08ba9a5b87ad248f79fca3882eed
           --expected-head "${{ github.event.pull_request.head.sha }}"
           --output-dir "${{ runner.temp }}/first-refresh-replacement"
       - uses: actions/upload-artifact@v4

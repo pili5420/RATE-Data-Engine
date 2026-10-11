@@ -1,7 +1,7 @@
 {
   "contract_id": "RATE-FIRST-REFRESH-READINESS-V1",
   "scope": "READINESS_ACCEPTANCE_ONLY",
-  "base_sha": "dbd0983caf883fa9a39eb187fb3d01f192ecd61e",
+  "base_sha": "2e65ef3c0a5e08ba9a5b87ad248f79fca3882eed",
   "providers": {
     "FinMind": "TaiwanStockFinancialStatements",
     "MOPS Official": "MOPS_MONTHLY_REVENUE_ARCHIVE"
@@ -59,7 +59,9 @@
   "decision_eligible": false,
   "production_eligible": false,
   "intraday_dependency": "BLOCKED_EXTERNAL",
-  "phase": "J-R",
+  "phase": "J-R Final",
+  "historical_replay_contract": "RATE_HISTORICAL_REPLAY_PORTABILITY_V1",
+  "historical_producer_sha": "66d52f73be78c6116420ac556668c7c158ca768d",
   "readiness_re_evaluation": true,
   "atomic_publication_required": "RATE-ATOMIC-PUBLICATION-OWNER-V1",
   "cer078_historical_disposition_required": "HISTORICAL_NONREPRODUCIBLE_DISPOSITION_ACCEPTED",

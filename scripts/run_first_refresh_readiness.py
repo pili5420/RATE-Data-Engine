@@ -1,6 +1,5 @@
 """No-network Phase J source replay. Writes only a fresh external readiness package."""
 import argparse
-import importlib.util
 from pathlib import Path
 import subprocess
 import sys
@@ -18,6 +17,7 @@ from src.provider_eps_coverage import load_universe
 from src.prospective_acquisition_recovery import load_binding, object_at, read_pinned, replay_recovered, successful_prefix
 from src.prospective_provider_activation import load
 from scripts.run_prospective_provider_activation import external, issuer_readiness
+from src.historical_replay_portability import clean_env, equivalence
 
 
 def now():
@@ -25,7 +25,53 @@ def now():
 
 
 def git(*args):
-    return subprocess.check_output(["git", *args], cwd=ROOT).decode().strip()
+    return subprocess.check_output(["git", *args], cwd=ROOT, env=clean_env()).decode().strip()
+
+
+def portability_command(binding, output):
+    ref = binding["historical_replay_portability"]
+    portable = object_at(ref)
+    require(portable["artifact_kind"] == CONTRACT["historical_replay_contract"]
+            and portable["producer_sha"] == CONTRACT["historical_producer_sha"]
+            and portable["current_main_sha"] == binding["execution"]["base_sha"]
+            and portable["consumer_head_sha"] == binding["execution"]["head_sha"]
+            and Path(portable["consumer_checkout"]).resolve() == ROOT
+            and Path(portable["repository_checkout"]).resolve() == ROOT,
+            "REFRESH_PORTABILITY_EXECUTION_BINDING")
+    require(portable["accepted_reader"] == binding["accepted_continuation_reader"]
+            and Path(portable["accepted_reader"]["path"]).resolve().parent == Path(binding["continuation_root"]).resolve()
+            and portable["fallback_allowed"] is False, "REFRESH_PORTABILITY_READER_BINDING")
+    for name in ("recovery_binding", "recovery_checkpoint", "continuation_checkpoint"):
+        require(portable["evidence_pins"][name] == binding[name], "REFRESH_PORTABILITY_EVIDENCE_BINDING")
+    config_ref = portable["evidence_pins"]["configuration"]
+    require(Path(config_ref["path"]).resolve() == Path(binding["continuation_root"]).resolve() / "continuation-evidence/CONFIG.json",
+            "REFRESH_PORTABILITY_CONFIGURATION_BINDING")
+    object_at(config_ref)
+    object_at(portable["accepted_output"])
+    return [sys.executable, "-B", str(ROOT / "scripts/run_historical_replay_portability.py"),
+            "--binding", str(ref["path"]), "--binding-sha256", ref["sha256"],
+            "--output", str(output / "historical-replay")]
+
+
+def replay_continuation(binding, output):
+    # A fresh interpreter prevents current src imports from leaking into historical code.
+    command = portability_command(binding, output)
+    run = subprocess.run(command, cwd=ROOT, env=clean_env(), capture_output=True)
+    put_bytes(output, "portability-worker.stdout.json", run.stdout)
+    put_bytes(output, "portability-worker.stderr.txt", run.stderr)
+    require(run.returncode == 0, "REFRESH_PORTABILITY_WORKER_FAILED_SEE_STDERR")
+    proof = read_metadata(run.stdout)
+    portable = object_at(binding["historical_replay_portability"])
+    actual = read_metadata((output / "historical-replay/REPLAY.json").read_bytes())
+    match = equivalence(actual, object_at(portable["accepted_output"]))
+    require(proof["status"] == "PASS" and proof["equivalence"] == match
+            and proof["identities"] == {"producer_sha": portable["producer_sha"],
+                "current_main_sha": portable["current_main_sha"], "consumer_head_sha": portable["consumer_head_sha"]}
+            and proof["accepted_reader_unchanged"] is True and proof["historical_functions_patched"] is False
+            and all(proof[key] == 0 for key in ("network_requests", "financial_requests", "production_mutations",
+                                               "shared_ref_mutations", "first_refresh_execution")),
+            "REFRESH_PORTABILITY_REPLAY_PROOF_INVALID")
+    return proof
 
 
 def inputs(binding, output):
@@ -52,16 +98,11 @@ def inputs(binding, output):
                                cfg, auth, engine, now())
     require({p.stem for p in (bounded_root / "intents").iterdir()} == {e["intent_id"] for e in bounded}
             and not (bounded_root / "STOP.json").exists(), "REFRESH_BOUNDED_UNKNOWN_OR_STOP")
-    reader_ref = binding["accepted_continuation_reader"]
-    read_pinned(reader_ref)
-    spec = importlib.util.spec_from_file_location("accepted_read_only_continuation", reader_ref["path"])
-    reader = importlib.util.module_from_spec(spec); spec.loader.exec_module(reader)
-    require(str(reader.HERE.resolve()) == str(Path(binding["continuation_root"]).resolve()), "REFRESH_CONTINUATION_READER_ROOT")
-    reader.cold(output / "continuation-source-replay.json")
+    replay_continuation(binding, output)
     continuation_cp = object_at(binding["continuation_checkpoint"])
     require(continuation_cp["parent_head"] == recovery["trusted_ledger_head"]
             and continuation_cp["ledger_head"] == binding["trusted_continuation_head"], "REFRESH_CONTINUATION_HEAD")
-    croot = reader.STORE
+    croot = Path(binding["continuation_root"]) / "continuation-evidence"
     cconfig = read_metadata((croot / "CONFIG.json").read_bytes())
     require(cconfig["universe"] == universe and cconfig["authority_id"] == auth["authority_id"]
             and sha256((croot / "CONFIG.json").read_bytes()) == continuation_cp["config_sha256"], "REFRESH_CONTINUATION_CONFIG")
@@ -88,10 +129,11 @@ def main():
     args = parser.parse_args()
     output = external(args.output)
     require(not output.exists(), "REFRESH_FRESH_OUTPUT_REQUIRED")
-    sys.dont_write_bytecode = True
-    sys.addaudithook(ReadOnlyGuard(output))
-    output.mkdir(parents=True)
     binding = object_at({"path": str(args.binding), "sha256": args.binding_sha256})
+    command = portability_command(binding, output)
+    sys.dont_write_bytecode = True
+    sys.addaudithook(ReadOnlyGuard(output, command))
+    output.mkdir(parents=True)
     universe, events, auth, recovery, legacy = inputs(binding, output)
     result = dry_run(universe, universe, events, auth, recovery, legacy, now(), issuer_readiness)
     before = binding["production_latest_identity"]
@@ -116,6 +158,7 @@ def main():
         "original_eight_quarter_coverage_credit": 0, "historical_pit": "UNPROVEN", "intraday_dependency": "BLOCKED_EXTERNAL",
         "first_refresh_execution_eligibility": final_status, "source_binding_sha256": args.binding_sha256,
         "execution": binding["execution"], "generated_at": now(), "validated_at": now(),
+        "historical_replay_portability": binding["historical_replay_portability"],
         "final_status": final_status, "atomic_publication_gate": publication,
         "blocking_conditions": blockers}
     put_bytes(output, "DRY_RUN.json", _canonical(result))

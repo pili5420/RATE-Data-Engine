@@ -1,5 +1,9 @@
 # Phase J-R First Refresh Readiness Re-evaluation
 
+Exact J-R Final base: `2e65ef3c0a5e08ba9a5b87ad248f79fca3882eed`.
+Historical Producer remains `66d52f73be78c6116420ac556668c7c158ca768d`;
+the Consumer Head is independently pinned after rebase, not equated to either.
+
 This is an opt-in, no-network reader and a transaction **design**, not a refresh,
 provider activation, warmup policy activation, publisher or ranking consumer.
 Existing main consumers and contracts are unchanged. Only newly created external
@@ -69,3 +73,22 @@ content and verify source bytes again. Generated/validation times are separate.
 
 Public artifacts contain only synthetic fixtures. Real financial values, raw,
 receipts and local bindings are never committed or uploaded.
+
+## Merged Historical Replay Portability
+
+The continuation is mandatory-replayed through the merged
+`RATE_HISTORICAL_REPLAY_PORTABILITY_V1` worker in a fresh interpreter. Its immutable
+binding pins Producer, current main, Consumer Head, accepted reader and full accepted
+output, configuration and recovery evidence. Historical source bytes are rebuilt
+from Git objects in private Git views. Shared refs never move, and the original
+reader including `exact_main()` executes unchanged. No financial Decimal reader or
+historical provenance assertion is patched. The parent independently compares the
+full replay object with its trusted accepted output, not counts alone.
+
+The audit guard permits only that exact worker argv/executable/cwd, not arbitrary
+Python children. Worker traces and reconstructed source trees stay in the new
+external output. Network remains forbidden in both processes. A worker failure is
+preserved and blocks readiness, never falls back to the old shared-environment path.
+The exact-head suite retains all 55 original readiness and 29 portability tests,
+plus 10 integration tests: 1138 tests total. Replacement coverage remains 1030 with
+the original continuity/report-soak/Phase2/CER081-blocked proof.
