@@ -4,6 +4,12 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - "src/cer078_native_diagnostics.py"
+      - "scripts/*cer078_native*.py"
+      - "tests/test_cer078_native_diagnostics.py"
+      - "scripts/verify_ci_applicability.py"
+      - "tests/test_ci_applicability.py"
+      - "docs/RATE_CI_APPLICABILITY_GOVERNANCE_V1.md"
       - "src/report_production_soak.py"
       - "src/cer081_unattended_soak.py"
       - "scripts/run_cer081_unattended_soak_acceptance.py"
@@ -83,13 +89,14 @@ jobs:
           --expected-base 1cc808d0e809822db057ff88afa0c55dedef13b7
           --expected-head "${{ env.EXPECTED_HEAD }}"
           --output-dir "${{ runner.temp }}/public-official-partial-verification"
-      - name: Exact-head PR24 compatibility (131 + 56 + 48 + 8 + 43 + new, strict gate)
+      - name: Governed PR24 applicability with mandatory current-main replacement
         if: ${{ hashFiles('config/RATE_FULL_MARKET_ROTATION_CONTRACT_V1.json') != '' }}
         env:
+          EXPECTED_BASE: ${{ github.event.pull_request.base.sha }}
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
         run: >
-          python -B scripts/verify_phase2_compatibility.py
-          --expected-base b1d4376c1e774bf09b16bde619a352cc9d48dcc2
+          python -B scripts/verify_ci_applicability.py
+          --expected-base "${{ env.EXPECTED_BASE }}"
           --expected-head "${{ env.EXPECTED_HEAD }}"
           --output-dir "${{ runner.temp }}/public-official-partial-verification"
       - name: Preserve all synthetic results including baseline failures
