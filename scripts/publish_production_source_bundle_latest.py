@@ -278,9 +278,9 @@ def publish_latest(*, source_bundle_path: str | Path, trading_date: str, cadence
         return evidence
     retrieval_timestamp = validation["retrieval_timestamp"] or utc_now()
     snapshot = build_snapshot(bundle, trading_date=trading_date, cadence=cadence, workflow_run_id=workflow_run_id, workflow_job_id=workflow_job_id, previous_snapshot_id=previous_snapshot_id, retrieval_timestamp=retrieval_timestamp)
-    # Stage every object immutably before the only authoritative pointer can move.
-    bundle_ref = refresh.put_object(root, "source_bundle", snapshot["bundle"])
-    snapshot_ref = refresh.put_object(root, "source_snapshot", snapshot)
+    # Resolve target identities without writes: invalid delivery plans leave no staging.
+    bundle_ref = refresh.object_reference("source_bundle", snapshot["bundle"])
+    snapshot_ref = refresh.object_reference("source_snapshot", snapshot)
     immutable_bundle_path = root / bundle_ref["path"]
     snapshot_path = root / snapshot_ref["path"]
     # The final Thin Work object is content-addressed after validation below.
@@ -301,6 +301,9 @@ def publish_latest(*, source_bundle_path: str | Path, trading_date: str, cadence
         if evidence_output:
             atomic_write_json(Path(evidence_output), evidence)
         return evidence
+    # The delivery gate passed; now stage the objects needed by manifest validation.
+    refresh.put_object(root, "source_bundle", snapshot["bundle"])
+    refresh.put_object(root, "source_snapshot", snapshot)
     manifest = build_shadow_manifest(
         production_artifact_path=immutable_bundle_path,
         cadence=cadence,

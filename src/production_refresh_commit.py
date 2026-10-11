@@ -62,10 +62,16 @@ def sync_directory(path):
         finally: os.close(fd)
 
 
-def put_object(root, role, value):
+def object_reference(role, value):
     require(role in OBJECT_FILES, "REFRESH_ARTIFACT_ROLE_INVALID")
-    root = safe(root); body = encode(value); identity = digest(body)
-    path = safe(root / "production_source_snapshots" / "objects" / identity / OBJECT_FILES[role])
+    body = encode(value); identity = digest(body)
+    return {"path": (Path("production_source_snapshots") / "objects" / identity / OBJECT_FILES[role]).as_posix(),
+            "sha256": identity, "bytes": len(body)}
+
+
+def put_object(root, role, value):
+    root = safe(root); body = encode(value); reference = object_reference(role, value)
+    path = safe(root / reference["path"])
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
         with path.open("xb") as stream:
@@ -75,7 +81,7 @@ def put_object(root, role, value):
         with path.open("r+b") as stream: os.fsync(stream.fileno())
     require(path.read_bytes() == body, "REFRESH_STAGING_VERIFICATION_FAILED")
     for directory in (path.parent, path.parent.parent, path.parent.parent.parent, root): sync_directory(directory)
-    return {"path": path.relative_to(root).as_posix(), "sha256": identity, "bytes": len(body)}
+    return reference
 
 
 def object_at(root, role, reference):
