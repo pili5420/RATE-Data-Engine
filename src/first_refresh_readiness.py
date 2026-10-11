@@ -155,7 +155,7 @@ def publication_readiness():
     owner_body = owner_path.read_bytes()
     atomic_contract = read_metadata((ROOT / "docs/contracts/RATE_ATOMIC_PUBLICATION_OWNER_V1.json").read_bytes())
     diagnostic_contract = read_metadata((ROOT / "docs/contracts/RATE_CER078_NATIVE_QUALIFICATION_V1.json").read_bytes())
-    require(atomic_contract["owner"] == str(owner_path.relative_to(ROOT))
+    require(atomic_contract["owner"] == owner_path.relative_to(ROOT).as_posix()
             and atomic_contract["authoritative_pointer"] == refresh.LATEST
             and atomic_contract["authoritative_commit_points"] == 1
             and atomic_contract["compatibility_authoritative"] is False
@@ -180,8 +180,8 @@ def publication_readiness():
     require(len(commit_calls) == 1 and not direct_latest_writes and len(compatibility_writes) == 1,
             "REFRESH_ATOMIC_OWNER_STRUCTURE_INVALID")
     return {"status": "PASS", "reason": "FIRST_REFRESH_ATOMIC_PUBLICATION_QUALIFIED",
-        "owner": str(owner_path.relative_to(ROOT)), "owner_sha256": sha256(owner_body),
-        "commit_module": str(Path(refresh.__file__).resolve().relative_to(ROOT)),
+        "owner": owner_path.relative_to(ROOT).as_posix(), "owner_sha256": sha256(owner_body),
+        "commit_module": Path(refresh.__file__).resolve().relative_to(ROOT).as_posix(),
         "commit_module_sha256": sha256(Path(refresh.__file__).read_bytes()),
         "authoritative_pointer": refresh.LATEST, "authoritative_commit_points": 1,
         "compatibility_authoritative": False, "production_owner_modified_by_phase_jr": False,
