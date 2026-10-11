@@ -1,0 +1,49 @@
+name: RATE Atomic Publication Owner (synthetic only)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - scripts/publish_production_source_bundle_latest.py
+      - src/production_refresh_commit.py
+      - scripts/read_production_refresh.py
+      - scripts/verify_atomic_publication.py
+      - tests/test_atomic_refresh_publication.py
+      - docs/contracts/RATE_ATOMIC_PUBLICATION_OWNER_V1.json
+      - docs/RATE_ATOMIC_PUBLICATION_OWNER_V1.md
+      - .github/workflows/rate_atomic_publication_ci.yml
+permissions:
+  contents: read
+jobs:
+  exact-head:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install lxml==6.1.1 tzdata==2025.2 PyYAML==6.0.3
+      - name: Original regressions and atomic failure boundaries
+        run: >
+          python -B scripts/verify_atomic_publication.py
+          --expected-base 66d52f73be78c6116420ac556668c7c158ca768d
+          --expected-head "${{ github.event.pull_request.head.sha }}"
+          --output-dir "${{ runner.temp }}/atomic-publication"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ATOMIC_PUBLICATION_SYNTHETIC_${{ matrix.os }}_${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/atomic-publication/
+          if-no-files-found: error
+          retention-days: 14
