@@ -25,7 +25,12 @@ GROUPS = {**PRIOR_GROUPS, "known_failure_recovery_new": (["test_prospective_acqu
 
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "--test-child":
-        sys.addaudithook(offline_network_guard)
+        def synthetic_guard(event, args):
+            # Legacy fixtures use urllib's local file reader, never a live endpoint.
+            if event == "urllib.Request" and args and str(args[0]).startswith("file://"):
+                return
+            offline_network_guard(event, args)
+        sys.addaudithook(synthetic_guard)
         return child(Path(sys.argv[2]), sys.argv[3:])
     p = argparse.ArgumentParser()
     p.add_argument("--expected-base", required=True); p.add_argument("--expected-head", required=True)
