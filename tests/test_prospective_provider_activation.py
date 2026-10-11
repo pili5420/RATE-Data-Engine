@@ -390,6 +390,35 @@ class AuthorityNegativeTests(unittest.TestCase):
         with self.assertRaisesRegex(Rejected,"PROTECTED_OUTPUT"):
             a.seal(a.ROOT/"forbidden",proof,sha256(proof),r,sha256(r),MAIN,VALIDATED)
 
+    def test_normal_merge_first_parent_main_authorization(self):
+        with tempfile.TemporaryDirectory(prefix="activation-merge-") as directory:
+            root=Path(directory)
+            def git(*args):
+                return subprocess.check_output(["git",*args],cwd=root,stderr=subprocess.DEVNULL).decode().strip()
+            git("init","-b","main"); git("config","user.name","Synthetic Test"); git("config","user.email","synthetic@example.invalid")
+            (root/"marker").write_text("before")
+            git("add","."); git("commit","-m","before")
+            git("checkout","-b","candidate")
+            contract=root/a.CONTRACT_PATH; contract.parent.mkdir(parents=True); contract.write_bytes(_canonical(a.CONTRACT))
+            git("add","."); git("commit","-m","candidate authorization")
+            git("checkout","main"); git("merge","--no-ff","candidate","-m","authorization on main")
+            merge=git("rev-parse","HEAD"); git("update-ref","refs/remotes/origin/main",merge)
+            with patch.object(a,"ROOT",root):
+                self.assertTrue(a.main_binding(merge,merge,sha256(contract.read_bytes())))
+
+    def test_finmind_existing_capture_wrapper(self):
+        with tempfile.TemporaryDirectory(prefix="activation-capture-") as directory:
+            root=Path(directory); tool=root/"synthetic_capture.py"
+            tool.write_text("from pathlib import Path\nimport json\ndef capture(root, ident, url, symbol, **kwargs):\n"
+                " (root/'raw/body.json').write_bytes(b'{}')\n"
+                " (root/'receipts'/ (ident+'.json')).write_text(json.dumps({'raw_capture_status':'COMPLETE','raw_path':'raw/body.json'}))\n",encoding="utf-8")
+            (root/"raw").mkdir(); (root/"receipts").mkdir()
+            capture=p.finmind_capture(tool,sha256(tool.read_bytes()))
+            raw,receipt=capture(root,{"intent_id":"synthetic","target":{"symbol":"1000"}})
+            self.assertEqual(raw,b"{}")
+            self.assertEqual(read_metadata(receipt)["raw_capture_status"],"COMPLETE")
+            with self.assertRaisesRegex(Rejected,"TRANSPORT_TAMPER"): p.finmind_capture(tool,"0"*64)
+
     def test_mops_benchmark_endpoint_not_reused(self):
         raw,r=revenue(); r["endpoint"]="https://www.tpex.org.tw/benchmark"
         with tempfile.TemporaryDirectory(prefix="wrong-mops-") as directory, authority_patches():

@@ -34,7 +34,8 @@ def main_binding(commit, main_sha, contract_sha256):
     require(sha256(blob) == contract_sha256 and read_metadata(blob) == CONTRACT, "ACTIVATION_MAIN_CONTRACT_MISMATCH")
     # A later main commit must not move the original activation boundary.
     parents = git("rev-list", "--parents", "-n", "1", commit).decode().split()[1:]
-    for parent in parents:
+    # Only the first parent is prior main. A normal merge's PR parent already has the contract.
+    for parent in parents[:1]:
         prior = subprocess.run(["git", "cat-file", "-e", parent + ":" + CONTRACT_PATH], cwd=ROOT, capture_output=True)
         require(prior.returncode != 0, "ACTIVATION_NOT_FIRST_AUTHORIZATION_COMMIT")
     return git("show", "-s", "--format=%cI", commit).decode().strip()

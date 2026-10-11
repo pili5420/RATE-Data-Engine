@@ -13,7 +13,7 @@ from scripts.verify_public_official_partial_valid import child, extract, git, wr
 from scripts.verify_prospective_provider_acceptance import GROUPS as PRIOR_GROUPS
 
 BASE = "feff6a487ed96e7c2c3535c95f3bd62a06ad5cb7"
-NEW_COUNT = 63
+NEW_COUNT = 65
 ALLOWED = {"src/prospective_provider_activation.py", "scripts/run_prospective_provider_activation.py",
     "scripts/verify_prospective_provider_activation.py", "tests/test_prospective_provider_activation.py",
     "docs/contracts/RATE_PROSPECTIVE_PROVIDER_ACTIVATION_V1.json", "docs/RATE_PROSPECTIVE_PROVIDER_ACTIVATION_V1.md",

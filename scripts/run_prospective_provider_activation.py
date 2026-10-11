@@ -251,9 +251,10 @@ def main():
     output = external(args.output)
     require(not output.exists(), "ACTIVATION_NO_OUTPUT_OVERWRITE")
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_bytes(_canonical({"authority_id": auth["authority_id"], "ledger_head": args.trusted_head,
-        "events": len(events), "issuer_readiness": issuer_readiness(config, events), "historical_pit": "UNPROVEN",
-        "production_eligible": False, "first_refresh_allowed": False}))
+    with output.open("xb") as stream:
+        stream.write(_canonical({"authority_id": auth["authority_id"], "ledger_head": args.trusted_head,
+            "events": len(events), "issuer_readiness": issuer_readiness(config, events), "historical_pit": "UNPROVEN",
+            "production_eligible": False, "first_refresh_allowed": False}))
     return 0
 
 
