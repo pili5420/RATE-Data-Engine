@@ -44,12 +44,12 @@ def main():
     if any(new.get(path)!=blob for path,blob in old.items()): raise ValueError("PROTECTED_BLOB_CHANGED")
     if args.output_dir.exists(): raise ValueError("OUTPUT_MUST_BE_NEW")
     args.output_dir.mkdir(parents=True); results={}
-    # Short paths avoid Windows MAX_PATH in inherited nested acceptance fixtures.
-    with tempfile.TemporaryDirectory(prefix="rpci-") as directory:
+    # Canonical paths avoid Windows 8.3 TEMP aliases in exact provenance fixtures.
+    with tempfile.TemporaryDirectory(prefix="rpci-",dir=ROOT.parent.resolve()) as directory:
         mirror=Path(directory)/"h"; extract(args.expected_head,mirror)
         (mirror/".git").write_text("gitdir: "+git("rev-parse","--absolute-git-dir")+"\n",encoding="utf-8")
         temp=Path(directory)/"t"; temp.mkdir()
-        env={**os.environ,"PYTHONDONTWRITEBYTECODE":"1","PYTHONIOENCODING":"utf-8","TEMP":str(temp),"TMP":str(temp)}
+        env={**os.environ,"PYTHONDONTWRITEBYTECODE":"1","PYTHONIOENCODING":"utf-8","TEMP":str(temp.resolve()),"TMP":str(temp.resolve())}
         for name,(modules,count) in GROUPS.items():
             path=args.output_dir.resolve()/(name+".json")
             run=subprocess.run([sys.executable,"-B",str(mirror/"scripts/verify_historical_replay_portability.py"),
