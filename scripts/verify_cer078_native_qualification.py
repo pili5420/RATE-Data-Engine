@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from scripts.verify_public_official_partial_valid import extract, git, write
 from scripts.verify_prospective_acquisition_recovery import GROUPS as PRIOR_GROUPS
+from scripts.verify_ci_applicability import GOVERNANCE_FILES, GOVERNANCE_TEST_COUNT, WORKFLOW
 
 BASE = "66d52f73be78c6116420ac556668c7c158ca768d"
 ALLOWED = {"src/cer078_native_diagnostics.py", "scripts/run_cer078_native_diagnostics.py",
@@ -25,15 +26,17 @@ def main():
     p.add_argument("--output-dir", type=Path, required=True); a = p.parse_args()
     if a.expected_base != BASE or git("rev-parse", "HEAD") != a.expected_head or git("merge-base", BASE, "HEAD") != BASE:
         raise ValueError("EXACT_BASE_HEAD_MISMATCH")
-    if set(git("diff", "--name-status", "--no-renames", BASE, a.expected_head).splitlines()) != {"A\t" + name for name in ALLOWED} or git("status", "--porcelain"):
+    expected = {"A\t" + name for name in ALLOWED | GOVERNANCE_FILES} | {"M\t" + WORKFLOW}
+    if set(git("diff", "--name-status", "--no-renames", BASE, a.expected_head).splitlines()) != expected or git("status", "--porcelain"):
         raise ValueError("SCOPE_OR_WORKTREE_CHANGED")
     def tree(ref):
         return {line.split("\t", 1)[1]: line.split("\t", 1)[0].split()[2] for line in git("ls-tree", "-r", ref).splitlines()}
     old, new = tree(BASE), tree(a.expected_head)
-    if any(new.get(path) != blob for path, blob in old.items()): raise ValueError("PROTECTED_EXISTING_BLOB_CHANGED")
+    if any(new.get(path) != blob for path, blob in old.items() if path != WORKFLOW): raise ValueError("PROTECTED_EXISTING_BLOB_CHANGED")
     if a.output_dir.exists(): raise ValueError("OUTPUT_MUST_BE_NEW")
     a.output_dir.mkdir(parents=True); results = {}
-    groups = {**PRIOR_GROUPS, "diagnostics_new": (["test_cer078_native_diagnostics"], 4)}
+    groups = {**PRIOR_GROUPS, "diagnostics_new": (["test_cer078_native_diagnostics"], 14),
+              "ci_applicability_new": (["test_ci_applicability"], GOVERNANCE_TEST_COUNT)}
     with tempfile.TemporaryDirectory(prefix="jb-", dir=ROOT.parent) as directory:
         mirror = Path(directory) / "h"; extract(a.expected_head, mirror)
         (mirror / ".git").write_text("gitdir: " + git("rev-parse", "--absolute-git-dir") + "\n", encoding="utf-8")
@@ -51,9 +54,12 @@ def main():
     passed = all(r["all_pass"] and r["exact_count_pass"] and not r["exit_code"] and not r["skipped"] for r in results.values())
     if git("status", "--porcelain") or git("rev-parse", "HEAD") != a.expected_head: raise ValueError("HEAD_OR_WORKTREE_CHANGED")
     write(a.output_dir / "VERIFICATION_PACKAGE.json", {"base_sha": BASE, "head_sha": a.expected_head,
-        "changed_files": sorted(ALLOWED), "results": results, "existing_tests": sum(c for _, c in PRIOR_GROUPS.values()),
-        "new_tests": 4, "protected_existing_blobs_unchanged": len(old), "real_financial_requests": 0,
-        "first_refresh_execution": 0, "production_mutations": 0, "qualification_status": "BLOCKED",
+        "changed_files": sorted(ALLOWED | GOVERNANCE_FILES | {WORKFLOW}), "results": results, "existing_tests": sum(c for _, c in PRIOR_GROUPS.values()),
+        "prior_diagnostic_tests": 4, "new_diagnostic_tests": 10, "governance_tests": GOVERNANCE_TEST_COUNT,
+        "protected_existing_blobs_unchanged": len(old) - 1, "real_financial_requests": 0,
+        "first_refresh_execution": 0, "production_mutations": 0,
+        "qualification_status": "FORWARD_DIAGNOSTICS_PASS" if passed else "BLOCKED",
+        "historical_classification": "UNRESOLVED_HISTORICAL_NONREPRODUCIBLE",
         "root_cause": "UNRESOLVED", "engineering_validation_status": "PASS" if passed else "FAIL"})
     return 0 if passed else 1
 

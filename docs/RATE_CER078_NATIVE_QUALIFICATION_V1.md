@@ -13,10 +13,12 @@ run recorded 1043 passes. Original Windows/Linux cloud exact-head results passed
 The original result did not record the individual terminal-gate vector or full
 native dependency/locale/environment envelope. Current environment measurements
 cannot retroactively establish these original values. Therefore a green rerun
-alone cannot meet B1 or establish a root cause. Classification remains UNRESOLVED
-and qualification remains BLOCKED until a reproducible failure with the complete
-envelope and subgate evidence is obtained, or Control Center approves a separately
-bounded disposition. No skip, assertion relaxation, whitelist or rebaseline is used.
+alone cannot establish a root cause. Under Phase J-G's explicit disposition,
+classification remains UNRESOLVED_HISTORICAL_NONREPRODUCIBLE and root_cause remains
+UNRESOLVED. If the reproduction matrix and forward diagnostics pass, disposition
+may be HISTORICAL_NONREPRODUCIBLE_DISPOSITION_ACCEPTED. This is not historical
+PASS or PRODUCT_DEFECT_RESOLVED. New recurrence evidence is required to reopen
+causal investigation. No skip, assertion relaxation, whitelist or rebaseline is used.
 
 The observer records original owner exceptions and failure-gate returns without
 replacing any SUT function or assertion. The new verifier runs original regression
@@ -27,4 +29,18 @@ strategy, ranking, fixture, historical pin or acceptance owner is changed.
 
 All public reports are synthetic engineering evidence. Private original failure
 and reproduction matrices remain external. No real provider request is permitted.
-The diagnostic workflow does not promote the qualification status when tests pass.
+The diagnostic workflow never promotes root cause when tests pass.
+
+At the actual terminal raise, the read-only observer captures the 16 original
+terminal booleans with named subgates, nested gate values, previous/current state,
+source snapshot and bundle identities, content and on-disk artifact hashes,
+timestamp, exact execution head, safe environment, dependency/OS/timezone/locale,
+temp/artifact paths and test order. The synthetic recurrence test invokes the
+unchanged owner with a fault injected at a dependency boundary; failure remains
+failure. Events are flushed/fsynced to exclusive JSONL before test cleanup.
+
+Callback read/serialization failures are recorded separately and cannot mask the
+SUT exception. Missing diagnostics blocks diagnostic acceptance; it never makes a
+failed test PASS. No Production module imports this opt-in diagnostic runner.
+Only the explicitly authorized shared CI workflow is modified among existing
+main blobs; all SUT, historical pins, restored bytes and assertions are protected.
