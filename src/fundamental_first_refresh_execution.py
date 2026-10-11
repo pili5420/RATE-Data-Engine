@@ -65,7 +65,6 @@ def publication_destination() -> dict:
 
 def build_request_plan(universe: Mapping[str, Any], authority_id: str, main_sha: str) -> dict:
     require(re.fullmatch(r"[0-9a-f]{40}", str(main_sha)) is not None, "FIRST_REFRESH_MAIN_SHA_INVALID")
-    require(main_sha == CONTRACT["base_sha"], "FIRST_REFRESH_MAIN_SHA_NOT_ENGINEERING_BASE")
     require(isinstance(authority_id, str) and authority_id, "FIRST_REFRESH_AUTHORITY_MISSING")
     stocks, universe_id = exact_universe(universe)
     destination = publication_destination()
