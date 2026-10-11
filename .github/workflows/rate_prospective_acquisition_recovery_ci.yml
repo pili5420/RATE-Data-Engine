@@ -1,0 +1,48 @@
+name: RATE Known Failure Recovery (synthetic only)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/prospective_acquisition_recovery.py
+      - scripts/run_prospective_acquisition_recovery.py
+      - scripts/verify_prospective_acquisition_recovery.py
+      - tests/test_prospective_acquisition_recovery.py
+      - docs/contracts/RATE_PROSPECTIVE_KNOWN_FAILURE_RECOVERY_V1.json
+      - docs/RATE_PROSPECTIVE_KNOWN_FAILURE_RECOVERY_V1.md
+      - .github/workflows/rate_prospective_acquisition_recovery_ci.yml
+permissions:
+  contents: read
+jobs:
+  exact-head:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install lxml==6.1.1 tzdata==2025.2 PyYAML==6.0.3
+      - name: Exact-head unchanged regressions and isolated recovery tests
+        run: >
+          python -B scripts/verify_prospective_acquisition_recovery.py
+          --expected-base 30329eac593d49b64a01a241fa5da4ecec41ebad
+          --expected-head "${{ github.event.pull_request.head.sha }}"
+          --output-dir "${{ runner.temp }}/known-failure-recovery"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: KNOWN_FAILURE_RECOVERY_SYNTHETIC_${{ matrix.os }}_${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/known-failure-recovery/
+          if-no-files-found: error
+          retention-days: 14

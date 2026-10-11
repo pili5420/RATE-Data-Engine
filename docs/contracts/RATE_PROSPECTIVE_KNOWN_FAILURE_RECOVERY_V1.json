@@ -1,0 +1,21 @@
+{
+  "contract_id": "RATE-PROSPECTIVE-KNOWN-FAILURE-RECOVERY-V1",
+  "artifact_kind": "RATE_PROSPECTIVE_KNOWN_FAILURE_RESOLUTION_V1",
+  "scope": "OFFLINE_RECOVERY_ONLY",
+  "original_store": "READ_ONLY",
+  "known_terminal_outcome": "TERMINAL_FAILED_KNOWN_OUTCOME",
+  "runtime_status": "RECOVERED_FROM_KNOWN_TERMINAL_FAILURE",
+  "unknown_outcome": "ACTIVATION_UNKNOWN_REQUEST_OUTCOME_NO_RETRY",
+  "stop_semantics": "PRESERVED_AND_EXACT_INTENT_RESOLUTION_REQUIRED",
+  "failure_storage": "PER_INTENT_IMMUTABLE_FAILURE_REFERENCE",
+  "resolution_storage": "CONTENT_ADDRESSED_OBJECT_AND_IMMUTABLE_PER_INTENT_SLOT",
+  "failed_intent_reuse_allowed": false,
+  "automatic_retry_allowed": false,
+  "new_acquisition_authorized": false,
+  "fallback_allowed": false,
+  "full_soak_credit": false,
+  "first_refresh_allowed": false,
+  "production_eligible": false,
+  "historical_pit": "UNPROVEN",
+  "original_eight_quarter_coverage_credit": 0
+}
