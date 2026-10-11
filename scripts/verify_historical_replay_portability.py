@@ -14,7 +14,7 @@ from scripts.verify_ci_applicability import CURRENT_MAIN_GROUPS, GOVERNANCE_TEST
 from src.prospective_acquisition_recovery import offline_network_guard
 
 BASE = "dbd0983caf883fa9a39eb187fb3d01f192ecd61e"
-NEW_COUNT = 27
+NEW_COUNT = 28
 ALLOWED = {"src/historical_replay_portability.py", "scripts/run_historical_replay_portability.py",
     "scripts/verify_historical_replay_portability.py", "tests/test_historical_replay_portability.py",
     "docs/contracts/RATE_HISTORICAL_REPLAY_PORTABILITY_V1.json", "docs/RATE_HISTORICAL_REPLAY_PORTABILITY_V1.md",

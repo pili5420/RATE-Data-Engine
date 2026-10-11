@@ -163,6 +163,20 @@ class PortabilityTests(unittest.TestCase):
     def test_checkpoint_tamper(self):
         self.cfg.write_bytes(b"{}")
         self.rejection()
+    def test_pinned_historical_ledger_files_mutation(self):
+        for name,value,changed in (
+            ("CHECKPOINT.json",{"ledger_head":"trusted-head"},{"ledger_head":"changed-head"}),
+            ("CONTINUATION_EVENT.json",{"intent_id":"intent-1"},{"intent_id":"changed-intent"}),
+            ("INTENT.json",{"requested_at":"2026-10-11T03:00:00Z"},{"requested_at":"2026-10-10T03:00:00Z"}),
+        ):
+            with self.subTest(name=name):
+                path=self.root/name
+                path.write_bytes(p.canonical(value))
+                binding=deepcopy(self.binding)
+                binding["evidence_pins"][name]=self.pin(path)
+                path.write_bytes(p.canonical(changed))
+                with self.assertRaisesRegex(ValueError,"EVIDENCE_HASH_MISMATCH"):
+                    p.verify_binding(self.repo,binding)
     def test_event_mutation_rejected(self):
         a=p.read(self.accepted.read_bytes()); b=deepcopy(a); b["event_ids"]=["changed"]
         with self.assertRaisesRegex(ValueError,"HISTORICAL_OUTPUT_MISMATCH"): p.equivalence(a,b)
