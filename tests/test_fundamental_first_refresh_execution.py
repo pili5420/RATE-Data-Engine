@@ -107,9 +107,9 @@ class PlanTests(unittest.TestCase):
         with self.assertRaises(Rejected):
             e.build_request_plan(u, "a", e.CONTRACT["base_sha"])
 
-    def test_main_drift_rejected(self):
+    def test_invalid_main_sha_rejected(self):
         with self.assertRaisesRegex(Rejected, "MAIN_SHA"):
-            e.build_request_plan(universe(), "a", "0" * 40)
+            e.build_request_plan(universe(), "a", "not-a-sha")
 
     def test_plan_mutation_rejected(self):
         p = plan()
