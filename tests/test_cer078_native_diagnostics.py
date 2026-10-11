@@ -136,7 +136,7 @@ class DiagnosticsTests(unittest.TestCase):
 
     def test_production_modules_do_not_import_diagnostics(self):
         import subprocess
-        files = subprocess.check_output(["git", "ls-tree", "-r", "--name-only", "66d52f73be78c6116420ac556668c7c158ca768d"]).decode().splitlines()
+        files = subprocess.check_output(["git", "ls-tree", "-r", "--name-only", "d419c545f075b93e994d4b732c754e8fa77b1eed"]).decode().splitlines()
         for name in files:
             if name.endswith(".py") and (name.startswith("src/") or name.startswith("scripts/")):
                 self.assertNotIn(b"cer078_native_diagnostics", Path(name).read_bytes(), name)

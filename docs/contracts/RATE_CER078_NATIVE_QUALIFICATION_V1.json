@@ -2,6 +2,7 @@
   "change_request": "RATE-CER078-NATIVE-BASELINE-QUALIFICATION-V1",
   "scope": "READ_ONLY_SYNTHETIC_DIAGNOSTICS",
   "baseline": "66d52f73be78c6116420ac556668c7c158ca768d",
+  "final_verification_base": "d419c545f075b93e994d4b732c754e8fa77b1eed",
   "original_execution_head": "b2569865ea6163e5a56bf74cff764d4c4963599f",
   "original_error": "CER078_TERMINAL_GATE_FAIL",
   "original_test": "tests.test_cer079_full_day_chain.CER079FullDayChainTests.test_full_day_acceptance_artifacts_pass",

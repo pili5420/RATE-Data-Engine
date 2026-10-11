@@ -36,7 +36,7 @@ jobs:
       - name: Unchanged regression suite with read-only diagnostics
         run: >
           python -B scripts/verify_cer078_native_qualification.py
-          --expected-base 66d52f73be78c6116420ac556668c7c158ca768d
+          --expected-base d419c545f075b93e994d4b732c754e8fa77b1eed
           --expected-head "${{ github.event.pull_request.head.sha }}"
           --output-dir "${{ runner.temp }}/cer078-qualification"
       - uses: actions/upload-artifact@v4

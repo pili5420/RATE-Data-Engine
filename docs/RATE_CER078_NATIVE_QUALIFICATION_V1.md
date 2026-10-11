@@ -42,5 +42,20 @@ failure. Events are flushed/fsynced to exclusive JSONL before test cleanup.
 Callback read/serialization failures are recorded separately and cannot mask the
 SUT exception. Missing diagnostics blocks diagnostic acceptance; it never makes a
 failed test PASS. No Production module imports this opt-in diagnostic runner.
-Only the explicitly authorized shared CI workflow is modified among existing
-main blobs; all SUT, historical pins, restored bytes and assertions are protected.
+Final rebase verification is bound to main
+`d419c545f075b93e994d4b732c754e8fa77b1eed`. The original baseline and original
+execution identity above remain historical evidence, not the new verification base.
+The shared workflow, applicability tests and governance documentation are now
+inherited byte-identically from PR #57. The only existing-main change is an
+additive regression registry entry in `scripts/verify_ci_applicability.py` for
+PR #57's 29 atomic-publication tests. It is required so both gates cover current
+main, not just its older 989-test predecessor. Applicability logic and the strict
+historical verifier are unchanged. All SUT, historical pins, restored bytes and
+assertions are protected; the diagnostic import check now inspects current main.
+
+Engineering runs 1030 inherited tests (989 legacy, 29 atomic and 12 governance)
+plus 14 diagnostic tests (the prior 4 and 10 forward-diagnostic additions).
+The current-main replacement gate runs those 1030 inherited tests plus the
+original continuity/report-soak/Phase2 proof child. This fresh 1044-test
+engineering composition is not the original failed 1044-test historical run,
+and cannot turn that historical failure into PASS or establish its root cause.

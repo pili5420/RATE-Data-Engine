@@ -20,6 +20,10 @@ GOVERNANCE_FILES = {
 }
 WORKFLOW = ".github/workflows/rate_public_official_partial_valid_ci.yml"
 GOVERNANCE_TEST_COUNT = 12
+CURRENT_MAIN_GROUPS = {
+    **GROUPS,
+    "atomic_publication_inherited": (["test_atomic_refresh_publication"], 29),
+}
 
 
 def applicability(base, head, merge_base, current_main, changed, clean):
@@ -94,7 +98,7 @@ def main():
                 temp.mkdir()
                 env = {**os.environ, "TEMP": str(temp), "TMP": str(temp),
                        "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8"}
-                groups = {**GROUPS, "ci_applicability_new": (["test_ci_applicability"], GOVERNANCE_TEST_COUNT)}
+                groups = {**CURRENT_MAIN_GROUPS, "ci_applicability_new": (["test_ci_applicability"], GOVERNANCE_TEST_COUNT)}
                 for name, (modules, count) in groups.items():
                     report = output / (name + ".json")
                     run = subprocess.run([sys.executable, "-B", str(mirror / "scripts/verify_ci_applicability.py"),
@@ -111,7 +115,7 @@ def main():
             tests_pass = all(r["all_pass"] and r["exact_count_pass"] and not r["exit_code"]
                              and not r["skipped"] for r in results.values())
             package.update(results=results, proof_exit_code=run.returncode,
-                           existing_tests=sum(count for _, count in GROUPS.values()),
+                           existing_tests=sum(count for _, count in CURRENT_MAIN_GROUPS.values()),
                            governance_tests=GOVERNANCE_TEST_COUNT,
                            applicability_result=verdict(mode, tests_pass, proof_pass))
         if git("rev-parse", "HEAD") != a.expected_head or git("status", "--porcelain") or git("rev-parse", "origin/main") != current:
