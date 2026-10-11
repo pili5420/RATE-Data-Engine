@@ -19,7 +19,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 60
     env:
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONIOENCODING: "utf-8"
@@ -36,13 +36,21 @@ jobs:
       - name: Exact-head additive isolation and existing regressions
         run: >
           python -B scripts/verify_provider_warmup_readiness.py
-          --expected-base e8aa0f923c4605e57709446dde2ec23cc9edfb17
+          --expected-base bbafad151900e5719c829a94e66cdc4259ba701b
           --expected-head "${{ github.event.pull_request.head.sha }}"
           --output-dir "${{ runner.temp }}/provider-warmup-readiness"
+      - name: Current-main replacement compatibility and continuity proofs
+        run: >
+          python -B scripts/verify_ci_applicability.py
+          --expected-base bbafad151900e5719c829a94e66cdc4259ba701b
+          --expected-head "${{ github.event.pull_request.head.sha }}"
+          --output-dir "${{ runner.temp }}/provider-warmup-readiness-replacement"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: PHASE_I_SYNTHETIC_${{ matrix.os }}_${{ github.event.pull_request.head.sha }}
-          path: ${{ runner.temp }}/provider-warmup-readiness/
+          path: |
+            ${{ runner.temp }}/provider-warmup-readiness/
+            ${{ runner.temp }}/provider-warmup-readiness-replacement/
           if-no-files-found: error
           retention-days: 14

@@ -1,8 +1,9 @@
 # RATE Phase I: Provider Qualification and Warmup Execution Readiness
 
 CR: RATE-FULL-MARKET-PROVIDER-WARMUP-READINESS-V1. Engineering only.
-Base: e8aa0f923c4605e57709446dde2ec23cc9edfb17 (actual latest main).
-PR #51 remains independent and OPEN; neither its code nor policy is activated.
+Historical Producer Base: e8aa0f923c4605e57709446dde2ec23cc9edfb17.
+Compatibility Base: bbafad151900e5719c829a94e66cdc4259ba701b (PR #51 merged).
+PR #51 inventory acceptance remains a separate unchanged owner.
 
 ## Four independent gates
 
@@ -64,3 +65,28 @@ scope. Local real source replay, missingness matrix and calculations are separat
 evidence, never uploaded to public CI. Final engineering READY_FOR_REVIEW can
 coexist with BLOCKED_PROVIDER_QUALIFICATION / BLOCKED_HISTORICAL_PIT /
 BLOCKED_DATA_GAP / BLOCKED_GOVERNANCE. Production/first refresh stay unauthorized.
+
+## Latest-main compatibility review
+
+The engine, runner, contract and all 47 original assertions retain their reviewed
+blob identities. Historical contracts and envelopes keep their original execution
+binding; a new compatibility consumer never relabels them as newly acquired or
+prospectively authorized. Cold replay compares the complete accepted historical
+core, while the current-main Base/Head and actual replay process are recorded
+separately. When original producer paths are valid they are used unchanged; if
+relocation is needed the merged historical replay portability owner is required.
+
+The verifier imports all current-main inherited groups, including Phase H-51,
+atomic publication, provider activation/recovery, CER078 diagnostics, replay
+portability and First Refresh readiness. A separate current-main replacement gate
+retains continuity, report soak, Phase2 and CER081 blocked proofs. No Phase J or
+J2-E runtime is integrated into this readiness owner. Existing main blobs must
+remain identical, and skipped tests fail acceptance.
+
+Universe accounting, fundamental history, provider/module readiness, ranking
+eligibility and publication remain five independent responsibilities. A legacy
+coverage verdict neither revokes current-main prospective authorization nor grants
+it to historical evidence. Historical PIT stays UNPROVEN, legacy prospective
+credit and original eight-quarter credit stay zero, fallback remains forbidden,
+and the external intraday dependency stays BLOCKED_EXTERNAL. This review cannot
+authorize provider activation, formal warmup, First Refresh, ranking or publication.
