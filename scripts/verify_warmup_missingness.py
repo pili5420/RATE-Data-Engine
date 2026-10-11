@@ -11,9 +11,11 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from scripts.verify_public_official_partial_valid import child, extract, git, write
-from scripts.verify_fundamental_eligibility import GROUPS as PRIOR_GROUPS, deny_network
+from scripts.verify_first_refresh_readiness import GROUPS as PRIOR_GROUPS
+from scripts.verify_ci_applicability import network_guard
 
-BASE = "e8aa0f923c4605e57709446dde2ec23cc9edfb17"
+BASE = "29f1781e3c460ccf9a816c5b9774b00374cedfe1"
+REVIEWED_HEAD = "1bd37a7b15e54e54c5238e56876393e73c259689"
 ALLOWED = {"scripts/warmup_inventory_acceptance.py", "scripts/build_warmup_missingness.py", "scripts/verify_warmup_missingness.py",
     "tests/test_warmup_missingness.py", "docs/RATE_FULL_MARKET_WARMUP_MISSINGNESS_V1.md",
     "docs/contracts/RATE_FULL_MARKET_WARMUP_MISSINGNESS_V1.json", ".github/workflows/rate_warmup_missingness_ci.yml"}
@@ -43,7 +45,7 @@ def proof(directory):
 
 def main():
     if len(sys.argv) > 1 and sys.argv[1] in {"--test-child", "--proof-child"}:
-        sys.addaudithook(deny_network)
+        sys.addaudithook(network_guard)
         if sys.argv[1] == "--test-child":
             return child(Path(sys.argv[2]), sys.argv[3:])
         proof(Path(sys.argv[2]))
@@ -64,6 +66,11 @@ def main():
     old, new = tree(BASE), tree(args.expected_head)
     if any(new.get(path) != blob for path, blob in old.items()):
         raise ValueError("EXISTING_PRODUCTION_STRATEGY_OR_HISTORICAL_BLOB_CHANGED")
+    reviewed = tree(REVIEWED_HEAD)
+    unchanged_inventory = ("scripts/warmup_inventory_acceptance.py", "scripts/build_warmup_missingness.py",
+                           "tests/test_warmup_missingness.py", "docs/contracts/RATE_FULL_MARKET_WARMUP_MISSINGNESS_V1.json")
+    if any(new.get(path) != reviewed[path] for path in unchanged_inventory):
+        raise ValueError("REVIEWED_INVENTORY_SEMANTICS_OR_ASSERTIONS_CHANGED")
     args.output_dir.mkdir(parents=True)
     write(args.output_dir / "protected-existing-blobs.json", old)
     owners = {}
@@ -95,12 +102,17 @@ def main():
         (args.output_dir / "synthetic-proof.log").write_text(run.stdout + run.stderr, encoding="utf-8")
         if run.returncode:
             raise ValueError("INVENTORY_SYNTHETIC_PROOF_FAILED")
-    passed = all(r["all_pass"] and r["exact_count_pass"] and r["exit_code"] == 0 for r in results.values())
+    passed = all(r["all_pass"] and r["exact_count_pass"] and r["exit_code"] == 0 and not r["skipped"]
+                 for r in results.values())
     if git("rev-parse", "HEAD") != args.expected_head or git("status", "--porcelain"):
         raise ValueError("HEAD_OR_WORKTREE_CHANGED")
     write(args.output_dir / "VERIFICATION_PACKAGE.json", {"base_sha": BASE, "head_sha": args.expected_head,
         "changed_files": sorted(ALLOWED), "results": results, "existing_tests": sum(c for _, c in PRIOR_GROUPS.values()),
         "new_tests": GROUPS["warmup_inventory_new"][1], "protected_existing_blobs_unchanged": len(old),
+        "reviewed_head": REVIEWED_HEAD, "unchanged_inventory_files": list(unchanged_inventory),
+        "current_main_inherited_groups": {name: count for name, (_, count) in PRIOR_GROUPS.items()},
+        "tests_skipped": sum(len(r["skipped"]) for r in results.values()),
+        "assertions_relaxed": 0, "failure_whitelists": 0,
         "existing_owners_and_weights_byte_identical": all(v["byte_identical"] for v in owners.values()),
         "financial_requests": 0, "production_mutations": 0, "production_eligible": False,
         "validation_status": "PASS" if passed else "FAIL"})

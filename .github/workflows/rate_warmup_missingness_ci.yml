@@ -36,13 +36,21 @@ jobs:
       - name: Exact-head isolated inventory and unchanged regression gates
         run: >
           python -B scripts/verify_warmup_missingness.py
-          --expected-base e8aa0f923c4605e57709446dde2ec23cc9edfb17
+          --expected-base 29f1781e3c460ccf9a816c5b9774b00374cedfe1
           --expected-head "${{ github.event.pull_request.head.sha }}"
           --output-dir "${{ runner.temp }}/warmup-inventory"
+      - name: Current-main replacement compatibility
+        run: >
+          python -B scripts/verify_ci_applicability.py
+          --expected-base 29f1781e3c460ccf9a816c5b9774b00374cedfe1
+          --expected-head "${{ github.event.pull_request.head.sha }}"
+          --output-dir "${{ runner.temp }}/warmup-inventory-replacement"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: WARMUP_INVENTORY_SYNTHETIC_${{ matrix.os }}_${{ github.event.pull_request.head.sha }}
-          path: ${{ runner.temp }}/warmup-inventory/
+          path: |
+            ${{ runner.temp }}/warmup-inventory/
+            ${{ runner.temp }}/warmup-inventory-replacement/
           if-no-files-found: error
           retention-days: 14

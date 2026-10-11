@@ -81,3 +81,22 @@ Historical PIT remains UNPROVEN, fallback false, provider production eligibility
 false, original eight-quarter acceptance credit zero. Any activation requires a
 separate approved CR. PARTIAL_VALID runtime and Report Soak/CER081 separation
 are not changed by this inventory policy.
+
+## Latest-Main Compatibility Revalidation
+
+Phase H-51 rebases the original seven-file inventory-only delta onto
+`29f1781e3c460ccf9a816c5b9774b00374cedfe1`. The inventory engine, offline
+builder, contract and all 47 original tests retain their reviewed bytes from
+`1bd37a7b15e54e54c5238e56876393e73c259689`. The verifier checks these pins
+in addition to preserving every existing main blob.
+
+CI imports the current main's complete First Refresh Readiness regression
+inventory, including Atomic Publication, CER078 diagnostics and Historical
+Replay Portability. A separate current-main replacement gate retains the
+existing continuity and soak proofs. These imports are engineering test
+inventory only: no Phase J execution owner is added to the inventory engine.
+Skips, assertion relaxation and failure whitelists remain prohibited.
+
+Existing prospective provider authorization on main is a separate owner.
+It does not promote this legacy inventory or its input evidence to prospective
+credit, Historical PIT, ranking eligibility or First Refresh authorization.
