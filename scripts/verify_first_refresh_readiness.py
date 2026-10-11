@@ -14,7 +14,7 @@ from scripts.verify_ci_applicability import CURRENT_MAIN_GROUPS, GOVERNANCE_TEST
 from src.prospective_acquisition_recovery import offline_network_guard
 
 BASE = "2e65ef3c0a5e08ba9a5b87ad248f79fca3882eed"
-NEW_COUNT = 65
+NEW_COUNT = 66
 CER078_DIAGNOSTIC_COUNT = 14
 ALLOWED = {"src/first_refresh_readiness.py", "scripts/run_first_refresh_readiness.py",
     "scripts/verify_first_refresh_readiness.py", "tests/test_first_refresh_readiness.py",

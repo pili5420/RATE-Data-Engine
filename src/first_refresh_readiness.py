@@ -224,7 +224,8 @@ class ReadOnlyGuard:
                 import shlex
                 command = [part.strip('"') for part in shlex.split(command, posix=False)]
             if self.portability_command and tuple(command) == self.portability_command:
-                require(Path(args[0]).resolve() == Path(self.portability_command[0]).resolve()
+                require(isinstance(args[0], (str, os.PathLike))
+                        and Path(args[0]).resolve() == Path(self.portability_command[0]).resolve()
                         and Path(args[2]).resolve() == ROOT, "READINESS_PORTABILITY_PROCESS_BINDING")
                 return
             require(isinstance(command, (list, tuple)) and len(command) >= 2

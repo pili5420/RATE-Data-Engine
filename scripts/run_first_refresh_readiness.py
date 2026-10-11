@@ -56,7 +56,7 @@ def portability_command(binding, output):
 def replay_continuation(binding, output):
     # A fresh interpreter prevents current src imports from leaking into historical code.
     command = portability_command(binding, output)
-    run = subprocess.run(command, cwd=ROOT, env=clean_env(), capture_output=True)
+    run = subprocess.run(command, executable=sys.executable, cwd=ROOT, env=clean_env(), capture_output=True)
     put_bytes(output, "portability-worker.stdout.json", run.stdout)
     put_bytes(output, "portability-worker.stderr.txt", run.stderr)
     require(run.returncode == 0, "REFRESH_PORTABILITY_WORKER_FAILED_SEE_STDERR")

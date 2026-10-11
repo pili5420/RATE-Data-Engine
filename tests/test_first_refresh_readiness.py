@@ -391,6 +391,18 @@ class PortabilityIntegrationTests(unittest.TestCase):
                 guard("subprocess.Popen", (sys.executable, altered, str(j.ROOT), {}))
         with self.assertRaisesRegex(Rejected, "PROCESS_BINDING"):
             guard("subprocess.Popen", (sys.executable, command, str(self.root), {}))
+        with self.assertRaisesRegex(Rejected, "PROCESS_BINDING"):
+            guard("subprocess.Popen", (None, command, str(j.ROOT), {}))
+
+    def test_real_subprocess_audit_round_trip_with_explicit_executable(self):
+        code = (
+            "import sys, subprocess; from src.first_refresh_readiness import ReadOnlyGuard, ROOT; "
+            "command=[sys.executable,'-B','-c',\"print('synthetic-worker')\"]; "
+            "sys.addaudithook(ReadOnlyGuard(" + repr(str(self.output)) + ", command)); "
+            "result=subprocess.run(command, executable=sys.executable, cwd=ROOT, capture_output=True, check=True); "
+            "assert result.stdout.strip()==b'synthetic-worker'; print('PASS')")
+        result = subprocess.check_output([sys.executable, "-B", "-c", code], cwd=j.ROOT)
+        self.assertEqual(result.strip(), b"PASS")
 
     def test_worker_failure_preserved_without_fallback(self):
         from unittest.mock import patch
@@ -398,6 +410,7 @@ class PortabilityIntegrationTests(unittest.TestCase):
             with self.assertRaisesRegex(Rejected, "WORKER_FAILED"):
                 self.runner.replay_continuation(self.binding, self.output)
             self.assertEqual(run.call_count, 1)
+            self.assertEqual(run.call_args.kwargs["executable"], sys.executable)
         self.assertEqual((self.output / "portability-worker.stderr.txt").read_bytes(), b"synthetic failure")
 
     def test_same_counts_changed_full_object_rejected(self):

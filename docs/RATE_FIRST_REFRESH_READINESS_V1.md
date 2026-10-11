@@ -90,5 +90,5 @@ Python children. Worker traces and reconstructed source trees stay in the new
 external output. Network remains forbidden in both processes. A worker failure is
 preserved and blocks readiness, never falls back to the old shared-environment path.
 The exact-head suite retains all 55 original readiness and 29 portability tests,
-plus 10 integration tests: 1138 tests total. Replacement coverage remains 1030 with
+plus 11 integration tests: 1139 tests total. Replacement coverage remains 1030 with
 the original continuity/report-soak/Phase2/CER081-blocked proof.
