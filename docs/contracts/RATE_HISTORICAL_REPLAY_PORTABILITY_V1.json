@@ -1,0 +1,21 @@
+{
+  "contract": "RATE_HISTORICAL_REPLAY_PORTABILITY_V1",
+  "change_request": "RATE-HISTORICAL-REPLAY-PORTABILITY-V1",
+  "base_sha": "dbd0983caf883fa9a39eb187fb3d01f192ecd61e",
+  "historical_producer_sha": "66d52f73be78c6116420ac556668c7c158ca768d",
+  "readiness_consumer_sha": "715b62a35cf7aab3e4020050f1dda9b7509500ab",
+  "mode": "EXPLICIT_OPT_IN_READ_ONLY_ISOLATED_HISTORICAL_ENVIRONMENT",
+  "source": "LOCAL_IMMUTABLE_COMMIT_OBJECTS_ONLY",
+  "original_reader_mutation_allowed": false,
+  "historical_function_monkeypatch_allowed": false,
+  "shared_ref_mutation_allowed": false,
+  "isolated_git_view_grants_authority": false,
+  "network_requests": 0,
+  "financial_requests": 0,
+  "fallback_allowed": false,
+  "first_refresh_authorized": false,
+  "production_eligible": false,
+  "historical_pit": "UNPROVEN",
+  "original_eight_quarter_coverage_credit": 0,
+  "intraday_dependency": "BLOCKED_EXTERNAL"
+}
