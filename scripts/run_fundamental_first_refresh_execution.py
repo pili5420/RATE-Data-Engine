@@ -42,9 +42,10 @@ def git(*args):
     return subprocess.check_output(["git", *args], cwd=ROOT).decode().strip()
 
 
-def exact_main():
-    if (git("rev-parse", "HEAD") != CONTRACT["base_sha"]
-            or git("rev-parse", "origin/main") != CONTRACT["base_sha"]
+def exact_main(execution_main_sha):
+    if (git("rev-parse", "HEAD") != execution_main_sha
+            or git("rev-parse", "origin/main") != execution_main_sha
+            or git("merge-base", CONTRACT["base_sha"], execution_main_sha) != CONTRACT["base_sha"]
             or git("status", "--porcelain")):
         raise ValueError("FIRST_REFRESH_EXECUTION_MAIN_OR_WORKTREE_MISMATCH")
 
@@ -56,10 +57,11 @@ def universe_from(binding):
 
 
 def plan_from(binding):
-    exact_main()
+    execution_main_sha = binding["execution_main_sha"]
+    exact_main(execution_main_sha)
     universe = universe_from(binding)
     authority_id = binding["authority_id"]
-    return universe, build_request_plan(universe, authority_id, CONTRACT["base_sha"])
+    return universe, build_request_plan(universe, authority_id, execution_main_sha)
 
 
 def main():
