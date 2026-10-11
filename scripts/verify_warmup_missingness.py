@@ -16,6 +16,12 @@ from scripts.verify_ci_applicability import network_guard
 
 BASE = "29f1781e3c460ccf9a816c5b9774b00374cedfe1"
 REVIEWED_HEAD = "1bd37a7b15e54e54c5238e56876393e73c259689"
+REVIEWED_BLOBS = {
+    "scripts/warmup_inventory_acceptance.py": "65b283708d6c4d5d34fc6a80919d8f985d9fdab9",
+    "scripts/build_warmup_missingness.py": "8012ec9f6384d3c7d72e0d0601186ea863d7d7e7",
+    "tests/test_warmup_missingness.py": "31df8a64b1025ba3026bb7cf30b68db4abc60266",
+    "docs/contracts/RATE_FULL_MARKET_WARMUP_MISSINGNESS_V1.json": "a1cbb96936484e5444892760ff5ee6589b560a09",
+}
 ALLOWED = {"scripts/warmup_inventory_acceptance.py", "scripts/build_warmup_missingness.py", "scripts/verify_warmup_missingness.py",
     "tests/test_warmup_missingness.py", "docs/RATE_FULL_MARKET_WARMUP_MISSINGNESS_V1.md",
     "docs/contracts/RATE_FULL_MARKET_WARMUP_MISSINGNESS_V1.json", ".github/workflows/rate_warmup_missingness_ci.yml"}
@@ -66,10 +72,8 @@ def main():
     old, new = tree(BASE), tree(args.expected_head)
     if any(new.get(path) != blob for path, blob in old.items()):
         raise ValueError("EXISTING_PRODUCTION_STRATEGY_OR_HISTORICAL_BLOB_CHANGED")
-    reviewed = tree(REVIEWED_HEAD)
-    unchanged_inventory = ("scripts/warmup_inventory_acceptance.py", "scripts/build_warmup_missingness.py",
-                           "tests/test_warmup_missingness.py", "docs/contracts/RATE_FULL_MARKET_WARMUP_MISSINGNESS_V1.json")
-    if any(new.get(path) != reviewed[path] for path in unchanged_inventory):
+    # The replaced PR head need not remain reachable in a fresh CI clone.
+    if any(new.get(path) != blob for path, blob in REVIEWED_BLOBS.items()):
         raise ValueError("REVIEWED_INVENTORY_SEMANTICS_OR_ASSERTIONS_CHANGED")
     args.output_dir.mkdir(parents=True)
     write(args.output_dir / "protected-existing-blobs.json", old)
@@ -109,7 +113,7 @@ def main():
     write(args.output_dir / "VERIFICATION_PACKAGE.json", {"base_sha": BASE, "head_sha": args.expected_head,
         "changed_files": sorted(ALLOWED), "results": results, "existing_tests": sum(c for _, c in PRIOR_GROUPS.values()),
         "new_tests": GROUPS["warmup_inventory_new"][1], "protected_existing_blobs_unchanged": len(old),
-        "reviewed_head": REVIEWED_HEAD, "unchanged_inventory_files": list(unchanged_inventory),
+        "reviewed_head": REVIEWED_HEAD, "unchanged_inventory_blobs": REVIEWED_BLOBS,
         "current_main_inherited_groups": {name: count for name, (_, count) in PRIOR_GROUPS.items()},
         "tests_skipped": sum(len(r["skipped"]) for r in results.values()),
         "assertions_relaxed": 0, "failure_whitelists": 0,
