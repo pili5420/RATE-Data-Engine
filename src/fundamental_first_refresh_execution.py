@@ -177,7 +177,8 @@ class PlanDispatchGate:
 def simulate_full_plan(plan: Mapping[str, Any], universe: Mapping[str, Any], *,
                        terminal_failure_at: int | None = None,
                        unknown_outcome_at: int | None = None,
-                       crash_before_at: int | None = None) -> dict:
+                       crash_before_at: int | None = None,
+                       crash_after_success_at: int | None = None) -> dict:
     validate_plan(plan, universe, plan["authority_id"], plan["execution_main_sha"])
     dispatched, completed, intents, checkpoints = [], [], set(), []
     for entry in plan["entries"]:
@@ -232,6 +233,17 @@ def simulate_full_plan(plan: Mapping[str, Any], universe: Mapping[str, Any], *,
             "auto_resume_allowed": False,
         }
         checkpoints.append(checkpoint)
+        if crash_after_success_at == ordinal:
+            return {
+                "status": "CRASH_AFTER_IMMUTABLE_SUCCESS",
+                "dispatch_count": len(dispatched),
+                "completed_count": len(completed),
+                "completed_request_key": entry["request_key"],
+                "cold_replay_proves_completed": True,
+                "would_resend_completed_request": False,
+                "auto_resume_allowed": False,
+                "next_ordinal": ordinal + 1 if ordinal < 1984 else None,
+            }
     require(dispatched == [entry["request_key"] for entry in plan["entries"]],
             "FIRST_REFRESH_SYNTHETIC_ORDER_DRIFT")
     return {
@@ -567,6 +579,31 @@ def _checkpoint(root: Path, plan: Mapping[str, Any], entry: Mapping[str, Any], *
     path = root / "execution-checkpoints" / f"{entry['ordinal']:04d}-{body_hash}.json"
     _write_immutable(path, value)
     return body_hash
+
+
+
+def verify_checkpoint(path: str | Path, plan: Mapping[str, Any], expected_previous: str | None) -> dict:
+    path = Path(path)
+    body = path.read_bytes()
+    value = read_metadata(body)
+    require(path.name.endswith(digest(body) + ".json"), "FIRST_REFRESH_CHECKPOINT_TAMPER")
+    require(value.get("artifact_kind") == "RATE_FUNDAMENTAL_FIRST_REFRESH_EXECUTION_CHECKPOINT_V1"
+            and value.get("request_plan_sha256") == plan["request_plan_sha256"]
+            and value.get("current_main") == plan["execution_main_sha"]
+            and value.get("authority_id") == plan["authority_id"]
+            and value.get("previous_checkpoint_sha256") == expected_previous
+            and value.get("auto_resume_allowed") is False,
+            "FIRST_REFRESH_CHECKPOINT_BINDING")
+    ordinal = value.get("last_completed_ordinal")
+    require(isinstance(ordinal, int) and 1 <= ordinal <= 1984
+            and value.get("completed_request_keys") == [row["request_key"] for row in plan["entries"][:ordinal]]
+            and value.get("completed_request_keys_sha256") == digest(value["completed_request_keys"]),
+            "FIRST_REFRESH_CHECKPOINT_SEQUENCE")
+    return value
+
+
+def resume_execution(*args, **kwargs):
+    require(False, "FIRST_REFRESH_RESUME_REQUIRES_CONTROL_CENTER_CONTINUATION")
 
 
 def execute_authorized_first_refresh(plan: Mapping[str, Any], universe: Mapping[str, Any], authorization: Mapping[str, Any],
