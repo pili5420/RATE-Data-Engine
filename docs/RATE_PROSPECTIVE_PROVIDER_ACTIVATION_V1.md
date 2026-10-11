@@ -2,8 +2,9 @@
 
 CR: RATE-PHASE-I-A2-PROSPECTIVE-FUNDAMENTAL-PROVIDER-ACTIVATION.
 Scope: provider authorization and immutable acquisition evidence only.
-Dependency: PR #53 fixed Head feff6a487ed96e7c2c3535c95f3bd62a06ad5cb7.
-Neither PR is merged by this change. Existing acceptance contract/artifacts remain unchanged.
+Base: main ccca06701a5dbf2c769db80a67220d7089363dd4, the PR #53 merge commit.
+PR #53 is merged; this activation PR remains unmerged. Existing acceptance
+contract/artifacts remain unchanged.
 
 ## Authority
 
@@ -80,6 +81,7 @@ Financial definitions and fixed required windows are inherited unchanged from #5
 Synthetic CI proves the lifecycle with a synthetic authority only. It does not
 authorize real providers or demonstrate post-activation market acquisition.
 All inherited tests and protected Git blobs are verified at the exact PR Head.
-After #53 merges, rebase and rerun exact-head gates before this PR's merge review.
+The PR #53 stack dependency is removed. Rebased exact-head gates must pass before
+this activation PR's final merge review; pre-rebase runs are engineering history only.
 Control Center must separately review the real main authority seal, then authorize
 bounded prospective acquisition. First refresh still requires its own gate.

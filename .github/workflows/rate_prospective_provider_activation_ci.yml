@@ -1,7 +1,7 @@
 name: RATE Prospective Provider Activation (synthetic only)
 on:
   pull_request:
-    branches: [main, codex/prospective-fundamental-activation-v1]
+    branches: [main]
     paths:
       - src/prospective_provider_activation.py
       - scripts/run_prospective_provider_activation.py
@@ -36,7 +36,7 @@ jobs:
       - name: Exact-head unchanged gates and prospective activation evidence
         run: >
           python -B scripts/verify_prospective_provider_activation.py
-          --expected-base feff6a487ed96e7c2c3535c95f3bd62a06ad5cb7
+          --expected-base ccca06701a5dbf2c769db80a67220d7089363dd4
           --expected-head "${{ github.event.pull_request.head.sha }}"
           --output-dir "${{ runner.temp }}/activation"
       - uses: actions/upload-artifact@v4

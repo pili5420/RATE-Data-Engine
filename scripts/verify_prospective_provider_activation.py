@@ -12,7 +12,7 @@ sys.path.insert(0,str(ROOT))
 from scripts.verify_public_official_partial_valid import child, extract, git, write
 from scripts.verify_prospective_provider_acceptance import GROUPS as PRIOR_GROUPS
 
-BASE = "feff6a487ed96e7c2c3535c95f3bd62a06ad5cb7"
+BASE = "ccca06701a5dbf2c769db80a67220d7089363dd4"
 NEW_COUNT = 65
 ALLOWED = {"src/prospective_provider_activation.py", "scripts/run_prospective_provider_activation.py",
     "scripts/verify_prospective_provider_activation.py", "tests/test_prospective_provider_activation.py",
