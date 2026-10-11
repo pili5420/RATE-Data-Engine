@@ -1,0 +1,46 @@
+{
+  "contract_id": "RATE-FULL-MARKET-WARMUP-MISSINGNESS-V1",
+  "schema_version": "RATE_FULL_MARKET_WARMUP_MISSINGNESS_V1",
+  "artifact_kind": "WARMUP_INVENTORY_ACCEPTANCE_ONLY",
+  "scope": "OFFLINE_UNIVERSE_INVENTORY_ACCEPTANCE_NOT_LIVE_WARMUP",
+  "universe": {"TWSE": 1085, "TPEX": 893, "TOTAL": 1978, "identity": "EXACT_PINNED_CATALOGUE_NOT_COUNTS_ONLY"},
+  "layers": ["FULL_MARKET_UNIVERSE_ACCOUNTING", "FUNDAMENTAL_HISTORY_STATUS", "MODULE_READINESS_STATUS", "RANKING_ELIGIBILITY_STATUS", "PRODUCTION_PUBLICATION_STATUS"],
+  "accounting_pass": "EXACT_UNIVERSE_ALL_ISSUERS_EXPLICIT_VALID_OWNER_EVIDENCE_STATES_REFERENCES_REPLAYED",
+  "approved_inventory_states": ["COMPLETE", "MISSING_REQUIRED_PERIOD", "UNDEFINED_ZERO_BASE"],
+  "eps_missingness": "MISSING_REQUIRED_PERIOD",
+  "revenue_missingness": "EXPLICIT_REQUIRED_PERIOD_OR_UNDEFINED_ZERO_BASE_NO_ZERO_FILL",
+  "input": {
+    "scope": "READ_ONLY_EXISTING_INPUT_EVIDENCE_NOT_FORMAL_SCORE_OR_STATE",
+    "required": ["scope", "governance", "generated_at", "universe_binding", "issuers"],
+    "issuer": "PHASE_G_OWNER_VERDICT_PROJECTION_PLUS_ORIGINAL_SOURCE_ISSUER_EVIDENCE",
+    "trust": "INDEPENDENT_FILE_HASH_FROM_PRIOR_DELIVERY_NOT_SELF_DECLARED_DIGEST",
+    "source_validation": "EXISTING_OWNER_CERTIFICATE_AND_ITS_SOURCE_PINS_NO_NEW_FINANCIAL_PARSER",
+    "partial_history": "PRESERVED_VERBATIM_WITH_ORIGINAL_QUARTERS_LOCATORS_HASHES_RECEIPTS_OBSERVATION_TIMES",
+    "no_value_copy": "VALUES_REMAIN_IN_PINNED_IMMUTABLE_SOURCE_ARTIFACT_NOT_REPLACED_BY_NULL_OR_ZERO"
+  },
+  "eligibility_owner": "RATE-FUNDAMENTAL-ELIGIBILITY-SUBGATE-V1",
+  "ranking": "EXISTING_OWNER_VERDICTS_ONLY_NO_RANKING_EXECUTION_OR_ACTIVATION",
+  "continuity": {
+    "artifact": "SEPARATE_INVENTORY_SNAPSHOT_NOT_DECISION_STATE",
+    "optional_context": "INDEPENDENTLY_PINNED_PRESERVED_BYTE_SEMANTICS_NO_INITIALIZATION_WHEN_ABSENT",
+    "previous": "INDEPENDENT_FILE_PIN_PARENT_SNAPSHOT_HASH_BOUND_HISTORY_APPEND_ONLY",
+    "changed_accounts_or_decision_id": "FAIL_CLOSED_REQUIRES_SEPARATE_OWNER_TRANSITION",
+    "preserved": ["issuer_identity", "issuer_history", "missingness_state", "eligibility_state", "roy_portfolio", "ai_paper_portfolio", "transaction_ledger", "current_state_id"]
+  },
+  "output": {
+    "required": ["artifact_kind", "snapshot_id", "content_sha256", "core", "generated_at"],
+    "core_required": ["version", "governance", "universe_id", "universe_sha256", "universe_binding", "as_of", "source_projection_sha256", "layers", "counts", "by_market", "continuity_context", "continuity_mode", "previous_inventory_id", "previous_inventory_sha256", "issuers"],
+    "issuer_required": ["symbol", "market", "accounting_status", "eligibility", "preserved_owner_evidence", "inventory_history"],
+    "content_identity": "SHA256_EXISTING_CANONICAL_FINANCIAL_JSON_CORE_GENERATED_AT_SEPARATE",
+    "consumer": "PIN_FILE_THEN_RECONSTRUCT_SUBGATE_READINESS_COUNTS_AND_REFERENCE_HASHES"
+  },
+  "forbidden": ["FULL_WARMUP_PASS", "issuer_exclusion", "imputation", "zero_fill", "older_quarter_substitution", "new_financial_requests", "live_state_write", "ranking_formula_change", "score_renormalization"],
+  "governance": {
+    "production_eligible": false, "decision_eligible": false, "fallback_allowed": false,
+    "historical_pit": "UNPROVEN", "formal_provider_activation": "NOT_AUTHORIZED",
+    "ranking_consumer_activation": "NOT_AUTHORIZED", "first_refresh": "NOT_AUTHORIZED",
+    "production_publication": "NOT_AUTHORIZED", "full_production_acceptance": "NOT_ALLOWED",
+    "live_warmup_execution": "NOT_AUTHORIZED", "original_eight_quarter_coverage_credit": 0,
+    "external_authorized_intraday_feed_dependency": "BLOCKED_EXTERNAL"
+  }
+}
