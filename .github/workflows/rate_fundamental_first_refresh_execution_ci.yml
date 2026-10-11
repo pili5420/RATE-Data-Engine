@@ -22,7 +22,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest]
-    runs-on: \${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     env:
       PYTHONDONTWRITEBYTECODE: "1"
@@ -30,7 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: \${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-python@v5
@@ -41,20 +41,20 @@ jobs:
         run: >
           python -B scripts/verify_fundamental_first_refresh_execution.py
           --expected-base 29f1781e3c460ccf9a816c5b9774b00374cedfe1
-          --expected-head "\${{ github.event.pull_request.head.sha || github.sha }}"
-          --output-dir "\${{ runner.temp }}/fundamental-first-refresh-wiring"
+          --expected-head "${{ github.event.pull_request.head.sha || github.sha }}"
+          --output-dir "${{ runner.temp }}/fundamental-first-refresh-wiring"
       - name: Current-main replacement gate
         run: >
           python -B scripts/verify_ci_applicability.py
           --expected-base 29f1781e3c460ccf9a816c5b9774b00374cedfe1
-          --expected-head "\${{ github.event.pull_request.head.sha || github.sha }}"
-          --output-dir "\${{ runner.temp }}/fundamental-first-refresh-replacement"
+          --expected-head "${{ github.event.pull_request.head.sha || github.sha }}"
+          --output-dir "${{ runner.temp }}/fundamental-first-refresh-replacement"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: FUNDAMENTAL_FIRST_REFRESH_WIRING_\${{ matrix.os }}_\${{ github.event.pull_request.head.sha || github.sha }}
+          name: FUNDAMENTAL_FIRST_REFRESH_WIRING_${{ matrix.os }}_${{ github.event.pull_request.head.sha || github.sha }}
           path: |
-            \${{ runner.temp }}/fundamental-first-refresh-wiring
-            \${{ runner.temp }}/fundamental-first-refresh-replacement
+            ${{ runner.temp }}/fundamental-first-refresh-wiring
+            ${{ runner.temp }}/fundamental-first-refresh-replacement
           if-no-files-found: error
           retention-days: 14
