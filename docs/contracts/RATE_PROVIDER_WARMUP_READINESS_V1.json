@@ -1,0 +1,27 @@
+{
+  "change_request": "RATE-FULL-MARKET-PROVIDER-WARMUP-READINESS-V1",
+  "artifact_kind": "RATE_ISOLATED_PROVIDER_WARMUP_READINESS_V1",
+  "version": 1,
+  "base_sha": "e8aa0f923c4605e57709446dde2ec23cc9edfb17",
+  "market_counts": {"TWSE": 1085, "TPEX": 893},
+  "gates": ["PROVIDER_QUALIFICATION", "HISTORICAL_PIT", "WARMUP_EXECUTION_SANDBOX", "PRODUCTION_READINESS_DECISION"],
+  "provider_qualification_scope": "FULL_UNIVERSE_REQUIRED_PERIOD_COVERAGE_SEPARATE_FROM_SOURCE_VALIDITY",
+  "calculation_owner": "src/provider_financial_features.py",
+  "no_formal_score_execution": true,
+  "publication_proof": "ORIGINAL_SOURCE_PUBLICATION_AND_REVISION_CHAIN_REQUIRED_NOT_RECEIPT_DISCLOSURE_LABEL",
+  "boundaries": {
+    "production_eligible": false,
+    "decision_eligible": false,
+    "provider_activation": "NOT_AUTHORIZED",
+    "formal_warmup_acceptance": "NOT_PERFORMED",
+    "first_refresh": "NOT_AUTHORIZED",
+    "production_publication": "NOT_AUTHORIZED",
+    "ranking_activation": "NOT_AUTHORIZED",
+    "historical_pit": "UNPROVEN",
+    "fallback_allowed": false,
+    "provider_reply_required": false,
+    "external_authorized_intraday_feed_dependency": "BLOCKED_EXTERNAL",
+    "original_eight_quarter_coverage_credit": 0,
+    "financial_requests": 0
+  }
+}
