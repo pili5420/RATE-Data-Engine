@@ -1,0 +1,63 @@
+{
+  "contract_id": "RATE-FUNDAMENTAL-FIRST-REFRESH-EXECUTION-V1",
+  "change_request": "RATE-J2-E-FUNDAMENTAL-ONLY-FIRST-REFRESH-EXECUTION-WIRING",
+  "base_sha": "29f1781e3c460ccf9a816c5b9774b00374cedfe1",
+  "scope": "ENGINEERING_WIRING_ONLY_NO_LIVE_EXECUTION",
+  "execution_owner": "src/fundamental_first_refresh_execution.py:execute_authorized_first_refresh",
+  "assembler_owner": "src/fundamental_first_refresh_execution.py:assemble_fundamental",
+  "publication_owner": "src/fundamental_first_refresh_execution.py:publish_fundamental_atomic",
+  "acquisition_owner": "scripts/run_prospective_provider_activation.py:acquire_once",
+  "atomic_primitives_owner": "src/production_refresh_commit.py",
+  "universe": {
+    "TWSE": 1085,
+    "TPEX": 893,
+    "total": 1978
+  },
+  "planned_requests": 1984,
+  "maximum_requests": 1984,
+  "finmind_requests": 1978,
+  "mops_requests": 6,
+  "eps_periods": [
+    "2024Q3",
+    "2024Q4",
+    "2025Q1",
+    "2025Q2",
+    "2025Q3",
+    "2025Q4",
+    "2026Q1",
+    "2026Q2"
+  ],
+  "revenue_periods": [
+    "2026-07",
+    "2026-08",
+    "2026-09"
+  ],
+  "ordering": "FINMIND_CANONICAL_SYMBOL_ORDER_THEN_MOPS_TWSE_TPEX_PERIOD_ORDER",
+  "concurrency": "SINGLE_WRITER_SEQUENTIAL",
+  "minimum_dispatch_interval_seconds": 13,
+  "timeouts_seconds": {
+    "FinMind": 20,
+    "MOPS Official": 45
+  },
+  "automatic_retry": 0,
+  "fallback_allowed": false,
+  "unknown_outcome_policy": "STOP_NO_RESEND_SAME_INTENT",
+  "terminal_failure_policy": "STOP_PRESERVE_EVIDENCE",
+  "automatic_resume_allowed": false,
+  "publication_destination": {
+    "artifact_kind": "RATE_FUNDAMENTAL_FIRST_REFRESH_LATEST_V1",
+    "path": "RATE_FUNDAMENTAL_FIRST_REFRESH_LATEST.json",
+    "production_domain": "fundamental",
+    "authoritative_commit_points": 1,
+    "mutates_global_source_bundle_latest": false,
+    "triggers_ranking": false,
+    "triggers_decision_state": false
+  },
+  "copy_on_write_policy": "SEPARATE_FUNDAMENTAL_DOMAIN_POINTER_EXISTING_PRODUCTION_UNTOUCHED",
+  "first_refresh_authorized": false,
+  "production_publication_authorized": false,
+  "ranking_authorized": false,
+  "historical_pit": "UNPROVEN",
+  "original_eight_quarter_coverage_credit": 0,
+  "intraday_dependency": "BLOCKED_EXTERNAL"
+}
