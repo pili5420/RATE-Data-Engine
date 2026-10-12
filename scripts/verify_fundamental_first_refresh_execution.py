@@ -1,4 +1,5 @@
-"""Exact-head J2-E verification: inherited suite plus Fundamental-only wiring tests."""
+"""Exact-head J2 hardening: inherited, original J2-E and new synthetic tests."""
+import ast
 import argparse
 import json
 import os
@@ -14,19 +15,19 @@ from scripts.verify_public_official_partial_valid import child, extract, git, wr
 from scripts.verify_provider_warmup_readiness import GROUPS as INHERITED_GROUPS
 from scripts.verify_ci_applicability import network_guard
 
-BASE = "139505a3a6c33a19b7973c7f812497046a82d667"
+BASE = "e38f3f4b7a588a607985a1b6fde5289568175d41"
 HISTORICAL_BASE = "29f1781e3c460ccf9a816c5b9774b00374cedfe1"
 REVIEWED_HEAD = "6d185cec4e29c4d69e63e5a1432e6d5d6e38c37b"
 REVIEWED_BLOBS = {
-    "src/fundamental_first_refresh_execution.py": "3434a7c4eb431903ec0163efce79755eba31368a",
     "scripts/run_fundamental_first_refresh_execution.py": "117993b2ca447d526c02c299a1941590d5ce11b4",
-    "tests/test_fundamental_first_refresh_execution.py": "52ce50f1e17abc7facb55049a1e085ed1c2a010d",
-    "docs/contracts/RATE_FUNDAMENTAL_FIRST_REFRESH_EXECUTION_V1.json": "1c32fad1791082c55017e3fac6fc371fb47e57db",
 }
-NEW_COUNT = 51
+ORIGINAL_COUNT = 51
+NEW_COUNT = 45
+ORIGINAL_CLASSES = ("PlanTests", "DispatchTests", "SimulationTests", "AssemblerTests", "PublicationTests",
+                    "AuthorizationTests", "CheckpointTests", "GovernanceTests")
+NEW_CLASSES = ("HardeningAuthorizationTests", "HardeningConsumptionTests", "HardeningPreacquisitionTests")
 ALLOWED = {
     "src/fundamental_first_refresh_execution.py",
-    "scripts/run_fundamental_first_refresh_execution.py",
     "scripts/verify_fundamental_first_refresh_execution.py",
     "tests/test_fundamental_first_refresh_execution.py",
     "docs/contracts/RATE_FUNDAMENTAL_FIRST_REFRESH_EXECUTION_V1.json",
@@ -35,8 +36,35 @@ ALLOWED = {
 }
 GROUPS = {
     **INHERITED_GROUPS,
-    "fundamental_first_refresh_execution_new": (["test_fundamental_first_refresh_execution"], NEW_COUNT),
+    "fundamental_first_refresh_execution_original":
+        (["test_fundamental_first_refresh_execution." + name for name in ORIGINAL_CLASSES], ORIGINAL_COUNT),
+    "authorization_hardening_new":
+        (["test_fundamental_first_refresh_execution." + name for name in NEW_CLASSES], NEW_COUNT),
 }
+
+
+def unchanged_assertions_and_owners(head):
+    def source(ref, path):
+        return subprocess.check_output(["git", "show", ref + ":" + path], cwd=ROOT).decode("utf-8")
+    def tests(body):
+        return {cls.name + "." + node.name: ast.dump(node, include_attributes=False)
+                for cls in ast.parse(body).body if isinstance(cls, ast.ClassDef)
+                for node in cls.body if isinstance(node, ast.FunctionDef) and node.name.startswith("test_")}
+    path = "tests/test_fundamental_first_refresh_execution.py"
+    old, new = tests(source(BASE, path)), tests(source(head, path))
+    if len(old) != ORIGINAL_COUNT or any(new.get(name) != body for name, body in old.items()):
+        raise ValueError("ORIGINAL_51_TEST_METHOD_OR_ASSERTION_CHANGED")
+    if len(new) - len(old) != NEW_COUNT:
+        raise ValueError("HARDENING_TEST_INVENTORY_MISMATCH")
+    path = "src/fundamental_first_refresh_execution.py"
+    def owners(body):
+        return {node.name: ast.dump(node, include_attributes=False) for node in ast.parse(body).body
+                if isinstance(node, (ast.FunctionDef, ast.ClassDef))}
+    before, after = owners(source(BASE, path)), owners(source(head, path))
+    permitted = {"preexecution_seal", "validate_execution_authorization", "execute_authorized_first_refresh"}
+    if any(after.get(name) != body for name, body in before.items() if name not in permitted):
+        raise ValueError("EXISTING_PLAN_ASSEMBLER_PUBLISHER_OR_ACQUISITION_BINDING_CHANGED")
+    return sorted(old)
 
 
 def main():
@@ -53,18 +81,19 @@ def main():
     if args.expected_base != BASE or git("rev-parse", "HEAD") != args.expected_head or git("merge-base", BASE, "HEAD") != BASE:
         raise ValueError("EXACT_BASE_HEAD_MISMATCH")
     changed = set(git("diff", "--name-status", "--no-renames", BASE, args.expected_head).splitlines())
-    if changed != {"A\t" + path for path in ALLOWED} or git("status", "--porcelain"):
-        raise ValueError("ADDITIVE_SCOPE_OR_WORKTREE_CHANGED")
+    if changed != {"M\t" + path for path in ALLOWED} or git("status", "--porcelain"):
+        raise ValueError("HARDENING_EXACT_SCOPE_OR_WORKTREE_CHANGED")
 
     def tree(ref):
         return {line.split("\t", 1)[1]: line.split("\t", 1)[0].split()[2]
                 for line in git("ls-tree", "-r", ref).splitlines()}
 
     old, new = tree(BASE), tree(args.expected_head)
-    if any(new.get(path) != blob for path, blob in old.items()):
+    if any(new.get(path) != blob for path, blob in old.items() if path not in ALLOWED):
         raise ValueError("PROTECTED_EXISTING_BLOB_CHANGED")
     if any(new.get(path) != blob for path, blob in REVIEWED_BLOBS.items()):
         raise ValueError("REVIEWED_EXECUTION_SEMANTICS_OR_ASSERTIONS_CHANGED")
+    original_methods = unchanged_assertions_and_owners(args.expected_head)
     if args.output_dir.exists():
         raise ValueError("OUTPUT_MUST_BE_NEW")
     args.output_dir.mkdir(parents=True)
@@ -94,7 +123,7 @@ def main():
                  for r in results.values())
     if git("status", "--porcelain") or git("rev-parse", "HEAD") != args.expected_head:
         raise ValueError("HEAD_OR_WORKTREE_CHANGED")
-    inherited = sum(count for name, (_, count) in GROUPS.items() if name != "fundamental_first_refresh_execution_new")
+    inherited = sum(count for _, count in INHERITED_GROUPS.values())
     write(args.output_dir / "VERIFICATION_PACKAGE.json", {
         "base_sha": BASE,
         "head_sha": args.expected_head,
@@ -105,9 +134,11 @@ def main():
         "changed_files": sorted(ALLOWED),
         "results": results,
         "inherited_tests": inherited,
+        "original_j2e_tests": ORIGINAL_COUNT,
+        "unchanged_original_test_methods": original_methods,
         "new_tests": NEW_COUNT,
-        "total_tests": inherited + NEW_COUNT,
-        "protected_existing_blobs_unchanged": len(old),
+        "total_tests": inherited + ORIGINAL_COUNT + NEW_COUNT,
+        "protected_existing_blobs_unchanged": len(old) - len(ALLOWED),
         "financial_requests": 0,
         "production_publications": 0,
         "ranking_executions": 0,
