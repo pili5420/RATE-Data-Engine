@@ -40,13 +40,13 @@ jobs:
       - name: Exact-head inherited plus J2-E tests
         run: >
           python -B scripts/verify_fundamental_first_refresh_execution.py
-          --expected-base 29f1781e3c460ccf9a816c5b9774b00374cedfe1
+          --expected-base 139505a3a6c33a19b7973c7f812497046a82d667
           --expected-head "${{ github.event.pull_request.head.sha || github.sha }}"
           --output-dir "${{ runner.temp }}/fundamental-first-refresh-wiring"
       - name: Current-main replacement gate
         run: >
           python -B scripts/verify_ci_applicability.py
-          --expected-base 29f1781e3c460ccf9a816c5b9774b00374cedfe1
+          --expected-base 139505a3a6c33a19b7973c7f812497046a82d667
           --expected-head "${{ github.event.pull_request.head.sha || github.sha }}"
           --output-dir "${{ runner.temp }}/fundamental-first-refresh-replacement"
       - uses: actions/upload-artifact@v4

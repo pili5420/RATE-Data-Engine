@@ -11,10 +11,18 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from scripts.verify_public_official_partial_valid import child, extract, git, write
-from scripts.verify_first_refresh_readiness import GROUPS as INHERITED_GROUPS
-from src.prospective_acquisition_recovery import offline_network_guard
+from scripts.verify_provider_warmup_readiness import GROUPS as INHERITED_GROUPS
+from scripts.verify_ci_applicability import network_guard
 
-BASE = "29f1781e3c460ccf9a816c5b9774b00374cedfe1"
+BASE = "139505a3a6c33a19b7973c7f812497046a82d667"
+HISTORICAL_BASE = "29f1781e3c460ccf9a816c5b9774b00374cedfe1"
+REVIEWED_HEAD = "6d185cec4e29c4d69e63e5a1432e6d5d6e38c37b"
+REVIEWED_BLOBS = {
+    "src/fundamental_first_refresh_execution.py": "3434a7c4eb431903ec0163efce79755eba31368a",
+    "scripts/run_fundamental_first_refresh_execution.py": "117993b2ca447d526c02c299a1941590d5ce11b4",
+    "tests/test_fundamental_first_refresh_execution.py": "52ce50f1e17abc7facb55049a1e085ed1c2a010d",
+    "docs/contracts/RATE_FUNDAMENTAL_FIRST_REFRESH_EXECUTION_V1.json": "1c32fad1791082c55017e3fac6fc371fb47e57db",
+}
 NEW_COUNT = 51
 ALLOWED = {
     "src/fundamental_first_refresh_execution.py",
@@ -33,11 +41,7 @@ GROUPS = {
 
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "--test-child":
-        def guard(event, args):
-            if event == "urllib.Request" and args and str(args[0]).startswith("file://"):
-                return
-            offline_network_guard(event, args)
-        sys.addaudithook(guard)
+        sys.addaudithook(network_guard)
         return child(Path(sys.argv[2]), sys.argv[3:])
 
     parser = argparse.ArgumentParser()
@@ -59,6 +63,8 @@ def main():
     old, new = tree(BASE), tree(args.expected_head)
     if any(new.get(path) != blob for path, blob in old.items()):
         raise ValueError("PROTECTED_EXISTING_BLOB_CHANGED")
+    if any(new.get(path) != blob for path, blob in REVIEWED_BLOBS.items()):
+        raise ValueError("REVIEWED_EXECUTION_SEMANTICS_OR_ASSERTIONS_CHANGED")
     if args.output_dir.exists():
         raise ValueError("OUTPUT_MUST_BE_NEW")
     args.output_dir.mkdir(parents=True)
@@ -92,6 +98,10 @@ def main():
     write(args.output_dir / "VERIFICATION_PACKAGE.json", {
         "base_sha": BASE,
         "head_sha": args.expected_head,
+        "historical_engineering_base": HISTORICAL_BASE,
+        "reviewed_head": REVIEWED_HEAD,
+        "unchanged_reviewed_blobs": REVIEWED_BLOBS,
+        "current_main_inherited_groups": {name: count for name, (_, count) in INHERITED_GROUPS.items()},
         "changed_files": sorted(ALLOWED),
         "results": results,
         "inherited_tests": inherited,
@@ -102,9 +112,12 @@ def main():
         "production_publications": 0,
         "ranking_executions": 0,
         "state_portfolio_ledger_mutations": 0,
-        "tests_skipped": 0,
+        "tests_skipped": sum(len(r["skipped"]) for r in results.values()),
         "assertions_relaxed": 0,
         "failure_whitelists": 0,
+        "material_scope": "SYNTHETIC_ENGINEERING_ONLY_NOT_EXECUTION_AUTHORIZATION",
+        "first_refresh_executions": 0,
+        "first_refresh_authorized": False,
         "status": "PASS" if passed else "BLOCKED",
     })
     return 0 if passed else 1

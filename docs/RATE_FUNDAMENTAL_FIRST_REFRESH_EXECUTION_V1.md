@@ -46,3 +46,23 @@ J2-E itself keeps:
 - Intraday: BLOCKED_EXTERNAL
 
 CI is synthetic only. The full 1,984-entry plan, assembler, failure injections and atomic publication are exercised without financial endpoints.
+
+## Latest-main compatibility revalidation
+
+The compatibility base is `139505a3a6c33a19b7973c7f812497046a82d667`.
+The historical engineering base remains `29f1781e3c460ccf9a816c5b9774b00374cedfe1`
+in the original contract; it is not a future execution-main pin.
+The runtime, CLI, contract and original 51 test assertions remain byte-identical
+to reviewed Head `6d185cec4e29c4d69e63e5a1432e6d5d6e38c37b`.
+
+Fresh exact-head verification inherits the current-main H-52 inventory, including
+H-51, all earlier readiness, acquisition, publication, strategy and continuity
+regressions. Both platforms also run the separate current-main replacement gate.
+No existing main blob is changed. Inventory acceptance and provider readiness
+do not grant First Refresh or ranking authorization.
+
+After this PR is merged, a separate J2 Authorization Gate must generate and seal
+the final request plan against the then-current main, authority and exact
+universe. Compatibility review plans and synthetic authorization fixtures are
+not formal execution authorization. This revalidation makes zero financial
+requests, zero real First Refresh executions and zero Production publications.
