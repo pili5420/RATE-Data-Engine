@@ -66,3 +66,71 @@ the final request plan against the then-current main, authority and exact
 universe. Compatibility review plans and synthetic authorization fixtures are
 not formal execution authorization. This revalidation makes zero financial
 requests, zero real First Refresh executions and zero Production publications.
+
+## J2 authorization enforcement hardening
+
+CR `RATE-J2-AUTHORIZATION-ENFORCEMENT-HARDENING-V1` repairs only authorization
+consumption, seal/owner binding and pre-acquisition Latest drift detection. It
+does not grant authorization or change acquisition, assembly, calculation,
+ranking, scheduler, provider activation or atomic publication primitives.
+
+The ordered runtime gates are: validate exact plan; current-main/clean-tree
+guard; actual dedicated Fundamental Latest check; recompute seal and all five
+owner hashes; validate authorization; atomic single-use claim; create execution
+store; acquire; assemble; publish with the original final CAS.
+
+`preexecution_seal()` includes the plan ID/hash, planned/maximum request counts,
+main, authority, universe, prior Latest, destination and current owner hashes.
+Its SHA256 covers compact sorted-key UTF-8 JSON with a trailing LF and excludes
+the derived `seal_id` and `seal_sha256`. The seal ID is
+`rate-first-refresh-preexecution-<seal_sha256>`. It always states
+`first_refresh_authorized=false`.
+
+Future Control Center authorization must bind that seal ID/hash and the entire
+`owner_sha256` mapping. `authorization_id` is
+`rate-first-refresh-authorization-<SHA256(canonical payload excluding
+authorization_id and authorization_sha256)>`. `authorization_sha256` hashes
+the canonical payload excluding only `authorization_sha256`, so it includes
+the derived authorization ID. Changing any binding requires new Control Center
+approval; these helpers do not issue authorization. A new authorized decision
+can carry its own unique decision reference in the hashed payload.
+
+The authorization additionally binds `authorization_consumption_root_identity`
+to the normalized absolute authoritative artifacts root. Moving only the
+execution root cannot bypass consumption, and moving the authoritative root
+without new authorization is rejected.
+
+Consumption records live at
+`<authoritative artifacts root>/fundamental_first_refresh/authorization_consumption/<authorization_id>.json`,
+not inside an execution root. The existing publisher OS lock serializes claims
+and publishers. Lock contention waits at most ten seconds; this is not a
+provider retry. Latest and seal bindings are rechecked under that lock before
+the record is exclusively created, file-fsynced, directory-synced where
+supported, and cold-verified. No record is overwritten. Exclusive record
+creation is the irreversible claim point: a crash before request one still
+consumes authorization, while a partial/corrupt record blocks reuse. Filesystem
+administrators must preserve this immutable namespace; deletion is not a
+supported recovery operation. No claim of tamper resistance against an
+administrator deleting all evidence is made.
+
+Records bind artifact kind, authorization ID/hash, root identity, seal ID/hash,
+plan ID/hash, execution main, authority, universe, prior Latest, destination,
+normalized execution root identity/path, consumed_at, CONSUMED status and a
+canonical consumption hash. An existing intact record yields
+`FIRST_REFRESH_AUTHORIZATION_ALREADY_CONSUMED`; corruption yields
+`FIRST_REFRESH_AUTHORIZATION_CONSUMPTION_TAMPER`. Neither starts an execution.
+
+Actual Latest drift yields `FIRST_REFRESH_PREACQUISITION_LATEST_DRIFT` before
+claim, execution-store creation or capture. Drift arising while waiting for the
+lock is rechecked. Changes after claim remain protected by the unchanged final
+publication CAS. Existing success checkpoints, unknown-outcome STOP and separate
+Control Center continuation requirements remain unchanged.
+
+Verification binds Base `e38f3f4b7a588a607985a1b6fde5289568175d41` and the new PR
+head, permits only the six explicit hardening files, preserves every other main
+blob, and compares the AST of all original 51 test methods/assertions and the
+unchanged plan/dispatch/assembler/publisher/checkpoint owners. Current-main
+inherited tests, original 51 tests and new hardening tests are counted separately.
+Windows/Linux CI and the current-main replacement gate use synthetic materials
+only. Positive-status synthetic authorization uses an authority that cannot
+match the real activation seal; it is not a live grant.

@@ -7,6 +7,7 @@ It never imports Phase2 ranking or Decision State owners.
 from __future__ import annotations
 
 from copy import deepcopy
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from decimal import Decimal
 import hashlib
@@ -15,6 +16,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import time
 from typing import Any, Mapping
 
 from .eps_duration_facts.model import require
@@ -30,6 +32,7 @@ SNAPSHOT_KIND = "RATE_FUNDAMENTAL_FIRST_REFRESH_SNAPSHOT_V1"
 LATEST_KIND = "RATE_FUNDAMENTAL_FIRST_REFRESH_LATEST_V1"
 LATEST_NAME = "RATE_FUNDAMENTAL_FIRST_REFRESH_LATEST.json"
 OBJECT_NAME = "RATE_FUNDAMENTAL_FIRST_REFRESH_SNAPSHOT_V1.json"
+CONSUMPTION_NAMESPACE = Path("fundamental_first_refresh/authorization_consumption")
 EPS_PERIODS = tuple(CONTRACT["eps_periods"])
 REVENUE_PERIODS = tuple(CONTRACT["revenue_periods"])
 MOPS_ORDER = tuple((market, period) for market in ("TWSE", "TPEX") for period in REVENUE_PERIODS)
@@ -514,29 +517,164 @@ def preexecution_seal(plan: Mapping[str, Any], expected_previous_latest: str | N
         "main_sha": plan["execution_main_sha"],
         "authority_id": plan["authority_id"],
         "universe_identity": plan["universe_identity"],
+        "request_plan_id": plan["request_plan_id"],
         "request_plan_sha256": plan["request_plan_sha256"],
+        "planned_requests": plan["planned_requests"],
         "maximum_requests": plan["maximum_requests"],
         "expected_previous_fundamental_latest_identity": expected_previous_latest,
         "publication_destination": deepcopy(plan["publication_destination"]),
         "owner_sha256": {name: digest(path.read_bytes()) for name, path in owners.items()},
         "first_refresh_authorized": False,
     }
-    return {**core, "seal_sha256": digest(core)}
+    identity = digest(core)
+    return {**core, "seal_id": "rate-first-refresh-preexecution-" + identity, "seal_sha256": identity}
+
+
+def authorization_identity(authorization: Mapping[str, Any]) -> str:
+    core = {k: v for k, v in authorization.items() if k not in {"authorization_id", "authorization_sha256"}}
+    return "rate-first-refresh-authorization-" + digest(core)
+
+
+def authorization_digest(authorization: Mapping[str, Any]) -> str:
+    return digest({k: v for k, v in authorization.items() if k != "authorization_sha256"})
+
+
+def consumption_root_identity(artifacts_root: str | Path) -> str:
+    root = refresh.safe(artifacts_root).resolve()
+    return digest({"authoritative_artifacts_root": os.path.normcase(str(root))})
 
 
 def validate_execution_authorization(authorization: Mapping[str, Any], plan: Mapping[str, Any],
-                                     expected_previous_latest: str | None) -> None:
+                                     expected_previous_latest: str | None, *,
+                                     artifacts_root: str | Path | None = None) -> dict:
     require(authorization.get("status") == "FIRST_REFRESH_EXECUTION_AUTHORIZED",
             "FIRST_REFRESH_EXECUTION_NOT_AUTHORIZED")
+    seal = preexecution_seal(plan, expected_previous_latest)
     require(authorization.get("main_sha") == plan["execution_main_sha"]
             and authorization.get("authority_id") == plan["authority_id"]
             and authorization.get("universe_identity") == plan["universe_identity"]
             and authorization.get("request_plan_sha256") == plan["request_plan_sha256"]
+            and authorization.get("request_plan_id") == plan["request_plan_id"]
+            and type(authorization.get("planned_requests")) is int and authorization["planned_requests"] == 1984
+            and type(authorization.get("maximum_requests")) is int
             and authorization.get("maximum_requests") == 1984
             and authorization.get("publication_destination_identity") == plan["publication_destination"]["identity"]
             and authorization.get("expected_previous_fundamental_latest_identity") == expected_previous_latest
-            and authorization.get("single_use") is True,
+            and authorization.get("single_use") is True
+            and authorization.get("preexecution_seal_id") == seal["seal_id"]
+            and authorization.get("preexecution_seal_sha256") == seal["seal_sha256"]
+            and authorization.get("owner_sha256") == seal["owner_sha256"],
             "FIRST_REFRESH_EXECUTION_AUTHORIZATION_BINDING")
+    root_identity = authorization.get("authorization_consumption_root_identity")
+    require(isinstance(root_identity, str) and re.fullmatch(r"[0-9a-f]{64}", root_identity) is not None
+            and (artifacts_root is None or root_identity == consumption_root_identity(artifacts_root)),
+            "FIRST_REFRESH_AUTHORIZATION_CONSUMPTION_ROOT_BINDING")
+    require(authorization.get("authorization_id") == authorization_identity(authorization),
+            "FIRST_REFRESH_AUTHORIZATION_ID_BINDING")
+    require(authorization.get("authorization_sha256") == authorization_digest(authorization),
+            "FIRST_REFRESH_AUTHORIZATION_HASH_BINDING")
+    return seal
+
+
+def _actual_latest_precheck(artifacts_root: str | Path, expected_previous_latest: str | None) -> None:
+    actual = refresh.current_identity(refresh.safe(artifacts_root) / LATEST_NAME)
+    require(actual == expected_previous_latest, "FIRST_REFRESH_PREACQUISITION_LATEST_DRIFT")
+
+
+@contextmanager
+def _authorization_claim_lock(root: Path):
+    # Reuse the publisher's OS lock; bounded lock contention is not a network retry.
+    deadline = time.monotonic() + 10
+    while True:
+        manager = refresh.writer_lock(root)
+        try:
+            manager.__enter__()
+            break
+        except refresh.PublicationError as exc:
+            if str(exc) != "REFRESH_WRITER_CONFLICT":
+                raise
+            remaining = deadline - time.monotonic()
+            require(remaining > 0, "FIRST_REFRESH_AUTHORIZATION_CLAIM_LOCK_TIMEOUT")
+            time.sleep(min(0.01, remaining))
+    try:
+        yield
+    finally:
+        manager.__exit__(None, None, None)
+
+
+def _consumption_binding(authorization: Mapping[str, Any], plan: Mapping[str, Any], seal: Mapping[str, Any]) -> dict:
+    return {
+        "artifact_kind": "RATE_FIRST_REFRESH_AUTHORIZATION_CONSUMPTION_V1",
+        "authorization_id": authorization["authorization_id"],
+        "authorization_sha256": authorization["authorization_sha256"],
+        "authorization_consumption_root_identity": authorization["authorization_consumption_root_identity"],
+        "preexecution_seal_id": seal["seal_id"],
+        "preexecution_seal_sha256": seal["seal_sha256"],
+        "request_plan_id": plan["request_plan_id"],
+        "request_plan_sha256": plan["request_plan_sha256"],
+        "execution_main_sha": plan["execution_main_sha"],
+        "authority_id": plan["authority_id"],
+        "universe_identity": plan["universe_identity"],
+        "expected_previous_fundamental_latest_identity": seal["expected_previous_fundamental_latest_identity"],
+        "publication_destination_identity": plan["publication_destination"]["identity"],
+        "status": "CONSUMED",
+    }
+
+
+def verify_authorization_consumption(path: str | Path, authorization: Mapping[str, Any],
+                                     plan: Mapping[str, Any], seal: Mapping[str, Any]) -> dict:
+    path = refresh.safe(path)
+    try:
+        body = path.read_bytes()
+        value = read_metadata(body)
+        binding = _consumption_binding(authorization, plan, seal)
+        require(isinstance(value, dict) and all(value.get(k) == v for k, v in binding.items()),
+                "FIRST_REFRESH_AUTHORIZATION_CONSUMPTION_TAMPER")
+        core = {k: v for k, v in value.items() if k != "consumption_sha256"}
+        require(value.get("consumption_sha256") == digest(core) and body == canonical(value)
+                and path.name == authorization["authorization_id"] + ".json",
+                "FIRST_REFRESH_AUTHORIZATION_CONSUMPTION_TAMPER")
+        execution = refresh.safe(value["execution_root"]).resolve()
+        require(value["execution_root_identity"] == digest({"path": os.path.normcase(str(execution))}),
+                "FIRST_REFRESH_AUTHORIZATION_CONSUMPTION_TAMPER")
+        consumed = datetime.fromisoformat(value["consumed_at"].replace("Z", "+00:00"))
+        require(consumed.tzinfo is not None and consumed <= datetime.now(timezone.utc),
+                "FIRST_REFRESH_AUTHORIZATION_CONSUMPTION_TAMPER")
+        return value
+    except (ValueError, TypeError, KeyError) as exc:
+        require(False, "FIRST_REFRESH_AUTHORIZATION_CONSUMPTION_TAMPER")
+
+
+def claim_authorization(authorization: Mapping[str, Any], plan: Mapping[str, Any], *,
+                        artifacts_root: str | Path, execution_root: str | Path,
+                        expected_previous_latest: str | None, clock) -> dict:
+    root = refresh.safe(artifacts_root).resolve()
+    execution = refresh.safe(execution_root).resolve()
+    # Validate without writes first, then repeat under the shared publication lock.
+    _actual_latest_precheck(root, expected_previous_latest)
+    validate_execution_authorization(authorization, plan, expected_previous_latest, artifacts_root=root)
+    with _authorization_claim_lock(root):
+        _actual_latest_precheck(root, expected_previous_latest)
+        seal = validate_execution_authorization(authorization, plan, expected_previous_latest, artifacts_root=root)
+        path = refresh.safe(root / CONSUMPTION_NAMESPACE / (authorization["authorization_id"] + ".json"))
+        if path.exists():
+            verify_authorization_consumption(path, authorization, plan, seal)
+            require(False, "FIRST_REFRESH_AUTHORIZATION_ALREADY_CONSUMED")
+        require(not execution.exists(), "FIRST_REFRESH_EXECUTION_ROOT_MUST_BE_NEW")
+        consumed_at = clock()
+        stamp = datetime.fromisoformat(consumed_at.replace("Z", "+00:00"))
+        require(stamp.tzinfo is not None and stamp <= datetime.now(timezone.utc),
+                "FIRST_REFRESH_AUTHORIZATION_CONSUMPTION_TIME_INVALID")
+        core = {**_consumption_binding(authorization, plan, seal), "execution_root": str(execution),
+                "execution_root_identity": digest({"path": os.path.normcase(str(execution))}),
+                "consumed_at": consumed_at}
+        record = {**core, "consumption_sha256": digest(core)}
+        # Exclusive creation is the irreversible claim point. Partial/crashed records
+        # remain occupied and fail closed, never repaired or deleted for reuse.
+        _write_immutable(path, record)
+        for directory in (path.parent, path.parent.parent, root):
+            refresh.sync_directory(directory)
+        return verify_authorization_consumption(path, authorization, plan, seal)
 
 
 def current_main_guard(plan: Mapping[str, Any], *, repo: str | Path = ROOT) -> None:
@@ -615,11 +753,13 @@ def execute_authorized_first_refresh(plan: Mapping[str, Any], universe: Mapping[
                                      acquire=None, create_store=None, main_guard=None) -> dict:
     """Live-capable owner. It cannot run without a separately sealed J2 authorization."""
     validate_plan(plan, universe, plan["authority_id"], plan["execution_main_sha"])
-    validate_execution_authorization(authorization, plan, expected_previous_latest)
-    root = Path(execution_root)
-    require(not root.exists(), "FIRST_REFRESH_EXECUTION_ROOT_MUST_BE_NEW")
     main_guard = main_guard or (lambda: current_main_guard(plan))
     main_guard()
+    _actual_latest_precheck(artifacts_root, expected_previous_latest)
+    validate_execution_authorization(authorization, plan, expected_previous_latest, artifacts_root=artifacts_root)
+    claim_authorization(authorization, plan, artifacts_root=artifacts_root, execution_root=execution_root,
+                        expected_previous_latest=expected_previous_latest, clock=clock)
+    root = Path(execution_root)
     from scripts.run_prospective_provider_activation import acquire_once as accepted_acquire, create as accepted_create, replay
     acquire = acquire or accepted_acquire
     create_store = create_store or accepted_create

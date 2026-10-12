@@ -1,4 +1,4 @@
-name: RATE Fundamental First Refresh Execution Wiring
+name: RATE J2 Authorization Enforcement Hardening
 on:
   pull_request:
     branches: [main]
@@ -37,16 +37,16 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install lxml==6.1.1 tzdata==2025.2 PyYAML==6.0.3
-      - name: Exact-head inherited plus J2-E tests
+      - name: Exact-head inherited plus original J2-E and hardening tests
         run: >
           python -B scripts/verify_fundamental_first_refresh_execution.py
-          --expected-base 139505a3a6c33a19b7973c7f812497046a82d667
+          --expected-base e38f3f4b7a588a607985a1b6fde5289568175d41
           --expected-head "${{ github.event.pull_request.head.sha || github.sha }}"
           --output-dir "${{ runner.temp }}/fundamental-first-refresh-wiring"
       - name: Current-main replacement gate
         run: >
           python -B scripts/verify_ci_applicability.py
-          --expected-base 139505a3a6c33a19b7973c7f812497046a82d667
+          --expected-base e38f3f4b7a588a607985a1b6fde5289568175d41
           --expected-head "${{ github.event.pull_request.head.sha || github.sha }}"
           --output-dir "${{ runner.temp }}/fundamental-first-refresh-replacement"
       - uses: actions/upload-artifact@v4
