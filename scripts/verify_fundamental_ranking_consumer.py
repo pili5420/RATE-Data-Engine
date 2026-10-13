@@ -14,7 +14,7 @@ from scripts.verify_fundamental_first_refresh_execution import GROUPS as INHERIT
 from scripts.verify_ci_applicability import network_guard
 
 BASE = "e5953fa3ff7123a28d85ec6c4f361c25da9bc4ab"
-NEW_COUNT = 71
+NEW_COUNT = 72
 ALLOWED = {"src/fundamental_ranking_consumer.py", "tests/test_fundamental_ranking_consumer.py",
            "scripts/run_fundamental_ranking_consumer.py", "scripts/verify_fundamental_ranking_consumer.py",
            "docs/contracts/RATE_FUNDAMENTAL_RANKING_CONSUMER_V1.json",
@@ -26,6 +26,17 @@ GROUPS = {**INHERITED, "consumer_new": (["test_fundamental_ranking_consumer"], N
 def tree(ref):
     return {line.split("\t", 1)[1]: line.split("\t", 1)[0].split()[2]
             for line in git("ls-tree", "-r", ref).splitlines()}
+
+
+def clean_consumer_checkout(revision, directory):
+    # CLI cold starts need their own index, not an archive linked to another checkout.
+    subprocess.run(["git", "clone", "--local", "--no-hardlinks", "--no-checkout", str(ROOT), str(directory)],
+                   check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(directory), "checkout", "--detach", revision],
+                   check=True, capture_output=True)
+    if (git("-C", str(directory), "rev-parse", "HEAD") != revision
+            or git("-C", str(directory), "status", "--porcelain")):
+        raise ValueError("CONSUMER_SYNTHETIC_CHECKOUT_NOT_EXACT_CLEAN_HEAD")
 
 
 def main():
@@ -59,9 +70,13 @@ def main():
         env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8",
                "TEMP": str(temporary), "TMP": str(temporary)}
         for name, (modules, count) in GROUPS.items():
+            test_repo = mirror
+            if name == "consumer_new":
+                test_repo = Path(directory) / "consumer"
+                clean_consumer_checkout(args.expected_head, test_repo)
             output = args.output_dir.resolve() / (name + ".json")
-            run = subprocess.run([sys.executable, "-B", str(mirror / "scripts/verify_fundamental_ranking_consumer.py"),
-                "--test-child", str(output), *modules], cwd=mirror, env=env, capture_output=True)
+            run = subprocess.run([sys.executable, "-B", str(test_repo / "scripts/verify_fundamental_ranking_consumer.py"),
+                "--test-child", str(output), *modules], cwd=test_repo, env=env, capture_output=True)
             (args.output_dir / (name + ".log")).write_bytes(run.stdout + run.stderr)
             result = json.loads(output.read_text(encoding="utf-8"))
             result.update(exit_code=run.returncode, exact_count_pass=result["tests_run"] == count)

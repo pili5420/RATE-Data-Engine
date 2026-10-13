@@ -74,6 +74,11 @@ from otherwise complete Short inputs.
 
 ## Offline Operation
 
+The new consumer CI group runs in a fresh local native Git clone with its own
+index. Legacy archive mirrors remain unchanged for inherited regressions; they
+must not impersonate a clean CLI execution checkout. A dirty native checkout
+is still rejected before any consumer output is created.
+
 `scripts/run_fundamental_ranking_consumer.py` requires `--binding`,
 `--binding-sha256`, exact `--expected-base`/`--expected-head`, and a new external
 `--output-dir`. `--verify-bundle` plus `--verdict-content-sha256` cold-rebuilds

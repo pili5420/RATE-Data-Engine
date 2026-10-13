@@ -579,6 +579,23 @@ class ConsumerTests(unittest.TestCase):
         self.assertTrue(result["gates"]["short"]["input_ready"])
         self.assertFalse(result["ranking_authorized"])
 
+    def test_72_dirty_checkout_still_rejected_before_output(self):
+        from scripts.verify_fundamental_ranking_consumer import clean_consumer_checkout
+        head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT).decode().strip()
+        checkout = self.root / "dirty-cli-checkout"
+        clean_consumer_checkout(head, checkout)
+        (checkout / "SYNTHETIC_UNTRACKED_FILE.txt").write_text("synthetic only", encoding="utf-8")
+        binding_path = self.root / "dirty-cli-binding.json"
+        output = self.root / "dirty-cli-output"
+        binding_sha = write(binding_path, self.binding)
+        run = subprocess.run([sys.executable, "-B", str(checkout / "scripts/run_fundamental_ranking_consumer.py"),
+            "--binding", str(binding_path), "--binding-sha256", binding_sha,
+            "--expected-base", c.CONTRACT["base_sha"], "--expected-head", head, "--synthetic-only",
+            "--output-dir", str(output)], cwd=checkout, capture_output=True, text=True)
+        self.assertNotEqual(run.returncode, 0)
+        self.assertIn("CONSUMER_EXACT_HEAD_OR_WORKTREE_MISMATCH", run.stderr)
+        self.assertFalse(output.exists())
+
 
 if __name__ == "__main__":
     unittest.main()
