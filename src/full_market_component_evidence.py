@@ -148,7 +148,7 @@ def _history(rows, *, family, symbol, market, target, refs, session_dates, tdcc_
         return "MISSING_REQUIRED_HISTORY", "INSUFFICIENT_" + family.upper() + "_HISTORY"
     if family == "stock" and sum(r["volume"] for r in rows[-20:]) == 0:
         return "NOT_COMPUTED", "OWNER_VOLUME_DENOMINATOR_ZERO"
-    if family == "institutional" and sum(r["turnover"] for r in rows[-20:]) == 0:
+    if family == "institutional" and any(sum(r["turnover"] for r in rows[-n:]) == 0 for n in (5, 20)):
         return "NOT_COMPUTED", "OWNER_TURNOVER_DENOMINATOR_ZERO"
     return "PASS", None
 
@@ -271,10 +271,13 @@ def build(universe, *, expected_universe_identity, generated_at, validated_at, e
                         _, required = select_required_period_union([session], acceptance["tdcc_available_periods"])
                         require([r["period_end"] for r in dh[-5:]] == required[session], "COMPONENT_WRONG_TDCC_PERIOD")
                         require(len(ih) >= 20 and ih[-1]["trade_date"] == session, "COMPONENT_INSTITUTIONAL_HISTORY_SHORT")
+                        require(all(sum(r["turnover"] for r in ih[-n:]) > 0 for n in (5, 20)),
+                                "COMPONENT_INSTITUTIONAL_DENOMINATOR_ZERO")
                     except ValueError as exc:
                         if session == target:
                             for name in ("M7", "SmartMoney", "Rotation", "Stage"):
-                                verdicts[s][name].update(status="MISSING_REQUIRED_HISTORY", reason=str(exc))
+                                verdicts[s][name].update(status="NOT_COMPUTED" if "DENOMINATOR_ZERO" in str(exc)
+                                    else "MISSING_REQUIRED_HISTORY", reason=str(exc))
                         continue
                     fr = {field: [r for r in values if r["trade_date"] <= session][-6:] for field, values in rotations[s].items()}
                     institutional.append({"symbol": s, "institutional_history": deepcopy(ih), "tdcc_history": deepcopy(dh), **fr})

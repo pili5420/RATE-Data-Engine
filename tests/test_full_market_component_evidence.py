@@ -329,6 +329,22 @@ class ComponentEvidenceTests(unittest.TestCase):
         self.assertEqual(plan["core"]["retry"], 0)
         self.assertIsNone(plan["core"]["history_acquisition"]["expected_requests"])
 
+    def test_zero_turnover_five_session_denominator_isolated(self):
+        for row in self.h["issuers"]["SYN0000"]["histories"]["institutional"][-5:]:
+            row["turnover"] = 0
+        row = self.build()["core"]["issuers"][0]["components"]
+        self.assertEqual(row["M7"]["status"], "NOT_COMPUTED")
+        self.assertIsNone(row["M7"]["value"])
+        self.assertEqual(row["MHE"]["status"], "PASS")
+
+    def test_prior_session_zero_denominator_blocks_stage_only(self):
+        for row in self.h["issuers"]["SYN0000"]["histories"]["institutional"][-11:-6]:
+            row["turnover"] = 0
+        row = self.build()["core"]["issuers"][0]["components"]
+        self.assertEqual(row["Stage"]["status"], "NOT_COMPUTED")
+        self.assertIsNone(row["Stage"]["value"])
+        self.assertEqual(row["M7"]["status"], "PASS")
+
 
 if __name__ == "__main__":
     unittest.main()
