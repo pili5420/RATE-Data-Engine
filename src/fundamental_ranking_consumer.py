@@ -356,7 +356,8 @@ def component_verdict(name, value, as_of):
     return deepcopy(value)
 
 
-def eligibility_bridge(bundle, *, expected_content_sha256, symbol, market, components, as_of):
+def eligibility_bridge(bundle, *, expected_content_sha256, symbol, market, components, as_of,
+                       component_population_id=None):
     """Input readiness only; never consumes a ranking result or authorizes ranking."""
     require(bundle["artifact_kind"] == KIND and bundle["content_sha256"] == expected_content_sha256
             == digest(bundle["core"]) and bundle["core"]["governance"] == FLAGS,
@@ -364,6 +365,8 @@ def eligibility_bridge(bundle, *, expected_content_sha256, symbol, market, compo
     require(_time(bundle["consumer_validated_at"]) <= _time(as_of) <= _time(now()), "CONSUMER_BRIDGE_TIME")
     require(set(components) <= {n for names in RANK_INPUTS.values() for n in names if n != "Fundamental"},
             "CONSUMER_V1_IMPERSONATION_OR_UNKNOWN_COMPONENT")
+    require(not components or isinstance(component_population_id, str) and bool(component_population_id),
+            "CONSUMER_INDEPENDENT_COMPONENT_POPULATION_PIN_REQUIRED")
     selected = [r for r in bundle["core"]["issuers"] if r["symbol"] == symbol and r["market"] == market]
     require(len(selected) == 1, "CONSUMER_BRIDGE_ISSUER")
     fundamental = selected[0]
@@ -378,7 +381,7 @@ def eligibility_bridge(bundle, *, expected_content_sha256, symbol, market, compo
               for name in {n for names in RANK_INPUTS.values() for n in names if n != "Fundamental"}}
     for verdict in others.values():
         if verdict.get("population_id") is not None:
-            require(verdict["population_id"] == bundle["core"]["population_id"], "CONSUMER_COMPONENT_POPULATION")
+            require(verdict["population_id"] == component_population_id, "CONSUMER_COMPONENT_POPULATION")
     ready = {name: v["status"] == "PASS" and v.get("value") is not None for name, v in others.items()}
     ready["Fundamental"] = fundamental["status"] == "PASS"
     return {"artifact_kind": "RATE_PROSPECTIVE_FUNDAMENTAL_INPUT_BRIDGE_V1", "symbol": symbol, "market": market,

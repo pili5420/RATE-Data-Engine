@@ -67,6 +67,11 @@ never creates `formal_eps_period_identity=PASS`. Missing components are NOT_EVAL
 inferred ready. Input readiness is not execution authorization; scores/ranks
 remain null in bridge output. No renormalization or weight redistribution.
 
+Other component verdicts require an independent population identity pinned by
+the Phase L caller. The Fundamental owner's valid-score subset must not be
+inferred to be that population or used to exclude Fundamental-missing issuers
+from otherwise complete Short inputs.
+
 ## Offline Operation
 
 `scripts/run_fundamental_ranking_consumer.py` requires `--binding`,

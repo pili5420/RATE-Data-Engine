@@ -14,7 +14,7 @@ from scripts.verify_fundamental_first_refresh_execution import GROUPS as INHERIT
 from scripts.verify_ci_applicability import network_guard
 
 BASE = "e5953fa3ff7123a28d85ec6c4f361c25da9bc4ab"
-NEW_COUNT = 70
+NEW_COUNT = 71
 ALLOWED = {"src/fundamental_ranking_consumer.py", "tests/test_fundamental_ranking_consumer.py",
            "scripts/run_fundamental_ranking_consumer.py", "scripts/verify_fundamental_ranking_consumer.py",
            "docs/contracts/RATE_FUNDAMENTAL_RANKING_CONSUMER_V1.json",

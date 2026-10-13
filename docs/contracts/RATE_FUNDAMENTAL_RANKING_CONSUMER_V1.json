@@ -46,6 +46,7 @@
   "time_boundary": "SOURCE_OBSERVATION_AND_VALIDATION_PRESERVED_CONSUMER_RUN_TIMES_SEPARATE",
   "eligibility_bridge": "INDEPENDENT_PROSPECTIVE_BINDING_NO_V1_FORMAL_PERIOD_VERDICT",
   "other_components": "NOT_EVALUATED_UNTIL_SEPARATE_PHASE_L_REVIEW",
+  "other_component_population": "INDEPENDENT_PHASE_L_CALLER_PIN_NOT_FUNDAMENTAL_VALID_SCORE_SUBSET",
   "governance": {
     "prospective_only": true,
     "historical_pit": "UNPROVEN",

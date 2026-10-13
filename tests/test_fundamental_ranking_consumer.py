@@ -346,14 +346,16 @@ class ConsumerTests(unittest.TestCase):
     def bridge(self, symbol="P0001", components=None, bundle=None):
         bundle = bundle or self.bundle
         return c.eligibility_bridge(bundle, expected_content_sha256=bundle["content_sha256"],
-            symbol=symbol, market="TPEX", components=components or {}, as_of=LATER)
+            symbol=symbol, market="TPEX", components=components or {}, as_of=LATER,
+            component_population_id="SYNTHETIC_INDEPENDENT_COMPONENT_POPULATION")
 
     def components(self):
         inputs = component_fixture()["inputs"]
         result = {k: v for k, v in inputs.items() if k in {n for names in c.RANK_INPUTS.values() for n in names}
                   and k != "Fundamental"}
         for value in result.values():
-            value.update(observed_at=AT, validated_at=AT, population_id=self.bundle["core"]["population_id"])
+            value.update(observed_at=AT, validated_at=AT,
+                         population_id="SYNTHETIC_INDEPENDENT_COMPONENT_POPULATION")
         return result
 
     def test_38_top50_missing_fundamental(self):
@@ -565,6 +567,17 @@ class ConsumerTests(unittest.TestCase):
         bundle = c.build(self.binding, generated_at=AT, validated_at=LATER, synthetic=True)
         bundle["core"]["owner_code_sha256_lf"]["src/fundamental.py"] = "a" * 64
         self.assertEqual(c.CONTRACT["owner_code_sha256_lf"], expected)
+
+    def test_71_independent_component_population_requires_explicit_pin(self):
+        components = self.components()
+        with self.assertRaisesRegex(ValueError, "INDEPENDENT_COMPONENT_POPULATION_PIN_REQUIRED"):
+            c.eligibility_bridge(self.bundle, expected_content_sha256=self.bundle["content_sha256"],
+                                 symbol="P0001", market="TPEX", components=components, as_of=LATER)
+        self.assertNotEqual(components["M7"]["population_id"], self.bundle["core"]["population_id"])
+        result = self.bridge(components=components)
+        self.assertFalse(result["fundamental_ready"])
+        self.assertTrue(result["gates"]["short"]["input_ready"])
+        self.assertFalse(result["ranking_authorized"])
 
 
 if __name__ == "__main__":
