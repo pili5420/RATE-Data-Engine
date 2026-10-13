@@ -71,12 +71,20 @@ def load_sources(binding, *, trusted_acceptance_sha256, as_of, synthetic=False):
             and acceptance["raw_receipt_references_sha256"] == digest(binding["raw_receipts"]),
             "COMPONENT_NORMALIZATION_BINDING")
     require(acceptance["normalization_owner_sha256_lf"] == owners(), "COMPONENT_NORMALIZATION_OWNER_DRIFT")
+    require(isinstance(acceptance.get("source_snapshot_id"), str) and bool(acceptance["source_snapshot_id"]),
+            "COMPONENT_SOURCE_SNAPSHOT_ID_REQUIRED")
+    if "stage_reconstruction_authority_id" in acceptance:
+        require(isinstance(acceptance["stage_reconstruction_authority_id"], str) and bool(acceptance["stage_reconstruction_authority_id"]),
+                "COMPONENT_STAGE_AUTHORITY_IDENTITY")
     require(_time(acceptance["validated_at"]) <= _time(as_of), "COMPONENT_FUTURE_VALIDATION")
     refs = {}
     for ref in binding["raw_receipts"]:
         require(ref["id"] not in refs and ref["family"] in FAMILIES, "COMPONENT_DUPLICATE_SOURCE_ID")
         body = pinned(ref["raw"])
         receipt = read_metadata(pinned(ref["receipt"]))
+        require(receipt.get("material_scope", acceptance["material_scope"]) == acceptance["material_scope"]
+                and receipt.get("synthetic", False) is False and receipt.get("fallback_used", False) is False,
+                "COMPONENT_RECEIPT_SCOPE")
         expected_host = "tdcc.com.tw" if ref["family"] == "tdcc" else (
             "twse.com.tw" if ref["market"] == "TWSE" else "tpex.org.tw")
         endpoint = urlparse(receipt["endpoint"])
@@ -207,11 +215,15 @@ def build(universe, *, expected_universe_identity, generated_at, validated_at, e
         for market in ("TWSE", "TPEX"):
             dates = sessions[market]
             require(len(dates) >= 180 and dates == sorted(set(dates)) and dates[-1] == target
+                    and all(date.fromisoformat(d).isoformat() == d for d in dates)
                     and acceptance["latest_official_session"][market] == target,
                     "COMPONENT_LATEST_VERIFIED_SESSION_REQUIRED")
             require(acceptance["session_gate"][market] == "MARKET_SESSION_CONFIRMED", "COMPONENT_SESSION_GATE")
         # Aligned cross-sectional deltas cannot silently use different market sessions.
         require(sessions["TWSE"][-12:] == sessions["TPEX"][-12:], "COMPONENT_CROSS_MARKET_SESSION_ALIGNMENT")
+        periods = acceptance["tdcc_available_periods"]
+        require(periods == sorted(set(periods)) and all(date.fromisoformat(d).isoformat() == d and d <= target for d in periods),
+                "COMPONENT_TDCC_AVAILABLE_PERIOD_IDENTITY")
         observed = max((ref["observed_at"] for ref in refs.values()), key=_time)
         require(_time(observed) <= _time(acceptance["validated_at"]) <= _time(validated_at), "COMPONENT_OBSERVATION_TIME_ORDER")
         require(_time(observed) >= _time(target + "T13:30:00+08:00"), "COMPONENT_PRECLOSE_EVIDENCE")
@@ -328,6 +340,9 @@ def build(universe, *, expected_universe_identity, generated_at, validated_at, e
                     m7_score=latest["M7"], mhe_score=latest["MHE"], rotation_score=latest["Rotation"],
                     prior_state=deepcopy(prior), input_snapshot_id=acceptance["source_snapshot_id"],
                     feature_history=stage_history[s], control_state_id=authority)
+                require(stage["lineage_binding_status"] == "BOUND" and all(isinstance(stage.get(key), str) and stage[key]
+                    for key in ("source_state_id", "input_snapshot_id", "prior_stage_source", "stage_current"))
+                    and bool(stage.get("stage_field_lineage")), "COMPONENT_STAGE_LINEAGE_NOT_BOUND")
                 set_value(s, "Stage", stage["stage_normalized_score"], stage)
         for name in COMPONENTS:
             members = [s for s in verdicts if verdicts[s][name]["status"] == "PASS"]

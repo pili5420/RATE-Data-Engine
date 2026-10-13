@@ -380,6 +380,44 @@ class ComponentEvidenceTests(unittest.TestCase):
                     trusted_acceptance_sha256=self.b["acceptance"]["sha256"], synthetic=True)
         self.assertTrue(ran[0])
 
+    def test_missing_source_snapshot_identity_rejected(self):
+        self.a["source_snapshot_id"] = None
+        with self.assertRaisesRegex(ValueError, "SOURCE_SNAPSHOT_ID_REQUIRED"):
+            self.build()
+
+    def test_unbound_stage_owner_output_rejected(self):
+        original = m.build_production_stage_evidence
+        def unbound(*args, **kwargs):
+            result = original(*args, **kwargs)
+            result["lineage_binding_status"] = "PENDING_SNAPSHOT_BINDING"
+            return result
+        with patch.object(m, "build_production_stage_evidence", side_effect=unbound):
+            with self.assertRaisesRegex(ValueError, "STAGE_LINEAGE_NOT_BOUND"):
+                self.build()
+
+    def test_invalid_verified_session_date_rejected(self):
+        self.a["verified_sessions"]["TWSE"][0] = "2026-02-30"
+        with self.assertRaises(ValueError):
+            self.build()
+
+    def test_future_tdcc_available_period_rejected(self):
+        self.a["tdcc_available_periods"].append("2099-01-01")
+        with self.assertRaisesRegex(ValueError, "TDCC_AVAILABLE_PERIOD_IDENTITY"):
+            self.build()
+
+    def test_wrong_reconstruction_authority_type_rejected(self):
+        self.a["stage_reconstruction_authority_id"] = True
+        with self.assertRaisesRegex(ValueError, "STAGE_AUTHORITY_IDENTITY"):
+            self.build()
+
+    def test_synthetic_receipt_cannot_be_relabelled_by_acceptance(self):
+        self.a["material_scope"] = m.REAL
+        self.a["production_evidence_authoritative"] = True
+        self.h["material_scope"] = m.REAL
+        self.update()
+        with self.assertRaisesRegex(ValueError, "RECEIPT_SCOPE"):
+            m.load_sources(self.b, trusted_acceptance_sha256=self.b["acceptance"]["sha256"], as_of=m.now())
+
 
 if __name__ == "__main__":
     unittest.main()

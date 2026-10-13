@@ -14,7 +14,7 @@ from scripts.verify_fundamental_ranking_consumer import GROUPS as INHERITED, cle
 from scripts.verify_ci_applicability import network_guard
 
 BASE = "f951186df3ffe6eeeedb19500a1cd4966433fc99"
-NEW_COUNT = 40
+NEW_COUNT = 46
 ALLOWED = {"src/full_market_component_evidence.py", "tests/test_full_market_component_evidence.py",
            "scripts/build_full_market_component_evidence.py", "scripts/verify_full_market_component_evidence.py",
            "docs/contracts/RATE_FULL_MARKET_COMPONENT_EVIDENCE_V1.json",
