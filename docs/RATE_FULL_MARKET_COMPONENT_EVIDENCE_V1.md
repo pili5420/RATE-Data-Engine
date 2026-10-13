@@ -104,6 +104,10 @@ market/benchmark receipts are independently checked post-close and with the
 existing 19:30 freshness validator (180 minutes); fresh TDCC cannot freshen an
 old market receipt. Per-verdict observed time comes from its referenced receipts.
 `observed_at <= validated_at <= evidence_as_of` is enforced. Cold read rechecks
+The live CLI seals owner `validated_at` only after all calculation/validation
+calls complete, then samples `evidence_as_of` and rechecks current freshness.
+Explicit timestamps are reserved for deterministic evidence replay and synthetic
+tests, not a pre-computation runtime completion claim. Cold read rechecks
 freshness at the requested current review time, not only original generation.
 Mixed acquisition times are retained, never called a simultaneous market snapshot.
 

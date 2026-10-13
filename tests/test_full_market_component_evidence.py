@@ -345,6 +345,24 @@ class ComponentEvidenceTests(unittest.TestCase):
         self.assertIsNone(row["Stage"]["value"])
         self.assertEqual(row["M7"]["status"], "PASS")
 
+    def test_runtime_validation_time_is_after_owner_completion(self):
+        self.update()
+        ran = [False]
+        original = m.compute_scores
+        def calculate(*args, **kwargs):
+            result = original(*args, **kwargs)
+            ran[0] = True
+            return result
+        def clock():
+            return "2026-10-12T10:05:00Z" if ran[0] else "2026-10-12T10:04:00Z"
+        with patch.object(m, "compute_scores", side_effect=calculate), patch.object(m, "now", side_effect=clock):
+            result = m.build(self.u, expected_universe_identity=self.uid, generated_at="2026-10-12T10:02:00Z",
+                validated_at=None, evidence_as_of=None, binding=self.b,
+                trusted_acceptance_sha256=self.b["acceptance"]["sha256"], synthetic=True)
+        self.assertTrue(ran[0])
+        self.assertEqual(result["validated_at"], "2026-10-12T10:05:00Z")
+        self.assertTrue(all(v["validated_at"] == result["validated_at"] for r in result["core"]["issuers"] for v in r["components"].values()))
+
 
 if __name__ == "__main__":
     unittest.main()

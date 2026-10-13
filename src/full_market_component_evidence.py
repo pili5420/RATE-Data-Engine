@@ -160,8 +160,25 @@ def _population(component, members, universe_id, owner_hashes):
         "owner_sha256_lf": owner_hashes}), "component_population_count": len(members), "members": members}
 
 
+def _current_freshness(acceptance, refs, target, as_of):
+    from scripts.publish_production_source_bundle_latest import validate_freshness
+    for market in ("TWSE", "TPEX"):
+        for family, key in (("stock", "current_daily_receipt_ids"), ("benchmark", "current_benchmark_receipt_ids")):
+            ref = refs[acceptance[key][market]]
+            require(ref["family"] == family and ref["market"] == market, "COMPONENT_CURRENT_SOURCE_BINDING")
+            require(_time(ref["observed_at"]) >= _time(target + "T13:30:00+08:00"), "COMPONENT_PRECLOSE_EVIDENCE")
+            fresh = validate_freshness({"trading_date": target, "retrieval_timestamp": ref["observed_at"]},
+                cadence="19:30", trading_date=target, now=_time(as_of))
+            require(fresh["status"] == "PASS", "COMPONENT_STALE_EVIDENCE")
+
+
 def build(universe, *, expected_universe_identity, generated_at, validated_at, evidence_as_of,
           binding=None, trusted_acceptance_sha256=None, synthetic=False):
+    runtime_clock = validated_at is None and evidence_as_of is None
+    require(runtime_clock or validated_at is not None and evidence_as_of is not None, "COMPONENT_PARTIAL_CLOCK_BINDING")
+    if runtime_clock:
+        validated_at = now()
+        evidence_as_of = now()
     owner_hashes = owners()
     stocks, universe_id = exact_universe(universe)
     require(universe_id == expected_universe_identity and (synthetic or universe_id == CONTRACT["universe_identity"]),
@@ -198,17 +215,7 @@ def build(universe, *, expected_universe_identity, generated_at, validated_at, e
         observed = max((ref["observed_at"] for ref in refs.values()), key=_time)
         require(_time(observed) <= _time(acceptance["validated_at"]) <= _time(validated_at), "COMPONENT_OBSERVATION_TIME_ORDER")
         require(_time(observed) >= _time(target + "T13:30:00+08:00"), "COMPONENT_PRECLOSE_EVIDENCE")
-        from scripts.publish_production_source_bundle_latest import validate_freshness
-        for market in ("TWSE", "TPEX"):
-            for family, key in (("stock", "current_daily_receipt_ids"), ("benchmark", "current_benchmark_receipt_ids")):
-                current_ref = refs[acceptance[key][market]]
-                require(current_ref["family"] == family and current_ref["market"] == market,
-                        "COMPONENT_CURRENT_SOURCE_BINDING")
-                current_observed = current_ref["observed_at"]
-                require(_time(current_observed) >= _time(target + "T13:30:00+08:00"), "COMPONENT_PRECLOSE_EVIDENCE")
-                fresh = validate_freshness({"trading_date": target, "retrieval_timestamp": current_observed},
-                    cadence="19:30", trading_date=target, now=_time(evidence_as_of))
-                require(fresh["status"] == "PASS", "COMPONENT_STALE_EVIDENCE")
+        _current_freshness(acceptance, refs, target, evidence_as_of)
         checks = {}
         for issuer in stocks:
             symbol, market = issuer["symbol"], issuer["market"]
@@ -330,6 +337,17 @@ def build(universe, *, expected_universe_identity, generated_at, validated_at, e
                 v["component_population_id"] = populations[name]["component_population_id"]
                 if v["status"] == "NOT_EVALUATED":
                     v.update(status="NOT_COMPUTED", reason="EXISTING_OWNER_MINIMUM_POPULATION_OR_HISTORY_NOT_SATISFIED")
+    if runtime_clock:
+        # Seal actual owner completion, not the clock sampled before calculations.
+        completed = now()
+        sealed_as_of = now()
+        require(_time(validated_at) <= _time(completed) <= _time(sealed_as_of), "COMPONENT_RUNTIME_CLOCK_REGRESSION")
+        if binding is not None:
+            _current_freshness(acceptance, refs, target, sealed_as_of)
+        validated_at, evidence_as_of = completed, sealed_as_of
+        for components in verdicts.values():
+            for verdict in components.values():
+                verdict["validated_at"] = completed
     counts = {name: dict(Counter(verdicts[s][name]["status"] for s in verdicts)) for name in COMPONENTS}
     core = {"artifact_kind": KIND, "contract_version": CONTRACT["version"], "material_scope": SYNTHETIC if synthetic else
         REAL if binding else "MISSING_PRODUCTION_EVIDENCE_INVENTORY_ONLY",

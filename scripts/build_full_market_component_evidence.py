@@ -53,9 +53,8 @@ def main():
             owner.verify(bundle, universe, expected_universe_identity=owner.CONTRACT["universe_identity"], as_of=owner.now(),
                          trusted_acceptance_sha256=args.trusted_source_acceptance_sha256)
         else:
-            validated = owner.now()
             bundle = owner.build(universe, expected_universe_identity=owner.CONTRACT["universe_identity"],
-                generated_at=started, validated_at=validated, evidence_as_of=owner.now(), binding=binding,
+                generated_at=started, validated_at=None, evidence_as_of=None, binding=binding,
                 trusted_acceptance_sha256=args.trusted_source_acceptance_sha256)
         save("RATE_FULL_MARKET_COMPONENT_EVIDENCE_V1.json", bundle)
         preview = owner.readiness_preview(bundle, args.fundamental_verdicts, trusted_file_sha256=args.fundamental_file_sha256)
