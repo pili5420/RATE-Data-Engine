@@ -550,6 +550,22 @@ class ConsumerTests(unittest.TestCase):
             for path in (first, second):
                 if path.exists(): shutil.rmtree(path)
 
+    def test_69_component_requirements_preserved_without_engineering_dependency(self):
+        from src.fundamental_eligibility import RANK_INPUTS, OWNERS
+        self.assertEqual(c.RANK_INPUTS, RANK_INPUTS)
+        self.assertEqual(c.CONTRACT["component_owners"], {k: OWNERS[k] for k in c.CONTRACT["component_owners"]})
+        import ast
+        body = ast.parse((ROOT / "src/fundamental_ranking_consumer.py").read_text(encoding="utf-8"))
+        modules = {node.module for node in ast.walk(body) if isinstance(node, ast.ImportFrom)}
+        self.assertNotIn("fundamental_eligibility", modules)
+        self.assertNotIn("prospective_fundamental_provider", modules)
+
+    def test_70_returned_artifact_cannot_mutate_contract(self):
+        expected = deepcopy(c.CONTRACT["owner_code_sha256_lf"])
+        bundle = c.build(self.binding, generated_at=AT, validated_at=LATER, synthetic=True)
+        bundle["core"]["owner_code_sha256_lf"]["src/fundamental.py"] = "a" * 64
+        self.assertEqual(c.CONTRACT["owner_code_sha256_lf"], expected)
+
 
 if __name__ == "__main__":
     unittest.main()

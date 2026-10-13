@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT))
 from src.eps_duration_facts.model import require
 from src.fundamental_first_refresh_execution import canonical, digest
 from src.fundamental_ranking_consumer import build, now, pinned, verify_bundle
+from src.provider_eps_metadata import read_metadata
 from scripts.run_prospective_provider_activation import external
 
 
@@ -71,7 +72,7 @@ def main():
         generated = now()
         if args.verify_bundle:
             require(args.verdict_content_sha256 is not None, "CONSUMER_TRUSTED_VERDICT_HASH_REQUIRED")
-            bundle = json.loads(args.verify_bundle.read_bytes())
+            bundle = read_metadata(args.verify_bundle.read_bytes())
             require(bundle["content_sha256"] == args.verdict_content_sha256, "CONSUMER_TRUSTED_VERDICT_HASH_MISMATCH")
             verify_bundle(bundle, binding, as_of=now(), synthetic=args.synthetic_only)
         else:

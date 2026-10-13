@@ -60,8 +60,10 @@ authorization. Other component source readiness remains unproven.
 verdict content hash from a cold-verified bundle. Top50 and Long require its
 accepted Fundamental PASS value, plus every unchanged existing component
 requirement. Short retains all its own mandatory inputs without Fundamental.
-Other owner verdict validation reuses V1 fail-closed logic, but never creates
-`formal_eps_period_identity=PASS`. Missing components are NOT_EVALUATED, not
+The independent contract declares the same component requirements and validates
+prospective owner verdicts without importing the engineering-only V1 engine or
+acceptance sandbox. Regression compares the declarations to V1, but the runtime
+never creates `formal_eps_period_identity=PASS`. Missing components are NOT_EVALUATED, not
 inferred ready. Input readiness is not execution authorization; scores/ranks
 remain null in bridge output. No renormalization or weight redistribution.
 

@@ -8,13 +8,11 @@ import re
 
 from .eps_duration_facts.model import require
 from .fundamental import calculate_fundamental
-from .fundamental_eligibility import RANK_INPUTS, _verdict
 from .fundamental_first_refresh_execution import (
     PlanDispatchGate, build_request_plan, digest, exact_universe, read_fundamental_committed,
 )
 from .provider_eps_candidate import _canonical, _time, map_basic_eps_label
 from .provider_eps_metadata import read_metadata
-from .prospective_fundamental_provider import exact_date
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_PATH = ROOT / "docs/contracts/RATE_FUNDAMENTAL_RANKING_CONSUMER_V1.json"
@@ -23,6 +21,7 @@ VERSION = CONTRACT["version"]
 KIND = CONTRACT["artifact_kind"]
 EPS_ORDER = tuple(CONTRACT["eps_order"])
 REVENUE_ORDER = tuple(CONTRACT["revenue_order"])
+RANK_INPUTS = {k: tuple(v) for k, v in CONTRACT["component_requirements"].items()}
 FLAGS = CONTRACT["governance"]
 SYNTHETIC = "SYNTHETIC_ENGINEERING_ONLY_NOT_PRODUCTION_ACCEPTANCE"
 REAL = "ACCEPTED_PROSPECTIVE_PRODUCTION_READ_ONLY"
@@ -30,6 +29,11 @@ REAL = "ACCEPTED_PROSPECTIVE_PRODUCTION_READ_ONLY"
 
 def now():
     return datetime.now(timezone.utc).isoformat()
+
+
+def exact_date(quarter):
+    require(quarter in CONTRACT["provider_periods"], "CONSUMER_PERIOD_SUBSTITUTION")
+    return CONTRACT["provider_periods"][quarter]
 
 
 def pinned(ref):
@@ -296,7 +300,7 @@ def build(binding, *, generated_at, validated_at, synthetic=False):
     core = {"version": VERSION, "material_scope": SYNTHETIC if synthetic else REAL,
             "source_binding": deepcopy(binding), "governance": deepcopy(FLAGS),
             "contract_sha256_lf": digest(CONTRACT_PATH.read_bytes().replace(b"\r\n", b"\n")),
-            "owner_code_sha256_lf": CONTRACT["owner_code_sha256_lf"],
+            "owner_code_sha256_lf": deepcopy(CONTRACT["owner_code_sha256_lf"]),
             "eps_order": list(EPS_ORDER), "revenue_order": list(REVENUE_ORDER),
             "population_id": population, "universe_identity": snapshot["universe_identity"],
             "counts": {"input_universe": len(rows), "input_ready": len(expected),
@@ -322,6 +326,36 @@ def verify_bundle(bundle, binding, *, as_of, synthetic=False):
     return bundle
 
 
+def component_verdict(name, value, as_of):
+    """Prospective bridge schema only, independent of engineering eligibility V1."""
+    if value is None:
+        return {"status": "NOT_EVALUATED", "value": None}
+    require(isinstance(value, dict) and set(value) == {"status", "reason", "owner", "observed_at",
+            "validated_at", "evidence_references", "period_statuses", "value", "population_id"},
+            "CONSUMER_COMPONENT_SCHEMA")
+    require(value["owner"] == CONTRACT["component_owners"][name] and value["status"] in
+            {"PASS", "MISSING_REQUIRED_PERIOD", "NOT_EVALUATED", "NOT_AUTHORIZED", "UNDEFINED_ZERO_BASE",
+             "BLOCKED_EXTERNAL", "INVALID_EVIDENCE", "NOT_COMPUTED"}, "CONSUMER_COMPONENT_OWNER_OR_STATUS")
+    require(_time(value["observed_at"]) <= _time(value["validated_at"]) <= _time(as_of), "CONSUMER_COMPONENT_TIME")
+    require(value["period_statuses"] == {} and isinstance(value["population_id"], str)
+            and bool(value["population_id"]), "CONSUMER_COMPONENT_PERIOD_OR_POPULATION")
+    require(isinstance(value["evidence_references"], list) and value["evidence_references"],
+            "CONSUMER_COMPONENT_REFERENCE_REQUIRED")
+    for ref in value["evidence_references"]:
+        require(isinstance(ref, dict) and set(ref) == {"path", "sha256", "json_locator"}
+                and isinstance(ref["path"], str) and bool(ref["path"])
+                and isinstance(ref["sha256"], str) and re.fullmatch(r"[0-9a-f]{64}", ref["sha256"])
+                and isinstance(ref["json_locator"], str) and ref["json_locator"].startswith("$"),
+                "CONSUMER_COMPONENT_REFERENCE_INVALID")
+    passed = value["status"] == "PASS"
+    require((value["reason"] is None if passed else isinstance(value["reason"], str) and bool(value["reason"]))
+            and (passed or value["value"] is None), "CONSUMER_COMPONENT_VERDICT_CONFLICT")
+    if value["value"] is not None:
+        require(type(value["value"]) in (str, int, float, Decimal), "CONSUMER_COMPONENT_SCORE_INVALID")
+        score_value(Decimal(str(value["value"])))
+    return deepcopy(value)
+
+
 def eligibility_bridge(bundle, *, expected_content_sha256, symbol, market, components, as_of):
     """Input readiness only; never consumes a ranking result or authorizes ranking."""
     require(bundle["artifact_kind"] == KIND and bundle["content_sha256"] == expected_content_sha256
@@ -340,7 +374,7 @@ def eligibility_bridge(bundle, *, expected_content_sha256, symbol, market, compo
     else:
         require(fundamental["value"] is None, "CONSUMER_MISSING_SCORE_FORBIDDEN")
     require(_time(fundamental["input_available_at"]) <= _time(as_of), "CONSUMER_BRIDGE_NOT_YET_AVAILABLE")
-    others = {name: _verdict(name, components.get(name), as_of)
+    others = {name: component_verdict(name, components.get(name), as_of)
               for name in {n for names in RANK_INPUTS.values() for n in names if n != "Fundamental"}}
     for verdict in others.values():
         if verdict.get("population_id") is not None:

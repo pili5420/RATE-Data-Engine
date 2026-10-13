@@ -14,7 +14,22 @@
     "acceptance_sha256": "37e06fb9cc93bea55c6514c41a3830566583ab36973aa3420986001e9450ddaf"
   },
   "eps_order": ["2026Q2", "2026Q1", "2025Q4", "2025Q3", "2025Q2", "2025Q1", "2024Q4", "2024Q3"],
+  "provider_periods": {
+    "2024Q3": "2024-09-30", "2024Q4": "2024-12-31",
+    "2025Q1": "2025-03-31", "2025Q2": "2025-06-30", "2025Q3": "2025-09-30", "2025Q4": "2025-12-31",
+    "2026Q1": "2026-03-31", "2026Q2": "2026-06-30"
+  },
   "revenue_order": ["2026-09", "2026-08", "2026-07"],
+  "component_requirements": {
+    "top50": ["M7", "MHE", "Stage", "Rotation", "SmartMoney", "Fundamental", "RelativeStrength", "Liquidity"],
+    "long": ["Fundamental", "Stage", "MHE", "SmartMoney", "RelativeStrength", "M7", "Liquidity"],
+    "short": ["M7", "Rotation", "SmartMoney", "MHE", "Stage", "RelativeStrength", "Liquidity"]
+  },
+  "component_owners": {
+    "Stage": "src/stage_evidence.py", "Rotation": "src/institutional_features.py",
+    "M7": "src/rate_logic.py", "MHE": "src/rate_logic.py", "SmartMoney": "src/institutional_features.py",
+    "RelativeStrength": "src/technical_features.py", "Liquidity": "src/technical_features.py"
+  },
   "owner": "src/fundamental.py",
   "owner_function": "calculate_fundamental",
   "owner_code_sha256_lf": {
