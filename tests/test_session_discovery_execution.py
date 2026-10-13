@@ -228,6 +228,20 @@ class AuthorizationTests(Fixture):
         with self.assertRaisesRegex(Exception, "IN_REPOSITORY"):
             m.build_seal(self.plan, m.ROOT / "bad", self.consumption)
 
+    def test_other_checkout_output_rejected(self):
+        other = self.root / "other-checkout"
+        other.mkdir()
+        (other / ".git").mkdir()
+        with self.assertRaisesRegex(Exception, "IN_REPOSITORY"):
+            m.build_seal(self.plan, other / "discovery", self.consumption)
+
+    def test_other_worktree_consumption_rejected(self):
+        other = self.root / "other-worktree"
+        other.mkdir()
+        (other / ".git").write_text("gitdir: SYNTHETIC_ONLY", encoding="utf-8")
+        with self.assertRaisesRegex(Exception, "IN_REPOSITORY"):
+            m.build_seal(self.plan, self.artifacts, other / "claims")
+
     def test_protected_output_root(self):
         with self.assertRaisesRegex(Exception, "PROTECTED_OUTPUT"):
             m.build_seal(self.plan, self.root / "state" / "discovery", self.consumption)

@@ -98,6 +98,8 @@ def external_roots(artifacts, consumption, repo=ROOT):
             and not consumption.is_relative_to(artifacts), "DISCOVERY_ROOT_OVERLAP")
     # These are discovery-owned, caller-chosen roots, not shared Production directories.
     for path in (artifacts, consumption):
+        require(not any((parent / ".git").exists() for parent in (path, *path.parents)),
+                "DISCOVERY_OUTPUT_IN_REPOSITORY")
         require(not any(part.lower() in {"artifacts", "production", "state", "portfolio", "ledger", "scheduler"}
                         for part in path.parts), "DISCOVERY_PROTECTED_OUTPUT_ROOT")
     return artifacts, consumption

@@ -56,7 +56,7 @@ python -B scripts/run_session_discovery_execution.py --operation execute `
 
 The roots are sealed absolute path identities; changing output children cannot
 reuse an authorization. Changing either sealed root invalidates authorization.
-Roots cannot be the repository, each other, nested in one another, symlinks or
+Roots cannot be any Git checkout/worktree, each other, nested in one another, symlinks or
 junctions, or known Production/state/portfolio/ledger/scheduler namespaces.
 Use newly dedicated discovery roots; do not designate a sealed ancestor archive.
 
