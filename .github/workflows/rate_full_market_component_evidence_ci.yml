@@ -1,0 +1,60 @@
+name: RATE Full-Market Component Evidence
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/full_market_component_evidence.py
+      - scripts/build_full_market_component_evidence.py
+      - scripts/verify_full_market_component_evidence.py
+      - tests/test_full_market_component_evidence.py
+      - docs/contracts/RATE_FULL_MARKET_COMPONENT_EVIDENCE_V1.json
+      - docs/RATE_FULL_MARKET_COMPONENT_EVIDENCE_V1.md
+      - .github/workflows/rate_full_market_component_evidence_ci.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: rate-component-evidence-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  exact-head:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install lxml==6.1.1 tzdata==2025.2 PyYAML==6.0.3
+      - name: Exact-head inherited and component synthetic gates
+        run: >-
+          python -B scripts/verify_full_market_component_evidence.py
+          --expected-base f951186df3ffe6eeeedb19500a1cd4966433fc99
+          --expected-head "${{ github.event.pull_request.head.sha || github.sha }}"
+          --output-dir "${{ runner.temp }}/components"
+      - name: Current-main replacement compatibility gate
+        run: >-
+          python -B scripts/verify_ci_applicability.py
+          --expected-base f951186df3ffe6eeeedb19500a1cd4966433fc99
+          --expected-head "${{ github.event.pull_request.head.sha || github.sha }}"
+          --output-dir "${{ runner.temp }}/components-replacement"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: COMPONENT_SYNTHETIC_${{ matrix.os }}_${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            ${{ runner.temp }}/components
+            ${{ runner.temp }}/components-replacement
+          if-no-files-found: error
+          retention-days: 14
