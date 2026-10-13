@@ -27,10 +27,25 @@
   "benchmark_session_policy": "Independent source-native TWSE/TPEX chains, completed and distinct; benchmark>=180 alone does not prove missingness-free stock calendar",
   "inventory": "All1978 retained; module readiness is not ranking/provider/Production authorization; no fill or older-session substitution",
   "common_cutoff": {
-    "history_executor": "Independent source-native cutoffs",
-    "existing_phase_m_decision_owner": "UNCHANGED",
+    "history_executor": "SOURCE_NATIVE_INDEPENDENT_CUTOFFS",
+    "phase_m_decision_owner": "UNCHANGED",
     "reference": "src/full_market_component_evidence.py::build; COMPONENT_LATEST_VERIFIED_SESSION_REQUIRED and COMPONENT_CROSS_MARKET_SESSION_ALIGNMENT",
-    "status": "CONTROL_CENTER_SPEC_DECISION_REQUIRED"
+    "status": "CONTROL_CENTER_DECISION_ACCEPTED_STRICT_COMMON_LATEST_SESSION",
+    "strict_common_latest_target_required": true,
+    "required_target_bindings": [
+      "verified_sessions[TWSE][-1] == target",
+      "verified_sessions[TPEX][-1] == target",
+      "latest_official_session[TWSE] == target",
+      "latest_official_session[TPEX] == target"
+    ],
+    "minimum_verified_sessions_per_market": 180,
+    "final12_cross_market_alignment_required": true,
+    "mismatch_decision_eligibility": "BLOCKED",
+    "backdated_common_target_substitution_allowed": false,
+    "intersection_latest_target_substitution_allowed": false,
+    "history_evidence_mutation_for_alignment_allowed": false,
+    "acquisition_pass_grants_phase_m_decision_eligibility": false,
+    "reevaluation": "ONLY_AFTER_OFFICIAL_LATEST_SESSION_EVIDENCE_NATURALLY_ALIGNS"
   },
   "historical_pit": "UNPROVEN",
   "original_eight_quarter_coverage_credit": 0,

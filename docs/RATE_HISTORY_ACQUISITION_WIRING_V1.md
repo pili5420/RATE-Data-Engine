@@ -121,14 +121,30 @@ common share/NTD scale by itself. TPEx stock evidence remains NOT_READY until a
 separately approved deterministic unit qualification boundary is provided. A
 schema-positive synthetic test is not a unit-qualification PASS.
 
-The existing Phase M decision contract is deliberately unchanged:
+## Accepted Control Center Common-Cutoff Decision
+
+Decision status: `CONTROL_CENTER_DECISION_ACCEPTED_STRICT_COMMON_LATEST_SESSION`.
+The history executor retains `SOURCE_NATIVE_INDEPENDENT_CUTOFFS`: each market
+preserves its official native latest session and all valid evidence. No artificial
+alignment, backfill, zero/forward fill, synthetic session, cross-market
+substitution or deletion of newer valid evidence is allowed.
+
+The existing Phase M decision contract and owner are deliberately unchanged:
 `src/full_market_component_evidence.py::build` requires `dates[-1] == target`,
 `latest_official_session[market] == target` under
 COMPONENT_LATEST_VERIFIED_SESSION_REQUIRED, and equal final12 session dates under
 COMPONENT_CROSS_MARKET_SESSION_ALIGNMENT. Its accepted source scope is fixed in
-`docs/contracts/RATE_FULL_MARKET_COMPONENT_EVIDENCE_V1.json`. Relaxing this owner
-would change controlled cross-sectional semantics, so the downstream status is
-`CONTROL_CENTER_SPEC_DECISION_REQUIRED`, not an engineering policy decision.
+`docs/contracts/RATE_FULL_MARKET_COMPONENT_EVIDENCE_V1.json`. Both TWSE and TPEx
+must have>=180 verified sessions; each market's verified latest and official
+latest must equal the same target, and their final12 session dates must match.
+
+When native latest sessions differ, history acquisition evidence may remain PASS
+and immutable, but Phase M Decision Eligibility is BLOCKED. Neither the older
+market date nor the maximum date in the markets' intersection may be substituted
+as a Production target. Reevaluate only after both official latest-session
+evidence chains naturally align; alignment alone does not bypass any other gate.
+Acquisition PASS never grants Phase M decision eligibility. This accepted decision
+does not release `TPEX_UNIT_SCALE_QUALIFICATION_REQUIRED` or authorize live requests.
 
 ## Verification and Governance
 
@@ -145,7 +161,8 @@ fallbackfalse; ranking0; Production publication0; decision/production eligibilit
 false. No old evidence root, historical pin, activation binding, state, portfolio,
 transaction ledger, model, strategy, ranking owner or formula is changed.
 
-Next gate: Control Center engineering review, explicit common-cutoff policy
-decision, and separately authorized small historical schema/unit qualification.
+Next gate: final Control Center engineering review and separately authorized
+small historical schema/unit qualification. The common-cutoff decision is bound
+above and no longer pending.
 No consumed discovery authorization is reusable. No full-history live run, merge,
 schedule, warmup or ranking activation is performed by this CR.

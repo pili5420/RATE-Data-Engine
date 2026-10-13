@@ -15,12 +15,35 @@ from scripts.verify_fundamental_ranking_consumer import clean_consumer_checkout,
 from scripts.verify_ci_applicability import network_guard
 
 BASE = "54c318c2a72fbd87fa3d03f3f19fa1284e6426f6"
-NEW_COUNT = 72
+PREVIOUS_HEAD = "c8dae63c00b50571a25e77e541b7e1a13821cd82"
+NEW_COUNT = 74
 ADDED = {"src/history_acquisition_execution.py", "src/history_acquisition_transport.py", "src/history_acquisition_validation.py",
     "scripts/run_history_acquisition.py", "scripts/verify_history_acquisition_wiring.py", "tests/test_history_acquisition_wiring.py",
     "docs/contracts/RATE_HISTORY_ACQUISITION_WIRING_V1.json", "docs/RATE_HISTORY_ACQUISITION_WIRING_V1.md",
     ".github/workflows/rate_history_acquisition_wiring_ci.yml"}
 GROUPS = {**INHERITED, "history_wiring_new": (["test_history_acquisition_wiring"], NEW_COUNT)}
+DECISION_FILES = {"docs/contracts/RATE_HISTORY_ACQUISITION_WIRING_V1.json", "docs/RATE_HISTORY_ACQUISITION_WIRING_V1.md",
+    "scripts/verify_history_acquisition_wiring.py", "tests/test_history_acquisition_wiring.py"}
+
+
+def decision_binding(contract=None):
+    if contract is None:
+        contract = json.loads((ROOT / "docs/contracts/RATE_HISTORY_ACQUISITION_WIRING_V1.json").read_text(encoding="utf-8"))
+    expected = {
+        "history_executor": "SOURCE_NATIVE_INDEPENDENT_CUTOFFS", "phase_m_decision_owner": "UNCHANGED",
+        "reference": "src/full_market_component_evidence.py::build; COMPONENT_LATEST_VERIFIED_SESSION_REQUIRED and COMPONENT_CROSS_MARKET_SESSION_ALIGNMENT",
+        "status": "CONTROL_CENTER_DECISION_ACCEPTED_STRICT_COMMON_LATEST_SESSION",
+        "strict_common_latest_target_required": True,
+        "required_target_bindings": ["verified_sessions[TWSE][-1] == target", "verified_sessions[TPEX][-1] == target",
+            "latest_official_session[TWSE] == target", "latest_official_session[TPEX] == target"],
+        "minimum_verified_sessions_per_market": 180, "final12_cross_market_alignment_required": True,
+        "mismatch_decision_eligibility": "BLOCKED", "backdated_common_target_substitution_allowed": False,
+        "intersection_latest_target_substitution_allowed": False, "history_evidence_mutation_for_alignment_allowed": False,
+        "acquisition_pass_grants_phase_m_decision_eligibility": False,
+        "reevaluation": "ONLY_AFTER_OFFICIAL_LATEST_SESSION_EVIDENCE_NATURALLY_ALIGNS"}
+    if contract.get("common_cutoff") != expected:
+        raise ValueError("HISTORY_CONTROL_CENTER_DECISION_BINDING_INVALID")
+    return contract["common_cutoff"]
 
 
 def main():
@@ -39,6 +62,13 @@ def main():
     old, new = tree(BASE), tree(a.expected_head)
     if any(new.get(path) != blob for path, blob in old.items()):
         raise ValueError("GOVERNANCE_ESCALATION_REQUIRED_EXISTING_BLOB_CHANGED")
+    if git("merge-base", PREVIOUS_HEAD, a.expected_head) != PREVIOUS_HEAD or set(
+        git("diff", "--name-status", "--no-renames", PREVIOUS_HEAD, a.expected_head).splitlines()) != {"M\t" + path for path in DECISION_FILES}:
+        raise ValueError("HISTORY_DECISION_BINDING_FOUR_FILE_DELTA_REQUIRED")
+    previous = tree(PREVIOUS_HEAD)
+    if any(new.get(path) != blob for path, blob in previous.items() if path not in DECISION_FILES):
+        raise ValueError("HISTORY_DECISION_BINDING_RUNTIME_CHANGED")
+    binding = decision_binding()
     if a.output_dir.exists():
         raise ValueError("VERIFICATION_OUTPUT_MUST_BE_NEW")
     a.output_dir.mkdir(parents=True)
@@ -75,7 +105,10 @@ def main():
         "official_market_data_requests": 0, "financial_requests": 0, "ranking_executions": 0, "production_publications": 0,
         "historical_pit": "UNPROVEN", "intraday": "BLOCKED_EXTERNAL", "fallback_allowed": False,
         "real_calendar_180_ready": False, "tpex_unit_scale": "TPEX_UNIT_SCALE_QUALIFICATION_REQUIRED",
-        "common_cutoff": "CONTROL_CENTER_SPEC_DECISION_REQUIRED"})
+        "common_cutoff": binding["status"], "control_center_decision": binding,
+        "previous_head": PREVIOUS_HEAD, "changed_files_from_previous_head": sorted(DECISION_FILES),
+        "runtime_files_changed_from_previous_head": 0, "phase_m_owner_changed": False,
+        "strategy_ranking_files_modified": 0})
     return 0 if passed else 1
 
 

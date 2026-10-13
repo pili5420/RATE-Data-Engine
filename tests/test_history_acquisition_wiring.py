@@ -96,6 +96,41 @@ class HistoryAcquisitionTests(unittest.TestCase):
         self.assertEqual(result["coverage"]["issuer_count"], 1978)
         self.assertFalse(result["coverage"]["calendar_180_ready"])
 
+    def test_control_center_decision_binds_independent_history_and_strict_decision(self):
+        from scripts.verify_history_acquisition_wiring import decision_binding
+        binding = decision_binding()
+        self.assertEqual(binding["status"], "CONTROL_CENTER_DECISION_ACCEPTED_STRICT_COMMON_LATEST_SESSION")
+        self.assertEqual(binding["history_executor"], "SOURCE_NATIVE_INDEPENDENT_CUTOFFS")
+        self.assertEqual(binding["phase_m_decision_owner"], "UNCHANGED")
+        self.assertEqual(binding["minimum_verified_sessions_per_market"], 180)
+        self.assertEqual(len(binding["required_target_bindings"]), 4)
+        self.assertTrue(binding["strict_common_latest_target_required"])
+        self.assertTrue(binding["final12_cross_market_alignment_required"])
+        self.assertEqual(binding["mismatch_decision_eligibility"], "BLOCKED")
+        self.assertFalse(binding["backdated_common_target_substitution_allowed"])
+        self.assertFalse(binding["intersection_latest_target_substitution_allowed"])
+        self.assertFalse(binding["history_evidence_mutation_for_alignment_allowed"])
+        self.assertFalse(binding["acquisition_pass_grants_phase_m_decision_eligibility"])
+        self.assertEqual(self.execute()["status"], "PASS")
+        self.assertNotEqual(self.cutoffs["TWSE"], self.cutoffs["TPEX"])
+
+    def test_control_center_decision_rejects_unresolved_or_weakened_binding(self):
+        from scripts.verify_history_acquisition_wiring import decision_binding
+        contract = json.loads((ROOT / "docs/contracts/RATE_HISTORY_ACQUISITION_WIRING_V1.json").read_bytes())
+        changes = {"status": "CONTROL_CENTER_SPEC_DECISION_REQUIRED", "history_executor": "ARTIFICIAL_COMMON_CUTOFF",
+            "phase_m_decision_owner": "MODIFIED", "strict_common_latest_target_required": False,
+            "minimum_verified_sessions_per_market": 179, "final12_cross_market_alignment_required": False,
+            "mismatch_decision_eligibility": "PASS", "backdated_common_target_substitution_allowed": True,
+            "intersection_latest_target_substitution_allowed": True, "history_evidence_mutation_for_alignment_allowed": True,
+            "acquisition_pass_grants_phase_m_decision_eligibility": True, "required_target_bindings": [],
+            "reevaluation": "USE_OLDER_COMMON_DATE"}
+        for key, value in changes.items():
+            with self.subTest(field=key):
+                changed = deepcopy(contract)
+                changed["common_cutoff"][key] = value
+                with self.assertRaisesRegex(ValueError, "HISTORY_CONTROL_CENTER_DECISION_BINDING_INVALID"):
+                    decision_binding(changed)
+
     def test_pending_authorization_rejected_before_claim(self):
         self.auth = self.candidate
         with self.assertRaisesRegex(ValueError, "HISTORY_AUTHORIZATION_MISMATCH"):
