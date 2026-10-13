@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 from .eps_duration_facts.model import require
 from .provider_eps_dispatch import DispatchGate, exclusive_scan
 from .provider_eps_metadata import read_metadata, _object, _constant, _finite, number
+from .sources.twse import BASE as TWSE_BASE
 from .sources.tpex import BENCHMARK_ENDPOINT, CURRENT_DAILY_ENDPOINT
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -57,8 +58,8 @@ def verify_identity(value, prefix, id_field, hash_field):
 
 
 def targets():
-    routes = [("TWSE", "benchmark", "https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX"),
-              ("TWSE", "market_daily", "https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY_ALL"),
+    routes = [("TWSE", "benchmark", TWSE_BASE + "/exchangeReport/MI_INDEX"),
+              ("TWSE", "market_daily", TWSE_BASE + "/exchangeReport/STOCK_DAY_ALL"),
               ("TPEX", "benchmark", BENCHMARK_ENDPOINT),
               ("TPEX", "market_daily", CURRENT_DAILY_ENDPOINT)]
     return [{"ordinal": n, "request_key": market + ":" + product, "market": market,
@@ -241,27 +242,27 @@ def response_session(body, entry, observed_at):
     _finite(payload)
     dates, locators = [], []
     if entry["market"] == "TWSE":
-        require(isinstance(payload, dict) and payload.get("stat") == "OK", "DISCOVERY_SCHEMA_INVALID")
-        dates.append(session_date(payload.get("date")))
-        tables = payload.get("tables") if entry["product"] == "benchmark" else [payload]
-        require(isinstance(tables, list) and tables, "DISCOVERY_SCHEMA_INVALID")
-        matching = []
-        for i, table in enumerate(tables):
-            require(isinstance(table, dict), "DISCOVERY_SCHEMA_INVALID")
-            fields, rows = table.get("fields"), table.get("data")
-            require(isinstance(fields, list) and len(set(fields)) == len(fields) and isinstance(rows, list), "DISCOVERY_SCHEMA_INVALID")
-            required = {"指數", "收盤指數"} if entry["product"] == "benchmark" else {"證券代號", "收盤價"}
-            if not required <= set(fields):
-                continue
-            for j, row in enumerate(rows):
-                require(isinstance(row, list) and len(row) == len(fields), "DISCOVERY_SCHEMA_INVALID")
-                if entry["product"] == "benchmark":
-                    if row[fields.index("指數")] != "發行量加權股價指數":
-                        continue
-                matching.append(row)
-                locators.append(f"$.tables[{i}].data[{j}]" if entry["product"] == "benchmark" else f"$.data[{j}]")
-        require(matching and (entry["product"] != "benchmark" or len(matching) == 1), "DISCOVERY_SCHEMA_INVALID")
-        rows_count = len(matching)
+        # Reuse the accepted OpenAPI field/numeric contract, not the RWD tables family.
+        from .public_official_partial_valid import _first, _numeric
+        require(isinstance(payload, list) and payload, "DISCOVERY_SCHEMA_INVALID")
+        seen = set()
+        for i, row in enumerate(payload):
+            require(isinstance(row, dict), "DISCOVERY_SCHEMA_INVALID")
+            date_fields = [field for field in ("Date", "日期") if field in row]
+            require(date_fields, "DISCOVERY_SCHEMA_INVALID")
+            row_dates = {session_date(row[field]) for field in date_fields}
+            require(len(row_dates) == 1, "DISCOVERY_SESSION_IDENTITY_INVALID")
+            try:
+                identity = _first(row, ("IndexName", "Name", "指數", "symbol") if entry["product"] == "benchmark" else ("Code",))
+                _numeric(_first(row, ("ClosingIndex", "收盤指數", "close") if entry["product"] == "benchmark" else ("ClosingPrice",)), minimum=0)
+            except (RuntimeError, ValueError, TypeError):
+                require(False, "DISCOVERY_SCHEMA_INVALID")
+            require(isinstance(identity, str) and identity.strip() and identity not in seen, "DISCOVERY_SCHEMA_INVALID")
+            seen.add(identity)
+            dates.append(next(iter(row_dates)))
+            locators.append(f"$[{i}]")
+        require(len(set(dates)) == 1, "DISCOVERY_SESSION_IDENTITY_INVALID")
+        rows_count = len(payload)
     else:
         require(isinstance(payload, list) and payload, "DISCOVERY_SCHEMA_INVALID")
         for i, row in enumerate(payload):

@@ -7,8 +7,8 @@ No live HTTP requests are made during engineering or CI. No scheduling is enable
 
 ## Exact Scope
 
-1. TWSE benchmark: `https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX`
-2. TWSE market: `https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY_ALL`
+1. TWSE benchmark: `src/sources/twse.py::BASE + "/exchangeReport/MI_INDEX"`
+2. TWSE market: `src/sources/twse.py::BASE + "/exchangeReport/STOCK_DAY_ALL"`
 3. TPEx benchmark: current-main `src/sources/tpex.py::BENCHMARK_ENDPOINT`
 4. TPEx market: current-main `src/sources/tpex.py::CURRENT_DAILY_ENDPOINT`
 
@@ -92,8 +92,12 @@ traceback are create-only; claim remains consumed. No fifth request is possible.
 
 ## Session Semantics
 
-TWSE accepts only OK table JSON with an exact date: benchmark table must contain
-the exact broad index row, market table must have security code and close fields.
+TWSE accepts the formal OpenAPI record-array family, not RWD table JSON.
+Exact `Date`/`日期` fields must resolve to one unambiguous session. Benchmark
+identity/close fields reuse the accepted public-official owner contract; market
+records use the existing daily owner's `Code`/`ClosingPrice` fields. All index
+rows and raw locators are retained; this is date discovery, not index-price
+selection. See `RATE_DISCOVERY_TWSE_BINDING_DEFECT_001.md` for compatibility evidence.
 TPEx accepts its list-of-records products with explicit Date and product-specific
 fields. ROC/Gregorian dates are normalized only under exact supported formats.
 Nonfinite/duplicate JSON keys, ambiguous mixed daily dates, future sessions and
@@ -104,11 +108,17 @@ returns, full history, a 180-session calendar or a holiday conclusion.
 
 ## Verification And Boundaries
 
-The dedicated verifier checks eight additive files, all existing main blobs,
+The original dedicated verifier checks the original eight additive files, all existing main blobs,
 all inherited suites (including PR62 and PR63), new synthetic cases and the
 unchanged current-main replacement/continuity gate on Windows and Linux.
 Ordinary test children deny outbound network through the inherited audit hook;
 fake transport lifecycle/cold processes never touch public endpoints.
+
+The binding-defect verifier separately binds its current base/head and seven-file
+repair scope, preserves all other main blobs, and runs the original 82 discovery
+tests plus new binding/schema regressions. Historical PR64 evidence is not rewritten.
+The failed discovery's consumed authorization remains consumed and is never
+resumed, relabeled or transferred to the corrected endpoint/parser identity.
 
 All four targets remain **not attempted** in engineering. Financial requests,
 real discovery, ranking, publication, Latest/state/Portfolio/Ledger/scheduler
