@@ -271,7 +271,7 @@ def response_session(body, entry, observed_at):
                 require("SecuritiesCompanyCode" in row and isinstance(row["SecuritiesCompanyCode"], str)
                         and row["SecuritiesCompanyCode"] and ("Close" in row or "ClosingPrice" in row), "DISCOVERY_SCHEMA_INVALID")
             else:
-                require(any(k in row for k in ("ClosingIndex", "收市", "收盤指數", "收盤價", "close")), "DISCOVERY_SCHEMA_INVALID")
+                require(any(k in row for k in ("ClosingIndex", "收市", "收盤指數", "收盤價", "close", "Close")), "DISCOVERY_SCHEMA_INVALID")
             dates.append(session_date(row["Date"]))
             locators.append(f"$[{i}]")
         rows_count = len(payload)

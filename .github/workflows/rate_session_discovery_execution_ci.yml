@@ -14,6 +14,9 @@ on:
       - scripts/verify_discovery_twse_binding_fix.py
       - tests/test_discovery_twse_binding_fix.py
       - docs/RATE_DISCOVERY_TWSE_BINDING_DEFECT_001.md
+      - scripts/verify_discovery_tpex_benchmark_schema.py
+      - tests/test_discovery_tpex_benchmark_schema.py
+      - docs/RATE_DISCOVERY_TPEX_BENCHMARK_SCHEMA_DEFECT_001.md
   workflow_dispatch:
 permissions:
   contents: read
@@ -41,16 +44,16 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install lxml==6.1.1 tzdata==2025.2 PyYAML==6.0.3
-      - name: Exact-head inherited and binding repair synthetic gates
+      - name: Exact-head inherited and TPEx schema repair synthetic gates
         run: >-
-          python -B scripts/verify_discovery_twse_binding_fix.py
-          --expected-base b0853df9d435f4c5842b1716a32fdb52f6f5a1f8
+          python -B scripts/verify_discovery_tpex_benchmark_schema.py
+          --expected-base 4cc943695ebad2cb6f94dacb60e94312d04e2547
           --expected-head "${{ github.event.pull_request.head.sha || github.sha }}"
           --output-dir "${{ runner.temp }}/discovery"
       - name: Current-main replacement compatibility gate
         run: >-
           python -B scripts/verify_ci_applicability.py
-          --expected-base b0853df9d435f4c5842b1716a32fdb52f6f5a1f8
+          --expected-base 4cc943695ebad2cb6f94dacb60e94312d04e2547
           --expected-head "${{ github.event.pull_request.head.sha || github.sha }}"
           --output-dir "${{ runner.temp }}/discovery-replacement"
       - uses: actions/upload-artifact@v4
