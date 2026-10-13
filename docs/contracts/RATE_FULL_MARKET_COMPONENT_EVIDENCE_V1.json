@@ -1,0 +1,41 @@
+{
+  "artifact_kind": "RATE_FULL_MARKET_COMPONENT_EVIDENCE_V1",
+  "version": "RATE-M-NONFUNDAMENTAL-FULL-MARKET-PRODUCTION-EVIDENCE-V1",
+  "base_sha": "f951186df3ffe6eeeedb19500a1cd4966433fc99",
+  "scope": "19:30 EOD FULL_MARKET_REFRESH COMPONENT_EVIDENCE_ONLY",
+  "universe_identity": "18ff7df30b80df8082efd94f71c894b23da5cc87f945a5fd889d5d92dfc3d43e",
+  "universe_counts": {"TWSE": 1085, "TPEX": 893},
+  "components": ["M7", "MHE", "Stage", "Rotation", "SmartMoney", "RelativeStrength", "Liquidity"],
+  "owner_code_sha256_lf": {
+    "src/rate_logic.py": "d8aedb3b190ba21649ebfc5763578426331943a68c4289fd5d0bc977157d87d8",
+    "src/technical_features.py": "da45381e26dfb2765190eb3fbf6480ad85635e17af2b865c457f0ec2f84b102e",
+    "src/institutional_features.py": "1c0a0e48f31774bcf46f1c650afe02d4604ff8419ad782691dd55cc6ad44f54d",
+    "src/stage_evidence.py": "4207b9668505993a07990ea63a61ed0efeda0abe6b84b992f0e1eb034b919af0",
+    "src/rotation_history.py": "e80eeb2b5876172f10beef37d7e061298e03f80a15db93be6ded5f3804a1da97",
+    "src/stage_history.py": "e53c8d8645ce1a6e539dcbdd7ab6015b13137740d8ee33e3c97bd7be0e287a0b",
+    "src/feature_math.py": "346dd60b6eb965df032ef89b3a6cb41853200315488e6b146fc239a8b672f9dc",
+    "src/historical_store.py": "b2724e6904115bf95ce3508c80bbae422cbb81fe0f96735fd4daa029a5920601",
+    "src/sources/twse.py": "c002400550cf61c16aeb43b91d2cd5f0bfef8ab90a9e1b9367473e41209154bc",
+    "src/sources/tpex.py": "35128eed86959d512ba6ee6d4cf9a204046f65be5c65cf145670566a54ee63a1",
+    "src/sources/tdcc_historical.py": "f0c8e4ac1fddf05395d21cd817722763b03c5623e360896b08216e285dcf7fd2",
+    "src/institutional_history.py": "bb3cc14a726c9b710f5c8ac29834876c526d07cc8b76ab2f1081ccaebede2b32"
+  },
+  "minimum_stock_sessions": 180,
+  "minimum_institutional_sessions": 26,
+  "rotation_sessions": 6,
+  "stage_sessions": 7,
+  "tdcc_periods_per_session": 5,
+  "source_scope": "ACCEPTED_OFFICIAL_FULL_MARKET_EOD_HISTORY",
+  "source_trust": "Externally pinned Production owner acceptance; normalized history and every raw/receipt are hash-bound. Self-hashing an unaccepted JSON is insufficient.",
+  "population_policy": "Scan exact universe before validation. Each existing owner uses its naturally calculable subset. Missing issuers remain with null values. No Fundamental or ranking prefilter.",
+  "fundamental_policy": "Retain accepted owner verdicts and its distinct component population; do not recompute or relabel.",
+  "governance": {
+    "ranking_authorized": false,
+    "production_publication_allowed": false,
+    "state_mutation_allowed": false,
+    "fallback_allowed": false,
+    "historical_pit": "UNPROVEN",
+    "original_eight_quarter_coverage_credit": 0,
+    "intraday": "BLOCKED_EXTERNAL"
+  }
+}
