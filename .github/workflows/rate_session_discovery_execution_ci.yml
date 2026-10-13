@@ -1,0 +1,61 @@
+name: RATE Official Session Discovery Executor
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/session_discovery_execution.py
+      - src/session_discovery_transport.py
+      - scripts/run_session_discovery_execution.py
+      - scripts/verify_session_discovery_execution.py
+      - tests/test_session_discovery_execution.py
+      - docs/contracts/RATE_SESSION_DISCOVERY_EXECUTION_V1.json
+      - docs/RATE_SESSION_DISCOVERY_EXECUTION_V1.md
+      - .github/workflows/rate_session_discovery_execution_ci.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: rate-session-discovery-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  exact-head:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install lxml==6.1.1 tzdata==2025.2 PyYAML==6.0.3
+      - name: Exact-head inherited and discovery synthetic gates
+        run: >-
+          python -B scripts/verify_session_discovery_execution.py
+          --expected-base 6a2108c6ce326bf90806ab0cdd7ab84e7131a643
+          --expected-head "${{ github.event.pull_request.head.sha || github.sha }}"
+          --output-dir "${{ runner.temp }}/discovery"
+      - name: Current-main replacement compatibility gate
+        run: >-
+          python -B scripts/verify_ci_applicability.py
+          --expected-base 6a2108c6ce326bf90806ab0cdd7ab84e7131a643
+          --expected-head "${{ github.event.pull_request.head.sha || github.sha }}"
+          --output-dir "${{ runner.temp }}/discovery-replacement"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: DISCOVERY_SYNTHETIC_${{ matrix.os }}_${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            ${{ runner.temp }}/discovery
+            ${{ runner.temp }}/discovery-replacement
+          if-no-files-found: error
+          retention-days: 14
