@@ -21,12 +21,8 @@ UTC = "2026-10-12T10:00:00Z"
 
 def response(entry):
     if entry["market"] == "TWSE":
-        fields, data = (["指數", "收盤指數"], [["發行量加權股價指數", "20000"]]) if entry["product"] == "benchmark" else (
-            ["證券代號", "收盤價"], [["SYNTHETIC", "100"]])
-        payload = {"stat": "OK", "date": "20261012"}
-        payload.update(tables=[{"fields": fields, "data": data}] if entry["product"] == "benchmark" else [])
-        if entry["product"] == "market_daily":
-            payload.update(fields=fields, data=data)
+        payload = [{"日期": "20261012", "指數": "SYNTHETIC_INDEX", "收盤指數": "20000"}] if entry["product"] == "benchmark" else [
+            {"Date": "20261012", "Code": "SYNTHETIC", "ClosingPrice": "100"}]
     else:
         payload = [{"Date": "1151012", "收市": "300"}] if entry["product"] == "benchmark" else [
             {"Date": "1151012", "SecuritiesCompanyCode": "SYNTHETIC", "Close": " ---"}]
@@ -108,8 +104,8 @@ class PlanTests(Fixture):
 
     def test_exact_official_endpoints(self):
         self.assertEqual([e["endpoint"] for e in self.plan["entries"]], [
-            "https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX",
-            "https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY_ALL",
+            m.TWSE_BASE + "/exchangeReport/MI_INDEX",
+            m.TWSE_BASE + "/exchangeReport/STOCK_DAY_ALL",
             m.BENCHMARK_ENDPOINT, m.CURRENT_DAILY_ENDPOINT])
 
     def test_fifth_rejected(self):
@@ -349,7 +345,7 @@ class LifecycleTests(Fixture):
         self.failure(error=ConnectionResetError("synthetic unknown outcome"))
 
     def test_future_session_stops(self):
-        bad = {"stat": "OK", "date": "20991012", "fields": ["證券代號", "收盤價"], "data": [["SYN", "1"]]}
+        bad = [{"Date": "20991012", "Code": "SYN", "ClosingPrice": "1"}]
         self.failure(change={"raw_bytes": m.canonical(bad)})
 
     def test_raw_tamper(self):
