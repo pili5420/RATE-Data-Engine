@@ -15,7 +15,7 @@ from scripts.verify_fundamental_ranking_consumer import clean_consumer_checkout,
 from scripts.verify_ci_applicability import network_guard
 
 BASE = "54c318c2a72fbd87fa3d03f3f19fa1284e6426f6"
-NEW_COUNT = 70
+NEW_COUNT = 72
 ADDED = {"src/history_acquisition_execution.py", "src/history_acquisition_transport.py", "src/history_acquisition_validation.py",
     "scripts/run_history_acquisition.py", "scripts/verify_history_acquisition_wiring.py", "tests/test_history_acquisition_wiring.py",
     "docs/contracts/RATE_HISTORY_ACQUISITION_WIRING_V1.json", "docs/RATE_HISTORY_ACQUISITION_WIRING_V1.md",

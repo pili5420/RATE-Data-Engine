@@ -110,6 +110,10 @@ cross-market replacement, silent issuer removal or synthetic history. Input
 readiness never grants ranking or Production eligibility. New listing/suspension
 causes are not inferred from absent rows.
 
+Stock dates outside the verified own-market benchmark chain are preserved as
+unconfirmed sessions, make that issuer NOT_READY, and cannot grant calendar
+credit. A stock response never silently invents or expands a benchmark session.
+
 TPEx stock parsing preserves the original numeric scale and always emits
 `TPEX_UNIT_SCALE_QUALIFICATION_REQUIRED`; no unit multiplier is applied. The
 existing `Trade unit` / `Trade Amt.(NTD1000)` copying behavior cannot establish

@@ -302,6 +302,30 @@ class HistoryAcquisitionTests(unittest.TestCase):
         self.assertEqual(result["not_ready"], 1977)
         self.assertEqual(result["issuer_count"], 1978)
 
+    def test_stock_off_chain_date_is_retained_but_not_ready(self):
+        days = [(date(2026, 1, 1) + timedelta(days=i)).isoformat() for i in range(180)]
+        events = [{"market": m, "product": "benchmark", "symbol": None, "validation": {"normalized_sessions": [{"trade_date": d} for d in days]}} for m in ("TWSE", "TPEX")]
+        extra = "2025-12-31"
+        events.append({"market": "TWSE", "product": "stock", "symbol": "2330", "validation": {
+            "unit_scale_status": "PASS", "records": [{"trade_date": d, "status": "VALID", "normalized": {"trade_date": d}} for d in [extra, *days]]}})
+        result = coverage_inventory(universe()["stocks"], events, {m: days[-1] for m in ("TWSE", "TPEX")})
+        issuer = next(r for r in result["issuers"] if r["symbol"] == "2330")
+        self.assertEqual(issuer["status"], "NOT_READY")
+        self.assertIn("SESSION_NOT_IN_VERIFIED_BENCHMARK_CHAIN", issuer["reasons"])
+        self.assertEqual(issuer["unconfirmed_sessions"], [extra])
+        self.assertEqual(len(issuer["partial_records"]), 181)
+
+    def test_conflicting_stock_session_does_not_grant_calendar_credit(self):
+        days = [(date(2026, 1, 1) + timedelta(days=i)).isoformat() for i in range(180)]
+        events = [{"market": m, "product": "benchmark", "symbol": None, "validation": {"normalized_sessions": [{"trade_date": d} for d in days]}} for m in ("TWSE", "TPEX")]
+        for market, symbol in (("TWSE", "2330"), ("TPEX", "6488")):
+            dates = ["2025-12-31", *days] if market == "TWSE" else days
+            events.append({"market": market, "product": "stock", "symbol": symbol, "validation": {
+                "unit_scale_status": "PASS", "records": [{"trade_date": d, "status": "VALID", "normalized": {"trade_date": d}} for d in dates]}})
+        result = coverage_inventory(universe()["stocks"], events, {m: days[-1] for m in ("TWSE", "TPEX")})
+        self.assertFalse(result["calendar_180_ready"])
+        self.assertEqual(result["issuer_count"], 1978)
+
     def test_cold_process_replay_does_not_dispatch(self):
         expected = self.execute()
         command = "import sys;sys.path.insert(0,sys.argv[1]);from scripts.verify_ci_applicability import network_guard;sys.addaudithook(network_guard);from src import history_acquisition_execution as h;from pathlib import Path;r=Path(sys.argv[2]);p=h.read_metadata((r/'plan.json').read_bytes());s=h.read_metadata((r/'seal.json').read_bytes());a=h.read_metadata((r/'authorization.json').read_bytes());v=h.replay(r,p,s,a,Path(sys.argv[3]));print(v['ledger_head'])"

@@ -211,6 +211,7 @@ def coverage_inventory(universe, events, cutoffs):
                 require(day not in rows, "HISTORY_DUPLICATE_STOCK_SESSION")
                 rows[day] = record
         valid = sorted(day for day, row in rows.items() if row["status"] == "VALID")
+        unconfirmed_dates = [day for day in valid if day not in chains[market]["sessions"]]
         missing_dates = [day for day in required if day not in valid]
         reasons = []
         if len(required) < 180 or chains[market]["latest_session"] != cutoffs[market]:
@@ -221,13 +222,17 @@ def coverage_inventory(universe, events, cutoffs):
             reasons.append("SESSION_GAP")
         if len(valid) < 180:
             reasons.append("INSUFFICIENT_HISTORY")
+        if unconfirmed_dates:
+            reasons.append("SESSION_NOT_IN_VERIFIED_BENCHMARK_CHAIN")
         if unit != "PASS":
             reasons.append(unit)
         output.append({**issuer, "status": "NOT_READY" if reasons else "READY", "reasons": reasons,
                        "valid_sessions": valid, "partial_records": list(rows.values()), "missing_sessions": missing_dates,
+                       "unconfirmed_sessions": unconfirmed_dates,
                        "unit_scale_status": unit, "ranking_eligible": False, "production_eligible": False})
     return {"issuers": output, "issuer_count": len(output), "ready": sum(r["status"] == "READY" for r in output),
             "not_ready": sum(r["status"] == "NOT_READY" for r in output), "benchmark_chains": chains,
             "calendar_180_ready": all(c["at_least_180"] and c["latest_session"] == cutoffs[m]
-                and set(c["sessions"][-180:]).issubset(stock_confirmed[m]) for m, c in chains.items()),
+                and set(c["sessions"][-180:]).issubset(stock_confirmed[m])
+                and stock_confirmed[m].issubset(c["sessions"]) for m, c in chains.items()),
             "source_native_cutoffs": cutoffs, "no_fill": True, "no_silent_issuer_drop": True}
