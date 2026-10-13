@@ -91,6 +91,13 @@ def root_identity(path):
     return sha({"path": os.path.normcase(str(safe(path)))})
 
 
+def checkout_marker(parent):
+    marker = parent / ".git"
+    if marker.is_dir():
+        return (marker / "HEAD").is_file()
+    return marker.is_file() and marker.read_text(encoding="utf-8").startswith("gitdir: ")
+
+
 def external_roots(artifacts, consumption, repo=ROOT):
     artifacts, consumption, repo = safe(artifacts), safe(consumption), safe(repo)
     require(not artifacts.is_relative_to(repo) and not consumption.is_relative_to(repo), "DISCOVERY_OUTPUT_IN_REPOSITORY")
@@ -98,7 +105,7 @@ def external_roots(artifacts, consumption, repo=ROOT):
             and not consumption.is_relative_to(artifacts), "DISCOVERY_ROOT_OVERLAP")
     # These are discovery-owned, caller-chosen roots, not shared Production directories.
     for path in (artifacts, consumption):
-        require(not any((parent / ".git").exists() for parent in (path, *path.parents)),
+        require(not any(checkout_marker(parent) for parent in (path, *path.parents)),
                 "DISCOVERY_OUTPUT_IN_REPOSITORY")
         require(not any(part.lower() in {"artifacts", "production", "state", "portfolio", "ledger", "scheduler"}
                         for part in path.parts), "DISCOVERY_PROTECTED_OUTPUT_ROOT")

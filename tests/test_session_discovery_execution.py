@@ -232,6 +232,7 @@ class AuthorizationTests(Fixture):
         other = self.root / "other-checkout"
         other.mkdir()
         (other / ".git").mkdir()
+        (other / ".git/HEAD").write_text("ref: refs/heads/main", encoding="utf-8")
         with self.assertRaisesRegex(Exception, "IN_REPOSITORY"):
             m.build_seal(self.plan, other / "discovery", self.consumption)
 
@@ -241,6 +242,13 @@ class AuthorizationTests(Fixture):
         (other / ".git").write_text("gitdir: SYNTHETIC_ONLY", encoding="utf-8")
         with self.assertRaisesRegex(Exception, "IN_REPOSITORY"):
             m.build_seal(self.plan, self.artifacts, other / "claims")
+
+    def test_empty_non_repository_marker_not_checkout(self):
+        other = self.root / "non-repository-placeholder"
+        other.mkdir()
+        (other / ".git").mkdir()
+        self.assertFalse(m.checkout_marker(other))
+        m.build_seal(self.plan, other / "discovery", self.consumption)
 
     def test_protected_output_root(self):
         with self.assertRaisesRegex(Exception, "PROTECTED_OUTPUT"):

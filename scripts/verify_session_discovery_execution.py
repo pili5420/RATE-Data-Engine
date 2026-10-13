@@ -15,7 +15,7 @@ from scripts.verify_fundamental_ranking_consumer import clean_consumer_checkout,
 from scripts.verify_ci_applicability import network_guard
 
 BASE = "6a2108c6ce326bf90806ab0cdd7ab84e7131a643"
-NEW_COUNT = 81
+NEW_COUNT = 82
 ALLOWED = {"src/session_discovery_execution.py", "src/session_discovery_transport.py",
     "scripts/run_session_discovery_execution.py", "scripts/verify_session_discovery_execution.py",
     "tests/test_session_discovery_execution.py", "docs/contracts/RATE_SESSION_DISCOVERY_EXECUTION_V1.json",
