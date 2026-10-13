@@ -363,6 +363,23 @@ class ComponentEvidenceTests(unittest.TestCase):
         self.assertEqual(result["validated_at"], "2026-10-12T10:05:00Z")
         self.assertTrue(all(v["validated_at"] == result["validated_at"] for r in result["core"]["issuers"] for v in r["components"].values()))
 
+    def test_runtime_expiring_during_calculation_is_rejected(self):
+        self.update()
+        ran = [False]
+        original = m.compute_scores
+        def calculate(*args, **kwargs):
+            result = original(*args, **kwargs)
+            ran[0] = True
+            return result
+        def clock():
+            return "2026-10-12T14:00:00Z" if ran[0] else "2026-10-12T10:04:00Z"
+        with patch.object(m, "compute_scores", side_effect=calculate), patch.object(m, "now", side_effect=clock):
+            with self.assertRaisesRegex(ValueError, "STALE_EVIDENCE"):
+                m.build(self.u, expected_universe_identity=self.uid, generated_at="2026-10-12T10:02:00Z",
+                    validated_at=None, evidence_as_of=None, binding=self.b,
+                    trusted_acceptance_sha256=self.b["acceptance"]["sha256"], synthetic=True)
+        self.assertTrue(ran[0])
+
 
 if __name__ == "__main__":
     unittest.main()

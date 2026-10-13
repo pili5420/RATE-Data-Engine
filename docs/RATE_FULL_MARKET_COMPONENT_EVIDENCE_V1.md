@@ -103,7 +103,7 @@ markets. No trading date is inferred from weekdays or today's clock. Current
 market/benchmark receipts are independently checked post-close and with the
 existing 19:30 freshness validator (180 minutes); fresh TDCC cannot freshen an
 old market receipt. Per-verdict observed time comes from its referenced receipts.
-`observed_at <= validated_at <= evidence_as_of` is enforced. Cold read rechecks
+`observed_at <= validated_at <= evidence_as_of` is enforced.
 The live CLI seals owner `validated_at` only after all calculation/validation
 calls complete, then samples `evidence_as_of` and rechecks current freshness.
 Explicit timestamps are reserved for deterministic evidence replay and synthetic
