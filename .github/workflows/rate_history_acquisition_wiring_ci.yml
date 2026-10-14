@@ -12,6 +12,9 @@ on:
       - docs/contracts/RATE_HISTORY_ACQUISITION_WIRING_V1.json
       - docs/RATE_HISTORY_ACQUISITION_WIRING_V1.md
       - .github/workflows/rate_history_acquisition_wiring_ci.yml
+      - scripts/verify_history_twse_title_identity.py
+      - tests/test_history_twse_title_identity.py
+      - docs/RATE_MH_TWSE_TITLE_IDENTITY_FIX_V1.md
   workflow_dispatch:
 permissions:
   contents: read
@@ -39,16 +42,16 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install lxml==6.1.1 tzdata==2025.2 PyYAML==6.0.3
-      - name: Exact-head history wiring and all inherited synthetic regressions
+      - name: Exact-head TWSE title identity and all inherited synthetic regressions
         run: >-
-          python -B scripts/verify_history_acquisition_wiring.py
-          --expected-base 54c318c2a72fbd87fa3d03f3f19fa1284e6426f6
+          python -B scripts/verify_history_twse_title_identity.py
+          --expected-base 8471bf53bec15a82da7976ac9be86ac0f9faff5f
           --expected-head "${{ github.event.pull_request.head.sha || github.sha }}"
           --output-dir "${{ runner.temp }}/history-wiring"
       - name: Current-main replacement compatibility and continuity gate
         run: >-
           python -B scripts/verify_ci_applicability.py
-          --expected-base 54c318c2a72fbd87fa3d03f3f19fa1284e6426f6
+          --expected-base 8471bf53bec15a82da7976ac9be86ac0f9faff5f
           --expected-head "${{ github.event.pull_request.head.sha || github.sha }}"
           --output-dir "${{ runner.temp }}/history-replacement"
       - uses: actions/upload-artifact@v4
