@@ -1,0 +1,62 @@
+name: RATE History Acquisition Wiring Synthetic Acceptance
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/history_acquisition_execution.py
+      - src/history_acquisition_transport.py
+      - src/history_acquisition_validation.py
+      - scripts/run_history_acquisition.py
+      - scripts/verify_history_acquisition_wiring.py
+      - tests/test_history_acquisition_wiring.py
+      - docs/contracts/RATE_HISTORY_ACQUISITION_WIRING_V1.json
+      - docs/RATE_HISTORY_ACQUISITION_WIRING_V1.md
+      - .github/workflows/rate_history_acquisition_wiring_ci.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: rate-history-wiring-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  exact-head:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install lxml==6.1.1 tzdata==2025.2 PyYAML==6.0.3
+      - name: Exact-head history wiring and all inherited synthetic regressions
+        run: >-
+          python -B scripts/verify_history_acquisition_wiring.py
+          --expected-base 54c318c2a72fbd87fa3d03f3f19fa1284e6426f6
+          --expected-head "${{ github.event.pull_request.head.sha || github.sha }}"
+          --output-dir "${{ runner.temp }}/history-wiring"
+      - name: Current-main replacement compatibility and continuity gate
+        run: >-
+          python -B scripts/verify_ci_applicability.py
+          --expected-base 54c318c2a72fbd87fa3d03f3f19fa1284e6426f6
+          --expected-head "${{ github.event.pull_request.head.sha || github.sha }}"
+          --output-dir "${{ runner.temp }}/history-replacement"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: HISTORY_WIRING_SYNTHETIC_${{ matrix.os }}_${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            ${{ runner.temp }}/history-wiring
+            ${{ runner.temp }}/history-replacement
+          if-no-files-found: error
+          retention-days: 14
