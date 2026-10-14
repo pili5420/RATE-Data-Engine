@@ -82,10 +82,20 @@ def identity(payload, selected, entry):
         supplied += [str(selected[key]) for key in ("code", "stockNo", "symbol") if key in selected and selected is not payload]
         require(all(s == entry["symbol"] for s in supplied), "HISTORY_SYMBOL_MISMATCH")
         if not supplied:
-            # Existing TPEx owner uses subtitle identity. Make token boundaries exact.
-            subtitle = selected.get("subtitle") if entry["market"] == "TPEX" else None
-            require(isinstance(subtitle, str) and re.search(r"(?<![A-Za-z0-9])" + re.escape(entry["symbol"]) + r"(?![A-Za-z0-9])", subtitle),
-                    "HISTORY_SYMBOL_IDENTITY_REQUIRED")
+            if entry["market"] == "TWSE":
+                title = payload.get("title")
+                require(isinstance(title, str) and title, "HISTORY_SYMBOL_IDENTITY_REQUIRED")
+                # Qualified STOCK_DAY form: ROC month, exact issuer token, name, suffix.
+                match = re.fullmatch(r"(?P<year>[1-9][0-9]{2})\u5e74(?P<month>0[1-9]|1[0-2])\u6708 "
+                    r"(?P<symbol>[0-9]{4}) [\u4e00-\u9fff]+ +\u5404\u65e5\u6210\u4ea4\u8cc7\u8a0a", title)
+                require(match is not None, "HISTORY_SYMBOL_IDENTITY_REQUIRED")
+                require(match.group("symbol") == entry["symbol"], "HISTORY_SYMBOL_MISMATCH")
+                require(str(int(match.group("year")) + 1911) + match.group("month") == entry["period"], "HISTORY_PERIOD_MISMATCH")
+            else:
+                # Existing TPEx owner uses subtitle identity. Make token boundaries exact.
+                subtitle = selected.get("subtitle") if entry["market"] == "TPEX" else None
+                require(isinstance(subtitle, str) and re.search(r"(?<![A-Za-z0-9])" + re.escape(entry["symbol"]) + r"(?![A-Za-z0-9])", subtitle),
+                        "HISTORY_SYMBOL_IDENTITY_REQUIRED")
     else:
         require(not any(k in payload or k in selected for k in ("code", "stockNo", "symbol", "SecuritiesCompanyCode")),
                 "HISTORY_PRODUCT_MISMATCH")
