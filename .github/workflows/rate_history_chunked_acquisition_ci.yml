@@ -1,0 +1,60 @@
+name: RATE Stock History Chunked Fail-Closed Synthetic Acceptance
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/history_chunk_planning.py
+      - src/history_chunk_aggregation.py
+      - scripts/verify_history_chunked_acquisition.py
+      - tests/test_history_chunked_acquisition.py
+      - docs/contracts/RATE_HISTORY_STOCK_CHUNKED_ACQUISITION_V1.json
+      - docs/RATE_HISTORY_STOCK_CHUNKED_ACQUISITION_V1.md
+      - .github/workflows/rate_history_chunked_acquisition_ci.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: rate-history-chunks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  exact-head:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install lxml==6.1.1 tzdata==2025.2 PyYAML==6.0.3
+      - name: Exact-head protected blobs, inherited regressions and chunk tests
+        run: >-
+          python -B scripts/verify_history_chunked_acquisition.py
+          --expected-base eb9f66c55245d9ace0417f3ef6f76ed4899dda01
+          --expected-head "${{ github.event.pull_request.head.sha || github.sha }}"
+          --output-dir "${{ runner.temp }}/history-chunked"
+      - name: Current-main replacement and continuity compatibility
+        run: >-
+          python -B scripts/verify_ci_applicability.py
+          --expected-base eb9f66c55245d9ace0417f3ef6f76ed4899dda01
+          --expected-head "${{ github.event.pull_request.head.sha || github.sha }}"
+          --output-dir "${{ runner.temp }}/history-chunk-replacement"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: HISTORY_CHUNKS_SYNTHETIC_${{ matrix.os }}_${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            ${{ runner.temp }}/history-chunked
+            ${{ runner.temp }}/history-chunk-replacement
+          if-no-files-found: error
+          retention-days: 14
