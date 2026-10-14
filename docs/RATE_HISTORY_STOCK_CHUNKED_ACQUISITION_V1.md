@@ -43,7 +43,10 @@ without removing the real gate.
 coordination lock is separate from each scanner's evidence/consumption locks. After
 a STOP or an error following claim, append-only `HALTED.json` blocks later chunk
 execution on restart before any further claim. Prior successful chunk evidence is
-not changed. A successful return also does not start another chunk automatically.
+not changed. Before claim, the wrapper also checks original chunk consumptions,
+STOP/results and replays previous successes, covering a crash before the outer
+halt file was written and rejecting prior-evidence mutation. A successful return
+also does not start another chunk automatically.
 Every separate explicit invocation must present a distinct formally trusted
 authorization. This engineering CR creates and claims no real authorization.
 

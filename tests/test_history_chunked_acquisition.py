@@ -454,6 +454,39 @@ class ChunkTests(unittest.TestCase):
         self.assertNotEqual(ra["consumption_sha256"],rb["consumption_sha256"])
         self.assertNotEqual(ra["execution_root_identity"],rb["execution_root_identity"])
 
+    def test_scanner_stop_survives_crash_before_outer_halt_write(self):
+        a,b = self.material(0),self.material(1)
+        put = h.evidence.put_json
+        def crash(path,value):
+            if Path(path).name == "HALTED.json": raise OSError("SYNTHETIC_OUTER_CRASH")
+            return put(path,value)
+        def fail(entry):
+            result = self.capture(entry); result["http_status"] = 503; return result
+        with patch.object(h.evidence,"put_json",side_effect=crash),self.assertRaisesRegex(OSError,"OUTER_CRASH"):
+            self.run_chunk(a,capture=fail)
+        self.assertFalse((self.root/"campaign/HALTED.json").exists())
+        self.assertTrue((Path(a["execution_root"])/"STOP.json").exists())
+        with self.assertRaisesRegex(ValueError,"HALTED_FOR_CONTROL_CENTER_REVIEW"): self.run_chunk(b)
+        self.assertFalse(Path(b["consumption_root"]).exists()); self.assertEqual(len(self.calls),1)
+
+    def test_unknown_claim_without_result_blocks_later_chunk(self):
+        a,b = self.material(0),self.material(1)
+        def killed(entry):
+            self.calls.append(entry["request_key"]); raise SystemExit("SYNTHETIC_PROCESS_EXIT")
+        with self.assertRaises(SystemExit): self.run_chunk(a,capture=killed)
+        self.assertFalse((Path(a["execution_root"])/"RESULT.json").exists())
+        self.assertTrue(list(Path(a["consumption_root"]).glob("*.json")))
+        with self.assertRaisesRegex(ValueError,"HALTED_FOR_CONTROL_CENTER_REVIEW"): self.run_chunk(b)
+        self.assertFalse(Path(b["consumption_root"]).exists()); self.assertEqual(len(self.calls),1)
+
+    def test_prior_success_tamper_rejected_before_later_claim(self):
+        a,b = self.material(0),self.material(1); self.run_chunk(a)
+        path = next((Path(a["execution_root"])/"raw").glob("*.bin"))
+        path.write_bytes(path.read_bytes()+b" ")
+        before = len(self.calls)
+        with self.assertRaises(ValueError): self.run_chunk(b)
+        self.assertEqual(len(self.calls),before); self.assertFalse(Path(b["consumption_root"]).exists())
+
     def test_aggregate_no_network_ranking_or_publication(self):
         result = self.agg([])
         self.assertEqual((result["network_requests"],result["ranking_executions"],result["production_publications"]),(0,0,0))

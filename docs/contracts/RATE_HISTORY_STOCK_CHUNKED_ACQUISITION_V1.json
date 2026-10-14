@@ -39,6 +39,8 @@
     "single_explicit_chunk_per_invocation": true,
     "campaign_writer_lock_distinct_from_scanner_locks": true,
     "persistent_campaign_stop": "HALTED_FOR_CONTROL_CENTER_REVIEW",
+    "preclaim_original_consumption_stop_result_guard": true,
+    "preclaim_prior_success_cold_replay": true,
     "timeout_seconds": 30,
     "minimum_interval_seconds": 13,
     "sequential": true,

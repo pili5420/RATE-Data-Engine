@@ -20,7 +20,7 @@ ADDED = {"src/history_chunk_planning.py", "src/history_chunk_aggregation.py",
     "docs/contracts/RATE_HISTORY_STOCK_CHUNKED_ACQUISITION_V1.json",
     "docs/RATE_HISTORY_STOCK_CHUNKED_ACQUISITION_V1.md",
     ".github/workflows/rate_history_chunked_acquisition_ci.yml"}
-NEW_COUNT = 69
+NEW_COUNT = 72
 GROUPS = {**INHERITED,"history_chunked_new":(["test_history_chunked_acquisition"],NEW_COUNT)}
 
 

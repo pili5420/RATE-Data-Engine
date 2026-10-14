@@ -5,6 +5,7 @@ import re
 
 from . import history_acquisition_execution as h
 from .eps_duration_facts.model import require
+from .provider_eps_metadata import read_metadata
 
 CONTRACT = "RATE_HISTORY_STOCK_CHUNKED_ACQUISITION_V1"
 CR = "RATE-MH-CHUNKED-FAIL-CLOSED-ACQUISITION-001"
@@ -127,6 +128,25 @@ def materials(manifest, scope, approval, *, trusted_approval_sha256, main_sha, u
         "formal_authorization_created": False}
 
 
+def _campaign_guard(manifest, campaign):
+    require(not (campaign / "HALTED.json").exists(), "HALTED_FOR_CONTROL_CENTER_REVIEW")
+    for chunk in manifest["chunks"]:
+        base = campaign / chunk["chunk_id"]
+        artifacts, consumption = base / "evidence", base / "consumption"
+        run = artifacts / "run-001"
+        claims = list(consumption.glob("*.json"))
+        if not claims and not run.exists():
+            continue
+        # A scanner STOP/unknown claim survives a crash before outer HALTED.json is written.
+        require(len(claims) == 1 and (run / "RESULT.json").is_file() and not (run / "STOP.json").exists(),
+                "HALTED_FOR_CONTROL_CENTER_REVIEW")
+        require(read_metadata((run / "RESULT.json").read_bytes())["status"] == "PASS", "HALTED_FOR_CONTROL_CENTER_REVIEW")
+        plan = chunk_plan(manifest, chunk["chunk_id"])
+        seal = h.build_seal(plan, artifacts, consumption)
+        auth = read_metadata((run / "authorization.json").read_bytes())
+        require(h.replay(run, plan, seal, auth, consumption)["status"] == "PASS", "HALTED_FOR_CONTROL_CENTER_REVIEW")
+
+
 def execute_chunk(manifest, scope, approval, bundle, authorization, *, trusted_approval_sha256, main_sha, universe,
                   trusted_authorization_sha256, synthetic=False, **synthetic_transport):
     """One explicit chunk only. Existing executor owns claim, pacing, capture and STOP."""
@@ -138,7 +158,7 @@ def execute_chunk(manifest, scope, approval, bundle, authorization, *, trusted_a
     campaign = h.evidence.safe(bundle["campaign_root"])
     campaign.mkdir(parents=True, exist_ok=True)
     with h.exclusive_scan(campaign):
-        require(not (campaign / "HALTED.json").exists(), "HALTED_FOR_CONTROL_CENTER_REVIEW")
+        _campaign_guard(manifest, campaign)
         try:
             result = h.execute(bundle["plan"], bundle["seal"], authorization,
                 artifacts_root=bundle["artifacts_root"], consumption_root=bundle["consumption_root"],
