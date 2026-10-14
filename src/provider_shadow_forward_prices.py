@@ -74,6 +74,9 @@ def periods_between(start, end):
 
 def load_prices(pin, *, as_of, available_at):
     manifest = read_metadata(verified_bytes(pin["manifest_path"], pin["manifest_sha256"]))
+    if manifest.get("input_mode") == "OFFICIAL_MARKET_DAILY_FORWARD_INPUT_V1":
+        from .provider_forward_daily_prices import load_daily_prices
+        return load_daily_prices(pin, manifest, as_of=as_of, available_at=available_at)
     require(manifest["artifact_kind"] == "RATE_OFFICIAL_FORWARD_PRICE_ARCHIVE_MANIFEST_V1", "FORWARD_PRICE_MANIFEST_KIND")
     now = _time(as_of)
     require(_time(available_at) <= now <= _time(instant()), "FORWARD_FUTURE_PRICE_ASOF")

@@ -1,0 +1,104 @@
+name: RATE Forward Price Runtime V1
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/provider_forward*.py"
+      - "src/provider_shadow_forward_prices.py"
+      - "scripts/*forward_price_runtime.py"
+      - "tests/test_forward_price_runtime.py"
+      - "docs/*FORWARD_PRICE*"
+      - "docs/contracts/RATE_FORWARD_PRICE_EVIDENCE_RUNTIME_V1.json"
+      - ".github/workflows/rate_forward_price_runtime.yml"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Explicit synthetic-only or controlled local evidence operation
+        type: choice
+        options: [synthetic, controlled-local-live]
+        default: synthetic
+      expected_base:
+        description: Reviewed runtime base (controlled job only)
+        type: string
+        default: "3f40cd03527c2ed9d36c14b542ffdfd346576cac"
+      expected_head:
+        description: Exact clean runtime head (controlled job only)
+        type: string
+      request_plan_path:
+        description: Existing locally prepared REQUEST_PLAN.json absolute path
+        type: string
+      request_plan_sha256:
+        description: Externally trusted request plan hash
+        type: string
+permissions:
+  contents: read
+jobs:
+  synthetic-only:
+    if: github.event_name == 'pull_request' || inputs.mode == 'synthetic'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: utf-8
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install lxml==6.1.1
+      - name: Existing 263 plus runtime tests and exact-head protection
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || inputs.expected_base }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
+          TMPDIR: ${{ runner.temp }}
+        run: >-
+          python -B scripts/verify_forward_price_runtime.py
+          --expected-base "$BASE" --expected-head "$HEAD"
+          --output-dir "$RUNNER_TEMP/forward-runtime-synthetic"
+      - name: Clean worktree
+        if: always()
+        run: test -z "$(git status --porcelain --untracked-files=all)"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: SYNTHETIC_FORWARD_RUNTIME_${{ matrix.os }}_${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/forward-runtime-synthetic/
+          if-no-files-found: error
+          retention-days: 14
+  controlled-local-runtime:
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'controlled-local-live'
+    runs-on: [self-hosted, Windows, X64, rate-forward-evidence]
+    timeout-minutes: 20
+    # No checkout, runner installation, schedule, secrets or public artifact upload.
+    steps:
+      - name: Existing controlled checkout and externally pinned local request plan
+        shell: pwsh
+        env:
+          BASE: ${{ inputs.expected_base }}
+          HEAD: ${{ inputs.expected_head }}
+          PLAN: ${{ inputs.request_plan_path }}
+          PLAN_SHA: ${{ inputs.request_plan_sha256 }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ((Get-FileHash -LiteralPath $env:PLAN -Algorithm SHA256).Hash.ToLowerInvariant() -ne $env:PLAN_SHA) { throw 'REQUEST_PLAN_PIN_MISMATCH' }
+          $p = Get-Content -LiteralPath $env:PLAN -Raw | ConvertFrom-Json
+          $checkout = Split-Path (Split-Path $p.source_identities[0].path)
+          Set-Location -LiteralPath $checkout
+          py -3 -B scripts/run_forward_price_runtime.py --mode acquire --expected-base $env:BASE --expected-head $env:HEAD --runtime-root $p.output_root --plan-sha256 $env:PLAN_SHA
+          if ($LASTEXITCODE -ne 0) { throw 'CAPTURE_FAILED_NO_RETRY' }
+          $report = Join-Path $p.output_root ('apply-' + (Get-Date -Format 'yyyyMMdd-HHmmss-ffffff'))
+          py -3 -B scripts/run_forward_price_runtime.py --mode apply --expected-base $env:BASE --expected-head $env:HEAD --runtime-root $p.output_root --plan-sha256 $env:PLAN_SHA --output-dir $report
+          if ($LASTEXITCODE -ne 0) { throw 'UPDATE_FAILED_NO_RETRY' }
