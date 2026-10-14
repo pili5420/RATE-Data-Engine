@@ -1,7 +1,10 @@
 """Opt-in stock-history chunks. No scope approval, empty inference or auto-continuation."""
 from collections import defaultdict
 from pathlib import Path
+import os
 import re
+import subprocess
+import sys
 
 from . import history_acquisition_execution as h
 from .eps_duration_facts.model import require
@@ -12,6 +15,7 @@ CR = "RATE-MH-CHUNKED-FAIL-CLOSED-ACQUISITION-001"
 POLICY = {"max_issuers_per_chunk": 10, "max_requests_per_chunk": 100,
           "issuer_order": "SYMBOL_ASCENDING", "period_order": "PERIOD_DESCENDING"}
 OWNERS = ["src/history_chunk_planning.py", "src/history_chunk_aggregation.py",
+          "scripts/replay_history_chunk_success.py",
           "docs/contracts/RATE_HISTORY_STOCK_CHUNKED_ACQUISITION_V1.json"]
 TPEX_HOLD = "BLOCKED_EXTERNAL_DOCUMENTATION"
 
@@ -128,23 +132,54 @@ def materials(manifest, scope, approval, *, trusted_approval_sha256, main_sha, u
         "formal_authorization_created": False}
 
 
+def _cold_replay_success(run, consumption, plan, seal, original_result):
+    """Re-import the committed owners in an isolated, network-denied interpreter."""
+    source_head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=h.ROOT).decode().strip()
+    pins = {**h.owners(), **owners()}
+    guard = "src/prospective_acquisition_recovery.py"
+    pins[guard] = h.evidence.sha((h.ROOT / guard).read_bytes().replace(b"\r\n", b"\n"))
+    binding = {"source_head":source_head, "source_sha256_lf":pins,
+        "execution_root":str(run), "consumption_root":str(consumption),
+        "plan_sha256":plan["plan_sha256"], "seal_sha256":seal["seal_sha256"],
+        "result_sha256":h.evidence.sha(original_result)}
+    child = subprocess.run([sys.executable, "-I", "-B", str(h.ROOT / "scripts/replay_history_chunk_success.py")],
+        input=h.evidence.canonical(binding), capture_output=True, cwd=h.ROOT, timeout=300)
+    require(child.returncode == 0, "CHUNK_COLD_REPLAY_CHILD_FAILED:" + child.stderr.decode("utf-8", errors="replace"))
+    proof = read_metadata(child.stdout)
+    require(proof["status"] == "PASS" and proof["ledger_head"] == original_result["ledger_head"]
+            and proof["result_sha256"] == binding["result_sha256"], "CHUNK_COLD_REPLAY_RESULT_MISMATCH")
+    require(proof["source_head"] == source_head and proof["source_sha256_lf"] == pins
+            and proof["execution_root"] == str(run) and proof["consumption_root"] == str(consumption)
+            and proof["plan_sha256"] == binding["plan_sha256"] and proof["seal_sha256"] == binding["seal_sha256"]
+            and type(proof["pid"]) is int and proof["pid"] != os.getpid() and proof["parent_pid"] == os.getpid()
+            and proof["isolated"] is True and proof["guard_installed_before_owner_import"] is True
+            and proof["owner_module"] == str(h.ROOT / "src/history_acquisition_execution.py")
+            and proof["network_attempts"] == 0, "CHUNK_COLD_REPLAY_PROCESS_BINDING_INVALID")
+    return proof
+
+
 def _campaign_guard(manifest, campaign):
     require(not (campaign / "HALTED.json").exists(), "HALTED_FOR_CONTROL_CENTER_REVIEW")
-    for chunk in manifest["chunks"]:
-        base = campaign / chunk["chunk_id"]
-        artifacts, consumption = base / "evidence", base / "consumption"
-        run = artifacts / "run-001"
-        claims = list(consumption.glob("*.json"))
-        if not claims and not run.exists():
-            continue
-        # A scanner STOP/unknown claim survives a crash before outer HALTED.json is written.
-        require(len(claims) == 1 and (run / "RESULT.json").is_file() and not (run / "STOP.json").exists(),
-                "HALTED_FOR_CONTROL_CENTER_REVIEW")
-        require(read_metadata((run / "RESULT.json").read_bytes())["status"] == "PASS", "HALTED_FOR_CONTROL_CENTER_REVIEW")
-        plan = chunk_plan(manifest, chunk["chunk_id"])
-        seal = h.build_seal(plan, artifacts, consumption)
-        auth = read_metadata((run / "authorization.json").read_bytes())
-        require(h.replay(run, plan, seal, auth, consumption)["status"] == "PASS", "HALTED_FOR_CONTROL_CENTER_REVIEW")
+    try:
+        prior = []
+        for chunk in manifest["chunks"]:
+            base = campaign / chunk["chunk_id"]
+            artifacts, consumption = base / "evidence", base / "consumption"
+            run = artifacts / "run-001"
+            claims = list(consumption.glob("*.json"))
+            if not claims and not run.exists():
+                continue
+            # A scanner STOP/unknown claim survives a crash before outer HALTED.json is written.
+            require(len(claims) == 1 and (run / "RESULT.json").is_file() and not (run / "STOP.json").exists(),
+                    "HALTED_FOR_CONTROL_CENTER_REVIEW")
+            result = read_metadata((run / "RESULT.json").read_bytes())
+            require(result["status"] == "PASS", "HALTED_FOR_CONTROL_CENTER_REVIEW")
+            plan = chunk_plan(manifest, chunk["chunk_id"])
+            seal = h.build_seal(plan, artifacts, consumption)
+            prior.append((run, consumption, plan, seal, result))
+        return [_cold_replay_success(*args) for args in prior]
+    except Exception as exc:
+        raise ValueError("HALTED_FOR_CONTROL_CENTER_REVIEW") from exc
 
 
 def execute_chunk(manifest, scope, approval, bundle, authorization, *, trusted_approval_sha256, main_sha, universe,

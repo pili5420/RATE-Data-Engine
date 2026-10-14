@@ -17,11 +17,14 @@ from scripts.verify_ci_applicability import network_guard
 BASE = "eb9f66c55245d9ace0417f3ef6f76ed4899dda01"
 ADDED = {"src/history_chunk_planning.py", "src/history_chunk_aggregation.py",
     "scripts/verify_history_chunked_acquisition.py", "tests/test_history_chunked_acquisition.py",
+    "scripts/replay_history_chunk_success.py", "tests/test_history_chunk_cold_replay.py",
     "docs/contracts/RATE_HISTORY_STOCK_CHUNKED_ACQUISITION_V1.json",
     "docs/RATE_HISTORY_STOCK_CHUNKED_ACQUISITION_V1.md",
     ".github/workflows/rate_history_chunked_acquisition_ci.yml"}
 NEW_COUNT = 72
-GROUPS = {**INHERITED,"history_chunked_new":(["test_history_chunked_acquisition"],NEW_COUNT)}
+COLD_COUNT = 26
+GROUPS = {**INHERITED,"history_chunked_new":(["test_history_chunked_acquisition"],NEW_COUNT),
+          "history_chunk_cold_new":(["test_history_chunk_cold_replay"],COLD_COUNT)}
 
 
 def main():
@@ -38,7 +41,7 @@ def main():
         raise ValueError("CHUNK_EXACT_BASE_HEAD_OR_WORKTREE_MISMATCH")
     changed = set(git("diff","--name-status","--no-renames",BASE,args.expected_head).splitlines())
     if changed != {"A\t"+p for p in ADDED}:
-        raise ValueError("CHUNK_SEVEN_ADDITIVE_FILES_REQUIRED")
+        raise ValueError("CHUNK_EXACT_ADDITIVE_FILES_REQUIRED")
     old,new = tree(BASE),tree(args.expected_head)
     if any(new.get(p)!=blob for p,blob in old.items()):
         raise ValueError("CHUNK_PROTECTED_EXISTING_BLOB_CHANGED")
@@ -70,7 +73,8 @@ def main():
         raise ValueError("CHUNK_EXECUTION_BINDING_CHANGED")
     write(args.output_dir/"VERIFICATION_PACKAGE.json",{"status":"PASS" if passed else "BLOCKED",
         "base_sha":BASE,"head_sha":args.expected_head,"changed_files":sorted(ADDED),
-        "existing_tests":sum(n for _,n in INHERITED.values()),"new_tests":NEW_COUNT,
+        "existing_tests":sum(n for _,n in INHERITED.values()),"existing_chunk_tests":NEW_COUNT,"new_cold_tests":COLD_COUNT,
+        "new_tests":NEW_COUNT+COLD_COUNT,
         "total_tests":sum(n for _,n in GROUPS.values()),"results":results,
         "protected_existing_blobs_preserved":len(old),"existing_runtime_files_changed":[],
         "additive_runtime_files":["src/history_chunk_planning.py","src/history_chunk_aggregation.py"],

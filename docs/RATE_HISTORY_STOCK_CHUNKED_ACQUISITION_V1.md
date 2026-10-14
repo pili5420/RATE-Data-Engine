@@ -47,6 +47,17 @@ not changed. Before claim, the wrapper also checks original chunk consumptions,
 STOP/results and replays previous successes, covering a crash before the outer
 halt file was written and rejecting prior-evidence mutation. A successful return
 also does not start another chunk automatically.
+The preclaim replay is a fresh `sys.executable -I -B` process for **each** prior
+success, not a direct call in the controller. The child installs the accepted
+`offline_network_guard` audit hook before importing the history executor; it reads
+the original Plan, Seal and Authorization from the original execution root and
+calls only `history_acquisition_execution.replay()` with the original consumption
+root. Source files are verified against the current committed Head and the parent
+source pins. Exit zero, PASS, original result digest and ledger head, fresh PID,
+owner import path and zero network attempts are all required before `h.execute()`.
+Structural checks for all existing claims precede any cold child. Child errors,
+timeouts, tampering or mismatched output halt before current consumption exists.
+The replay child never claims an authorization or writes into the prior roots.
 Every separate explicit invocation must present a distinct formally trusted
 authorization. This engineering CR creates and claims no real authorization.
 
