@@ -56,7 +56,7 @@ class SidecarTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory(prefix="ag-")
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
-        self.ctx = self.context(self.root / "ledger")
+        self.ctx = self.context(self.root / "governance")
         self.records = []
         for ordinal, (bundle, auth, result) in enumerate(zip(self.bundles, self.auths, self.results), 1):
             run = Path(bundle["execution_root"])
