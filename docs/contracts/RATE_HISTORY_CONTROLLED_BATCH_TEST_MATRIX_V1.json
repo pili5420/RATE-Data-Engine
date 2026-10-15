@@ -104,7 +104,8 @@
         "tests.test_history_batch_authority.CanonicalProtocolTests.test_duplicate_noncanonical_truncated_encodings_rejected",
         "tests.test_history_batch_orchestration.PacketSecurityTests.test_complete_packet_and_nested_missing_or_extra_fields",
         "tests.test_history_batch_orchestration.PacketSecurityTests.test_integer_counters_reject_bool_float_string_zero_negative",
-        "tests.test_history_batch_orchestration.PacketSecurityTests.test_issuer_events_strict_schema_type_and_chain"
+        "tests.test_history_batch_orchestration.PacketSecurityTests.test_issuer_events_strict_schema_type_and_chain",
+        "tests.test_history_batch_authority.JournalTests.test_intent_and_checkpoint_numeric_aliases_fail_cold_replay"
       ],
       "all_listed_tests_required": true
     },

@@ -83,7 +83,7 @@ def put(path, value):
             os.fsync(descriptor)
         finally:
             os.close(descriptor)
-    require(load(path) == value, "BATCH_EXCLUSIVE_CREATE_READBACK_FAILED")
+    require(path.read_bytes() == e.canonical(value), "BATCH_EXCLUSIVE_CREATE_READBACK_FAILED")
 
 
 def sandbox(path):
@@ -227,8 +227,8 @@ class Journal:
                     "BATCH_JOURNAL_CHAIN_INVALID")
             require(all((self.root / directory / path.name).is_file() for directory in ("intents", "checkpoints")),
                     "BATCH_JOURNAL_INCOMPLETE")
-            require(load(self.root / "intents" / path.name) == {"event": event}, "BATCH_JOURNAL_INCOMPLETE")
-            require(load(self.root / "checkpoints" / path.name) == {"sequence": ordinal, "head": event["event_sha256"]},
+            require(e.canonical(load(self.root / "intents" / path.name)) == e.canonical({"event": event}), "BATCH_JOURNAL_INCOMPLETE")
+            require(e.canonical(load(self.root / "checkpoints" / path.name)) == e.canonical({"sequence": ordinal, "head": event["event_sha256"]}),
                     "BATCH_JOURNAL_INCOMPLETE")
             expected.update(str(Path(folder) / path.name) for folder in ("intents", "events", "checkpoints"))
             previous = event["event_sha256"]; events.append(event)

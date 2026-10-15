@@ -249,6 +249,22 @@ class JournalTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "DIRECTORY"):
             self.journal.replay(None)
 
+    def test_intent_and_checkpoint_numeric_aliases_fail_cold_replay(self):
+        head = self.journal.append({"n": 1}, None)
+        for family in ("intents", "checkpoints"):
+            path = self.journal.root / family / "000001.json"
+            original = path.read_bytes()
+            for alias in (True, 1.0):
+                with self.subTest(family=family, alias=alias):
+                    value = a.read_metadata(original)
+                    target = value["event"] if family == "intents" else value
+                    target["sequence"] = alias
+                    path.write_bytes(a.e.canonical(value))
+                    with self.assertRaisesRegex(ValueError, "INCOMPLETE"):
+                        self.journal.replay(head)
+                    path.write_bytes(original)
+        self.assertEqual(self.journal.replay(head)[0]["sequence"], 1)
+
     def test_formal_root_denied(self):
         with self.assertRaises(ValueError):
             a.child_root(a.sidecar.LEDGER, self.base)
