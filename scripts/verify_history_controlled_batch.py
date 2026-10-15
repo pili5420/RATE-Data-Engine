@@ -49,6 +49,12 @@ def exact_test_checkout(revision, directory):
     try:
         os.environ.update(configuration)
         clean_consumer_checkout(revision, directory)
+        if git("rev-parse", "origin/main") != FROZEN:
+            raise ValueError("BATCH_FROZEN_MAIN_REFERENCE_DRIFT")
+        subprocess.run(["git", "-C", str(directory), "fetch", "--no-tags", str(ROOT),
+                        "refs/remotes/origin/main:refs/remotes/origin/main"], check=True, capture_output=True)
+        if subprocess.check_output(["git", "-C", str(directory), "rev-parse", "origin/main"]).decode().strip() != FROZEN:
+            raise ValueError("BATCH_DISPOSABLE_CLONE_MAIN_REFERENCE_MISMATCH")
     finally:
         for key, value in previous.items():
             if value is None:
@@ -111,15 +117,15 @@ def main():
     results = {}
     with tempfile.TemporaryDirectory(prefix="bc", dir=args.output_dir.parent) as directory, short_test_directory() as temporary:
         directory = Path(directory)
-        test_repo = directory / "h"
-        exact_test_checkout(args.expected_head, test_repo)
         proof_dir = args.output_dir.resolve() / "synthetic-acceptance"; proof_dir.mkdir()
         env = {**engineering_environment(), "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8",
             "TEMP": str(temporary), "TMP": str(temporary), "RATE_BATCH_SYNTHETIC_PROOF_DIR": str(proof_dir)}
-        # No borrowed Git index: every owner requiring a clean checkout shares this exact own-index clone.
+        # Every group starts in a new own-index clone; negative fixtures cannot contaminate later groups.
         groups = {**INHERITED, "controlled_batch_new": (NEW_MODULES, None)}
         all_ids = set()
         for name, (modules, expected_count) in groups.items():
+            test_repo = directory / name
+            exact_test_checkout(args.expected_head, test_repo)
             report = args.output_dir.resolve() / (name + ".json")
             command = [sys.executable, "-B", str(test_repo / "scripts/verify_history_controlled_batch.py"),
                        "--test-child", str(report), *modules]
@@ -131,6 +137,8 @@ def main():
                 raise ValueError("BATCH_TEST_CHILD_NO_REPORT")
             result = json.loads(report.read_bytes())
             result.update(exit_code=run.returncode,
+                isolated_checkout_before_clean=True,
+                isolated_checkout_after_status=subprocess.check_output(["git", "status", "--porcelain"], cwd=test_repo).decode(),
                 exact_count_pass=result["tests_run"] == (expected_count if expected_count is not None else len(result["test_inventory"])))
             results[name] = result
             all_ids.update(result["passing_test_ids"])
