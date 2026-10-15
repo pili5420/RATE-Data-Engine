@@ -391,3 +391,194 @@ ISSUER_CRASH_STAGES += [purpose + journal + boundary
     for journal in ("_", "_witness_") for boundary in ("intents", "events", "checkpoints")]
 for stage in ISSUER_CRASH_STAGES:
     setattr(EndToEndTests, "test_issuer_crash_" + stage, issuer_crash(stage))
+
+
+def mutate_witness(packet, case):
+    """Recompute local identity without modifying or forging detached signatures."""
+    core = a.e.verify_identity(packet["witness_event"], "rate-batch-journal-", "event_id", "event_sha256")
+    if case == "sequence_999":
+        core["sequence"] = 999
+    elif case == "unsigned_extra":
+        core["unsigned_extension"] = "SYNTHETIC_TAMPER"
+    elif case == "ack_float":
+        core["payload"]["acknowledgement"]["issuer_sequence"] = float(core["payload"]["acknowledgement"]["issuer_sequence"])
+    else:
+        raise AssertionError(case)
+    packet["witness_event"] = a.e.identified(core, "rate-batch-journal-", "event_id", "event_sha256")
+    packet["witness_head"] = packet["witness_event"]["event_sha256"]
+    return packet
+
+
+class PacketSecurityTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.f = Fixture(3)
+        cls.addClassCleanup(cls.f.close)
+        cls.f.start()
+        cls.valid = cls.f.client.call("AUTHORIZE", ordinal=2, predecessor_head=cls.f.policy["start_head"], at=AT)
+
+    def check(self, packet, **prior):
+        return a.verify_packet(packet, policy=self.f.policy, registry=self.f.registry, registry_pin=self.f.registry_pin,
+            purpose="AUTHORIZATION", **{"previous_issuer_head": None, "previous_witness_head": None,
+            "previous_issuer_sequence": 0, "previous_witness_sequence": 0, **prior})
+
+    def reject(self, packet, **prior):
+        with self.assertRaises(ValueError):
+            self.check(packet, **prior)
+        self.assertEqual(self.f.calls, 0)
+        self.assertFalse(Path(self.f.bundle(2)["consumption_root"]).exists())
+        self.assertFalse(Path(self.f.bundle(3)["execution_root"]).exists())
+        self.assertEqual(len(list((self.f.ledger / "events").glob("*.json"))), 1)
+
+    def test_legitimate_reserve_sequence_divergence(self):
+        self.assertEqual(self.valid["journal_events"][-1]["sequence"], 2)
+        self.assertEqual(self.valid["witness_event"]["sequence"], 1)
+        self.assertEqual(self.check(self.valid), (self.valid["issuer_head"], self.valid["witness_head"]))
+
+    def test_original_three_attacks_rehashed_without_forging_signature(self):
+        for case in ("sequence_999", "unsigned_extra", "ack_float"):
+            with self.subTest(case=case):
+                self.reject(mutate_witness(deepcopy(self.valid), case))
+
+    def test_complete_packet_and_nested_missing_or_extra_fields(self):
+        paths = [(), ("acknowledgement",), ("envelope",), ("envelope", "core"), ("witness",),
+                 ("witness", "core"), ("witness_event",), ("witness_event", "payload"),
+                 ("witness_event", "payload", "acknowledgement"), ("witness_event_envelope",),
+                 ("witness_event_envelope", "core"), ("artifact",)]
+        for path in paths:
+            node = self.valid
+            for part in path:
+                node = node[part]
+            for field in [*node, "UNSIGNED_EXTRA"]:
+                with self.subTest(path=path, field=field):
+                    packet = deepcopy(self.valid)
+                    changed = packet
+                    for part in path:
+                        changed = changed[part]
+                    if field == "UNSIGNED_EXTRA":
+                        changed[field] = True
+                    else:
+                        del changed[field]
+                    self.reject(packet)
+
+    def test_integer_counters_reject_bool_float_string_zero_negative(self):
+        paths = [("acknowledgement", "issuer_sequence"), ("witness_event", "sequence"),
+                 ("witness_event", "payload", "acknowledgement", "issuer_sequence"),
+                 ("envelope", "core", "sequence"), ("witness", "core", "sequence"),
+                 ("witness_event_envelope", "core", "sequence"), ("envelope", "core", "key_epoch"),
+                 ("artifact", "maximum_authorized_requests")]
+        for path in paths:
+            for value in (True, False, 1.0, "1", 0, -1):
+                with self.subTest(path=path, value=value):
+                    packet = deepcopy(self.valid); node = packet
+                    for part in path[:-1]:
+                        node = node[part]
+                    node[path[-1]] = value
+                    self.reject(packet)
+
+    def test_issuer_events_strict_schema_type_and_chain(self):
+        for index in (0, 1):
+            for case in ("extra", "missing", "float", "bool", "previous", "artifact", "purpose"):
+                with self.subTest(index=index, case=case):
+                    packet = deepcopy(self.valid)
+                    core = a.e.verify_identity(packet["journal_events"][index], "rate-batch-journal-", "event_id", "event_sha256")
+                    if case == "extra": core["extra"] = 1
+                    elif case == "missing": del core["sequence"]
+                    elif case == "float": core["sequence"] = float(index + 1)
+                    elif case == "bool": core["sequence"] = True
+                    elif case == "previous": core["previous_head"] = "0" * 64
+                    elif case == "artifact": core["payload"]["extra"] = "unsigned"
+                    else: core["payload"]["purpose"] = "HEAD_ACK"
+                    packet["journal_events"][index] = a.e.identified(core, "rate-batch-journal-", "event_id", "event_sha256")
+                    self.reject(packet)
+
+    def test_replay_stale_truncated_and_untrusted_prior_state(self):
+        self.reject(self.valid, previous_issuer_head=self.valid["issuer_head"], previous_issuer_sequence=2,
+            previous_witness_head=self.valid["witness_head"], previous_witness_sequence=1)
+        for field in ("journal_events", "witness_event", "witness_event_envelope"):
+            packet = deepcopy(self.valid); packet[field] = [] if field == "journal_events" else {}
+            self.reject(packet)
+        for value in (True, 0.0, "0", -1, 1, 999):
+            self.reject(self.valid, previous_witness_sequence=value)
+        self.reject(self.valid, previous_witness_head="0" * 64, previous_witness_sequence=1)
+        self.reject(self.valid, previous_issuer_head="0" * 64, previous_issuer_sequence=1)
+
+    def test_head_payload_signature_and_purpose_tamper(self):
+        paths = [("issuer_head",), ("witness_head",), ("acknowledgement", "issuer_head"),
+                 ("witness_event", "previous_head"), ("witness_event", "event_sha256"),
+                 ("witness_event", "payload", "acknowledgement", "issuer_head"),
+                 ("witness_event_envelope", "signature"), ("witness", "signature"), ("envelope", "signature")]
+        for path in paths:
+            packet = deepcopy(self.valid); node = packet
+            for part in path[:-1]: node = node[part]
+            node[path[-1]] = "0" * 64
+            self.reject(packet)
+        for family in ("envelope", "witness", "witness_event_envelope"):
+            for field, value in (("key_id", "control"), ("purpose", "POLICY"), ("policy_sha256", "0" * 64),
+                                 ("nonce", "OTHER_POLICY_NONCE"), ("previous_head", "0" * 64)):
+                packet = deepcopy(self.valid); packet[family]["core"][field] = value
+                self.reject(packet)
+
+    def test_valid_local_digest_is_not_external_signature(self):
+        packet = deepcopy(self.valid)
+        core = a.e.verify_identity(packet["witness_event"], "rate-batch-journal-", "event_id", "event_sha256")
+        core["sequence"] = 2
+        packet["witness_event"] = a.e.identified(core, "rate-batch-journal-", "event_id", "event_sha256")
+        packet["witness_head"] = packet["witness_event"]["event_sha256"]
+        packet["witness_event_envelope"]["core"]["artifact_file_sha256"] = a.e.sha(packet["witness_event"])
+        packet["witness_event_envelope"]["core"]["sequence"] = 2
+        # Even lying about the trusted counter cannot authenticate a recomputed event.
+        with self.assertRaises(ValueError):
+            a.verify_envelope(packet["witness_event_envelope"], a.e.canonical(packet["witness_event"]),
+                registry=self.f.registry, registry_pin=self.f.registry_pin, purpose="WITNESS_EVENT",
+                policy_sha256=a.e.sha(self.f.policy), sequence=2, previous_head=None, nonce=self.f.policy["nonce"])
+
+
+def security_halt(case, operation, occurrence):
+    def test(self):
+        f = Fixture(3); self.addCleanup(f.close); f.start()
+        original = f.client.call
+        observed, baseline = [], {}
+        def intercept(op, **values):
+            observed.append(op)
+            result = original(op, **values)
+            if op == operation and observed.count(op) == occurrence:
+                baseline.update(calls=f.calls, campaign=a.sidecar.snapshot(f.campaign), ledger=a.sidecar.snapshot(f.ledger),
+                                execute=execute.call_count, append=append.call_count, operations=len(observed))
+                return mutate_witness(deepcopy(result), case)
+            return result
+        with patch.object(f.client, "call", side_effect=intercept), \
+             patch.object(a.chunks, "execute_chunk", wraps=a.chunks.execute_chunk) as execute, \
+             patch.object(a.sidecar, "append_acceptance", wraps=a.sidecar.append_acceptance) as append:
+            with self.assertRaises(ValueError) as failure:
+                f.run()
+            self.assertTrue(baseline)
+            self.assertEqual(f.calls, baseline["calls"])
+            self.assertEqual(execute.call_count, baseline["execute"])
+            self.assertEqual(append.call_count, baseline["append"])
+            self.assertEqual(len(observed), baseline["operations"])
+        self.assertEqual(a.sidecar.snapshot(f.campaign), baseline["campaign"])
+        self.assertEqual(a.sidecar.snapshot(f.ledger), baseline["ledger"])
+        self.assertFalse(Path(f.bundle(3)["consumption_root"]).exists())
+        self.assertFalse(Path(f.bundle(3)["execution_root"]).exists())
+        self.assertTrue(f.runner.halted)
+        self.assertTrue((f.runner.root / "HALTED.json").exists())
+        with self.assertRaises(ValueError): f.run()
+        proof_dir = os.environ.get("RATE_BATCH_SYNTHETIC_PROOF_DIR")
+        if proof_dir:
+            a.put(Path(proof_dir) / f"SECURITY_HALT_{case}_{operation}_{occurrence}.json", {
+                "case": case, "operation": operation, "occurrence": occurrence, "status": "REJECTED_BEFORE_SUBSEQUENT_EFFECTS",
+                "head": f.engineering_head, "error": str(failure.exception), "additional_executor_calls": 0,
+                "additional_consumptions": 0, "additional_transport_calls": 0, "additional_acceptance_appends": 0,
+                "additional_releases": 0, "campaign_unchanged_after_injection": True, "ledger_unchanged_after_injection": True,
+                "effective_No_Auto_Next": True, "live_requests": 0})
+    return test
+
+
+class SecurityHaltTests(unittest.TestCase):
+    pass
+
+
+for attack in ("sequence_999", "unsigned_extra", "ack_float"):
+    for operation, occurrence in (("AUTHORIZE", 1), ("ACCEPT", 1), ("ACK", 1), ("AUTHORIZE", 2)):
+        setattr(SecurityHaltTests, f"test_{attack}_{operation}_{occurrence}_halts", security_halt(attack, operation, occurrence))

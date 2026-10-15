@@ -75,7 +75,7 @@ class Fixture:
                     "purposes": ["POLICY"], "revoked": False},
                 "issuer": {"epoch": 1, "public_key": self.client.public["issuer_public_key"],
                     "purposes": ["AUTHORIZATION", "ACCEPTANCE", "HEAD_ACK", "REVOCATION"], "revoked": False},
-                "witness": {"epoch": 1, "public_key": self.client.public["witness_public_key"], "purposes": ["WITNESS"], "revoked": False}}}
+                "witness": {"epoch": 1, "public_key": self.client.public["witness_public_key"], "purposes": ["WITNESS", "WITNESS_EVENT"], "revoked": False}}}
         # This immutable pin originates in the synthetic external control fixture, not in the runner.
         self.registry_path = self.base / "control" / "public-registry.json"
         a.put(self.registry_path, self.registry)
@@ -92,7 +92,7 @@ class Fixture:
             "start_head": initial["head"], "start_ordinal": 1, "genesis_file_sha256": a.e.sha(genesis),
             "activation_file_sha256": a.e.sha(permit), "initial_record_pins": self.records,
             "not_before": "2026-10-14T00:00:00Z", "not_after": "2099-01-01T00:00:00Z",
-            "delegations": ["AUTHORIZATION", "ACCEPTANCE", "HEAD_ACK"],
+            "delegations": ["AUTHORIZATION", "ACCEPTANCE", "HEAD_ACK"], "witness_start": {"sequence": 0, "head": None},
             "runtime": {"sequential": True, "single_writer": True, "timeout": 30, "interval": 13,
                 "retry": 0, "redirect": False, "fallback": False, "auto_resume": False, "live_execution": False},
             "roots": {"sandbox": str(self.base), **{name: str(self.base / name) for name in ("issuer", "witness", "runner", "campaign")},
@@ -119,7 +119,7 @@ class Fixture:
         self.client.initialize(self.policy, self.ctx, self.registry, policy_envelope, at=AT,
                                trusted_registry_sha256=self.registry_pin, synthetic_fault_stage=synthetic_fault_stage)
         self.runner = Orchestrator(self.policy, self.ctx, self.registry, self.client, at=AT,
-                                  trusted_registry_sha256=self.registry_pin)
+                                  trusted_registry_sha256=self.registry_pin, policy_envelope=policy_envelope)
         return self.runner
 
     def run(self, **kwargs):

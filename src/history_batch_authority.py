@@ -32,9 +32,44 @@ def engineering_owners():
 
 def load(path):
     raw = e.safe(path).read_bytes()
+    return canonical_metadata(raw)
+
+
+def canonical_metadata(raw):
     value = read_metadata(raw)
     require(raw == e.canonical(value), "BATCH_CANONICAL_JSON_REQUIRED")
     return value
+
+
+def schema_fields(value, names, reason="BATCH_PACKET_SCHEMA_INVALID"):
+    require(type(value) is dict and set(value) == set(names), reason)
+
+
+def native_json(value):
+    """Trust protocol counters never have float, bool, or string aliases."""
+    if type(value) is dict:
+        require(all(type(k) is str for k in value), "BATCH_PACKET_NATIVE_TYPE_INVALID")
+        for item in value.values():
+            native_json(item)
+    elif type(value) is list:
+        for item in value:
+            native_json(item)
+    else:
+        require(type(value) in (str, int, bool, type(None)), "BATCH_PACKET_NATIVE_TYPE_INVALID")
+
+
+def digest(value, *, nullable=False):
+    require((nullable and value is None) or
+            (type(value) is str and re.fullmatch(r"[0-9a-f]{64}", value)), "BATCH_HEAD_TYPE_INVALID")
+
+
+def journal_event(event):
+    schema_fields(event, {"sequence", "previous_head", "payload", "event_id", "event_sha256"})
+    require(type(event["sequence"]) is int and event["sequence"] > 0, "BATCH_EVENT_SEQUENCE_INVALID")
+    digest(event["previous_head"], nullable=True)
+    digest(event["event_sha256"])
+    require(type(event["event_id"]) is str and type(event["payload"]) is dict, "BATCH_PACKET_SCHEMA_INVALID")
+    return e.verify_identity(event, "rate-batch-journal-", "event_id", "event_sha256")
 
 
 def put(path, value):
@@ -86,19 +121,25 @@ def envelope(core, sign):
 def verify_envelope(value, artifact, *, registry, registry_pin, purpose, policy_sha256,
                     sequence, previous_head, nonce):
     require(e.sha(registry) == registry_pin and registry["material_scope"] == SCOPE, "BATCH_EXTERNAL_KEY_REGISTRY_PIN_REQUIRED")
-    require(set(value) == {"core", "signature"}, "BATCH_ENVELOPE_FIELDS_INVALID")
+    schema_fields(value, {"core", "signature"}, "BATCH_ENVELOPE_FIELDS_INVALID")
     core = value["core"]
     fields = {"artifact_kind", "algorithm", "material_scope", "key_id", "key_epoch", "purpose", "policy_sha256",
               "artifact_file_sha256", "sequence", "previous_head", "nonce"}
-    require(set(core) == fields and core["artifact_kind"] == "RATE_BATCH_DETACHED_ENVELOPE_V1"
+    require(type(core) is dict and set(core) == fields and core["artifact_kind"] == "RATE_BATCH_DETACHED_ENVELOPE_V1"
             and core["algorithm"] == "Ed25519" and core["material_scope"] == SCOPE, "BATCH_ENVELOPE_FIELDS_INVALID")
     require(type(core["sequence"]) is int and core["sequence"] == sequence and type(sequence) is int
             and sequence > 0 and core["previous_head"] == previous_head and core["nonce"] == nonce,
             "BATCH_ENVELOPE_SEQUENCE_OR_NONCE_MISMATCH")
+    require(all(type(core[k]) is str for k in fields - {"sequence", "key_epoch", "previous_head"}),
+            "BATCH_ENVELOPE_FIELDS_INVALID")
+    digest(core["previous_head"], nullable=True)
+    digest(core["artifact_file_sha256"]); digest(core["policy_sha256"])
+    expected_key = "control" if purpose == "POLICY" else "witness" if purpose in {"WITNESS", "WITNESS_EVENT"} else "issuer"
+    require(core["key_id"] == expected_key, "BATCH_UNTRUSTED_OR_REVOKED_KEY")
     require(core["purpose"] == purpose and core["policy_sha256"] == policy_sha256
             and core["artifact_file_sha256"] == e.sha(artifact), "BATCH_ENVELOPE_ARTIFACT_OR_PURPOSE_MISMATCH")
     key = registry["keys"].get(core["key_id"])
-    require(key is not None and key["epoch"] == core["key_epoch"] and type(core["key_epoch"]) is int
+    require(key is not None and type(key["epoch"]) is int and key["epoch"] == core["key_epoch"] and type(core["key_epoch"]) is int
             and purpose in key["purposes"] and key["revoked"] is False, "BATCH_UNTRUSTED_OR_REVOKED_KEY")
     public_bytes, signature = decode(key["public_key"], 32), decode(value["signature"], 64)
     try:
@@ -120,11 +161,13 @@ def validate_policy(policy, ctx, *, at):
               "engineering_head", "engineering_owner_sha256_lf",
               "ordinals", "chunk_ids", "per_chunk_requests", "maximum_requests", "start_head", "start_ordinal",
               "genesis_file_sha256", "activation_file_sha256", "initial_record_pins", "not_before", "not_after",
-              "delegations", "runtime", "roots"}
+              "delegations", "runtime", "roots", "witness_start"}
     require(type(policy) is dict and set(policy) == fields and policy["artifact_kind"] == "RATE_BATCH_POLICY_V1"
             and policy["contract"] == CONTRACT and policy["material_scope"] == SCOPE,
             "BATCH_REAL_ACTIVATION_NOT_AUTHORIZED")
     require(policy["engineering_cr_sha256"] == CR_SHA256 and policy["approved"] is True, "BATCH_POLICY_NOT_APPROVED")
+    require(e.canonical(policy["witness_start"]) == e.canonical({"sequence": 0, "head": None}),
+            "BATCH_SIGNED_WITNESS_GENESIS_REQUIRED")
     require(policy["main_sha"] == FROZEN_MAIN and policy["sidecar_head"] == SIDECAR_HEAD
             and policy["execution_owner_sha256_lf"] == h.owners() and policy["sidecar_owner_sha256_lf"] == sidecar.owners(),
             "BATCH_SOURCE_HEAD_OR_OWNER_MISMATCH")
@@ -179,7 +222,7 @@ class Journal:
             ordinal = len(events) + 1
             require(path.name == f"{ordinal:06}.json", "BATCH_JOURNAL_SEQUENCE_INVALID")
             event = load(path)
-            core = e.verify_identity(event, "rate-batch-journal-", "event_id", "event_sha256")
+            core = journal_event(event)
             require(type(core["sequence"]) is int and core["sequence"] == ordinal and core["previous_head"] == previous,
                     "BATCH_JOURNAL_CHAIN_INVALID")
             require(all((self.root / directory / path.name).is_file() for directory in ("intents", "checkpoints")),
@@ -259,9 +302,15 @@ class Issuer:
         witness = envelope(ack_core, self.witness_sign)
         self.witness_head = self.witness.append({"acknowledgement": acknowledgement, "envelope": witness}, self.witness_head,
             fault=lambda stage: self.fault(purpose.lower() + "_witness_" + stage))
+        witness_event = self.witness.replay(self.witness_head)[-1]
+        # Authenticate the complete journal event, including its own sequence, predecessor and next head.
+        event_envelope = envelope(release_core(e.canonical(witness_event), key_id="witness", purpose="WITNESS_EVENT",
+            policy_sha256=e.sha(self.policy), sequence=witness_event["sequence"],
+            previous_head=witness_event["previous_head"], nonce=self.policy["nonce"]), self.witness_sign)
         return {"artifact": artifact, "envelope": signed, "witness": witness, "acknowledgement": acknowledgement,
                 "issuer_head": self.head, "witness_head": self.witness_head,
-                "journal_events": self.journal.replay(self.head), "witness_event": self.witness.replay(self.witness_head)[-1]}
+                "journal_events": self.journal.replay(self.head), "witness_event": witness_event,
+                "witness_event_envelope": event_envelope}
 
     def authorize(self, ordinal, predecessor_head, *, at):
         self.guard(at)
@@ -298,7 +347,7 @@ class Issuer:
             "rate-history-acceptance-record-", "acceptance_id", "acceptance_sha256")
         result = self.persist("ACCEPTANCE", record, at=at)
         self.accepted = record
-        return {**result, "source_cold_replay": proof["cold_replay"]}
+        return result
 
     def acknowledge(self, head, *, genesis_path, activation_path, record_paths, at):
         self.guard(at)
@@ -322,28 +371,109 @@ class Issuer:
         return result
 
 
-def verify_packet(packet, *, policy, registry, registry_pin, purpose, previous_issuer_head, previous_witness_head):
-    events, head, found_previous = packet["journal_events"], None, previous_issuer_head is None
+def release_artifact(value, purpose, policy):
+    """The additive envelope retains original owner formats with exact native types."""
+    if purpose == "AUTHORIZATION":
+        names = {"contract", "plan_id", "plan_sha256", "main_sha", "universe_sha256", "owner_sha256_lf",
+                 "artifacts_root_identity", "consumption_root_identity", "maximum_authorized_requests", "single_use",
+                 "material_scope", "artifact_kind", "seal_id", "seal_sha256", "status", "authorization_id", "authorization_sha256"}
+        schema_fields(value, names)
+        require(type(value["maximum_authorized_requests"]) is int and value["maximum_authorized_requests"] > 0
+                and value["single_use"] is True and type(value["owner_sha256_lf"]) is dict,
+                "BATCH_ARTIFACT_NATIVE_TYPE_INVALID")
+        require(e.canonical(value["owner_sha256_lf"]) == e.canonical(policy["execution_owner_sha256_lf"]),
+                "BATCH_ARTIFACT_OWNER_MISMATCH")
+        strings = names - {"maximum_authorized_requests", "single_use", "owner_sha256_lf"}
+    elif purpose == "ACCEPTANCE":
+        names = {"artifact_kind", "contract", "issuer", "decision", "accepted_at", "acceptance_id", "acceptance_sha256",
+                 "chunk_ordinal", "chunk_id", "plan_sha256", "seal_sha256", "authorization_id", "authorization_sha256",
+                 "result_sha256", "ledger_head", "consumption_sha256", "request_count", "execution_evidence_inventory_sha256",
+                 *policy["binding"]}
+        schema_fields(value, names)
+        require(all(type(value[k]) is int and value[k] > 0 for k in ("chunk_ordinal", "request_count")),
+                "BATCH_ARTIFACT_NATIVE_TYPE_INVALID")
+        require(e.canonical({k: value[k] for k in policy["binding"]}) == e.canonical(policy["binding"]),
+                "BATCH_ARTIFACT_BINDING_MISMATCH")
+        strings = names - {"chunk_ordinal", "request_count"}
+    elif purpose == "HEAD_ACK":
+        schema_fields(value, {"acceptance_head", "ordinal"})
+        require(type(value["ordinal"]) is int and value["ordinal"] > 0, "BATCH_ARTIFACT_NATIVE_TYPE_INVALID")
+        digest(value["acceptance_head"])
+        strings = {"acceptance_head"}
+    elif purpose == "REVOCATION":
+        schema_fields(value, {"nonce", "revoked"})
+        require(value["revoked"] is True and value["nonce"] == policy["nonce"], "BATCH_ARTIFACT_NATIVE_TYPE_INVALID")
+        strings = {"nonce"}
+    else:
+        raise ValueError("BATCH_PACKET_PURPOSE_INVALID")
+    require(all(type(value[k]) is str for k in strings), "BATCH_ARTIFACT_NATIVE_TYPE_INVALID")
+
+
+def verify_packet(packet, *, policy, registry, registry_pin, purpose, previous_issuer_head, previous_witness_head,
+                  previous_issuer_sequence, previous_witness_sequence):
+    # Sequences originate in the verified signed policy genesis, then only in successful verification.
+    # Neither sequence can be supplied by the packet being verified.
+    schema_fields(packet, {"artifact", "envelope", "witness", "acknowledgement", "issuer_head", "witness_head",
+                          "journal_events", "witness_event", "witness_event_envelope"})
+    schema_fields(registry, {"material_scope", "issuer_root_identity", "witness_root_identity", "keys"})
+    schema_fields(registry["keys"], {"control", "issuer", "witness"})
+    for key in registry["keys"].values():
+        schema_fields(key, {"epoch", "public_key", "purposes", "revoked"})
+        require(type(key["epoch"]) is int and key["epoch"] > 0 and type(key["revoked"]) is bool
+                and type(key["purposes"]) is list and all(type(p) is str for p in key["purposes"]),
+                "BATCH_KEY_REGISTRY_SCHEMA_INVALID")
+    require(len({decode(key["public_key"], 32) for key in registry["keys"].values()}) == 3
+            and registry["issuer_root_identity"] != registry["witness_root_identity"],
+            "BATCH_INDEPENDENT_IDENTITIES_REQUIRED")
+    native_json(packet)
+    for count, prior in ((previous_issuer_sequence, previous_issuer_head), (previous_witness_sequence, previous_witness_head)):
+        require(type(count) is int and count >= 0 and (count == 0) == (prior is None), "BATCH_TRUSTED_PRIOR_STATE_INVALID")
+        digest(prior, nullable=True)
+    digest(packet["issuer_head"]); digest(packet["witness_head"])
+    events, head = packet["journal_events"], None
+    require(type(events) is list and len(events) == previous_issuer_sequence + (2 if purpose == "AUTHORIZATION" else 1),
+            "BATCH_RELEASE_REPLAY_OR_STALE_HEAD")
+    common = {"registry": registry, "registry_pin": registry_pin, "policy_sha256": e.sha(policy), "nonce": policy["nonce"]}
     for sequence, event in enumerate(events, 1):
-        core = e.verify_identity(event, "rate-batch-journal-", "event_id", "event_sha256")
+        core = journal_event(event)
         require(core["previous_head"] == head and core["sequence"] == sequence, "BATCH_RELEASE_JOURNAL_CHAIN_INVALID")
+        payload = core["payload"]
+        event_purpose = payload.get("purpose")
+        require(type(event_purpose) is str, "BATCH_PACKET_SCHEMA_INVALID")
+        if event_purpose == "RESERVE":
+            schema_fields(payload, {"purpose", "chunk_id", "nonce"})
+            require(type(payload["chunk_id"]) is str and payload["chunk_id"] in policy["chunk_ids"]
+                    and payload["nonce"] == policy["nonce"], "BATCH_RESERVATION_BINDING_INVALID")
+        else:
+            schema_fields(payload, {"purpose", "artifact", "envelope"})
+            release_artifact(payload["artifact"], event_purpose, policy)
+            verify_envelope(payload["envelope"], e.canonical(payload["artifact"]), purpose=event_purpose,
+                            sequence=sequence, previous_head=head, **common)
         head = event["event_sha256"]
-        if head == previous_issuer_head:
-            found_previous = True
-    require(events and found_previous and head == packet["issuer_head"] and head != previous_issuer_head,
+        if sequence == previous_issuer_sequence:
+            require(head == previous_issuer_head, "BATCH_RELEASE_PRIOR_ISSUER_HEAD_MISMATCH")
+    require(head == packet["issuer_head"] and head != previous_issuer_head,
             "BATCH_RELEASE_REPLAY_OR_STALE_HEAD")
     last = events[-1]
-    require(last["payload"] == {"purpose": purpose, "artifact": packet["artifact"], "envelope": packet["envelope"]},
+    require(e.canonical(last["payload"]) == e.canonical({"purpose": purpose, "artifact": packet["artifact"], "envelope": packet["envelope"]}),
             "BATCH_RELEASE_EVENT_ARTIFACT_MISMATCH")
-    common = {"registry": registry, "registry_pin": registry_pin, "policy_sha256": e.sha(policy),
-              "sequence": last["sequence"], "nonce": policy["nonce"]}
+    if purpose == "AUTHORIZATION":
+        require(events[-2]["payload"]["purpose"] == "RESERVE", "BATCH_RESERVATION_REQUIRED")
     verify_envelope(packet["envelope"], e.canonical(packet["artifact"]), purpose=purpose,
-                    previous_head=last["previous_head"], **common)
+                    sequence=last["sequence"], previous_head=last["previous_head"], **common)
     ack = {"issuer_head": head, "issuer_sequence": last["sequence"]}
-    require(packet["acknowledgement"] == ack, "BATCH_RELEASE_WITNESS_ACK_MISMATCH")
-    verify_envelope(packet["witness"], e.canonical(ack), purpose="WITNESS", previous_head=previous_witness_head, **common)
+    schema_fields(packet["acknowledgement"], {"issuer_head", "issuer_sequence"})
+    require(type(packet["acknowledgement"]["issuer_sequence"]) is int
+            and e.canonical(packet["acknowledgement"]) == e.canonical(ack), "BATCH_RELEASE_WITNESS_ACK_MISMATCH")
+    verify_envelope(packet["witness"], e.canonical(ack), purpose="WITNESS", sequence=last["sequence"],
+                    previous_head=previous_witness_head, **common)
     witness = packet["witness_event"]
-    core = e.verify_identity(witness, "rate-batch-journal-", "event_id", "event_sha256")
-    require(core["previous_head"] == previous_witness_head and witness["event_sha256"] == packet["witness_head"]
-            and core["payload"] == {"acknowledgement": ack, "envelope": packet["witness"]}, "BATCH_RELEASE_EXTERNAL_HEAD_MISMATCH")
+    core = journal_event(witness)
+    schema_fields(core["payload"], {"acknowledgement", "envelope"})
+    require(core["sequence"] == previous_witness_sequence + 1 and core["previous_head"] == previous_witness_head
+            and witness["event_sha256"] == packet["witness_head"]
+            and e.canonical(core["payload"]) == e.canonical({"acknowledgement": ack, "envelope": packet["witness"]}),
+            "BATCH_RELEASE_EXTERNAL_HEAD_MISMATCH")
+    verify_envelope(packet["witness_event_envelope"], e.canonical(witness), purpose="WITNESS_EVENT",
+                    sequence=previous_witness_sequence + 1, previous_head=previous_witness_head, **common)
     return packet["issuer_head"], packet["witness_head"]

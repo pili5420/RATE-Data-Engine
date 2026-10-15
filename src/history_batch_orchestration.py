@@ -26,9 +26,11 @@ def cold_acceptance(ctx, policy, record_paths, head, output):
 
 
 class Orchestrator:
-    def __init__(self, policy, ctx, registry, client, *, trusted_registry_sha256, at):
+    def __init__(self, policy, ctx, registry, client, *, trusted_registry_sha256, policy_envelope, at):
         a.require(a.e.sha(registry) == trusted_registry_sha256, "BATCH_EXTERNAL_KEY_REGISTRY_PIN_REQUIRED")
         a.validate_policy(policy, ctx, at=at)
+        a.verify_envelope(policy_envelope, a.e.canonical(policy), registry=registry, registry_pin=trusted_registry_sha256,
+            purpose="POLICY", policy_sha256=a.e.sha(policy), sequence=1, previous_head=None, nonce=policy["nonce"])
         self.policy, self.ctx, self.registry, self.client = policy, ctx, registry, client
         self.registry_pin = trusted_registry_sha256
         self.root = a.child_root(policy["roots"]["runner"], policy["roots"]["sandbox"])
@@ -36,6 +38,9 @@ class Orchestrator:
         self.journal = a.Journal(self.root, policy["roots"]["sandbox"])
         a.require(not self.journal.replay(None), "BATCH_ORCHESTRATOR_RESUME_FORBIDDEN")
         self.head = self.issuer_head = self.witness_head = None
+        self.issuer_sequence = 0
+        self.witness_sequence = policy["witness_start"]["sequence"]
+        self.witness_head = policy["witness_start"]["head"]
         self.accepted_head = policy["start_head"]
         self.records = dict(policy["initial_record_pins"])
         self.completed, self.halted = [], False
@@ -43,7 +48,10 @@ class Orchestrator:
     def packet(self, value, purpose):
         self.issuer_head, self.witness_head = a.verify_packet(value, policy=self.policy, registry=self.registry,
             registry_pin=self.registry_pin, purpose=purpose, previous_issuer_head=self.issuer_head,
-            previous_witness_head=self.witness_head)
+            previous_witness_head=self.witness_head, previous_issuer_sequence=self.issuer_sequence,
+            previous_witness_sequence=self.witness_sequence)
+        self.issuer_sequence += 2 if purpose == "AUTHORIZATION" else 1
+        self.witness_sequence += 1
         return value["artifact"]
 
     def step(self, ordinal, stage, proof):

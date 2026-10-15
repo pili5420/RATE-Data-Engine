@@ -97,3 +97,29 @@ Before a real pilot: accept independent engineering/security review; complete
 the separate Sidecar Bootstrap Acceptance; approve finite No-Auto-Next and
 automated acceptance delegation; qualify independent issuer/witness deployment;
 issue exact-head permits and a finite policy separately. None is authorized here.
+
+## PR #71 Security Correction
+
+The immutable defect baseline is `90c82ecf0882639f22c1b6c836631bd5bf1cd214`.
+The three witness metadata attacks were accepted at that head. The cancelled
+CI run `38782850567` remains cancelled and provides no final acceptance.
+
+The runner now verifies the control-signed policy, including an empty witness
+genesis (sequence zero, null head), and maintains separate issuer and witness
+counters. Each packet must extend the independently verified prior state.
+`RESERVE` adds an issuer event only; the counters intentionally diverge.
+
+A new `WITNESS_EVENT` Ed25519 envelope authenticates the entire canonical
+witness event, including sequence, predecessor, payload and next-head digest.
+The original witness acknowledgement separately authenticates the issuer head
+and issuer sequence. Exact schemas and native types apply throughout packets,
+events, acknowledgement, signed envelope and release artifacts; canonical
+byte comparisons replace permissive object comparisons. RPC framing rejects
+noncanonical bytes, duplicate keys and incomplete messages. Distinct pinned
+control, issuer and witness public identities and purposes are required.
+
+Security regression tests rehash the original three mutations without forging
+signatures, exercise replay, schema, type and head attacks, and inject each
+original attack at authorization, acceptance, acknowledgement and the next
+authorization. Every injection must halt without subsequent execution, claim,
+transport, acceptance append or release. Synthetic evidence is retained by CI.

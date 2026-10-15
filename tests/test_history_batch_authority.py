@@ -269,3 +269,29 @@ def crash_at(folder):
 
 for family in ("intents", "events", "checkpoints"):
     setattr(JournalTests, "test_crash_after_" + family, crash_at(family))
+
+
+class CanonicalProtocolTests(unittest.TestCase):
+    def test_canonical_bytes_roundtrip(self):
+        value = {"sequence": 1, "previous_head": None, "nonce": "SYNTHETIC_ONLY"}
+        self.assertEqual(a.canonical_metadata(a.e.canonical(value)), value)
+
+    def test_duplicate_noncanonical_truncated_encodings_rejected(self):
+        for raw in (b'{"sequence":1,"sequence":1}', b'{"sequence": 1}', b'{"sequence":1}\n',
+                    b'{"sequence":1', b'{"sequence":01}', b'{"z":1,"a":2}',
+                    b'{"nonce":"\\u0054EST"}', b'\xef\xbb\xbf{"sequence":1}',
+                    b'{"sequence":NaN}', b'{"sequence":Infinity}', b'{"sequence":1e999}'):
+            with self.subTest(raw=raw), self.assertRaises(ValueError):
+                a.canonical_metadata(raw)
+
+    def test_native_protocol_rejects_non_json_and_float_values(self):
+        for value in (1.0, float("nan"), {"counter": 2.0}, {"counter": (1, 2)}, {1: "alias"}):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                a.native_json(value)
+
+    def test_journal_event_bool_and_float_rehashed_rejected(self):
+        for value in (True, 1.0, "1", 0, -1):
+            event = a.e.identified({"sequence": value, "previous_head": None, "payload": {}},
+                                  "rate-batch-journal-", "event_id", "event_sha256")
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                a.journal_event(event)

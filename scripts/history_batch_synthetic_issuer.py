@@ -15,7 +15,8 @@ from src import history_batch_authority as a
 def receive():
     line = sys.stdin.readline()
     a.require(bool(line), "BATCH_ISSUER_INPUT_CLOSED")
-    return a.read_metadata(line.encode())
+    a.require(line.endswith("\n"), "BATCH_ISSUER_TRUNCATED_INPUT")
+    return a.canonical_metadata(line[:-1].encode())
 
 
 def reply(value):

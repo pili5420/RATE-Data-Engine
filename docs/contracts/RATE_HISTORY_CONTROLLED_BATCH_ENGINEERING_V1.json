@@ -41,13 +41,28 @@
     "exclusive_create": true,
     "single_writer_os_lock": true,
     "hash_chain": true,
-    "commit_order": ["intents", "events", "checkpoints"],
+    "commit_order": [
+      "intents",
+      "events",
+      "checkpoints"
+    ],
     "external_expected_head_required": true,
     "incomplete_or_stale": "HALT_NO_AUTOMATIC_REPAIR",
-    "windows_parent_directory_fsync_claimed": false
+    "windows_parent_directory_fsync_claimed": false,
+    "signed_complete_witness_event": true
   },
   "orchestration": {
-    "steps": ["RELEASE_VERIFIED", "PRECLAIM_BINDING_PASS", "ORIGINAL_OWNER_CLAIM", "EXECUTION_PASS", "COLD_REPLAY_PASS", "ACCEPTANCE_VERIFIED", "APPEND_PASS", "COLD_ACCEPTANCE_REPLAY", "EXTERNAL_HEAD_ACK_PASS"],
+    "steps": [
+      "RELEASE_VERIFIED",
+      "PRECLAIM_BINDING_PASS",
+      "ORIGINAL_OWNER_CLAIM",
+      "EXECUTION_PASS",
+      "COLD_REPLAY_PASS",
+      "ACCEPTANCE_VERIFIED",
+      "APPEND_PASS",
+      "COLD_ACCEPTANCE_REPLAY",
+      "EXTERNAL_HEAD_ACK_PASS"
+    ],
     "claim_owner": "src/history_acquisition_execution.py::execute",
     "claim_observation_does_not_take_claim_ownership": true,
     "history_execution_owner_unchanged": true,
@@ -75,5 +90,16 @@
     "calendar180_not_advanced": true,
     "intraday": "BLOCKED_EXTERNAL",
     "TPEx": "UNCHANGED"
+  },
+  "security_correction": {
+    "governance_comment": "https://github.com/pili5420/RATE-Data-Engine/pull/71#issuecomment-6203501549",
+    "defect_baseline_head": "90c82ecf0882639f22c1b6c836631bd5bf1cd214",
+    "packet_schema": "exact fields; native types; canonical UTF-8; duplicate keys rejected",
+    "witness_genesis": "control-signed policy witness_start sequence=0/head=null; verified independently by runner",
+    "witness_transition": "prior independently verified witness sequence+1 and exact predecessor head",
+    "witness_event_authentication": "Ed25519 WITNESS_EVENT detached envelope over complete canonical event including its identity/next head",
+    "issuer_sequence": "independent counter; RESERVE increments issuer only",
+    "failure_boundary": "HALT before subsequent executor, consumption, transport, acceptance append or release",
+    "original_defect_and_cancelled_ci": "immutable; never reclassified PASS"
   }
 }

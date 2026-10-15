@@ -86,7 +86,9 @@
       "test_ids": [
         "tests.test_history_batch_authority.SignatureTests.test_signature_tamper",
         "tests.test_history_batch_authority.SignatureTests.test_unknown_key",
-        "tests.test_history_batch_authority.SignatureTests.test_key_epoch_mismatch"
+        "tests.test_history_batch_authority.SignatureTests.test_key_epoch_mismatch",
+        "tests.test_history_batch_orchestration.PacketSecurityTests.test_head_payload_signature_and_purpose_tamper",
+        "tests.test_history_batch_orchestration.PacketSecurityTests.test_valid_local_digest_is_not_external_signature"
       ],
       "all_listed_tests_required": true
     },
@@ -98,7 +100,11 @@
       "test_ids": [
         "tests.test_history_batch_authority.SignatureTests.test_semantic_digest_cannot_replace_file_pin",
         "tests.test_history_batch_orchestration.EndToEndTests.test_registry_mutation_cannot_self_pin_during_initialize",
-        "tests.test_history_batch_orchestration.EndToEndTests.test_registry_mutation_after_initialize_is_rejected_before_claim"
+        "tests.test_history_batch_orchestration.EndToEndTests.test_registry_mutation_after_initialize_is_rejected_before_claim",
+        "tests.test_history_batch_authority.CanonicalProtocolTests.test_duplicate_noncanonical_truncated_encodings_rejected",
+        "tests.test_history_batch_orchestration.PacketSecurityTests.test_complete_packet_and_nested_missing_or_extra_fields",
+        "tests.test_history_batch_orchestration.PacketSecurityTests.test_integer_counters_reject_bool_float_string_zero_negative",
+        "tests.test_history_batch_orchestration.PacketSecurityTests.test_issuer_events_strict_schema_type_and_chain"
       ],
       "all_listed_tests_required": true
     },
@@ -193,7 +199,8 @@
       "requirement": "three-chunk success gated per step",
       "evidence_kind": "passing_test_ids",
       "test_ids": [
-        "tests.test_history_batch_orchestration.EndToEndTests.test_three_chunk_pilot_full_owner_e2e"
+        "tests.test_history_batch_orchestration.EndToEndTests.test_three_chunk_pilot_full_owner_e2e",
+        "tests.test_history_batch_orchestration.PacketSecurityTests.test_legitimate_reserve_sequence_divergence"
       ],
       "all_listed_tests_required": true
     },
@@ -213,7 +220,8 @@
       "requirement": "prior chunk PASS without acceptance cannot advance",
       "evidence_kind": "passing_test_ids",
       "test_ids": [
-        "tests.test_history_batch_orchestration.EndToEndTests.test_execution_pass_without_acceptance_cannot_release_next"
+        "tests.test_history_batch_orchestration.EndToEndTests.test_execution_pass_without_acceptance_cannot_release_next",
+        "tests.test_history_batch_orchestration.PacketSecurityTests.test_replay_stale_truncated_and_untrusted_prior_state"
       ],
       "all_listed_tests_required": true
     },
@@ -240,7 +248,20 @@
         "tests.test_history_batch_orchestration.EndToEndTests.test_prior_events_tamper_before_claim",
         "tests.test_history_batch_orchestration.EndToEndTests.test_prior_checkpoints_tamper_before_claim",
         "tests.test_history_batch_orchestration.EndToEndTests.test_prior_result_tamper_before_claim",
-        "tests.test_history_batch_orchestration.EndToEndTests.test_prior_consumption_tamper_before_claim"
+        "tests.test_history_batch_orchestration.EndToEndTests.test_prior_consumption_tamper_before_claim",
+        "tests.test_history_batch_orchestration.PacketSecurityTests.test_original_three_attacks_rehashed_without_forging_signature",
+        "tests.test_history_batch_orchestration.SecurityHaltTests.test_sequence_999_AUTHORIZE_1_halts",
+        "tests.test_history_batch_orchestration.SecurityHaltTests.test_sequence_999_ACCEPT_1_halts",
+        "tests.test_history_batch_orchestration.SecurityHaltTests.test_sequence_999_ACK_1_halts",
+        "tests.test_history_batch_orchestration.SecurityHaltTests.test_sequence_999_AUTHORIZE_2_halts",
+        "tests.test_history_batch_orchestration.SecurityHaltTests.test_unsigned_extra_AUTHORIZE_1_halts",
+        "tests.test_history_batch_orchestration.SecurityHaltTests.test_unsigned_extra_ACCEPT_1_halts",
+        "tests.test_history_batch_orchestration.SecurityHaltTests.test_unsigned_extra_ACK_1_halts",
+        "tests.test_history_batch_orchestration.SecurityHaltTests.test_unsigned_extra_AUTHORIZE_2_halts",
+        "tests.test_history_batch_orchestration.SecurityHaltTests.test_ack_float_AUTHORIZE_1_halts",
+        "tests.test_history_batch_orchestration.SecurityHaltTests.test_ack_float_ACCEPT_1_halts",
+        "tests.test_history_batch_orchestration.SecurityHaltTests.test_ack_float_ACK_1_halts",
+        "tests.test_history_batch_orchestration.SecurityHaltTests.test_ack_float_AUTHORIZE_2_halts"
       ],
       "all_listed_tests_required": true
     },

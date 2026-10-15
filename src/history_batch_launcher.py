@@ -126,7 +126,8 @@ class ContainedProcess:
         except queue.Empty as exc:
             self.close(); raise ValueError("BATCH_CHILD_READ_TIMEOUT_UNKNOWN_OUTCOME") from exc
         require(bool(line), "BATCH_CHILD_NONZERO_OR_UNKNOWN_OUTCOME")
-        value = a.read_metadata(line.encode())
+        require(line.endswith("\n"), "BATCH_CHILD_TRUNCATED_RESPONSE")
+        value = a.canonical_metadata(line[:-1].encode())
         require(value.get("status") == "PASS", "BATCH_CHILD_FAILED:" + str(value.get("error")))
         return value
 
