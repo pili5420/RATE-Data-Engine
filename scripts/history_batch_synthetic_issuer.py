@@ -29,7 +29,7 @@ def main():
     # These test keys are generated only inside this contained process, never serialized.
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
     issuer_key, witness_key = Ed25519PrivateKey.generate(), Ed25519PrivateKey.generate()
-    reply({"pid": os.getpid(), "issuer_public_key": base64.b64encode(issuer_key.public_key().public_bytes_raw()).decode(),
+    reply({"pid": os.getpid(), "parent_pid": os.getppid(), "issuer_public_key": base64.b64encode(issuer_key.public_key().public_bytes_raw()).decode(),
         "witness_public_key": base64.b64encode(witness_key.public_key().public_bytes_raw()).decode(),
         "private_key_serialized": False, "material_scope": a.SCOPE})
     init = receive()

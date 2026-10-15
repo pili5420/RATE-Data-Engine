@@ -143,7 +143,9 @@ class IssuerClient:
         self.child = ContainedProcess([sys.executable, "-I", "-B", str(a.h.ROOT / "scripts/history_batch_synthetic_issuer.py")], cwd=a.h.ROOT)
         self.child.send({"operation": "BOOT", "material_scope": a.SCOPE, "sandbox": str(self.base)})
         self.public = self.child.receive()
-        require(self.public["pid"] != os.getpid(), "BATCH_ISSUER_PROCESS_ISOLATION_REQUIRED")
+        if self.public["pid"] != self.child.process.pid or self.public["parent_pid"] != os.getpid():
+            self.child.close()
+            raise ValueError("BATCH_NATIVE_INTERPRETER_PROCESS_BINDING_REQUIRED")
 
     def initialize(self, policy, ctx, registry, policy_envelope, *, at):
         self.child.send({"operation": "INITIALIZE", "policy": policy, "ctx": ctx, "registry": registry,
