@@ -38,7 +38,14 @@ def alive(pid):
         return False
     try:
         os.kill(pid, 0)
-        return True
+    return True
+
+
+def source_binding():
+    head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=a.h.ROOT).decode().strip()
+    owners = {path: a.e.sha(subprocess.check_output(["git", "show", head + ":" + path], cwd=a.h.ROOT))
+              for path in set(a.h.owners()) | set(a.sidecar.owners()) | set(a.engineering_owners())}
+    return {"expected_engineering_head": head, "trusted_owner_sha256_lf": owners}
     except ProcessLookupError:
         return False
 
@@ -121,8 +128,25 @@ class ContainmentTests(unittest.TestCase):
                 calls.append("CLOSED")
         with patch("src.history_batch_launcher.ContainedProcess", return_value=Redirected()):
             with self.assertRaisesRegex(ValueError, "NATIVE_INTERPRETER"):
-                IssuerClient(self.base)
+                IssuerClient(self.base, **source_binding())
         self.assertEqual(calls, ["BOOT", "CLOSED"])
+
+    def test_wrong_head_rejected_before_any_issuer_process_or_key(self):
+        from src.history_batch_launcher import IssuerClient
+        binding = source_binding(); binding["expected_engineering_head"] = "0" * 40
+        with patch("src.history_batch_launcher.ContainedProcess") as process:
+            with self.assertRaisesRegex(ValueError, "HEAD_OR_WORKTREE"):
+                IssuerClient(self.base, **binding)
+            process.assert_not_called()
+
+    def test_wrong_owner_rejected_before_any_issuer_process_or_key(self):
+        from src.history_batch_launcher import IssuerClient
+        binding = source_binding()
+        binding["trusted_owner_sha256_lf"]["scripts/history_batch_synthetic_issuer.py"] = "0" * 64
+        with patch("src.history_batch_launcher.ContainedProcess") as process:
+            with self.assertRaisesRegex(ValueError, "COMMITTED_OWNER"):
+                IssuerClient(self.base, **binding)
+            process.assert_not_called()
 
     def test_unapproved_environment_secret_not_inherited(self):
         name = "RATE_CC_TEST_SECRET_" + str(os.getpid())

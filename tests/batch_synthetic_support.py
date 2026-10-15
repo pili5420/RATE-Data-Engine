@@ -61,7 +61,12 @@ class Fixture:
         initial = a.sidecar.append_acceptance(self.ctx, record_path=self.record1, trusted_record_sha256=a.e.sha(record),
             genesis_path=self.genesis, trusted_genesis_sha256=a.e.sha(genesis), trusted_records=self.records, expected_head=None,
             activation_path=self.activation, trusted_activation_sha256=a.e.sha(permit))
-        self.client = IssuerClient(self.base)
+        self.engineering_head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=a.h.ROOT).decode().strip()
+        self.trusted_owner_sha256_lf = {path: a.e.sha(subprocess.check_output(
+            ["git", "show", self.engineering_head + ":" + path], cwd=a.h.ROOT))
+            for path in set(a.h.owners()) | set(a.sidecar.owners()) | set(a.engineering_owners())}
+        self.client = IssuerClient(self.base, expected_engineering_head=self.engineering_head,
+                                  trusted_owner_sha256_lf=self.trusted_owner_sha256_lf)
         # Control authority is test-only and independent of the issuer worker key.
         self.control_key = Ed25519PrivateKey.generate()
         self.registry = {"material_scope": a.SCOPE, "issuer_root_identity": a.e.root_identity(self.base / "issuer"),

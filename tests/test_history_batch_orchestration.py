@@ -246,7 +246,8 @@ class EndToEndTests(unittest.TestCase):
     def test_restart_overlapping_window_nonce_cannot_reissue(self):
         f = self.prove_window(1)
         f.client.close()
-        f.client = launch.IssuerClient(f.base)
+        f.client = launch.IssuerClient(f.base, expected_engineering_head=f.engineering_head,
+                                      trusted_owner_sha256_lf=f.trusted_owner_sha256_lf)
         f.registry["keys"]["issuer"]["public_key"] = f.client.public["issuer_public_key"]
         f.registry["keys"]["witness"]["public_key"] = f.client.public["witness_public_key"]
         with self.assertRaises(ValueError):

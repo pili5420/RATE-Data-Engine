@@ -146,8 +146,11 @@ class ContainedProcess:
 
 class IssuerClient:
     """Only public keys and signed replies cross into this process."""
-    def __init__(self, base):
+    def __init__(self, base, *, expected_engineering_head, trusted_owner_sha256_lf):
         self.base = a.sandbox(base)
+        required = set(a.h.owners()) | set(a.sidecar.owners()) | set(a.engineering_owners())
+        require(set(trusted_owner_sha256_lf) == required, "BATCH_LAUNCHER_OWNER_SET_MISMATCH")
+        verify_checkout(a.h.ROOT, expected_engineering_head, trusted_owner_sha256_lf)
         self.child = ContainedProcess([sys.executable, "-I", "-B", str(a.h.ROOT / "scripts/history_batch_synthetic_issuer.py")], cwd=a.h.ROOT)
         self.child.send({"operation": "BOOT", "material_scope": a.SCOPE, "sandbox": str(self.base)})
         self.public = self.child.receive()

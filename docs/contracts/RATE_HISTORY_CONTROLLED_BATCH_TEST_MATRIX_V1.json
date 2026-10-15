@@ -49,7 +49,9 @@
         "tests.test_history_batch_authority.PolicyTests.test_wrong_sidecar_head",
         "tests.test_history_batch_authority.PolicyTests.test_wrong_engineering_head",
         "tests.test_history_batch_authority.PolicyTests.test_wrong_engineering_owner_sha256_lf",
-        "tests.test_history_batch_orchestration.EndToEndTests.test_source_head_and_owner_binding_readonly"
+        "tests.test_history_batch_orchestration.EndToEndTests.test_source_head_and_owner_binding_readonly",
+        "tests.test_history_batch_containment.ContainmentTests.test_wrong_head_rejected_before_any_issuer_process_or_key",
+        "tests.test_history_batch_containment.ContainmentTests.test_wrong_owner_rejected_before_any_issuer_process_or_key"
       ],
       "all_listed_tests_required": true
     },
