@@ -90,9 +90,9 @@ def verify_envelope(value, artifact, *, registry, registry_pin, purpose, policy_
     key = registry["keys"].get(core["key_id"])
     require(key is not None and key["epoch"] == core["key_epoch"] and type(core["key_epoch"]) is int
             and purpose in key["purposes"] and key["revoked"] is False, "BATCH_UNTRUSTED_OR_REVOKED_KEY")
+    public_bytes, signature = decode(key["public_key"], 32), decode(value["signature"], 64)
     try:
-        Ed25519PublicKey.from_public_bytes(decode(key["public_key"], 32)).verify(
-            decode(value["signature"], 64), DOMAIN + e.canonical(core))
+        Ed25519PublicKey.from_public_bytes(public_bytes).verify(signature, DOMAIN + e.canonical(core))
     except (InvalidSignature, ValueError) as exc:
         raise ValueError("BATCH_SIGNATURE_INVALID") from exc
     return core
@@ -165,6 +165,8 @@ class Journal:
             core = e.verify_identity(event, "rate-batch-journal-", "event_id", "event_sha256")
             require(type(core["sequence"]) is int and core["sequence"] == ordinal and core["previous_head"] == previous,
                     "BATCH_JOURNAL_CHAIN_INVALID")
+            require(all((self.root / directory / path.name).is_file() for directory in ("intents", "checkpoints")),
+                    "BATCH_JOURNAL_INCOMPLETE")
             require(load(self.root / "intents" / path.name) == {"event": event}, "BATCH_JOURNAL_INCOMPLETE")
             require(load(self.root / "checkpoints" / path.name) == {"sequence": ordinal, "head": event["event_sha256"]},
                     "BATCH_JOURNAL_INCOMPLETE")
