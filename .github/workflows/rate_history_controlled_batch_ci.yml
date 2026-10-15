@@ -39,7 +39,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Locked engineering dependencies
-        run: python -m pip install --require-hashes --only-binary=:all: -r requirements/history_batch_synthetic.lock.txt
+        run: >-
+          python -m pip install --require-hashes --only-binary=:all:
+          -r requirements/history_batch_synthetic.lock.txt
       - name: Inherited plus WP1 and WP2 exact-head synthetic acceptance
         run: >-
           python -B scripts/verify_history_controlled_batch.py
