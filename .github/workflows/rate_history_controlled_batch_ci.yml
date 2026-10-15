@@ -1,0 +1,63 @@
+name: RATE Controlled Batch Synthetic Engineering
+on:
+  push:
+    branches: [codex/controlled-batch-automation-v1]
+  pull_request:
+    branches: [main, codex/history-acceptance-sidecar-v1]
+    paths:
+      - src/history_batch_*.py
+      - scripts/history_batch_*.py
+      - scripts/verify_history_controlled_batch.py
+      - tests/*batch*.py
+      - requirements/history_batch_synthetic.lock.txt
+      - docs/contracts/RATE_HISTORY_CONTROLLED_BATCH*.json
+      - docs/RATE_HISTORY_CONTROLLED_BATCH_ENGINEERING_V1.md
+      - .github/workflows/rate_history_controlled_batch_ci.yml
+permissions:
+  contents: read
+concurrency:
+  group: rate-batch-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+jobs:
+  exact-head:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 180
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Locked engineering dependencies
+        run: python -m pip install --require-hashes --only-binary=:all: -r requirements/history_batch_synthetic.lock.txt
+      - name: Inherited plus WP1 and WP2 exact-head synthetic acceptance
+        run: >-
+          python -B scripts/verify_history_controlled_batch.py
+          --expected-base e3ef25084f17f9073b25555b8c0cf911e1146ec8
+          --expected-head "${{ github.event.pull_request.head.sha || github.sha }}"
+          --output-dir "${{ runner.temp }}/controlled-batch"
+      - name: Unchanged current-main replacement and continuity
+        run: >-
+          python -B scripts/verify_ci_applicability.py
+          --expected-base fbdfbfcf0a003cd6de49911bc0a784275a32031c
+          --expected-head "${{ github.event.pull_request.head.sha || github.sha }}"
+          --output-dir "${{ runner.temp }}/batch-replacement"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: BATCH_SYNTHETIC_${{ matrix.os }}_${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            ${{ runner.temp }}/controlled-batch
+            ${{ runner.temp }}/batch-replacement
+          if-no-files-found: error
+          retention-days: 14

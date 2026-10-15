@@ -51,8 +51,11 @@ def main():
             resolved = Path(path).resolve()
             a.require(any(resolved == root or resolved.is_relative_to(root) for root in writer_roots), "BATCH_ISSUER_WRITE_BOUNDARY")
     sys.addaudithook(guard)
+    def inject(stage):
+        if stage == init.get("synthetic_fault_stage"):
+            raise RuntimeError("SYNTHETIC_ISSUER_CRASH_" + stage)
     issuer = a.Issuer(init["policy"], init["ctx"], init["registry"], init["registry_pin"], init["policy_envelope"],
-        issuer_key.sign, witness_key.sign, at=init["at"])
+        issuer_key.sign, witness_key.sign, at=init["at"], fault=inject)
     reply({"initialized": True, "pid": os.getpid()})
     while True:
         request = receive()

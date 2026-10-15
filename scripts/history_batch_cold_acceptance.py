@@ -23,7 +23,7 @@ def main():
     a.require(binding["ctx"]["synthetic"] is True, "BATCH_COLD_REAL_ROOT_FORBIDDEN")
     a.sandbox(Path(binding["ctx"]["campaign_root"]).parent)
     head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT).decode().strip()
-    owners = {**a.h.owners(), **a.sidecar.owners()}
+    owners = {**a.h.owners(), **a.sidecar.owners(), **a.engineering_owners()}
     a.require(head == binding["source_head"] and owners == binding["source_owner_sha256_lf"], "BATCH_COLD_SOURCE_MISMATCH")
     for path, digest in owners.items():
         a.require(a.e.sha(subprocess.check_output(["git", "show", head + ":" + path], cwd=ROOT)) == digest, "BATCH_COLD_COMMITTED_SOURCE_MISMATCH")

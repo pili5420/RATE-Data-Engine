@@ -3,6 +3,8 @@ from pathlib import Path
 import base64
 import os
 import re
+import subprocess
+from importlib.metadata import version
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
@@ -18,6 +20,14 @@ CR_SHA256 = "15ab18a242f509bd5c5257f462afd9690e01deb14615fadb65c2c7d8fb8b909b"
 CONTRACT = "RATE_HISTORY_CONTROLLED_BATCH_POLICY_V1"
 SCOPE = "SYNTHETIC_ONLY"
 DOMAIN = b"RATE_CONTROLLED_BATCH_ED25519_V1\x00"
+ENGINEERING_PATHS = ["src/history_batch_authority.py", "src/history_batch_launcher.py", "src/history_batch_orchestration.py",
+                     "scripts/history_batch_synthetic_issuer.py", "scripts/history_batch_cold_acceptance.py"]
+require(all(version(name) == expected for name, expected in
+            {"cryptography": "50.0.2", "cffi": "2.1.1", "pycparser": "3.11"}.items()), "BATCH_LOCKED_CRYPTO_DEPENDENCY_MISMATCH")
+
+
+def engineering_owners():
+    return {path: e.sha((h.ROOT / path).read_bytes().replace(b"\r\n", b"\n")) for path in ENGINEERING_PATHS}
 
 
 def load(path):
@@ -107,6 +117,7 @@ def release_core(artifact, *, key_id, purpose, policy_sha256, sequence, previous
 def validate_policy(policy, ctx, *, at):
     fields = {"artifact_kind", "contract", "material_scope", "engineering_cr_sha256", "nonce", "approved",
               "main_sha", "sidecar_head", "execution_owner_sha256_lf", "sidecar_owner_sha256_lf", "binding",
+              "engineering_head", "engineering_owner_sha256_lf",
               "ordinals", "chunk_ids", "per_chunk_requests", "maximum_requests", "start_head", "start_ordinal",
               "genesis_file_sha256", "activation_file_sha256", "initial_record_pins", "not_before", "not_after",
               "delegations", "runtime", "roots"}
@@ -117,6 +128,12 @@ def validate_policy(policy, ctx, *, at):
     require(policy["main_sha"] == FROZEN_MAIN and policy["sidecar_head"] == SIDECAR_HEAD
             and policy["execution_owner_sha256_lf"] == h.owners() and policy["sidecar_owner_sha256_lf"] == sidecar.owners(),
             "BATCH_SOURCE_HEAD_OR_OWNER_MISMATCH")
+    head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=h.ROOT).decode().strip()
+    require(policy["engineering_head"] == head and policy["engineering_owner_sha256_lf"] == engineering_owners(),
+            "BATCH_ENGINEERING_HEAD_OR_OWNER_MISMATCH")
+    for path, digest in engineering_owners().items():
+        require(e.sha(subprocess.check_output(["git", "show", head + ":" + path], cwd=h.ROOT)) == digest,
+                "BATCH_ENGINEERING_COMMITTED_OWNER_MISMATCH")
     require(ctx["synthetic"] is True and policy["binding"] == ctx["binding"], "BATCH_MANIFEST_SCOPE_UNIVERSE_MISMATCH")
     require(policy["delegations"] == ["AUTHORIZATION", "ACCEPTANCE", "HEAD_ACK"], "BATCH_ACCEPTANCE_DELEGATION_REQUIRED")
     require(e.canonical(policy["runtime"]) == e.canonical({"sequential": True, "single_writer": True, "timeout": 30, "interval": 13,
@@ -195,7 +212,8 @@ class Journal:
 
 class Issuer:
     """Used only by the isolated synthetic key worker, never by the launcher."""
-    def __init__(self, policy, ctx, registry, registry_pin, policy_envelope, sign, witness_sign, *, at):
+    def __init__(self, policy, ctx, registry, registry_pin, policy_envelope, sign, witness_sign, *, at,
+                 fault=lambda stage: None):
         validate_policy(policy, ctx, at=at)
         verify_envelope(policy_envelope, e.canonical(policy), registry=registry, registry_pin=registry_pin,
             purpose="POLICY", policy_sha256=e.sha(policy), sequence=1, previous_head=None, nonce=policy["nonce"])
@@ -204,6 +222,7 @@ class Issuer:
                 "BATCH_GLOBAL_ISSUER_ROOT_PIN_MISMATCH")
         self.policy, self.ctx, self.registry, self.registry_pin = policy, ctx, registry, registry_pin
         self.sign, self.witness_sign = sign, witness_sign
+        self.fault = fault
         self.journal = Journal(policy["roots"]["issuer"], policy["roots"]["sandbox"])
         self.witness = Journal(policy["roots"]["witness"], policy["roots"]["sandbox"])
         self.head = self.witness_head = None
@@ -231,7 +250,9 @@ class Issuer:
         core = release_core(e.canonical(artifact), key_id="issuer", purpose=purpose,
             policy_sha256=e.sha(self.policy), sequence=sequence, previous_head=self.head, nonce=self.policy["nonce"])
         signed = envelope(core, self.sign)
-        self.head = self.journal.append({"purpose": purpose, "artifact": artifact, "envelope": signed}, self.head, fault=fault)
+        def inject(stage):
+            fault(stage); self.fault(purpose.lower() + "_" + stage)
+        self.head = self.journal.append({"purpose": purpose, "artifact": artifact, "envelope": signed}, self.head, fault=inject)
         acknowledgement = {"issuer_head": self.head, "issuer_sequence": sequence}
         ack_core = release_core(e.canonical(acknowledgement), key_id="witness", purpose="WITNESS",
             policy_sha256=e.sha(self.policy), sequence=sequence, previous_head=self.witness_head, nonce=self.policy["nonce"])
@@ -257,7 +278,8 @@ class Issuer:
         auth = e.identified(core, "rate-history-acquisition-authorization-", "authorization_id", "authorization_sha256")
         h.validate_authorization(auth, bundle["seal"])
         # Reservation is durable before an authorization release can be delivered.
-        self.head = self.journal.append({"purpose": "RESERVE", "chunk_id": chunk["chunk_id"], "nonce": self.policy["nonce"]}, self.head)
+        self.head = self.journal.append({"purpose": "RESERVE", "chunk_id": chunk["chunk_id"], "nonce": self.policy["nonce"]}, self.head,
+                                        fault=lambda stage: self.fault("reserve_" + stage))
         self.reserved.add(chunk["chunk_id"])
         self.release = {"ordinal": ordinal, "bundle": bundle, "authorization": auth}
         return self.persist("AUTHORIZATION", auth, at=at)

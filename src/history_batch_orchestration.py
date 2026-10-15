@@ -10,7 +10,7 @@ def cold_acceptance(ctx, policy, record_paths, head, output):
     binding = {"ctx": ctx, "genesis_path": ctx["genesis_path"], "genesis_sha256": policy["genesis_file_sha256"],
         "record_paths": record_paths, "head": head,
         "source_head": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=a.h.ROOT).decode().strip(),
-        "source_owner_sha256_lf": {**a.h.owners(), **a.sidecar.owners()}}
+        "source_owner_sha256_lf": {**a.h.owners(), **a.sidecar.owners(), **a.engineering_owners()}}
     command = [sys.executable, "-I", "-B", str(a.h.ROOT / "scripts/history_batch_cold_acceptance.py")]
     child = subprocess.run(command, input=a.e.canonical(binding), capture_output=True, cwd=a.h.ROOT, timeout=300)
     a.require(child.returncode == 0, "BATCH_COLD_ACCEPTANCE_CHILD_FAILED:" + child.stderr.decode(errors="replace"))

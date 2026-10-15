@@ -12,6 +12,13 @@ from .eps_duration_facts.model import require
 from . import history_batch_authority as a
 
 
+def engineering_environment():
+    names = ("PATH", "SYSTEMROOT", "SystemRoot", "WINDIR", "COMSPEC", "TEMP", "TMP", "HOME", "USERPROFILE",
+             "LOCALAPPDATA", "APPDATA", "LANG", "LC_ALL", "TZ", "CI", "GITHUB_ACTIONS", "RUNNER_OS", "RUNNER_TEMP",
+             "GITHUB_WORKSPACE", "PYTHONDONTWRITEBYTECODE", "PYTHONIOENCODING")
+    return {name: os.environ[name] for name in names if name in os.environ}
+
+
 def verify_checkout(path, head, owner_pins, *, main=False):
     path = a.e.safe(path)
     def git(*args):
@@ -38,7 +45,8 @@ class ContainedProcess:
         self.job = None
         self.monitor_fd = self.monitor_pid = None
         self.process = subprocess.Popen(command, cwd=cwd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE, text=True, encoding="utf-8", start_new_session=os.name != "nt")
+            stderr=subprocess.PIPE, text=True, encoding="utf-8", start_new_session=os.name != "nt",
+            env=engineering_environment())
         try:
             if os.name == "nt":
                 self._windows_job()
@@ -147,9 +155,10 @@ class IssuerClient:
             self.child.close()
             raise ValueError("BATCH_NATIVE_INTERPRETER_PROCESS_BINDING_REQUIRED")
 
-    def initialize(self, policy, ctx, registry, policy_envelope, *, at):
+    def initialize(self, policy, ctx, registry, policy_envelope, *, at, synthetic_fault_stage=None):
         self.child.send({"operation": "INITIALIZE", "policy": policy, "ctx": ctx, "registry": registry,
-            "registry_pin": a.e.sha(registry), "policy_envelope": policy_envelope, "at": at})
+            "registry_pin": a.e.sha(registry), "policy_envelope": policy_envelope, "at": at,
+            "synthetic_fault_stage": synthetic_fault_stage})
         return self.child.receive()
 
     def call(self, operation, **values):

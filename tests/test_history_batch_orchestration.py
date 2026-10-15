@@ -23,6 +23,7 @@ class EndToEndTests(unittest.TestCase):
         return fixture
 
     def prove_window(self, count):
+        started = time.perf_counter()
         f = self.fixture(count)
         old = a.sidecar.snapshot(f.campaign)
         f.start()
@@ -45,7 +46,24 @@ class EndToEndTests(unittest.TestCase):
             cold = a.load(f.base / "cold-proofs" / f"{ordinal:06}.json")["proof"]
             self.assertTrue(cold["isolated"])
             self.assertEqual(cold["network_attempts"], 0)
+        sessions = []
+        for ordinal in f.policy["ordinals"]:
+            bundle = f.bundle(ordinal)
+            first = a.load(sorted((Path(bundle["execution_root"]) / "intents").glob("*.json"))[0])
+            dispatch = first["dispatch"]
+            self.assertGreaterEqual(dispatch["monotonic_timestamp"] - dispatch["previous_wait_anchor_monotonic"], 13)
+            self.assertEqual(dispatch["measurement_boundary"], "CAPTURE_CALL_NOT_HTTP_WIRE_START")
+            sessions.append({"ordinal": ordinal, "session_identity": dispatch["session_identity"],
+                "first_anchor_gap": dispatch["monotonic_timestamp"] - dispatch["previous_wait_anchor_monotonic"]})
+        self.assertEqual(len({s["session_identity"] for s in sessions}), count)
         proof_dir = os.environ.get("RATE_BATCH_SYNTHETIC_PROOF_DIR")
+        paths = [p for p in f.base.rglob("*") if p.is_file()]
+        metrics = {"observed_wall_seconds": time.perf_counter() - started,
+            "retained_synthetic_bytes": sum(p.stat().st_size for p in paths), "retained_files": len(paths),
+            "maximum_path_characters": max(len(str(p.resolve())) for p in paths),
+            "live_network_latency_measured": False}
+        if os.name == "nt":
+            self.assertLessEqual(metrics["maximum_path_characters"], 259)
         if proof_dir:
             proof = {"material_scope": a.SCOPE, "window_chunks": count, "result": result,
                 "mock_transport_calls": f.calls, "expected_mock_calls": f.policy["maximum_requests"],
@@ -53,8 +71,14 @@ class EndToEndTests(unittest.TestCase):
                 "source_producer_main": f.policy["main_sha"], "sidecar_head": f.policy["sidecar_head"],
                 "issuer_pid": f.client.public["pid"], "runner_pid": os.getpid(), "private_key_serialized": False,
                 "runner_events": f.runner.journal.replay(f.runner.head),
+                "resource_measurements": metrics,
+                "distinct_dispatch_sessions": sessions,
                 "cold_proofs": [a.load(f.base / "cold-proofs" / f"{n:06}.json") for n in f.policy["ordinals"]]}
             a.put(Path(proof_dir) / f"SYNTHETIC_{count}_CHUNK_ACCEPTANCE.json", proof)
+        calls = f.calls
+        with self.assertRaises(ValueError):
+            f.client.call("AUTHORIZE", ordinal=count + 2, predecessor_head=result["acceptance_head"], at=AT)
+        self.assertEqual(f.calls, calls)
         return f
 
     def test_three_chunk_pilot_full_owner_e2e(self):
@@ -261,6 +285,27 @@ class EndToEndTests(unittest.TestCase):
             f.start()
         self.assertEqual(f.calls, 0)
 
+    def test_genesis_pin_tamper_rejected_before_claim(self):
+        f = self.fixture(); f.genesis.write_bytes(b"{}")
+        with self.assertRaises(ValueError):
+            f.start()
+        self.assertFalse(Path(f.bundle(2)["consumption_root"]).exists())
+
+    def test_prior_stop_blocks_before_claim(self):
+        f = self.fixture()
+        a.put(Path(f.bundle(1)["execution_root"]) / "STOP.json", {"status": "SYNTHETIC_STOP"})
+        with self.assertRaises(ValueError):
+            f.start()
+        self.assertFalse(Path(f.bundle(2)["consumption_root"]).exists())
+
+    def test_endpoint_override_rejected_by_original_plan_owner(self):
+        f = self.fixture()
+        plan = deepcopy(f.bundle(2)["plan"])
+        plan["entries"][0]["endpoint"] = "https://invalid.example/SYNTHETIC"
+        with self.assertRaises(ValueError):
+            a.h.validate_plan(plan)
+        self.assertEqual(f.calls, 0)
+
 
 def prior_tamper(family, filename=None):
     def test(self):
@@ -297,3 +342,21 @@ def fail_at(stage):
 
 for stage in ("before_release", "before_claim", "after_cold", "before_append", "after_append", "after_external_ack"):
     setattr(EndToEndTests, "test_crash_" + stage + "_no_resume", fail_at(stage))
+
+
+def issuer_crash(stage):
+    def test(self):
+        f = self.fixture()
+        f.start(synthetic_fault_stage=stage)
+        with self.assertRaises(ValueError):
+            f.run()
+        self.assertFalse(Path(f.bundle(2)["consumption_root"]).exists())
+        self.assertEqual(f.calls, 0)
+        self.assertTrue(list((f.base / "issuer" / "intents").glob("*.json")))
+        with self.assertRaises(ValueError):
+            f.run()
+    return test
+
+
+for stage in ("reserve_intents", "reserve_events", "reserve_checkpoints", "authorization_intents", "authorization_events", "authorization_checkpoints"):
+    setattr(EndToEndTests, "test_issuer_crash_" + stage, issuer_crash(stage))

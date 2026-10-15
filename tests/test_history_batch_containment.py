@@ -8,6 +8,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 
 from src.prospective_acquisition_recovery import offline_network_guard
 sys.addaudithook(offline_network_guard)
@@ -106,3 +107,34 @@ class ContainmentTests(unittest.TestCase):
         self.assertNotIn("private_bytes", source)
         self.assertNotIn("FINMIND_TOKEN", source)
         self.assertIn("Ed25519PrivateKey.generate()", source)
+
+    def test_redirected_pid_rejected_before_initialization(self):
+        from src.history_batch_launcher import IssuerClient
+        calls = []
+        class Redirected:
+            process = type("Process", (), {"pid": 101})()
+            def send(self, value):
+                calls.append(value["operation"])
+            def receive(self):
+                return {"status": "PASS", "pid": 102, "parent_pid": os.getpid()}
+            def close(self):
+                calls.append("CLOSED")
+        with patch("src.history_batch_launcher.ContainedProcess", return_value=Redirected()):
+            with self.assertRaisesRegex(ValueError, "NATIVE_INTERPRETER"):
+                IssuerClient(self.base)
+        self.assertEqual(calls, ["BOOT", "CLOSED"])
+
+    def test_unapproved_environment_secret_not_inherited(self):
+        name = "RATE_CC_TEST_SECRET_" + str(os.getpid())
+        self.assertNotIn(name, os.environ)
+        os.environ[name] = "SYNTHETIC_SENTINEL_ONLY"
+        try:
+            code = "import sys,os,json;sys.stdin.readline();print(json.dumps({'status':'PASS','present':sys.argv[1] in os.environ}),flush=True)"
+            process = ContainedProcess([sys.executable, "-I", "-c", code, name], cwd=a.h.ROOT)
+            try:
+                process.send({"start": True})
+                self.assertFalse(process.receive()["present"])
+            finally:
+                process.close()
+        finally:
+            del os.environ[name]

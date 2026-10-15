@@ -99,6 +99,12 @@ class SignatureTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "ENCODING"):
             self.verify()
 
+    def test_semantic_digest_cannot_replace_file_pin(self):
+        self.core["artifact_file_sha256"] = "b" * 64
+        self.signed = a.envelope(self.core, self.key.sign)
+        with self.assertRaisesRegex(ValueError, "ARTIFACT"):
+            self.verify()
+
 
 class PolicyTests(unittest.TestCase):
     @classmethod
@@ -178,8 +184,21 @@ def policy_bad(field, value, reason):
 for field, value, reason in [("main_sha", "0" * 40, "SOURCE"), ("sidecar_head", "0" * 40, "SOURCE"),
     ("execution_owner_sha256_lf", {}, "SOURCE"), ("sidecar_owner_sha256_lf", {}, "SOURCE"),
     ("binding", {}, "MANIFEST"), ("chunk_ids", ["wrong"], "IDENTITY"), ("per_chunk_requests", [100], "BUDGET"),
-    ("engineering_cr_sha256", "0" * 64, "APPROVED")]:
+    ("engineering_cr_sha256", "0" * 64, "APPROVED"), ("engineering_head", "0" * 40, "ENGINEERING"),
+    ("engineering_owner_sha256_lf", {}, "ENGINEERING")]:
     setattr(PolicyTests, "test_wrong_" + field, policy_bad(field, value, reason))
+
+
+def binding_bad(field):
+    def test(self):
+        self.policy["binding"][field] = "0" * 64
+        with self.assertRaisesRegex(ValueError, "MANIFEST"):
+            self.check()
+    return test
+
+
+for field in ("manifest_sha256", "scope_sha256", "universe_sha256"):
+    setattr(PolicyTests, "test_wrong_" + field, binding_bad(field))
 
 
 class JournalTests(unittest.TestCase):

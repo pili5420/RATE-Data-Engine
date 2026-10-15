@@ -76,6 +76,8 @@ class Fixture:
             "engineering_cr_sha256": a.CR_SHA256, "nonce": "TEST_ONLY_" + uuid4().hex, "approved": True,
             "main_sha": a.FROZEN_MAIN, "sidecar_head": a.SIDECAR_HEAD, "execution_owner_sha256_lf": a.h.owners(),
             "sidecar_owner_sha256_lf": a.sidecar.owners(), "binding": self.ctx["binding"],
+            "engineering_head": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=a.h.ROOT).decode().strip(),
+            "engineering_owner_sha256_lf": a.engineering_owners(),
             "ordinals": list(range(2, window + 2)), "chunk_ids": [c["chunk_id"] for c in selected],
             "per_chunk_requests": [c["request_count"] for c in selected], "maximum_requests": sum(c["request_count"] for c in selected),
             "start_head": initial["head"], "start_ordinal": 1, "genesis_file_sha256": a.e.sha(genesis),
@@ -102,10 +104,11 @@ class Fixture:
             trusted_approval_sha256=self.approval["approval_sha256"], main_sha=a.FROZEN_MAIN, universe=self.u,
             chunk_id=self.manifest["chunks"][ordinal - 1]["chunk_id"], campaign_root=self.campaign, synthetic=True)
 
-    def start(self):
+    def start(self, *, synthetic_fault_stage=None):
         policy_envelope = a.envelope(a.release_core(a.e.canonical(self.policy), key_id="control", purpose="POLICY",
             policy_sha256=a.e.sha(self.policy), sequence=1, previous_head=None, nonce=self.policy["nonce"]), self.control_key.sign)
-        self.client.initialize(self.policy, self.ctx, self.registry, policy_envelope, at=AT)
+        self.client.initialize(self.policy, self.ctx, self.registry, policy_envelope, at=AT,
+                               synthetic_fault_stage=synthetic_fault_stage)
         self.runner = Orchestrator(self.policy, self.ctx, self.registry, self.client, at=AT)
         return self.runner
 
