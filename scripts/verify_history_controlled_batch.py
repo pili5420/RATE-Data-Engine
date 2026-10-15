@@ -1,14 +1,17 @@
 """Exact-head inherited/new tests and all 61 scoped engineering requirements."""
 import argparse
+from contextlib import contextmanager
 from importlib.metadata import version
 import json
 import os
 from pathlib import Path
 import platform
+import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.dont_write_bytecode = True
@@ -54,6 +57,21 @@ def exact_test_checkout(revision, directory):
                 os.environ[key] = value
 
 
+@contextmanager
+def short_test_directory():
+    parent = Path(os.environ["RUNNER_TEMP"]).parent if os.environ.get("GITHUB_ACTIONS") == "true" else ROOT.parent
+    parent = parent.resolve()
+    temporary = parent / ("b" + uuid4().hex[:2])
+    # A collision fails closed; no existing path is reused or removed.
+    temporary.mkdir(exist_ok=False)
+    try:
+        yield temporary
+    finally:
+        if temporary.resolve() != temporary or temporary.parent != parent or not temporary.name.startswith("b"):
+            raise ValueError("BATCH_TEMP_CLEANUP_BOUNDARY_MISMATCH")
+        shutil.rmtree(temporary)
+
+
 def test_child(output, modules):
     sys.addaudithook(network_guard)
     inventory = flatten(unittest.defaultTestLoader.loadTestsFromNames(["tests." + name for name in modules]))
@@ -91,11 +109,10 @@ def main():
     if len(matrix["rows"]) != 61 or len({r["requirement_id"] for r in matrix["rows"]}) != 61:
         raise ValueError("BATCH_61_REQUIREMENTS_REQUIRED")
     results = {}
-    with tempfile.TemporaryDirectory(prefix="bc", dir=args.output_dir.parent) as directory:
+    with tempfile.TemporaryDirectory(prefix="bc", dir=args.output_dir.parent) as directory, short_test_directory() as temporary:
         directory = Path(directory)
         test_repo = directory / "h"
         exact_test_checkout(args.expected_head, test_repo)
-        temporary = directory / "t"; temporary.mkdir()
         proof_dir = args.output_dir.resolve() / "synthetic-acceptance"; proof_dir.mkdir()
         env = {**engineering_environment(), "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8",
             "TEMP": str(temporary), "TMP": str(temporary), "RATE_BATCH_SYNTHETIC_PROOF_DIR": str(proof_dir)}
