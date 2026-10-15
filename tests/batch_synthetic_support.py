@@ -28,7 +28,7 @@ class Fixture:
         self.approval = approval(self.scope)
         self.manifest = a.chunks.build_manifest(self.scope, self.approval,
             trusted_approval_sha256=self.approval["approval_sha256"], main_sha=a.FROZEN_MAIN, universe=self.u, synthetic=True)
-        self.campaign, self.ledger = self.base / "campaign", self.base / "ledger"
+        self.campaign, self.ledger = self.base / "campaign", self.base / "governance"
         self.ctx = a.sidecar.context(self.manifest, self.scope, self.approval, self.u,
             trusted_approval_sha256=self.approval["approval_sha256"], trusted_manifest_sha256=self.manifest["manifest_sha256"],
             campaign_root=self.campaign, ledger_root=self.ledger, synthetic=True)
@@ -84,7 +84,8 @@ class Fixture:
             "delegations": ["AUTHORIZATION", "ACCEPTANCE", "HEAD_ACK"],
             "runtime": {"sequential": True, "single_writer": True, "timeout": 30, "interval": 13,
                 "retry": 0, "redirect": False, "fallback": False, "auto_resume": False, "live_execution": False},
-            "roots": {"sandbox": str(self.base), **{name: str(self.base / name) for name in ("issuer", "witness", "runner", "campaign", "ledger")}}}
+            "roots": {"sandbox": str(self.base), **{name: str(self.base / name) for name in ("issuer", "witness", "runner", "campaign")},
+                      "ledger": str(self.ledger)}}
         self.calls = 0
 
     @staticmethod
