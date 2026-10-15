@@ -19,7 +19,7 @@ ADDED = {"src/history_acceptance_sidecar.py", "scripts/run_history_acceptance_si
          "scripts/verify_history_acceptance_sidecar.py", "tests/test_history_acceptance_sidecar.py",
          "docs/contracts/RATE_HISTORY_ACCEPTANCE_SIDECAR_V1.json",
          "docs/RATE_HISTORY_ACCEPTANCE_SIDECAR_V1.md", ".github/workflows/rate_history_acceptance_sidecar_ci.yml"}
-NEW_COUNT = 74
+NEW_COUNT = 76
 GROUPS = {**INHERITED, "acceptance_sidecar_new": (["test_history_acceptance_sidecar"], NEW_COUNT)}
 
 
@@ -55,8 +55,9 @@ def main():
                "TEMP": str(temp), "TMP": str(temp)}
         for name, (modules, count) in GROUPS.items():
             repo = mirror
-            if name == "consumer_new":
-                repo = Path(directory) / "consumer"
+            if name in {"consumer_new", "acceptance_sidecar_new"}:
+                # Both consumers require their own exact clean index, never a borrowed archive index.
+                repo = Path(directory) / name
                 clean_consumer_checkout(a.expected_head, repo)
             report = a.output_dir.resolve() / (name + ".json")
             run = subprocess.run([sys.executable, "-B", str(repo / "scripts/verify_history_acceptance_sidecar.py"),

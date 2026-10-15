@@ -326,6 +326,21 @@ print(s.append_acceptance(ctx,**b)['head'])
             self.append()
         self.assertFalse(Path(self.ctx["ledger_root"]).exists())
 
+    def test_context_manifest_count_tamper_rejected(self):
+        self.ctx["manifest"] = deepcopy(self.manifest)
+        self.ctx["manifest"]["scope_entry_count"] += 1
+        with self.assertRaises(ValueError):
+            self.append()
+        self.assertFalse(Path(self.ctx["ledger_root"]).exists())
+
+    def test_context_reidentified_manifest_still_requires_original_pin(self):
+        core = {k: v for k, v in self.manifest.items() if k not in {"manifest_id", "manifest_sha256"}}
+        self.ctx["manifest"] = h.evidence.identified({**core, "scope_entry_count": 999},
+            "rate-history-stock-chunk-manifest-", "manifest_id", "manifest_sha256")
+        with self.assertRaisesRegex(ValueError, "CONTEXT_MANIFEST_DRIFT"):
+            self.append()
+        self.assertFalse(Path(self.ctx["ledger_root"]).exists())
+
     def test_boolean_request_count_cannot_impersonate_one(self):
         value = s.load(self.records[1]); value["request_count"] = True
         self.reidentify_record(value, self.records[1])

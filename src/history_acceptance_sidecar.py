@@ -73,6 +73,10 @@ def context(manifest, scope, approval, universe, *, trusted_approval_sha256,
 
 
 def _check_context(ctx):
+    manifest = ctx["manifest"]
+    h.evidence.verify_identity(manifest, "rate-history-stock-chunk-manifest-", "manifest_id", "manifest_sha256")
+    require(all(ctx["binding"][k] == manifest[k] for k in ("manifest_sha256", "scope_sha256", "universe_sha256"))
+            and ctx["binding"]["frozen_main_sha"] == manifest["main_sha"], "ACCEPTANCE_CONTEXT_MANIFEST_DRIFT")
     campaign, ledger = h.evidence.safe(ctx["campaign_root"]), h.evidence.safe(ctx["ledger_root"])
     h.evidence.external_roots(campaign, ledger, h.ROOT)
     h.evidence.safe(ledger / ".scan.lock")
