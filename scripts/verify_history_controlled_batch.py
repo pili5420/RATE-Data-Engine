@@ -39,6 +39,21 @@ def flatten(suite):
     return result
 
 
+def exact_test_checkout(revision, directory):
+    # Restore Git blob bytes, including historical manifests, in this new disposable clone only.
+    configuration = {"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "core.autocrlf", "GIT_CONFIG_VALUE_0": "false"}
+    previous = {key: os.environ.get(key) for key in configuration}
+    try:
+        os.environ.update(configuration)
+        clean_consumer_checkout(revision, directory)
+    finally:
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+
 def test_child(output, modules):
     sys.addaudithook(network_guard)
     inventory = flatten(unittest.defaultTestLoader.loadTestsFromNames(["tests." + name for name in modules]))
@@ -79,7 +94,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix="bc", dir=args.output_dir.parent) as directory:
         directory = Path(directory)
         test_repo = directory / "h"
-        clean_consumer_checkout(args.expected_head, test_repo)
+        exact_test_checkout(args.expected_head, test_repo)
         temporary = directory / "t"; temporary.mkdir()
         proof_dir = args.output_dir.resolve() / "synthetic-acceptance"; proof_dir.mkdir()
         env = {**engineering_environment(), "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8",
