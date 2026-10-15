@@ -94,7 +94,9 @@
       "requirement": "file pin vs semantic pin confusion",
       "evidence_kind": "passing_test_ids",
       "test_ids": [
-        "tests.test_history_batch_authority.SignatureTests.test_semantic_digest_cannot_replace_file_pin"
+        "tests.test_history_batch_authority.SignatureTests.test_semantic_digest_cannot_replace_file_pin",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_registry_mutation_cannot_self_pin_during_initialize",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_registry_mutation_after_initialize_is_rejected_before_claim"
       ],
       "all_listed_tests_required": true
     },

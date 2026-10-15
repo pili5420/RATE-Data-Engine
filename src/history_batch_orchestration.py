@@ -4,6 +4,7 @@ import subprocess
 import sys
 
 from . import history_batch_authority as a
+from .history_batch_launcher import engineering_environment
 
 
 def cold_acceptance(ctx, policy, record_paths, head, output):
@@ -12,7 +13,8 @@ def cold_acceptance(ctx, policy, record_paths, head, output):
         "source_head": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=a.h.ROOT).decode().strip(),
         "source_owner_sha256_lf": {**a.h.owners(), **a.sidecar.owners(), **a.engineering_owners()}}
     command = [sys.executable, "-I", "-B", str(a.h.ROOT / "scripts/history_batch_cold_acceptance.py")]
-    child = subprocess.run(command, input=a.e.canonical(binding), capture_output=True, cwd=a.h.ROOT, timeout=300)
+    child = subprocess.run(command, input=a.e.canonical(binding), capture_output=True, cwd=a.h.ROOT, timeout=300,
+                           env=engineering_environment())
     a.require(child.returncode == 0, "BATCH_COLD_ACCEPTANCE_CHILD_FAILED:" + child.stderr.decode(errors="replace"))
     proof = a.read_metadata(child.stdout)
     a.require(proof["status"] == "PASS" and proof["head"] == head and proof["pid"] != __import__("os").getpid()
@@ -24,9 +26,11 @@ def cold_acceptance(ctx, policy, record_paths, head, output):
 
 
 class Orchestrator:
-    def __init__(self, policy, ctx, registry, client, *, at):
+    def __init__(self, policy, ctx, registry, client, *, trusted_registry_sha256, at):
+        a.require(a.e.sha(registry) == trusted_registry_sha256, "BATCH_EXTERNAL_KEY_REGISTRY_PIN_REQUIRED")
         a.validate_policy(policy, ctx, at=at)
         self.policy, self.ctx, self.registry, self.client = policy, ctx, registry, client
+        self.registry_pin = trusted_registry_sha256
         self.root = a.child_root(policy["roots"]["runner"], policy["roots"]["sandbox"])
         self.root.mkdir(parents=True, exist_ok=True)
         self.journal = a.Journal(self.root, policy["roots"]["sandbox"])
@@ -38,7 +42,7 @@ class Orchestrator:
 
     def packet(self, value, purpose):
         self.issuer_head, self.witness_head = a.verify_packet(value, policy=self.policy, registry=self.registry,
-            registry_pin=a.e.sha(self.registry), purpose=purpose, previous_issuer_head=self.issuer_head,
+            registry_pin=self.registry_pin, purpose=purpose, previous_issuer_head=self.issuer_head,
             previous_witness_head=self.witness_head)
         return value["artifact"]
 

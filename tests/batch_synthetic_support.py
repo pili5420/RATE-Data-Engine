@@ -71,6 +71,10 @@ class Fixture:
                 "issuer": {"epoch": 1, "public_key": self.client.public["issuer_public_key"],
                     "purposes": ["AUTHORIZATION", "ACCEPTANCE", "HEAD_ACK", "REVOCATION"], "revoked": False},
                 "witness": {"epoch": 1, "public_key": self.client.public["witness_public_key"], "purposes": ["WITNESS"], "revoked": False}}}
+        # This immutable pin originates in the synthetic external control fixture, not in the runner.
+        self.registry_path = self.base / "control" / "public-registry.json"
+        a.put(self.registry_path, self.registry)
+        self.registry_pin = a.e.sha(self.registry_path.read_bytes())
         selected = self.manifest["chunks"][1:]
         self.policy = {"artifact_kind": "RATE_BATCH_POLICY_V1", "contract": a.CONTRACT, "material_scope": a.SCOPE,
             "engineering_cr_sha256": a.CR_SHA256, "nonce": "TEST_ONLY_" + uuid4().hex, "approved": True,
@@ -108,8 +112,9 @@ class Fixture:
         policy_envelope = a.envelope(a.release_core(a.e.canonical(self.policy), key_id="control", purpose="POLICY",
             policy_sha256=a.e.sha(self.policy), sequence=1, previous_head=None, nonce=self.policy["nonce"]), self.control_key.sign)
         self.client.initialize(self.policy, self.ctx, self.registry, policy_envelope, at=AT,
-                               synthetic_fault_stage=synthetic_fault_stage)
-        self.runner = Orchestrator(self.policy, self.ctx, self.registry, self.client, at=AT)
+                               trusted_registry_sha256=self.registry_pin, synthetic_fault_stage=synthetic_fault_stage)
+        self.runner = Orchestrator(self.policy, self.ctx, self.registry, self.client, at=AT,
+                                  trusted_registry_sha256=self.registry_pin)
         return self.runner
 
     def run(self, **kwargs):

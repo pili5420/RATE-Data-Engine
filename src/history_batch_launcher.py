@@ -155,9 +155,10 @@ class IssuerClient:
             self.child.close()
             raise ValueError("BATCH_NATIVE_INTERPRETER_PROCESS_BINDING_REQUIRED")
 
-    def initialize(self, policy, ctx, registry, policy_envelope, *, at, synthetic_fault_stage=None):
+    def initialize(self, policy, ctx, registry, policy_envelope, *, trusted_registry_sha256, at, synthetic_fault_stage=None):
+        require(a.e.sha(registry) == trusted_registry_sha256, "BATCH_EXTERNAL_KEY_REGISTRY_PIN_REQUIRED")
         self.child.send({"operation": "INITIALIZE", "policy": policy, "ctx": ctx, "registry": registry,
-            "registry_pin": a.e.sha(registry), "policy_envelope": policy_envelope, "at": at,
+            "registry_pin": trusted_registry_sha256, "policy_envelope": policy_envelope, "at": at,
             "synthetic_fault_stage": synthetic_fault_stage})
         return self.child.receive()
 

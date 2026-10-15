@@ -185,6 +185,22 @@ class EndToEndTests(unittest.TestCase):
             f.client.call("SIGN", at=AT, payload={})
         self.assertEqual(f.calls, 0)
 
+    def test_registry_mutation_cannot_self_pin_during_initialize(self):
+        f = self.fixture()
+        f.registry["keys"]["issuer"]["epoch"] = 2
+        with self.assertRaisesRegex(ValueError, "EXTERNAL_KEY_REGISTRY_PIN"):
+            f.start()
+        self.assertEqual(f.calls, 0)
+        self.assertFalse(Path(f.bundle(2)["consumption_root"]).exists())
+
+    def test_registry_mutation_after_initialize_is_rejected_before_claim(self):
+        f = self.fixture(); f.start()
+        f.registry["keys"]["issuer"]["epoch"] = 2
+        with self.assertRaisesRegex(ValueError, "EXTERNAL_KEY_REGISTRY_PIN"):
+            f.run()
+        self.assertEqual(f.calls, 0)
+        self.assertFalse(Path(f.bundle(2)["consumption_root"]).exists())
+
     def test_bootstrap_missing_record_blocks_before_release(self):
         f = self.fixture(); f.record1.unlink()
         with self.assertRaises(ValueError):
