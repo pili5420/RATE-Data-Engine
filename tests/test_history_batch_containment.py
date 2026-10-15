@@ -38,7 +38,9 @@ def alive(pid):
         return False
     try:
         os.kill(pid, 0)
-    return True
+        return True
+    except ProcessLookupError:
+        return False
 
 
 def source_binding():
@@ -46,8 +48,6 @@ def source_binding():
     owners = {path: a.e.sha(subprocess.check_output(["git", "show", head + ":" + path], cwd=a.h.ROOT))
               for path in set(a.h.owners()) | set(a.sidecar.owners()) | set(a.engineering_owners())}
     return {"expected_engineering_head": head, "trusted_owner_sha256_lf": owners}
-    except ProcessLookupError:
-        return False
 
 
 class ContainmentTests(unittest.TestCase):
