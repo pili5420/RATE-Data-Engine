@@ -65,6 +65,8 @@ inside this ledger.
 
 Repeating the same acceptance with the current expected head is a no-op. A
 different record for an already accepted chunk halts, even if both look valid.
+The conflicting externally authenticated pin is preserved in exclusive-created
+`HALTED.json`; all future replay/append attempts remain blocked for review.
 Malformed files, orphan records, missing checkpoints, broken chains or a stale
 head halt. Never delete intents, rebuild a truncated tail or retry a failed append
 automatically. Control Center must review incomplete append evidence separately.

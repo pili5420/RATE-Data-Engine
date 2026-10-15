@@ -133,7 +133,12 @@ class SidecarTests(unittest.TestCase):
         self.records[0] = new_path
         with self.assertRaisesRegex(ValueError, "ACCEPTANCE_CONFLICT_HALT"):
             self.append(head=first["head"])
-        self.assertEqual(s.snapshot(self.ctx["ledger_root"]), before)
+        after = s.snapshot(self.ctx["ledger_root"])
+        self.assertEqual({k: after[k] for k in before}, before)
+        self.assertEqual(set(after) - set(before), {"HALTED.json"})
+        with self.assertRaisesRegex(ValueError, "LEDGER_HALTED"):
+            self.append(1, first["head"])
+        self.assertEqual(s.snapshot(self.ctx["ledger_root"]), after)
 
     def reidentify_record(self, value, path):
         core = {k: v for k, v in value.items() if k not in {"acceptance_id", "acceptance_sha256"}}
@@ -314,6 +319,27 @@ print(s.append_acceptance(ctx,**b)['head'])
         with patch.object(Path, "read_bytes", read):
             with self.assertRaises(PermissionError):
                 self.replay(first["head"])
+
+    def test_context_root_drift_rejected_before_creation(self):
+        self.ctx["ledger_root"] = str(self.root / "unapproved")
+        with self.assertRaisesRegex(ValueError, "CONTEXT_ROOT_DRIFT"):
+            self.append()
+        self.assertFalse(Path(self.ctx["ledger_root"]).exists())
+
+    def test_boolean_request_count_cannot_impersonate_one(self):
+        value = s.load(self.records[1]); value["request_count"] = True
+        self.reidentify_record(value, self.records[1])
+        with self.assertRaisesRegex(ValueError, "RECORD_INTEGER"):
+            self.append(1)
+        self.assertFalse(Path(self.ctx["ledger_root"]).exists())
+
+    def test_boolean_genesis_count_rejected(self):
+        value = s.load(self.genesis); value["prior_accepted_chunks"] = False
+        core = {k: v for k, v in value.items() if k not in {"genesis_id", "genesis_sha256"}}
+        self.genesis.write_bytes(h.evidence.canonical(identified(core, "genesis")))
+        with self.assertRaisesRegex(ValueError, "GENESIS_INTEGER"):
+            self.append(genesis_pin=h.evidence.sha(self.genesis.read_bytes()))
+        self.assertFalse(Path(self.ctx["ledger_root"]).exists())
 
     def test_noncanonical_duplicate_key_rejected(self):
         self.records[0].write_bytes(b'{"chunk_ordinal":1,"chunk_ordinal":1}')

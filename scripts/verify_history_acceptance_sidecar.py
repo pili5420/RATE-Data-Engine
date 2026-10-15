@@ -19,7 +19,7 @@ ADDED = {"src/history_acceptance_sidecar.py", "scripts/run_history_acceptance_si
          "scripts/verify_history_acceptance_sidecar.py", "tests/test_history_acceptance_sidecar.py",
          "docs/contracts/RATE_HISTORY_ACCEPTANCE_SIDECAR_V1.json",
          "docs/RATE_HISTORY_ACCEPTANCE_SIDECAR_V1.md", ".github/workflows/rate_history_acceptance_sidecar_ci.yml"}
-NEW_COUNT = 71
+NEW_COUNT = 74
 GROUPS = {**INHERITED, "acceptance_sidecar_new": (["test_history_acceptance_sidecar"], NEW_COUNT)}
 
 

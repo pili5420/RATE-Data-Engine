@@ -54,7 +54,7 @@
     "external_expected_head_required": true,
     "tail_deletion_detection": "EXTERNAL_EXPECTED_HEAD_MUST_MATCH",
     "idempotency": "SAME_PINNED_RECORD_WITH_CURRENT_EXPECTED_HEAD_IS_NOOP",
-    "conflict": "HALT_NO_NEW_CREDIT",
+    "conflict": "APPEND_ONLY_HALTED_JSON_NO_NEW_CREDIT_FUTURE_APPENDS_BLOCKED",
     "incomplete_append": "HALT_PRESERVE_ALL_FILES_NO_AUTOMATIC_REPAIR",
     "automatic_recovery": false,
     "automatic_next_chunk": false

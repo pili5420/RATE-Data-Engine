@@ -72,7 +72,23 @@ def context(manifest, scope, approval, universe, *, trusted_approval_sha256,
                 "material_scope": "SYNTHETIC_ONLY" if synthetic else "CONTROL_CENTER_GOVERNANCE_ONLY"}}
 
 
+def _check_context(ctx):
+    campaign, ledger = h.evidence.safe(ctx["campaign_root"]), h.evidence.safe(ctx["ledger_root"])
+    h.evidence.external_roots(campaign, ledger, h.ROOT)
+    h.evidence.safe(ledger / ".scan.lock")
+    require(type(ctx["synthetic"]) is bool
+            and h.evidence.root_identity(campaign) == ctx["binding"]["campaign_root_identity"]
+            and h.evidence.root_identity(ledger) == ctx["binding"]["acceptance_root_identity"], "ACCEPTANCE_CONTEXT_ROOT_DRIFT")
+    require(ctx["binding"]["material_scope"] == ("SYNTHETIC_ONLY" if ctx["synthetic"] else "CONTROL_CENTER_GOVERNANCE_ONLY")
+            and ctx["manifest"]["material_scope"] == ("SYNTHETIC_ONLY" if ctx["synthetic"] else "OFFICIAL_HISTORY_EVIDENCE_ONLY"),
+            "ACCEPTANCE_CONTEXT_SCOPE_DRIFT")
+    if not ctx["synthetic"]:
+        require(os.name == "nt" and campaign == h.evidence.safe(CAMPAIGN) and ledger == h.evidence.safe(LEDGER)
+                and ctx["manifest"]["main_sha"] == FROZEN_MAIN, "ACCEPTANCE_FROZEN_CAMPAIGN_ROOT_REQUIRED")
+
+
 def verify_chunk(ctx, ordinal):
+    _check_context(ctx)
     require(type(ordinal) is int and 1 <= ordinal <= ctx["manifest"]["chunk_count"], "ACCEPTANCE_CHUNK_INVALID")
     chunk = ctx["manifest"]["chunks"][ordinal - 1]
     base = Path(ctx["campaign_root"]) / chunk["chunk_id"]
@@ -112,6 +128,7 @@ def acceptance_record(ctx, path, trusted_sha256):
     require(not h.evidence.safe(path).is_relative_to(h.evidence.safe(ctx["ledger_root"])),
             "ACCEPTANCE_TRUST_CANNOT_ORIGINATE_INSIDE_LEDGER")
     value = trusted_file(path, trusted_sha256)
+    require(type(value.get("request_count")) is int, "ACCEPTANCE_RECORD_INTEGER_REQUIRED")
     core = h.evidence.verify_identity(value, "rate-history-acceptance-record-", "acceptance_id", "acceptance_sha256")
     proof = verify_chunk(ctx, value.get("chunk_ordinal"))
     expected = {"artifact_kind": "RATE_HISTORY_CHUNK_CONTROL_CENTER_ACCEPTANCE_V1", "contract": CONTRACT,
@@ -127,6 +144,8 @@ def acceptance_record(ctx, path, trusted_sha256):
 def genesis_anchor(ctx, path, trusted_sha256):
     require(not h.evidence.safe(path).is_relative_to(h.evidence.safe(ctx["ledger_root"])), "ACCEPTANCE_EXTERNAL_GENESIS_REQUIRED")
     value = trusted_file(path, trusted_sha256)
+    require(all(type(value.get(k)) is int for k in ("first_chunk_ordinal", "prior_accepted_chunks", "prior_accepted_requests")),
+            "ACCEPTANCE_GENESIS_INTEGER_REQUIRED")
     core = h.evidence.verify_identity(value, "rate-history-acceptance-genesis-", "genesis_id", "genesis_sha256")
     expected = {"artifact_kind": "RATE_HISTORY_ACCEPTANCE_GENESIS_V1", "contract": CONTRACT,
         "issuer": "CONTROL_CENTER", **ctx["binding"], "first_chunk_ordinal": 1,
@@ -164,8 +183,10 @@ def _checkpoint(ctx, events):
 
 def replay(ctx, *, genesis_path, trusted_genesis_sha256, trusted_records, expected_head):
     """Trust pins and last known head must come from outside this ledger."""
+    _check_context(ctx)
     genesis = genesis_anchor(ctx, genesis_path, trusted_genesis_sha256)
     root = h.evidence.safe(ctx["ledger_root"])
+    require(not (root / "HALTED.json").exists(), "ACCEPTANCE_LEDGER_HALTED_FOR_CONTROL_CENTER_REVIEW")
     # Decide by exact path before any read: Windows denies reads of our held lock.
     files = snapshot(root, exclude={root / ".scan.lock"}) if root.exists() else {}
     if root.exists():
@@ -206,6 +227,8 @@ def replay(ctx, *, genesis_path, trusted_genesis_sha256, trusted_records, expect
 
 
 def _activation(ctx, path, trusted_sha256, genesis_sha):
+    _check_context(ctx)
+    require(not h.evidence.safe(path).is_relative_to(h.evidence.safe(ctx["ledger_root"])), "ACCEPTANCE_EXTERNAL_ACTIVATION_REQUIRED")
     permit = trusted_file(path, trusted_sha256)
     head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=h.ROOT).decode().strip()
     require(not subprocess.check_output(["git", "status", "--porcelain"], cwd=h.ROOT).strip(), "ACCEPTANCE_DEPLOYMENT_DIRTY")
@@ -222,6 +245,7 @@ def _activation(ctx, path, trusted_sha256, genesis_sha):
 
 
 def _put(path, body):
+    h.evidence.safe(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("xb") as stream:
         stream.write(body); stream.flush(); os.fsync(stream.fileno())
@@ -237,8 +261,8 @@ def _put(path, body):
 def append_acceptance(ctx, *, record_path, trusted_record_sha256, genesis_path, trusted_genesis_sha256,
                       trusted_records, expected_head, activation_path, trusted_activation_sha256):
     """Reserved for separately approved bootstrap. No activation builder is provided."""
-    permit = _activation(ctx, activation_path, trusted_activation_sha256, trusted_genesis_sha256)
     genesis = genesis_anchor(ctx, genesis_path, trusted_genesis_sha256)
+    permit = _activation(ctx, activation_path, trusted_activation_sha256, trusted_genesis_sha256)
     record, proof = acceptance_record(ctx, record_path, trusted_record_sha256)
     require(record["chunk_ordinal"] <= permit["maximum_chunk_ordinal"], "ACCEPTANCE_ACTIVATION_SCOPE_EXCEEDED")
     pins = {**trusted_records, trusted_record_sha256: record_path}
@@ -250,7 +274,12 @@ def append_acceptance(ctx, *, record_path, trusted_record_sha256, genesis_path, 
                        trusted_records=pins, expected_head=expected_head)
         for event in prior["events"]:
             if event["chunk_id"] == record["chunk_id"]:
-                require(event["acceptance_file_sha256"] == trusted_record_sha256, "ACCEPTANCE_CONFLICT_HALT")
+                if event["acceptance_file_sha256"] != trusted_record_sha256:
+                    _put(root / "HALTED.json", h.evidence.canonical({"artifact_kind": "RATE_HISTORY_ACCEPTANCE_HALT_V1",
+                        "contract": CONTRACT, "reason": "ACCEPTANCE_CONFLICT_HALT", "existing_head": prior["head"],
+                        "accepted_record_sha256": event["acceptance_file_sha256"],
+                        "conflicting_record_sha256": trusted_record_sha256}))
+                    require(False, "ACCEPTANCE_CONFLICT_HALT")
                 return {**prior, "idempotent_noop": True}
         require(record["chunk_ordinal"] == prior["accepted_chunks"] + 1, "ACCEPTANCE_NEXT_CHUNK_REQUIRED")
         require(prior["events"] or trusted_record_sha256 == load(genesis_path)["first_acceptance_file_sha256"],
