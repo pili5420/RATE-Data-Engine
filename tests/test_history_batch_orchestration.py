@@ -64,7 +64,7 @@ class EndToEndTests(unittest.TestCase):
             "live_network_latency_measured": False}
         if os.name == "nt":
             self.assertLessEqual(metrics["maximum_path_characters"], 259)
-        if proof_dir:
+        if proof_dir and count in (3, 10):
             proof = {"material_scope": a.SCOPE, "window_chunks": count, "result": result,
                 "mock_transport_calls": f.calls, "expected_mock_calls": f.policy["maximum_requests"],
                 "accepted_chunks_including_synthetic_bootstrap": replay["accepted_chunks"],
