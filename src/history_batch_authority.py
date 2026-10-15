@@ -257,7 +257,8 @@ class Issuer:
         ack_core = release_core(e.canonical(acknowledgement), key_id="witness", purpose="WITNESS",
             policy_sha256=e.sha(self.policy), sequence=sequence, previous_head=self.witness_head, nonce=self.policy["nonce"])
         witness = envelope(ack_core, self.witness_sign)
-        self.witness_head = self.witness.append({"acknowledgement": acknowledgement, "envelope": witness}, self.witness_head)
+        self.witness_head = self.witness.append({"acknowledgement": acknowledgement, "envelope": witness}, self.witness_head,
+            fault=lambda stage: self.fault(purpose.lower() + "_witness_" + stage))
         return {"artifact": artifact, "envelope": signed, "witness": witness, "acknowledgement": acknowledgement,
                 "issuer_head": self.head, "witness_head": self.witness_head,
                 "journal_events": self.journal.replay(self.head), "witness_event": self.witness.replay(self.witness_head)[-1]}

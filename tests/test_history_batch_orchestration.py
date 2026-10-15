@@ -346,17 +346,31 @@ for stage in ("before_release", "before_claim", "after_cold", "before_append", "
 
 def issuer_crash(stage):
     def test(self):
-        f = self.fixture()
+        f = self.fixture(3)
         f.start(synthetic_fault_stage=stage)
-        with self.assertRaises(ValueError):
-            f.run()
-        self.assertFalse(Path(f.bundle(2)["consumption_root"]).exists())
-        self.assertEqual(f.calls, 0)
+        if stage.startswith("revocation_"):
+            with self.assertRaises(ValueError):
+                f.client.call("REVOKE", at=AT)
+            with self.assertRaises(ValueError):
+                f.run()
+        else:
+            with self.assertRaises(ValueError):
+                f.run()
+        preclaim = stage.startswith(("reserve_", "authorization_", "revocation_"))
+        self.assertEqual(Path(f.bundle(2)["consumption_root"]).exists(), not preclaim)
+        self.assertEqual(f.calls, 0 if preclaim else f.policy["per_chunk_requests"][0])
+        self.assertFalse(Path(f.bundle(3)["consumption_root"]).exists())
+        self.assertFalse(Path(f.bundle(3)["execution_root"]).exists())
         self.assertTrue(list((f.base / "issuer" / "intents").glob("*.json")))
+        self.assertTrue((f.runner.root / "HALTED.json").exists())
         with self.assertRaises(ValueError):
             f.run()
     return test
 
 
-for stage in ("reserve_intents", "reserve_events", "reserve_checkpoints", "authorization_intents", "authorization_events", "authorization_checkpoints"):
+ISSUER_CRASH_STAGES = ["reserve_" + boundary for boundary in ("intents", "events", "checkpoints")]
+ISSUER_CRASH_STAGES += [purpose + journal + boundary
+    for purpose in ("authorization", "acceptance", "head_ack", "revocation")
+    for journal in ("_", "_witness_") for boundary in ("intents", "events", "checkpoints")]
+for stage in ISSUER_CRASH_STAGES:
     setattr(EndToEndTests, "test_issuer_crash_" + stage, issuer_crash(stage))
