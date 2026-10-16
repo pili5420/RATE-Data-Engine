@@ -123,3 +123,24 @@ signatures, exercise replay, schema, type and head attacks, and inject each
 original attack at authorization, acceptance, acknowledgement and the next
 authorization. Every injection must halt without subsequent execution, claim,
 transport, acceptance append or release. Synthetic evidence is retained by CI.
+
+## Round 2 Canonical Test Protocol Correction
+
+Control Center comment 6204885643 authorizes correcting the test emitters from
+baseline `3acbbbfa24d411d6480c7e8d54ea3bb2e8dc67d5`. Child, supervisor and inline
+environment probes now use the existing trusted canonical serializer, writing
+UTF-8 bytes followed by a single LF through the binary output stream. The
+receiver, canonical parser, strict schema/type, signatures and journal/head
+verification remain unchanged.
+
+Real contained OS processes provide byte-level child/environment frames and
+prove normal child/grandchild termination, abnormal parent-death containment
+and secret noninheritance. Noncanonical, malformed, duplicate-key and truncated
+replies are rejected by the unchanged receiver. BATCH-45 includes these tests.
+
+Both CI platforms run a fresh exact-head focus-first gate: all containment
+tests, all 32 existing Journal/signature/canonical security tests and the
+witness packet regressions. Full inherited/new and replacement/continuity
+gates run only after focused success. Focused and full evidence directories
+are separate; no historical or intermediate PASS substitutes for the new Head.
+Original defect evidence and all cancelled/failing CI remain immutable.

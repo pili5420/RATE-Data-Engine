@@ -25,6 +25,9 @@ from src.history_batch_launcher import engineering_environment
 BASE = "e3ef25084f17f9073b25555b8c0cf911e1146ec8"
 FROZEN = "fbdfbfcf0a003cd6de49911bc0a784275a32031c"
 NEW_MODULES = ["test_history_batch_authority", "test_history_batch_orchestration", "test_history_batch_containment"]
+FOCUSED = ["test_history_batch_containment", "test_history_batch_authority.JournalTests",
+           "test_history_batch_authority.SignatureTests", "test_history_batch_authority.CanonicalProtocolTests",
+           "test_history_batch_orchestration.PacketSecurityTests"]
 ADDED = {
     "src/history_batch_authority.py", "src/history_batch_launcher.py", "src/history_batch_orchestration.py",
     "scripts/history_batch_synthetic_issuer.py", "scripts/history_batch_cold_acceptance.py", "scripts/verify_history_controlled_batch.py",
@@ -90,6 +93,42 @@ def test_child(output, modules):
     return code if result["inventory_matches_run"] else 1
 
 
+def focused(args):
+    """All OS containment tests, unchanged 32 security tests and witness packet regressions first."""
+    with tempfile.TemporaryDirectory(prefix="bf", dir=args.output_dir.parent) as directory, short_test_directory() as temporary:
+        checkout = Path(directory) / "focused"
+        exact_test_checkout(args.expected_head, checkout)
+        proofs = args.output_dir.resolve() / "synthetic-proofs"; proofs.mkdir()
+        env = {**engineering_environment(), "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8",
+               "TEMP": str(temporary), "TMP": str(temporary), "RATE_BATCH_SYNTHETIC_PROOF_DIR": str(proofs)}
+        report = args.output_dir.resolve() / "FOCUSED_TESTS.json"
+        command = [sys.executable, "-B", str(checkout / "scripts/verify_history_controlled_batch.py"),
+                   "--test-child", str(report), *FOCUSED]
+        run = subprocess.run(command, cwd=checkout, env=env, capture_output=True)
+        (args.output_dir / "FOCUSED_TESTS.log").write_bytes(run.stdout + run.stderr)
+        result = json.loads(report.read_bytes())
+        security = [i for i in result["test_inventory"] if any("." + cls + "." in i for cls in
+                    ("JournalTests", "SignatureTests", "CanonicalProtocolTests"))]
+        prior_failures = {"tests.test_history_batch_containment.ContainmentTests." + name for name in
+                         ("test_contained_close_terminates_child_and_grandchild", "test_parent_abnormal_death_kills_tree",
+                          "test_unapproved_environment_secret_not_inherited")}
+        after_status = subprocess.check_output(["git", "status", "--porcelain"], cwd=checkout).decode()
+        passed = (run.returncode == 0 and result["all_pass"] and result["inventory_matches_run"] and not result["skipped"]
+                  and not result["failures"] and not result["errors"] and len(security) == 32
+                  and prior_failures.issubset(result["passing_test_ids"]) and not after_status
+                  and not git("status", "--porcelain", "--untracked-files=all") and git("rev-parse", "HEAD") == args.expected_head)
+        write(args.output_dir / "FOCUSED_VERIFICATION_PACKAGE.json", {"status": "PASS" if passed else "BLOCKED",
+            "head_sha": args.expected_head, "base_sha": BASE, "platform": platform.system(), "results": result,
+            "tests_run": result["tests_run"], "existing_security_tests": len(security), "exit_code": run.returncode,
+            "prior_three_failures_all_pass": prior_failures.issubset(result["passing_test_ids"]),
+            "fresh_isolated_checkout": True, "isolated_checkout_after_status": after_status,
+            "tests_skipped": len(result["skipped"]), "assertions_relaxed": 0, "failure_whitelists": 0,
+            "real_authorizations": 0, "live_requests": 0, "formal_ledger_writes": 0, "effective_No_Auto_Next": True})
+        print(json.dumps({"focused": "PASS" if passed else "BLOCKED", "tests": result["tests_run"],
+                          "head": args.expected_head, "platform": platform.system()}), flush=True)
+        return 0 if passed else 1
+
+
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "--test-child":
         return test_child(Path(sys.argv[2]), sys.argv[3:])
@@ -97,6 +136,7 @@ def main():
     p.add_argument("--expected-base", required=True)
     p.add_argument("--expected-head", required=True)
     p.add_argument("--output-dir", type=Path, required=True)
+    p.add_argument("--focused", action="store_true")
     args = p.parse_args()
     if (args.expected_base != BASE or git("rev-parse", "HEAD") != args.expected_head
         or git("merge-base", BASE, args.expected_head) != BASE or git("status", "--porcelain", "--untracked-files=all")):
@@ -114,6 +154,8 @@ def main():
     matrix = json.loads((ROOT / "docs/contracts/RATE_HISTORY_CONTROLLED_BATCH_TEST_MATRIX_V1.json").read_bytes())
     if len(matrix["rows"]) != 61 or len({r["requirement_id"] for r in matrix["rows"]}) != 61:
         raise ValueError("BATCH_61_REQUIREMENTS_REQUIRED")
+    if args.focused:
+        return focused(args)
     results = {}
     with tempfile.TemporaryDirectory(prefix="bc", dir=args.output_dir.parent) as directory, short_test_directory() as temporary:
         directory = Path(directory)

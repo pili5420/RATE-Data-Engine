@@ -541,7 +541,15 @@
       "evidence_kind": "passing_test_ids",
       "test_ids": [
         "tests.test_history_batch_containment.ContainmentTests.test_parent_abnormal_death_kills_tree",
-        "tests.test_history_batch_containment.ContainmentTests.test_contained_close_terminates_child_and_grandchild"
+        "tests.test_history_batch_containment.ContainmentTests.test_contained_close_terminates_child_and_grandchild",
+        "tests.test_history_batch_containment.ContainmentTests.test_child_response_exact_canonical_utf8_bytes_and_single_lf",
+        "tests.test_history_batch_containment.ContainmentTests.test_environment_response_exact_canonical_utf8_bytes_and_single_lf",
+        "tests.test_history_batch_containment.ContainmentTests.test_canonical_utf8_response_pass",
+        "tests.test_history_batch_containment.ContainmentTests.test_noncanonical_response_rejected",
+        "tests.test_history_batch_containment.ContainmentTests.test_malformed_response_rejected",
+        "tests.test_history_batch_containment.ContainmentTests.test_duplicate_key_response_rejected",
+        "tests.test_history_batch_containment.ContainmentTests.test_truncated_response_rejected",
+        "tests.test_history_batch_containment.ContainmentTests.test_unapproved_environment_secret_not_inherited"
       ],
       "all_listed_tests_required": true
     },
