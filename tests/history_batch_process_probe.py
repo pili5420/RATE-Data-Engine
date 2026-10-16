@@ -38,7 +38,9 @@ def main():
             time.sleep(1)
     elif mode == "capture":
         # Retain actual wire bytes inside the same OS-contained process tree.
-        request = a.canonical_metadata(sys.stdin.buffer.readline()[:-1])
+        line = sys.stdin.readline()
+        a.require(line.endswith("\n"), "SYNTHETIC_CAPTURE_BOOT_TRUNCATED")
+        request = a.canonical_metadata(line[:-1].encode())
         child = subprocess.Popen(request["command"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE, cwd=ROOT)
         child.stdin.write(a.e.canonical({"start": True}) + b"\n"); child.stdin.flush()
