@@ -1,0 +1,25 @@
+{
+  "authority": "SCOPED_OFFLINE_ENGINEERING_ONLY",
+  "execution": "ONE_SHOT_WITH_AUTOMATIC_CORRECTIVE_LOOP",
+  "accepted_heads": {
+    "72": "2e4e24c3a4f73d6fabe3881f4962c919d0a21c69",
+    "73": "17eef21312f8f355e254970274609ab9d15ca71e",
+    "74": "6e4cbdaa660efe645adf276b607cef52916dc92f"
+  },
+  "branch": "codex/gui-gate2-runtime-qualification-readiness-v1",
+  "stacked_base": "codex/gui-gate2-native-runtime-preflight-v1",
+  "baseline_regressions": 795,
+  "separate_accepted_adversarial_probes": 38,
+  "allowed_changes": "Only additive tools/gui_runtime_readiness; all677 accepted Git blobs/modes unchanged",
+  "deliverable": "Offline readiness, not live identity or Runtime Qualification",
+  "work_packages": [
+    "WP1 full21API binding declarations/decoders and compile-only TU",
+    "WP2 separate signed provenance and lifecycle feasibility/fail-closed contract",
+    "WP3 independent11role test roots,UTC uncertainty,revocation,nonce andACK separation",
+    "WP4 data-onlyJob/cancellation,ACLparser,privateimmutablefilejournal evidence",
+    "WP5 fresh795+38 plus allnewtests,corrective history",
+    "WP6 independentexact-head cleanworktree review"
+  ],
+  "gate2_final": "BLOCKED",
+  "original_halt_root_cause": "UNKNOWN"
+}

@@ -1,0 +1,95 @@
+RATE Native Runtime Qualification Readiness - offline candidate
+
+Stacked base: accepted PR74,6e4cbdaa660efe645adf276b607cef52916dc92f.
+Only additive tools/gui_runtime_readiness files are changed. All677 inherited
+Git blobs and modes must remain identical. Gate2 final stays BLOCKED and the
+original HALT root cause stays UNKNOWN. No live execution authority exists here.
+
+This package supplies21identity API declarative binding/owned-byte decoders,
+7Job/cancellation declarations and12supporting declarations. Identity requests
+cannot call the supporting/containment APIs. NativeBindingUnavailable.bind
+always raises; no Windows DLL loader, callable address, real Permit loader or
+live CLI is implemented. The test CLI only runs the fixed offline test suite.
+PyCA50.0.2 compiled cryptography and normal CPython/OS file operations are used;
+zero explicit native GUI/identity dispatch is not a claim of zero OS native code.
+
+ABI: both modeled x86 and x64 retain32bit DWORD/BOOL and pointer-width HANDLE.
+The two C++translation units contain only WindowsSDKstatic_assert/decltype
+checks. They have no main,DllMain,function body,loaded-library initialization
+or callback dispatch. Only /c object compilation is planned,never link/run.
+No installed WindowsSDK/VisualStudio/clang was found,so no real C++compile or
+ABIqualification PASS is claimed. These are engineering-source candidates.
+Future native glue must own/zero buffers,track actual initialized extents,
+preserve pointer lifetime and explicitly handle calling convention,error
+capture and cancellation. Synthetic byte arenas never dereference native
+addresses. Noncanonical BOOL receipts conservatively reject; real providers
+must normalize documented success/error semantics rather than trust stale
+GetLastError values. ReadFile offsets describe a bounded logical cursor;
+actual native cursor/overlapped lifetime glue is not qualified or executable.
+
+Authority:11independent ephemeral synthetic public-key roles separate issuer,
+host,boot,operator,parent,clock,revocation,witness,external ACK,review and
+diagnostic purposes. Tests create private keys only in RAM and export public
+roots only. No production root,formal Permit or real signing service exists.
+All test signatures use an explicit non-production realm and purpose domain.
+An externally pinned scope binds host/boot/session/observer/parent/target,
+HWND/TID/creation/generation,volume+128bitFileID,rights,budgets,transport and
+physical evidence root. A signed CLOCK interval carries uncertainty and age;
+the entire interval must remain inside permit,revocation and provenance
+validity before and after every mock read. Expiry/rollback/revocation blocks;
+there is no automatic refresh,fallback,retry or resume.
+
+Durable mock admission composes the accepted PR73/74 journal unchanged and
+reserves nonce/attempt before reading a receipt. Accepted journal success states
+are not redefined. The new wire-only evidence is nested in a terminal BLOCKED
+record because native Gate2 remains blocked; the returned transcript explicitly
+does not certify complete native identity. A separate review ACK binds that
+exact successful offline transcript and cannot promote unknown evidence or
+authorize diagnostics. No Diagnostic Grant is executable.
+
+Lifecycle: an independently pinned finite synthetic event oracle, signed
+witness and external model/scope ACK can validate the offline contract. Native
+WinEvent/ETW/before-afterHWND observations remain INDETERMINATE even with zero
+loss counters or signatures. HWND is reusable and has no reliable creation
+timestamp supplied by this package. Complete native generation/coverage cannot
+be inferred from these APIs. See LIFECYCLE_FEASIBILITY_V1.json for official
+source references,required certificates and alternatives. No universal OS
+impossibility theorem is claimed. Sequential reads are not an atomic snapshot.
+
+Containment: the data-only Job model requires noninherited kill-on-close/no
+breakaway/bounded processes,child suspended,job assignment,durable external
+intent,then resume. Cancellation is not proof of cancellation. Timeout,crash,
+IPC loss or unknown outcome permanently stops the model; late success cannot
+restore PASS. Native Job handles,nested-job behavior,descendant termination,
+actual deadlines/cancellation and trusted supervisor observations are not
+implemented or qualified. Existing795regressions repeat actual fixed owned
+fixture-child crash/kill tests; they do not qualify Windows Job containment.
+
+Filesystem: validate_descriptor parses owned synthetic self-relative owner-only
+protected DACL bytes with exact SID/ACE/bounds. PrivateEvidenceStore tests actual
+exclusive writes,fsync,immutable content,hardlink rejection and directory
+replacement inside private test roots. Path/stat checks do not provide native
+directory-handle-relative TOCTOU protection. Native ACL/owner attestation,
+volume/filehandle races and storage power-loss durability remain BLOCKED.
+fsync or process-crash success is not media/powercut proof. Failures preserve
+partial files and poison the store; there is no cleanup or repair routine.
+
+Reproduction uses the pinned Python3.12.10 with -I -B -S and preinstalled
+cryptography50.0.2. run_offline_tests.py requires a fresh --output directory.
+No package installation,network or arbitrary subprocess is allowed by that
+test runner. The accepted795 suite and38separate adversarial probes are rerun
+from verified archives in isolated roots; they are never double-counted.
+Historical probe path adaptations may change only source/evidence/root paths,
+never test logic or assertions. Preserve every failure and partial journal.
+
+API_COVERAGE_PLAN_V1.json is pre-execution planning. Final exact-head evidence
+contains actual OFFLINE_TESTED rows and the full test IDs/logs. All RT01-RT10
+remain BLOCKED with capability,evidence,blocker,required real qualification and
+separate authorization explicitly listed. Offline,synthetic,signed or compile-
+only success must never promote a real runtime gate.
+
+No live GUI/process enumeration,identity resolution,GUI diagnostic,formal
+Permit issuance/consumption,Pagefile/Windows/Production change,original HALT
+overwrite,accepted PR72/73/74 change,merge,deploy,activation or automatic next
+phase is authorized. This code trusts the exact interpreter/source; it is not
+a sandbox against hostile Python inside the same process.

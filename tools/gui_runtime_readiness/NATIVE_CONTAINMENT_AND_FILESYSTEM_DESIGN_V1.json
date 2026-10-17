@@ -1,0 +1,32 @@
+{
+  "future_native_sequence": [
+    "CreateunnamednoninheritableJobwithkill-on-close,no breakaway,activeprocessbound",
+    "Createfixedworker suspendedwith explicitoneIPC inheritedhandle list;assignJobbeforeResume",
+    "Bindopenprocesshandle+PID+creation+parent/boot attestation;externaldurableone-shotintent beforedispatch",
+    "Singleauthenticatedrequest,percall+globalmonotonicdeadline andindependentUTCvalidity interval",
+    "Cancellationrequestcannotprovecompletion;timeout/crash/ambiguousIPC result=UNKNOWN,killJobandproveallownedprocessesdead",
+    "Keepunknownoutcomepartialrecords;no retry/resume/repair/cleanup orlatePASS"
+  ],
+  "native_binding": "Unavailable;state events are synthetic DTOs only",
+  "filesystem_design": [
+    "Openandpinnativerootdirectoryhandle,volume+128bitID,OwnerSID andprotectednoninheritedDACL",
+    "Race-resistantrelativechildcreationwithno reparse/hardlink/ADS/pathalias",
+    "No Pythonpath/stat sequence is claimed to provide native TOCTOU resistance",
+    "Immutableexclusiveintent/nonce/outputs and independentoutsideheadACK",
+    "fsyncobservationsandprocesscrashesdo not prove media/powerloss durability"
+  ],
+  "sources": [
+    {
+      "url": "https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects",
+      "supports": "Kill-on-close applies when lastJobhandlecloses;avoid inherited/leaked jobhandles."
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/windows/desktop/FileIO/canceling-pending-i-o-operations",
+      "supports": "Cancellation isnotguaranteed and races require lifecycle coordination."
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_id_info",
+      "supports": "VolumeSerialNumber and128bitFileId together identifya file."
+    }
+  ]
+}

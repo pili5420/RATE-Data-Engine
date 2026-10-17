@@ -1,0 +1,34 @@
+{
+  "pipeline": [
+    "Pinned accepted795 source/archive identity",
+    "Closed synthetic public roots with11independentroles",
+    "Signed permit/external scope/provenance/revocation/clock interval pins",
+    "Durable accepted journal admission before any mock receipt",
+    "Request/identity/owned-handle/buffer/ABI bounds before each mock exchange",
+    "Postread UTC/revocation/provenance validity and immutable-root check",
+    "Only offline wire transcript, separate reviewACK, no native promotion"
+  ],
+  "attacks": [
+    "PID/HWND/TID reuse,generation/host/boot/session/operator/parent mismatch",
+    "Pointerwidth,initializedtail,UTF16surrogates,truncation,API-field-right injection",
+    "Signed stale revocation,UTC uncertainty/rollback/expiry,role confusion,nonce replay",
+    "Job assignment before resume,breakaway,PIDreuse,cancel-success confusion,unknown IPC",
+    "ACL inheritance,nullDACL,unknownACE,excessrights,ownerSIDoffset alias",
+    "Root replacement,reparse,hardlink,partialwrite/fsyncfailure,unverified powerloss"
+  ],
+  "trusted_assumptions": [
+    "Trusted exact interpreter/source and installed PyCA50.0.2",
+    "Signed synthetic provenance and complete finite test oracle are test inputs only",
+    "No native WindowsDLL binding or native address dereference",
+    "No hostile in-process Python sandbox guarantee"
+  ],
+  "limits": [
+    "21API wire readiness does not implement a real native dispatcher",
+    "FILE_ID_INFO includes volume+128bitID but does not attest loaded memory",
+    "Sequential reads are not atomic",
+    "Real host/boot/parent/ACL/lifecycle/UTC/service authorities remain unqualified",
+    "Jobmodel and fsync tests are not native containment or powerloss proof"
+  ],
+  "no_live_entry": true,
+  "no_auto_next": true
+}

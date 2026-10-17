@@ -1,0 +1,44 @@
+{
+  "RT-04": "BLOCKED",
+  "finding": "No trustworthy complete native lifecycle/generation/interval certificate can be established offline from the allowed public event source labels. This is not a universal impossibility theorem.",
+  "sources": [
+    {
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-iswindow",
+      "supports": "A foreign window may disappear or its handle may be reused after the check."
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-setwineventhook",
+      "supports": "Registration/message-loop/bitness and reentrancy handling matter; event delivery order is not a certificate of full generation coverage."
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/windows/desktop/ETW/event-trace-properties",
+      "supports": "ETW exposes event and buffer loss counters; zero does not independently prove emission completeness for this identity interval."
+    }
+  ],
+  "required_certificate": [
+    "Independent trusted source identity and exact host/boot/session/desktop",
+    "Subscriptionready before begin,stable source epoch,no event or bufferloss",
+    "Monotonic loss-detectable sequence and outside prefix/finalhead ACK",
+    "Unforgeable generation bound to processcreation/windowidentity and complete interval",
+    "Independent validation of startup,gaps,reordering,teardown,clockmapping"
+  ],
+  "alternatives": [
+    {
+      "option": "Cooperating instrumented window owner and independent collector",
+      "condition": "Owner emits complete creation/destruction/generation stream with independent ACK; original human system dialog does not currently supply this contract",
+      "status": "REQUIRES_NEW_TRUST_SOURCE_AND_AUTHORIZATION"
+    },
+    {
+      "option": "Reviewed OS/kernel-level witness with attested provenance",
+      "condition": "Requires separate engineering,security review and realqualification; no undocumented hooks or driver deployment authorized",
+      "status": "BLOCKED_OUTSIDE_CURRENT_SCOPE"
+    },
+    {
+      "option": "Continuefailclosed identity-only evidence model",
+      "condition": "Do not turnbefore/afterHWND reads,WinEvent/ETWlabels or signatures into full lifecycleproof",
+      "status": "CURRENT_SAFE_BOUNDARY"
+    }
+  ],
+  "atomic_snapshot": false,
+  "original_halt_root_cause": "UNKNOWN"
+}
