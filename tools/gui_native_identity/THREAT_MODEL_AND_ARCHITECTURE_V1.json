@@ -1,0 +1,35 @@
+{
+  "entry": "OfflineIdentityCandidate.run accepts synthetic model+sealed ScriptedWindowsProvider+synthetic witness+private SyntheticWorkspace",
+  "flow": [
+    "canonical strict model/tool/schema/scope/provider/witness/root checks",
+    "exclusive synthetic attempt+nonce intents before first API request",
+    "observer/parent host/session/desktop/station/ctime/AdminFullHigh",
+    "bounded window handles and owner/class/session/desktop",
+    "unique approved executable path/fileID/SHA with target token",
+    "before-after process/window/file checks",
+    "independent synthetic lifecycle external heads and full coverage",
+    "immutable result and terminal,mandatory independent review,no automatic diagnostic"
+  ],
+  "lossless_claim": "None for native events. Win32 HWND has no reliable creation timestamp here. Existing pre-hook windows or unprovable hook coverage remain UNKNOWN.",
+  "permitted_side_effects": "Synthetic-only exclusive intent/results within a physically checked named private test workspace. No production ledger.",
+  "threats": [
+    "PID reuse/process restart",
+    "HWND/TID replacement",
+    "source/provenance ambiguity",
+    "duplicateCREATE/DESTROY/gap/reorder/loss",
+    "file path alias/reparse/FileID/contents mutation",
+    "API field/right/argument escalation",
+    "clock/timeout/unknown outcome",
+    "replay/partial intent/crash",
+    "root replacement/hardlink/unknown filesystem state",
+    "untrusted code/provider injection"
+  ],
+  "trust_boundary": [
+    "Only synthetic data origin accepted",
+    "Exact code/schema/scope pins are engineering model bindings, not signatures",
+    "No live Permit loader or Native DLL transport",
+    "Process/file observations do not attest loaded memory image",
+    "In-process adversary able to replace Python classes/code is not contained by this reference model;trusted exact-head code required",
+    "Real host/boot identity,observer-parent linkage,ACL and directory-handle races require future native independent qualification"
+  ]
+}

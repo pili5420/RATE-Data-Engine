@@ -1,0 +1,337 @@
+{
+  "$id": "urn:rate:gui:native-identity:offline-model:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifact_kind": {
+      "const": "OFFLINE_NATIVE_IDENTITY_MODEL_NO_EXECUTION_AUTHORITY"
+    },
+    "attempt_id": {
+      "pattern": "SYNTHETIC-[A-Za-z0-9-]{8,96}",
+      "type": "string"
+    },
+    "evidence_root": {
+      "type": "string"
+    },
+    "expires_tick_ns": {
+      "maximum": 18446744073709551615,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "issued_tick_ns": {
+      "maximum": 18446744073709551615,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "journal_root": {
+      "type": "string"
+    },
+    "nonce": {
+      "pattern": "SYNTHETIC-[A-Za-z0-9-]{8,96}",
+      "type": "string"
+    },
+    "provider_sha256": {
+      "pattern": "[0-9a-f]{64}",
+      "type": "string"
+    },
+    "schema_sha256": {
+      "pattern": "[0-9a-f]{64}",
+      "type": "string"
+    },
+    "scope": {
+      "additionalProperties": false,
+      "properties": {
+        "chunk_bytes": {
+          "maximum": 18446744073709551615,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "max_calls": {
+          "maximum": 18446744073709551615,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "max_file_bytes": {
+          "maximum": 18446744073709551615,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "max_windows": {
+          "maximum": 18446744073709551615,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "observer": {
+          "additionalProperties": false,
+          "properties": {
+            "creation": {
+              "maximum": 18446744073709551615,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "origin": {
+              "const": "SYNTHETIC_OWNER_HANDOFF_NOT_NATIVE_PROVENANCE"
+            },
+            "parent_creation": {
+              "maximum": 18446744073709551615,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "parent_pid": {
+              "maximum": 18446744073709551615,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "pid": {
+              "maximum": 18446744073709551615,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "tid": {
+              "maximum": 18446744073709551615,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "pid",
+            "tid",
+            "parent_pid",
+            "creation",
+            "parent_creation",
+            "origin"
+          ],
+          "type": "object"
+        },
+        "per_call_ms": {
+          "maximum": 18446744073709551615,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "policy": {
+          "additionalProperties": false,
+          "properties": {
+            "boot_id": {
+              "type": "string"
+            },
+            "class_name": {
+              "type": "string"
+            },
+            "desktop": {
+              "type": "string"
+            },
+            "executable_path": {
+              "type": "string"
+            },
+            "executable_sha256": {
+              "pattern": "[0-9a-f]{64}",
+              "type": "string"
+            },
+            "file_id": {
+              "type": "string"
+            },
+            "host": {
+              "type": "string"
+            },
+            "observer_station": {
+              "type": "string"
+            },
+            "session_id": {
+              "maximum": 4294967295,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "volume_serial": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "host",
+            "session_id",
+            "desktop",
+            "observer_station",
+            "executable_path",
+            "executable_sha256",
+            "volume_serial",
+            "file_id",
+            "class_name",
+            "boot_id"
+          ],
+          "type": "object"
+        },
+        "read_boundary": {
+          "const": {
+            "access_rights": {
+              "file": 129,
+              "process": 4096,
+              "token": 8
+            },
+            "api_fields": {
+              "CloseHandle": [],
+              "CreateFileW": [
+                "executable_path"
+              ],
+              "EnumWindows": [
+                "hwnd",
+                "enumeration_complete"
+              ],
+              "GetClassNameW": [
+                "class_name"
+              ],
+              "GetComputerNameExW": [
+                "host"
+              ],
+              "GetCurrentProcessId": [
+                "observer_pid"
+              ],
+              "GetCurrentThreadId": [
+                "observer_tid"
+              ],
+              "GetFileInformationByHandleEx": [
+                "file_identity",
+                "file_metadata"
+              ],
+              "GetFinalPathNameByHandleW": [
+                "executable_path"
+              ],
+              "GetProcessTimes": [
+                "creation_filetime_100ns"
+              ],
+              "GetProcessWindowStation": [
+                "observer_station"
+              ],
+              "GetThreadDesktop": [
+                "desktop"
+              ],
+              "GetTokenInformation": [
+                "token"
+              ],
+              "GetUserObjectInformationW": [
+                "desktop",
+                "observer_station"
+              ],
+              "GetWindowThreadProcessId": [
+                "hwnd",
+                "pid",
+                "tid"
+              ],
+              "IsWindow": [
+                "hwnd"
+              ],
+              "OpenProcess": [
+                "pid"
+              ],
+              "OpenProcessToken": [
+                "token"
+              ],
+              "ProcessIdToSessionId": [
+                "session_id"
+              ],
+              "QueryFullProcessImageNameW": [
+                "executable_path"
+              ],
+              "ReadFile": [
+                "executable_sha256"
+              ]
+            },
+            "apis": [
+              "CloseHandle",
+              "CreateFileW",
+              "EnumWindows",
+              "GetClassNameW",
+              "GetComputerNameExW",
+              "GetCurrentProcessId",
+              "GetCurrentThreadId",
+              "GetFileInformationByHandleEx",
+              "GetFinalPathNameByHandleW",
+              "GetProcessTimes",
+              "GetProcessWindowStation",
+              "GetThreadDesktop",
+              "GetTokenInformation",
+              "GetUserObjectInformationW",
+              "GetWindowThreadProcessId",
+              "IsWindow",
+              "OpenProcess",
+              "OpenProcessToken",
+              "ProcessIdToSessionId",
+              "QueryFullProcessImageNameW",
+              "ReadFile"
+            ],
+            "file_disposition": 3,
+            "file_flags": 2097152,
+            "file_share_mode": 7,
+            "native_execution_authorized": false,
+            "no_diagnostic_promotion": true,
+            "no_memory_reads": true,
+            "no_titles": true,
+            "stage": "IDENTITY_ONLY"
+          }
+        },
+        "total_ms": {
+          "maximum": 18446744073709551615,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "read_boundary",
+        "policy",
+        "observer",
+        "max_windows",
+        "max_file_bytes",
+        "chunk_bytes",
+        "max_calls",
+        "per_call_ms",
+        "total_ms"
+      ],
+      "type": "object"
+    },
+    "scope_sha256": {
+      "pattern": "[0-9a-f]{64}",
+      "type": "string"
+    },
+    "stage": {
+      "const": "IDENTITY_ONLY"
+    },
+    "tool_sha256": {
+      "pattern": "[0-9a-f]{64}",
+      "type": "string"
+    },
+    "witness_final_head": {
+      "pattern": "[0-9a-f]{64}",
+      "type": "string"
+    },
+    "witness_pre_head": {
+      "pattern": "[0-9a-f]{64}",
+      "type": "string"
+    },
+    "witness_sha256": {
+      "pattern": "[0-9a-f]{64}",
+      "type": "string"
+    },
+    "workspace": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "artifact_kind",
+    "stage",
+    "attempt_id",
+    "nonce",
+    "issued_tick_ns",
+    "expires_tick_ns",
+    "tool_sha256",
+    "schema_sha256",
+    "scope",
+    "scope_sha256",
+    "provider_sha256",
+    "witness_sha256",
+    "witness_pre_head",
+    "witness_final_head",
+    "workspace",
+    "evidence_root",
+    "journal_root"
+  ],
+  "title": "Synthetic identity-only test model, NOT live Permit",
+  "type": "object"
+}

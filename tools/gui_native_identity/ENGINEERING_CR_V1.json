@@ -1,0 +1,22 @@
+{
+  "accepted_base_pr": 72,
+  "accepted_head": "2e4e24c3a4f73d6fabe3881f4962c919d0a21c69",
+  "authority": "AUTHORIZED_FOR_SCOPED_OFFLINE_ONE_SHOT_ENGINEERING",
+  "branch": "codex/gui-gate2-native-identity-offline-v1",
+  "deliverables": [
+    "Windows identity-only adapter candidate over replaceable synthetic Windows API provider",
+    "ABI byte decoders",
+    "strict model/API/field/right/deadline guard",
+    "verifiable synthetic lifecycle witness",
+    "durable synthetic intent/replay/crash test store",
+    "independent reviewer and complete evidence"
+  ],
+  "external_trust_changes_authorized": false,
+  "independent_from_main": false,
+  "native_execution_authorized": false,
+  "no_auto_next": true,
+  "original_halt_root_cause": "UNKNOWN",
+  "runtime_qualification": "BLOCKED",
+  "scope": "Additive tools/gui_native_identity only; no accepted file changes",
+  "stacked_pr_base": "codex/gui-gate2-target-identity-v1"
+}

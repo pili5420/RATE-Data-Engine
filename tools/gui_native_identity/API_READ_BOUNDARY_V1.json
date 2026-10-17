@@ -1,0 +1,212 @@
+{
+  "argument_keys": {
+    "CloseHandle": [
+      "handle"
+    ],
+    "CreateFileW": [
+      "path",
+      "desired_access",
+      "share",
+      "disposition",
+      "flags"
+    ],
+    "EnumWindows": [
+      "max_windows"
+    ],
+    "GetClassNameW": [
+      "hwnd"
+    ],
+    "GetComputerNameExW": [
+      "format",
+      "capacity"
+    ],
+    "GetCurrentProcessId": [],
+    "GetCurrentThreadId": [],
+    "GetFileInformationByHandleEx": [
+      "handle",
+      "class"
+    ],
+    "GetFinalPathNameByHandleW": [
+      "handle",
+      "capacity",
+      "flags"
+    ],
+    "GetProcessTimes": [
+      "handle"
+    ],
+    "GetProcessWindowStation": [],
+    "GetThreadDesktop": [
+      "tid"
+    ],
+    "GetTokenInformation": [
+      "handle",
+      "class"
+    ],
+    "GetUserObjectInformationW": [
+      "handle",
+      "index",
+      "capacity"
+    ],
+    "GetWindowThreadProcessId": [
+      "hwnd"
+    ],
+    "IsWindow": [
+      "hwnd"
+    ],
+    "OpenProcess": [
+      "pid",
+      "desired_access",
+      "inherit"
+    ],
+    "OpenProcessToken": [
+      "handle",
+      "desired_access"
+    ],
+    "ProcessIdToSessionId": [
+      "pid"
+    ],
+    "QueryFullProcessImageNameW": [
+      "handle",
+      "capacity",
+      "flags"
+    ],
+    "ReadFile": [
+      "handle",
+      "offset",
+      "count"
+    ]
+  },
+  "borrowed_handles": [
+    "GetThreadDesktop result",
+    "GetProcessWindowStation result"
+  ],
+  "contract": "NATIVE_IDENTITY_ONLY_OFFLINE_API_BOUNDARY_V1",
+  "dll_binding": "NOT_IMPLEMENTED_NOT_AUTHORIZED",
+  "executable_read": "Exact approved local DOS path only;0x81 access,share7,OPEN_EXISTING3,OPEN_REPARSE_POINT0x00200000;reject reparse attributes,compare finalpath/fileid/size/write/change before-after,stream SHA256 with bounded chunks",
+  "observer_station": "GetProcessWindowStation is observer station, not the target process station. Owner thread desktop is observed separately.",
+  "owned_handles": [
+    "OpenProcess result",
+    "OpenProcessToken result",
+    "CreateFileW result"
+  ],
+  "prohibited": [
+    "title reads",
+    "process memory/environment",
+    "arbitrary process probing",
+    "arbitrary filesystem reads",
+    "write access",
+    "privilege adjustment",
+    "settings or Pagefile",
+    "diagnostic promotion"
+  ],
+  "provider_origin": "SYNTHETIC_WINDOWS_API_DATA_ONLY",
+  "real_timeouts": "Native cancellation/hard deadlines must use separately qualified supervisor/containment. Current pre/post timestamps are synthetic deterministic clock evidence.",
+  "replaceability": "Data scenarios/fault plans replace observations. Arbitrary provider subclasses/callbacks/native function pointers are rejected. A real transport requires separate engineering/authority.",
+  "scope": {
+    "access_rights": {
+      "file": 129,
+      "process": 4096,
+      "token": 8
+    },
+    "api_fields": {
+      "CloseHandle": [],
+      "CreateFileW": [
+        "executable_path"
+      ],
+      "EnumWindows": [
+        "hwnd",
+        "enumeration_complete"
+      ],
+      "GetClassNameW": [
+        "class_name"
+      ],
+      "GetComputerNameExW": [
+        "host"
+      ],
+      "GetCurrentProcessId": [
+        "observer_pid"
+      ],
+      "GetCurrentThreadId": [
+        "observer_tid"
+      ],
+      "GetFileInformationByHandleEx": [
+        "file_identity",
+        "file_metadata"
+      ],
+      "GetFinalPathNameByHandleW": [
+        "executable_path"
+      ],
+      "GetProcessTimes": [
+        "creation_filetime_100ns"
+      ],
+      "GetProcessWindowStation": [
+        "observer_station"
+      ],
+      "GetThreadDesktop": [
+        "desktop"
+      ],
+      "GetTokenInformation": [
+        "token"
+      ],
+      "GetUserObjectInformationW": [
+        "desktop",
+        "observer_station"
+      ],
+      "GetWindowThreadProcessId": [
+        "hwnd",
+        "pid",
+        "tid"
+      ],
+      "IsWindow": [
+        "hwnd"
+      ],
+      "OpenProcess": [
+        "pid"
+      ],
+      "OpenProcessToken": [
+        "token"
+      ],
+      "ProcessIdToSessionId": [
+        "session_id"
+      ],
+      "QueryFullProcessImageNameW": [
+        "executable_path"
+      ],
+      "ReadFile": [
+        "executable_sha256"
+      ]
+    },
+    "apis": [
+      "CloseHandle",
+      "CreateFileW",
+      "EnumWindows",
+      "GetClassNameW",
+      "GetComputerNameExW",
+      "GetCurrentProcessId",
+      "GetCurrentThreadId",
+      "GetFileInformationByHandleEx",
+      "GetFinalPathNameByHandleW",
+      "GetProcessTimes",
+      "GetProcessWindowStation",
+      "GetThreadDesktop",
+      "GetTokenInformation",
+      "GetUserObjectInformationW",
+      "GetWindowThreadProcessId",
+      "IsWindow",
+      "OpenProcess",
+      "OpenProcessToken",
+      "ProcessIdToSessionId",
+      "QueryFullProcessImageNameW",
+      "ReadFile"
+    ],
+    "file_disposition": 3,
+    "file_flags": 2097152,
+    "file_share_mode": 7,
+    "native_execution_authorized": false,
+    "no_diagnostic_promotion": true,
+    "no_memory_reads": true,
+    "no_titles": true,
+    "stage": "IDENTITY_ONLY"
+  },
+  "token_wire": "Elevation/type DWORD,integrity SID copy,admin group SID+attributes are provider-copied pointees. This is not native pointer/buffer validation."
+}
