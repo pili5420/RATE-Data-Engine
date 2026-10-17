@@ -41,7 +41,7 @@ function Run-Process([string]$Exe, [string[]]$Arguments, [string]$Prefix, $Envir
         $copyOut = $proc.StandardOutput.BaseStream.CopyToAsync($stdout)
         $copyErr = $proc.StandardError.BaseStream.CopyToAsync($stderr)
         if (!$proc.WaitForExit(60000)) { $timedOut = $true; $proc.Kill($true); $proc.WaitForExit() }
-        $copyOut.GetAwaiter().GetResult(); $copyErr.GetAwaiter().GetResult()
+        [void]$copyOut.GetAwaiter().GetResult(); [void]$copyErr.GetAwaiter().GetResult()
         $exitCode = $proc.ExitCode
     } catch { $errorText = $_.ToString() + "`n" + $_.ScriptStackTrace }
     $outBytes = $stdout.ToArray(); $errBytes = $stderr.ToArray()
