@@ -1,0 +1,630 @@
+{
+  "$defs": {
+    "ack": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_kind": {
+          "const": "OFFLINE_SYNTHETIC_MODEL_NO_EXECUTION_AUTHORITY"
+        },
+        "decision": {
+          "const": "SYNTHETIC_REVIEW_ACK_ONLY_NOT_CONTROL_CENTER_AUTHORITY"
+        },
+        "diagnostic_scope_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "expires_ns": {
+          "maximum": 18446744073709551615,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "issued_ns": {
+          "maximum": 18446744073709551615,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "resolution_evidence_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "target_identity_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact_kind",
+        "decision",
+        "resolution_evidence_sha256",
+        "target_identity_sha256",
+        "diagnostic_scope_sha256",
+        "issued_ns",
+        "expires_ns"
+      ],
+      "type": "object"
+    },
+    "candidate": {
+      "additionalProperties": false,
+      "properties": {
+        "after": {
+          "$ref": "#/$defs/identity"
+        },
+        "before": {
+          "$ref": "#/$defs/identity"
+        },
+        "lifecycle": {
+          "$ref": "#/$defs/lifecycle"
+        }
+      },
+      "required": [
+        "before",
+        "after",
+        "lifecycle"
+      ],
+      "type": "object"
+    },
+    "identity": {
+      "additionalProperties": false,
+      "properties": {
+        "class_name": {
+          "type": "string"
+        },
+        "creation_filetime_100ns": {
+          "maximum": 18446744073709551615,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "desktop": {
+          "type": "string"
+        },
+        "executable_path": {
+          "type": "string"
+        },
+        "executable_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "file_id": {
+          "type": "string"
+        },
+        "host": {
+          "type": "string"
+        },
+        "hwnd": {
+          "maximum": 18446744073709551615,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "observer_station": {
+          "type": "string"
+        },
+        "pid": {
+          "maximum": 18446744073709551615,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "session_id": {
+          "maximum": 18446744073709551615,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "tid": {
+          "maximum": 18446744073709551615,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "volume_serial": {
+          "type": "string"
+        },
+        "window_epoch": {
+          "maximum": 18446744073709551615,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "class_name",
+        "creation_filetime_100ns",
+        "desktop",
+        "executable_path",
+        "executable_sha256",
+        "file_id",
+        "host",
+        "hwnd",
+        "observer_station",
+        "pid",
+        "session_id",
+        "tid",
+        "volume_serial",
+        "window_epoch"
+      ],
+      "type": "object"
+    },
+    "lifecycle": {
+      "additionalProperties": false,
+      "properties": {
+        "coverage": {
+          "const": "COMPLETE_SYNTHETIC_TRACE"
+        },
+        "epoch_after": {
+          "maximum": 18446744073709551615,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "epoch_before": {
+          "maximum": 18446744073709551615,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "events": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "epoch": {
+                "maximum": 18446744073709551615,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "hwnd": {
+                "maximum": 18446744073709551615,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "kind": {
+                "enum": [
+                  "CREATE",
+                  "UNCHANGED",
+                  "DESTROY"
+                ]
+              },
+              "sequence": {
+                "maximum": 18446744073709551615,
+                "minimum": 1,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "sequence",
+              "kind",
+              "hwnd",
+              "epoch"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "lost_events": {
+          "const": 0
+        },
+        "source": {
+          "const": "SYNTHETIC_LOSSLESS_LIFECYCLE_LEDGER"
+        }
+      },
+      "required": [
+        "source",
+        "coverage",
+        "lost_events",
+        "epoch_before",
+        "epoch_after",
+        "events"
+      ],
+      "type": "object"
+    },
+    "model": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_kind": {
+          "const": "OFFLINE_SYNTHETIC_MODEL_NO_EXECUTION_AUTHORITY"
+        },
+        "attempt_id": {
+          "pattern": "^SYNTHETIC-[A-Za-z0-9-]{8,80}$",
+          "type": "string"
+        },
+        "expires_ns": {
+          "maximum": 18446744073709551615,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "identity_binding": {
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "enum": [
+                "UNRESOLVED_IDENTITY_ONLY",
+                "EXACT_REVIEWED_TARGET"
+              ]
+            },
+            "resolution_evidence_sha256": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "review_ack_sha256": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "target_identity_sha256": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "mode",
+            "target_identity_sha256",
+            "resolution_evidence_sha256",
+            "review_ack_sha256"
+          ],
+          "type": "object"
+        },
+        "issued_ns": {
+          "maximum": 18446744073709551615,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "schema_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "scope": {
+          "$ref": "#/$defs/scope"
+        },
+        "scope_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "stage": {
+          "enum": [
+            "IDENTITY_ONLY",
+            "BOUND_DIAGNOSTIC"
+          ]
+        },
+        "tool_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact_kind",
+        "stage",
+        "attempt_id",
+        "issued_ns",
+        "expires_ns",
+        "scope",
+        "scope_sha256",
+        "tool_sha256",
+        "schema_sha256",
+        "identity_binding"
+      ],
+      "type": "object"
+    },
+    "policy": {
+      "additionalProperties": false,
+      "properties": {
+        "class_name": {
+          "type": "string"
+        },
+        "desktop": {
+          "type": "string"
+        },
+        "executable_path": {
+          "type": "string"
+        },
+        "executable_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "file_id": {
+          "type": "string"
+        },
+        "host": {
+          "type": "string"
+        },
+        "observer_station": {
+          "type": "string"
+        },
+        "session_id": {
+          "maximum": 18446744073709551615,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "volume_serial": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "host",
+        "session_id",
+        "desktop",
+        "observer_station",
+        "executable_path",
+        "executable_sha256",
+        "volume_serial",
+        "file_id",
+        "class_name"
+      ],
+      "type": "object"
+    },
+    "resolution": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_kind": {
+          "const": "OFFLINE_SYNTHETIC_MODEL_NO_EXECUTION_AUTHORITY"
+        },
+        "candidates": {
+          "items": {
+            "$ref": "#/$defs/candidate"
+          },
+          "type": "array"
+        },
+        "enumeration_complete": {
+          "type": "boolean"
+        },
+        "enumeration_count": {
+          "maximum": 18446744073709551615,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "scope_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact_kind",
+        "scope_sha256",
+        "enumeration_count",
+        "enumeration_complete",
+        "candidates"
+      ],
+      "type": "object"
+    },
+    "resolved": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_kind": {
+          "const": "OFFLINE_SYNTHETIC_MODEL_NO_EXECUTION_AUTHORITY"
+        },
+        "diagnostic_authorized": {
+          "const": false
+        },
+        "gate2_final_status": {
+          "const": "BLOCKED_PENDING_SEPARATE_IDENTITY_RESOLUTION_AND_REVIEW"
+        },
+        "resolution_evidence_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "scope_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "status": {
+          "const": "RESOLVED_SYNTHETIC_REQUIRES_INDEPENDENT_REVIEW"
+        },
+        "target_identity": {
+          "$ref": "#/$defs/identity"
+        },
+        "target_identity_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact_kind",
+        "status",
+        "scope_sha256",
+        "resolution_evidence_sha256",
+        "target_identity",
+        "target_identity_sha256",
+        "diagnostic_authorized",
+        "gate2_final_status"
+      ],
+      "type": "object"
+    },
+    "scope": {
+      "additionalProperties": false,
+      "properties": {
+        "access_rights": {
+          "additionalProperties": false,
+          "properties": {
+            "file": {
+              "const": 129
+            },
+            "process": {
+              "const": 4096
+            },
+            "token": {
+              "const": 8
+            }
+          },
+          "required": [
+            "process",
+            "token",
+            "file"
+          ],
+          "type": "object"
+        },
+        "allowed_apis": {
+          "items": {
+            "enum": [
+              "CloseHandle",
+              "ConvertSidToStringSidW",
+              "CreateFileW",
+              "EnumWindows",
+              "GetClassNameW",
+              "GetComputerNameW",
+              "GetFileInformationByHandleEx",
+              "GetFinalPathNameByHandleW",
+              "GetProcessTimes",
+              "GetProcessWindowStation",
+              "GetThreadDesktop",
+              "GetTickCount64",
+              "GetTokenInformation",
+              "GetUserObjectInformationW",
+              "GetWindowTextLengthW",
+              "GetWindowTextW",
+              "GetWindowThreadProcessId",
+              "IsWindow",
+              "IsWindowVisible",
+              "LocalFree",
+              "OpenProcess",
+              "OpenProcessToken",
+              "ProcessIdToSessionId",
+              "QueryFullProcessImageNameW",
+              "ReadFile"
+            ]
+          },
+          "type": "array"
+        },
+        "enumeration_bounds": {
+          "additionalProperties": false,
+          "properties": {
+            "max_candidates": {
+              "const": 1
+            },
+            "max_title_reads": {
+              "maximum": 2,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "max_windows": {
+              "maximum": 4096,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "max_windows",
+            "max_candidates",
+            "max_title_reads"
+          ],
+          "type": "object"
+        },
+        "evidence_destination": {
+          "type": "string"
+        },
+        "read_fields": {
+          "items": {
+            "enum": [
+              "admin_token",
+              "class_name",
+              "creation_filetime_100ns",
+              "desktop",
+              "enumeration_count",
+              "executable_path",
+              "executable_sha256",
+              "file_id",
+              "host",
+              "hwnd",
+              "lifecycle_trace",
+              "observer_station",
+              "pid",
+              "session_id",
+              "tid",
+              "title",
+              "title_api_errors",
+              "title_consistency",
+              "title_length",
+              "title_utf16",
+              "visibility",
+              "volume_serial",
+              "window_epoch"
+            ]
+          },
+          "type": "array"
+        },
+        "target_policy": {
+          "$ref": "#/$defs/policy"
+        },
+        "timeouts": {
+          "additionalProperties": false,
+          "properties": {
+            "per_call_ms": {
+              "maximum": 5000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "total_ms": {
+              "maximum": 60000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "per_call_ms",
+            "total_ms"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "allowed_apis",
+        "read_fields",
+        "access_rights",
+        "enumeration_bounds",
+        "timeouts",
+        "evidence_destination",
+        "target_policy"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:rate:gui:gate2:offline-model:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/resolution"
+        },
+        "model": {
+          "$ref": "#/$defs/model"
+        },
+        "operation": {
+          "const": "IDENTITY_RESOLUTION"
+        }
+      },
+      "required": [
+        "operation",
+        "model",
+        "evidence"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "ack": {
+          "$ref": "#/$defs/ack"
+        },
+        "evidence": {
+          "type": "object"
+        },
+        "model": {
+          "$ref": "#/$defs/model"
+        },
+        "operation": {
+          "const": "BOUND_DIAGNOSTIC"
+        },
+        "resolved": {
+          "$ref": "#/$defs/resolved"
+        }
+      },
+      "required": [
+        "operation",
+        "model",
+        "resolved",
+        "ack",
+        "evidence"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "Offline synthetic identity model only; not a live Execution Permit"
+}

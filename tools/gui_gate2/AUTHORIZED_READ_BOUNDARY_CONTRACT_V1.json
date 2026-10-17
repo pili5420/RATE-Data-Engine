@@ -1,0 +1,225 @@
+{
+  "access_rights": {
+    "file": 129,
+    "process": 4096,
+    "token": 8
+  },
+  "api_field_map": {
+    "CloseHandle": [],
+    "ConvertSidToStringSidW": [
+      "admin_token"
+    ],
+    "CreateFileW": [
+      "executable_path"
+    ],
+    "EnumWindows": [
+      "hwnd"
+    ],
+    "GetClassNameW": [
+      "class_name",
+      "hwnd"
+    ],
+    "GetComputerNameW": [
+      "host"
+    ],
+    "GetFileInformationByHandleEx": [
+      "file_id",
+      "volume_serial"
+    ],
+    "GetFinalPathNameByHandleW": [
+      "executable_path"
+    ],
+    "GetProcessTimes": [
+      "creation_filetime_100ns",
+      "pid"
+    ],
+    "GetProcessWindowStation": [
+      "observer_station"
+    ],
+    "GetThreadDesktop": [
+      "desktop",
+      "tid"
+    ],
+    "GetTickCount64": [],
+    "GetTokenInformation": [
+      "admin_token"
+    ],
+    "GetUserObjectInformationW": [
+      "desktop",
+      "observer_station"
+    ],
+    "GetWindowTextLengthW": [
+      "title_api_errors",
+      "title_length"
+    ],
+    "GetWindowTextW": [
+      "title",
+      "title_api_errors",
+      "title_consistency",
+      "title_utf16"
+    ],
+    "GetWindowThreadProcessId": [
+      "hwnd",
+      "pid",
+      "tid"
+    ],
+    "IsWindow": [
+      "hwnd"
+    ],
+    "IsWindowVisible": [
+      "visibility"
+    ],
+    "LocalFree": [],
+    "OpenProcess": [
+      "pid"
+    ],
+    "OpenProcessToken": [
+      "admin_token",
+      "pid"
+    ],
+    "ProcessIdToSessionId": [
+      "pid",
+      "session_id"
+    ],
+    "QueryFullProcessImageNameW": [
+      "executable_path",
+      "pid"
+    ],
+    "ReadFile": [
+      "executable_sha256"
+    ]
+  },
+  "bound_diagnostic_apis": [
+    "CloseHandle",
+    "ConvertSidToStringSidW",
+    "CreateFileW",
+    "GetClassNameW",
+    "GetComputerNameW",
+    "GetFileInformationByHandleEx",
+    "GetFinalPathNameByHandleW",
+    "GetProcessTimes",
+    "GetProcessWindowStation",
+    "GetThreadDesktop",
+    "GetTickCount64",
+    "GetTokenInformation",
+    "GetUserObjectInformationW",
+    "GetWindowTextLengthW",
+    "GetWindowTextW",
+    "GetWindowThreadProcessId",
+    "IsWindow",
+    "IsWindowVisible",
+    "LocalFree",
+    "OpenProcess",
+    "OpenProcessToken",
+    "ProcessIdToSessionId",
+    "QueryFullProcessImageNameW",
+    "ReadFile"
+  ],
+  "bound_diagnostic_fields": [
+    "admin_token",
+    "class_name",
+    "creation_filetime_100ns",
+    "desktop",
+    "executable_path",
+    "executable_sha256",
+    "file_id",
+    "host",
+    "hwnd",
+    "lifecycle_trace",
+    "observer_station",
+    "pid",
+    "session_id",
+    "tid",
+    "title",
+    "title_api_errors",
+    "title_consistency",
+    "title_length",
+    "title_utf16",
+    "visibility",
+    "volume_serial",
+    "window_epoch"
+  ],
+  "contract": "RATE_GUI_AUTHORIZED_READ_BOUNDARY_CONTRACT_V1",
+  "corrective_revision": "PR72_ROUND2_OFFLINE_SECURITY_V2",
+  "destination": "A separately issued absent physical evidence root under D:\\Codex\\RATE-GUI-GATE2-RUNS; no reparse/junction/redirection or overwrite. This component makes no evidence/OS writes itself.",
+  "enumeration": "One separately authorized bounded discovery only, integer1..4096 windows, exactly1 candidate. Diagnostic enumeration bound=0. Registered seeds only; no arbitrary PID probing.",
+  "file_scope": "Only the exact approved executable path may be read/hash-verified; no arbitrary filesystem, process-memory or environment reads.",
+  "future_native_prerequisites": [
+    "Unforgeable native-adapter capability to honor approved call tickets and API arguments, not untrusted caller assertions",
+    "Physical output-root validation plus durable exclusive intent/attempt ledger before first real call; preserve crash/partial/unknown outcome",
+    "Independently validated executable canonical path/file identity/hash before and after reads; disk image SHA is not proof of loaded memory image integrity",
+    "Explicit lifecycle witness provenance/coverage for HWND replacement; no self-declared boolean assurance",
+    "Independent process/token/session/desktop observations and future identity evidence ACK"
+  ],
+  "identity_only_apis": [
+    "CloseHandle",
+    "ConvertSidToStringSidW",
+    "CreateFileW",
+    "EnumWindows",
+    "GetClassNameW",
+    "GetComputerNameW",
+    "GetFileInformationByHandleEx",
+    "GetFinalPathNameByHandleW",
+    "GetProcessTimes",
+    "GetProcessWindowStation",
+    "GetThreadDesktop",
+    "GetTickCount64",
+    "GetTokenInformation",
+    "GetUserObjectInformationW",
+    "GetWindowThreadProcessId",
+    "IsWindow",
+    "LocalFree",
+    "OpenProcess",
+    "OpenProcessToken",
+    "ProcessIdToSessionId",
+    "QueryFullProcessImageNameW",
+    "ReadFile"
+  ],
+  "identity_only_fields": [
+    "admin_token",
+    "class_name",
+    "creation_filetime_100ns",
+    "desktop",
+    "enumeration_count",
+    "executable_path",
+    "executable_sha256",
+    "file_id",
+    "host",
+    "hwnd",
+    "lifecycle_trace",
+    "observer_station",
+    "pid",
+    "session_id",
+    "tid",
+    "volume_serial",
+    "window_epoch"
+  ],
+  "legacy_isolation": "Original V1/V2 executable baseline and original142 tests relocated byte-identically into separately pinned external quarantine evidence; not present/importable in delivery. Original81 test source retained byte-identically; full223 run only in external synthetic regression workspace. Runtime loads only pinned pure title validator.",
+  "native_execution_authorized": false,
+  "no_auto_next": true,
+  "original_halting_evidence_preserved": true,
+  "prohibited": [
+    "GUI control/input/focus/text",
+    "Pagefile/CrashControl/system setting change",
+    "UAC escalation or privilege adjustment",
+    "Process termination/injection",
+    "Production/Campaign/Ledger/strategy changes",
+    "Retry/Resume/Repair/Cleanup",
+    "Original HALT/Collector mutation or rerun",
+    "Use of historical PID/HWND as authority",
+    "Automatic diagnosis after identity resolution"
+  ],
+  "read_only": true,
+  "read_plan": "Fixed original title two-read plan; no resize/retry/third read. Generic Read Guard consumes a synthetic attempt before admitted model validation and permanently poisons failed/pending attempts.",
+  "timeouts": {
+    "enforcement": "Pre-call expiration/total deadline, post-call duration/total deadline; actual native cancellation/containment must be independently engineered before any real provider is eligible.",
+    "per_call_ms_range": [
+      1,
+      5000
+    ],
+    "total_ms_range": [
+      1,
+      60000
+    ]
+  }
+}
