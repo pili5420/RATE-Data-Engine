@@ -134,6 +134,16 @@ def witness_negative(edit):
 WITNESS_NEGATIVES=[('native_source',lambda b:b['witness']['payload'].update(source='WinEvent')),('loss',lambda b:b['witness']['payload'].update(loss=1)),('bool_loss',lambda b:b['witness']['payload'].update(loss=False)),('duplicate_create',lambda b:b['witness']['payload']['events'][1].update(kind='CREATE')),('missing',lambda b:b['witness']['payload'].update(events=b['witness']['payload']['events'][:1])),('reorder',lambda b:b['witness']['payload']['events'].reverse()),('generation',lambda b:b['witness']['payload']['events'][1]['identity'].update(generation=8)),('sequence',lambda b:b['witness']['payload']['events'][1].update(sequence=101)),('prefix',lambda b:b['expected_pre'].update(sequence=96)),('head',lambda b:b['expected_pre'].update(head='b'*64)),('anchor_scope',lambda b:b['anchor']['payload'].update(scope_sha256='0'*64)),('anchor_final',lambda b:b['anchor']['payload'].update(final_head='0'*64)),('truncated_coverage',lambda b:b['witness']['payload'].update(end_tick=150)),('untrusted_oracle',lambda b:b['oracle'].update(source='ETW_LOSSLESS')),('oracle_diff',lambda b:b['oracle']['events'][1].update(kind='DESTROY'))]
 for name,edit in WITNESS_NEGATIVES:setattr(PreflightTests,'test_witness_'+name,witness_negative(edit))
 
+def revocation_during_read(expiry,expected_calls,reason):
+ def test(self):
+  root,b=self.fresh();b['revocation']['payload']['expires_utc_ns']=b['expected']['now_utc_ns']+expiry;f.refresh(b,self.keys);e=OfflinePreflight();r=e.run(b,SyntheticTrust(self.keys.bundle),root);self.denied(r);self.assertEqual(r['status'],'INDETERMINATE');self.assertIn(reason,r['reason']);self.assertEqual(len(e.session.transport.calls),expected_calls);self.assertTrue(e.session.transport.sealed)
+  with self.assertRaisesRegex(Blocked,'NO_RETRY'):e.session.call(expected_calls)
+ return test
+for name,expiry,calls,reason in [('first_end',1,1,'POSTCALL_REVOCATION_EXPIRY'),('exact_first_end',2,1,'POSTCALL_REVOCATION_EXPIRY'),('between_calls',5,1,'PRECALL_REVOCATION_EXPIRY'),('last_end',91,10,'POSTCALL_REVOCATION_EXPIRY'),('exact_last_end',92,10,'POSTCALL_REVOCATION_EXPIRY')]:setattr(PreflightTests,'test_revocation_during_read_'+name,revocation_during_read(expiry,calls,reason))
+def revocation_covers_last_end(self):
+ root,b=self.fresh();b['revocation']['payload']['expires_utc_ns']=b['expected']['now_utc_ns']+93;f.refresh(b,self.keys);r=self.execute(b,root);self.assertEqual(r['status'],'RESOLVED_OFFLINE_IDENTITY_ONLY',r)
+setattr(PreflightTests,'test_revocation_covers_last_end_exclusively',revocation_covers_last_end)
+
 def fully_signed_witness_negative(edit,reason):
  def test(self):
   root,b=self.fresh();edit(b['oracle']);events=b['oracle']['events'];final=f.rehead(events);b['witness']['payload'].update(events=copy.deepcopy(events),oracle_sha256=digest(b['oracle']),begin_tick=b['oracle']['begin_tick'],end_tick=b['oracle']['end_tick']);b['anchor']['payload'].update(oracle_sha256=digest(b['oracle']),final_head=final,final_sequence=events[-1]['sequence']);f.refresh(b,self.keys);r=self.execute(b,root);self.denied(r);self.assertIn(reason,r['reason'],r)
