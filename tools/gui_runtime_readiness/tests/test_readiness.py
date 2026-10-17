@@ -60,6 +60,18 @@ class ReadinessTests(unittest.TestCase):
     def test_review_ack_revoked_reviewer_reject(self):
         root,b=self.fresh();b['envelopes']['REVOCATION']['payload']['revoked_keys']=[KEYS.private['REVIEW'][0]];f.refresh(b,KEYS);out,s=self.execute(b,root);a=s.admission;p={'artifact_kind':PURPOSES['REVIEW'],'permit_sha256':digest(a.permit),'scope_sha256':a.permit['scope_sha256'],'evidence_sha256':digest(out),'native_execution_authorized':False,'diagnostic_authorized':False}
         with self.assertRaisesRegex(Blocked,'REVOKED_REVIEWER'):review_ack(a,KEYS.sign('REVIEW',p),out,a.last_tick)
+    def test_review_ack_genuine_cross_permit_evidence_rejected(self):
+        root,b=self.fresh();out,s=self.execute(b,root);other=f.make(KEYS);a=self.admission(other);p={'artifact_kind':PURPOSES['REVIEW'],'permit_sha256':digest(a.permit),'scope_sha256':a.permit['scope_sha256'],'evidence_sha256':digest(out),'native_execution_authorized':False,'diagnostic_authorized':False}
+        with self.assertRaisesRegex(Blocked,'EVIDENCE_PERMIT_BINDING'):review_ack(a,KEYS.sign('REVIEW',p),out,100)
+    def test_review_ack_result_unknown_fields_rejected(self):
+        root,b=self.fresh();out,s=self.execute(b,root);out['extra']='SYNTHETIC-INJECTION';a=s.admission;p={'artifact_kind':PURPOSES['REVIEW'],'permit_sha256':digest(a.permit),'scope_sha256':a.permit['scope_sha256'],'evidence_sha256':digest(out),'native_execution_authorized':False,'diagnostic_authorized':False}
+        with self.assertRaisesRegex(Blocked,'EXACT_SCHEMA_KEYS'):review_ack(a,KEYS.sign('REVIEW',p),out,a.last_tick)
+    def test_review_ack_missing_result_field_rejected(self):
+        root,b=self.fresh();out,s=self.execute(b,root);del out['no_resume'];a=s.admission;p={'artifact_kind':PURPOSES['REVIEW'],'permit_sha256':digest(a.permit),'scope_sha256':a.permit['scope_sha256'],'evidence_sha256':digest(out),'native_execution_authorized':False,'diagnostic_authorized':False}
+        with self.assertRaisesRegex(Blocked,'EXACT_SCHEMA_KEYS'):review_ack(a,KEYS.sign('REVIEW',p),out,a.last_tick)
+    def test_review_ack_safety_numeric_alias_rejected(self):
+        root,b=self.fresh();out,s=self.execute(b,root);out['no_resume']=1;a=s.admission;p={'artifact_kind':PURPOSES['REVIEW'],'permit_sha256':digest(a.permit),'scope_sha256':a.permit['scope_sha256'],'evidence_sha256':digest(out),'native_execution_authorized':False,'diagnostic_authorized':False}
+        with self.assertRaisesRegex(Blocked,'SAFETY_FLAGS'):review_ack(a,KEYS.sign('REVIEW',p),out,a.last_tick)
     def test_identity_review_and_diagnostic_role_separation(self):
         root,b=self.fresh();b['envelopes']['ISSUER']=KEYS.sign('DIAGNOSTIC',b['envelopes']['ISSUER']['payload'])
         with self.assertRaisesRegex(Blocked,'AUTHORITY_SEPARATION'):self.admission(b)

@@ -103,6 +103,9 @@ def admit(root,envelopes,expected,tick):
 
 def review_ack(admission,envelope,evidence,tick):
     require(type(admission) is Admission,'ADMISSION_REQUIRED');admission.check(tick)
+    flags=blocked_runtime();exact(evidence,{'status','decoded','permit_sha256'}|set(flags))
+    require(evidence['permit_sha256']==digest(admission.permit) and type(evidence['decoded']) is list and 1<=len(evidence['decoded'])<=admission.permit['scope']['max_calls'] and all(type(row) is dict and row for row in evidence['decoded']),'ACK_EVIDENCE_PERMIT_BINDING')
+    require(all(canonical(evidence[k])==canonical(v) for k,v in flags.items()),'ACK_EVIDENCE_SAFETY_FLAGS')
     p=admission.root.verify(envelope,'REVIEW');exact(p,{'artifact_kind','permit_sha256','scope_sha256','evidence_sha256','native_execution_authorized','diagnostic_authorized'})
     require(envelope['signer'] not in admission.revocation['revoked_keys'],'REVOKED_REVIEWER')
     require(p['artifact_kind']==PURPOSES['REVIEW'] and p['permit_sha256']==digest(admission.permit) and p['scope_sha256']==admission.permit['scope_sha256'] and p['evidence_sha256']==digest(evidence),'EXACT_REVIEW_BINDING')

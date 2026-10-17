@@ -33,6 +33,17 @@ class FaultTests(unittest.TestCase):
         root=self.root();store=PrivateEvidenceStore(root);moved=root.with_name(root.name+'-moved');root.rename(moved);root.mkdir()
         with self.assertRaisesRegex(Blocked,'ROOT_REPLACED'):store.write_once('SYNTHETIC-forbidden.json',{})
         self.assertFalse((root/'SYNTHETIC-forbidden.json').exists())
+    def test_root_restore_cannot_resume_failed_store(self):
+        root=self.root();store=PrivateEvidenceStore(root);original=root.with_name(root.name+'-original');replacement=root.with_name(root.name+'-replacement');root.rename(original);root.mkdir()
+        with self.assertRaisesRegex(Blocked,'ROOT_REPLACED'):store.write_once('SYNTHETIC-blocked.json',{})
+        self.assertTrue(store.failed);root.rename(replacement);original.rename(root)
+        with self.assertRaisesRegex(Blocked,'NO_RETRY'):store.write_once('SYNTHETIC-retry.json',{})
+        self.assertFalse((root/'SYNTHETIC-retry.json').exists())
+    def test_unavailable_root_poisoned_before_file_creation(self):
+        root=self.root();store=PrivateEvidenceStore(root);root.rename(root.with_name(root.name+'-retained'))
+        with self.assertRaises(FileNotFoundError):store.write_once('SYNTHETIC-blocked.json',{})
+        self.assertTrue(store.failed)
+        with self.assertRaisesRegex(Blocked,'NO_RETRY'):store.write_once('SYNTHETIC-retry.json',{})
     def test_production_root_rejected_before_io(self):
         with self.assertRaisesRegex(Blocked,'PRIVATE_EVIDENCE_ROOT'):PrivateEvidenceStore(r'D:\RATE-MH-Governance\R1-20261015-01')
     def test_path_traversal_ads_and_absolute_evidence_names_rejected(self):

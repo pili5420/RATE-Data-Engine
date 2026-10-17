@@ -34,9 +34,9 @@ class PrivateEvidenceStore:
     def unchanged(self):require(self._anchor()==self.anchor,'ROOT_REPLACED','INDETERMINATE')
     def write_once(self,name,value):
         require(not self.failed,'FAILED_STORE_NO_RETRY');require(type(name) is str and re.fullmatch(r'SYNTHETIC-[A-Za-z0-9-]{1,100}\.json',name) is not None,'EVIDENCE_BASENAME_ONLY')
-        path=self.root/name;self.unchanged();raw=canonical(value)
-        require(len(raw)<=4*1024*1024,'EVIDENCE_SIZE_BOUND')
+        path=self.root/name
         try:
+            self.unchanged();raw=canonical(value);require(len(raw)<=4*1024*1024,'EVIDENCE_SIZE_BOUND')
             with path.open('xb') as f:
                 f.write(raw);f.flush();os.fsync(f.fileno());info=os.fstat(f.fileno());require(info.st_nlink==1 and not info.st_file_attributes&0x400,'FILE_LINK_OR_REPARSE')
             self.unchanged();after=path.lstat();require((after.st_dev,after.st_ino)==(info.st_dev,info.st_ino) and after.st_nlink==1 and not after.st_file_attributes&0x400 and path.read_bytes()==raw,'EVIDENCE_REPLACED_OR_MODIFIED','INDETERMINATE')
