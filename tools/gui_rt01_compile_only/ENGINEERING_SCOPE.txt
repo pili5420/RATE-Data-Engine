@@ -1,0 +1,51 @@
+RATE RT-01 native compile-only engineering
+
+Stacked base: PR75 / codex/gui-gate2-runtime-qualification-readiness-v1
+Frozen accepted base: 070faf7783e5b867b995ee3584a61fa71206e2f3
+Branch: codex/gui-gate2-rt01-compile-only-v1
+
+Only the two original, SHA256-pinned declaration/static_assert translation
+units are compiled. Each hosted windows-2022 architecture job bootstraps a
+fresh x64-host MSVC environment using vcvarsall amd64_x86 or amd64. A separate
+fresh hosted runner reproduces each architecture after qualification succeeds.
+Exact PR head is checked out with read-only credentials that are not persisted.
+The workflow uses contents:read, no secret expressions, no deployment/release,
+and reviewed commit pins for checkout v4.2.2 and upload-artifact v4.6.2.
+
+Commands: cl.exe /nologo /std:c++17 /W4 /WX /c /Bv /showIncludes /Fo<private.obj> <pinned.cpp>
+No response files, suppression, inherited CL/_CL_/LINK/_LINK_ or user-supplied
+flags. Only the exact compiler and controlled vcvarsall environment are used.
+Compiler Microsoft Authenticode, SHA256/file/product version, SDK version and
+six header hashes, runner image/version, raw /Bv and include output are captured.
+Every original accepted Git blob is verified before/after against its Git ID.
+The output root must be a new exact direct child of RUNNER_TEMP. Artifacts
+preserve original failures and may not overwrite an existing attempt directory.
+
+The compiler and normal OS/runtime/toolchain helpers are executed. No .obj is
+linked, loaded, or executed. Declaration operands of decltype are unevaluated;
+there is no main, DllMain, function body, loader, or native GUI dispatch. The
+read-only COFF verifier independently rejects images, code bytes, callable
+symbols and unresolved external imports. It is not an authenticity oracle:
+GitHub run/head/log/artifact provenance must be reviewed independently.
+
+Local parser/command tests use synthetic object-layout bytes ONLY to test
+rejection logic. They cannot satisfy any real compilation requirement.
+The accepted 1016 regressions and 72 separate adversarial checks remain the
+historical accepted baseline. This compile-only task does not relabel them as
+freshly rerun; all 701 accepted Git blobs/modes must remain unchanged.
+
+Acceptance is limited to RT01_COMPILE_ONLY_SUBGATE_PASS after all four genuine
+MSVC+SDK compilations and independent reproduction/review. Full RT-01, RT-02
+through RT-10 and Gate2 remain BLOCKED. Runtime binding/dispatch, trustworthy
+Host/Boot/Lifecycle, formal Permit/UTC/revocation, native containment/ACL and
+power-loss durability require separate qualification and authorization.
+Sequential reads are not atomic. Original HALT root cause remains UNKNOWN.
+
+No live GUI enumeration/identity/diagnostic, formal Permit, Pagefile/OS setting,
+Production/strategy/evidence/HALT modification, merge/deploy/activation or next
+stage. No changes to accepted PR72-75 or any original static assertion.
+
+Reviewed primary references:
+https://learn.microsoft.com/en-us/cpp/build/reference/c-compile-without-linking?view=msvc-170
+https://github.com/actions/checkout/commit/11bd71901bbe5b1630ceea73d27597364c9af683
+https://github.com/actions/upload-artifact/commit/ea165f8d65b6e75b540449e92b4886f43607fa02
