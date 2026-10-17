@@ -1,0 +1,93 @@
+name: RATE RT01 native compile-only
+
+on:
+  pull_request:
+    branches: [codex/gui-gate2-runtime-qualification-readiness-v1]
+    types: [opened, synchronize, reopened]
+    paths:
+      - .github/workflows/rate_rt01_compile_only.yml
+      - tools/gui_rt01_compile_only/**
+
+permissions:
+  contents: read
+
+env:
+  GIT_CONFIG_COUNT: '1'
+  GIT_CONFIG_KEY_0: core.autocrlf
+  GIT_CONFIG_VALUE_0: 'false'
+
+jobs:
+  qualification:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'codex/gui-gate2-rt01-compile-only-v1' &&
+      github.event.pull_request.base.sha == '070faf7783e5b867b995ee3584a61fa71206e2f3'
+    runs-on: windows-2022
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        architecture: [x86, x64]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # reviewed v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+          submodules: false
+          lfs: false
+      - name: Compile two accepted translation units without linking
+        shell: pwsh
+        env:
+          RT01_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: >-
+          ./tools/gui_rt01_compile_only/compile_only.ps1
+          -Architecture '${{ matrix.architecture }}'
+          -Role qualification
+          -ExpectedHead $env:RT01_EXPECTED_HEAD
+          -OutputRoot (Join-Path $env:RUNNER_TEMP 'rt01-qualification-${{ matrix.architecture }}')
+      - name: Preserve successful and failed compile evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # reviewed v4.6.2
+        with:
+          name: rt01-${{ github.event.pull_request.head.sha }}-qualification-${{ matrix.architecture }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rt01-qualification-${{ matrix.architecture }}
+          if-no-files-found: error
+          overwrite: false
+          retention-days: 30
+
+  independent_reproduction:
+    needs: qualification
+    runs-on: windows-2022
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        architecture: [x86, x64]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+          submodules: false
+          lfs: false
+      - name: Reproduce on a separate clean hosted runner
+        shell: pwsh
+        env:
+          RT01_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: >-
+          ./tools/gui_rt01_compile_only/compile_only.ps1
+          -Architecture '${{ matrix.architecture }}'
+          -Role independent
+          -ExpectedHead $env:RT01_EXPECTED_HEAD
+          -OutputRoot (Join-Path $env:RUNNER_TEMP 'rt01-independent-${{ matrix.architecture }}')
+      - name: Preserve independent reproduction evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: rt01-${{ github.event.pull_request.head.sha }}-independent-${{ matrix.architecture }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rt01-independent-${{ matrix.architecture }}
+          if-no-files-found: error
+          overwrite: false
+          retention-days: 30
