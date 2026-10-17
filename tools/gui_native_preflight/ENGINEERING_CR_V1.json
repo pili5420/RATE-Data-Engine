@@ -1,0 +1,20 @@
+{
+  "accepted_72": "2e4e24c3a4f73d6fabe3881f4962c919d0a21c69",
+  "accepted_73": "17eef21312f8f355e254970274609ab9d15ca71e",
+  "authority": "ONE_SHOT_SCOPED_OFFLINE_ENGINEERING",
+  "baseline": 542,
+  "branch": "codex/gui-gate2-native-runtime-preflight-v1",
+  "change_scope": "Only tools/gui_native_preflight additive files;all accepted652 Git blobs/modes unchanged",
+  "original_halt_root_cause": "UNKNOWN",
+  "production_gate": "BLOCKED",
+  "scope": "OFFLINE_DESIGN_IMPLEMENTATION_TEST_REVIEW_ONLY",
+  "stacked_base": "codex/gui-gate2-native-identity-offline-v1",
+  "work_packages": [
+    "Windows x86/x64 modeled ABI and owned arenas",
+    "Six high-risk read API transport candidate;native binder absent",
+    "Independently signed synthetic lifecycle + separate complete event oracle",
+    "Independent ephemeral test Ed25519 roles,host/UTC/revocation/external pins",
+    "Accepted PR73 crash journal unchanged,owned synthetic child tests,containment design",
+    "Full baseline and new fault tests,automatic corrective loop,independent agent review"
+  ]
+}

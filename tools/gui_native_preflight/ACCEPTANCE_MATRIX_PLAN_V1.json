@@ -1,0 +1,58 @@
+{
+  "failure_whitelists_allowed": 0,
+  "offline_gates": [
+    {
+      "id": "NQ-G01",
+      "requirement": "Exact-head and stacked dependency",
+      "status": "PENDING_EXECUTION"
+    },
+    {
+      "id": "NQ-G02",
+      "requirement": "Original baseline integrity",
+      "status": "PENDING_EXECUTION"
+    },
+    {
+      "id": "NQ-G03",
+      "requirement": "ABI and transport offline correctness",
+      "status": "PENDING_EXECUTION"
+    },
+    {
+      "id": "NQ-G04",
+      "requirement": "Lifecycle witness fail-closed",
+      "status": "PENDING_EXECUTION"
+    },
+    {
+      "id": "NQ-G05",
+      "requirement": "Authorization/trust separation",
+      "status": "PENDING_EXECUTION"
+    },
+    {
+      "id": "NQ-G06",
+      "requirement": "Crash/timeout/replay safety",
+      "status": "PENDING_EXECUTION"
+    },
+    {
+      "id": "NQ-G07",
+      "requirement": "Complete regression and negatives",
+      "status": "PENDING_EXECUTION"
+    },
+    {
+      "id": "NQ-G08",
+      "requirement": "Independent review",
+      "status": "PENDING_EXECUTION"
+    },
+    {
+      "id": "NQ-G09",
+      "requirement": "Non-interference/HALT preservation",
+      "status": "PENDING_EXECUTION"
+    },
+    {
+      "id": "NQ-G10",
+      "requirement": "No live execution/no-auto-next",
+      "status": "PENDING_EXECUTION"
+    }
+  ],
+  "relaxed_assertions_allowed": 0,
+  "runtime_gates": "All BLOCKED as separate matrix;never promoted by mock PASS",
+  "skips_allowed": 0
+}

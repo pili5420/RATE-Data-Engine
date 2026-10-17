@@ -1,0 +1,24 @@
+{
+  "future_native_process": [
+    "Separate minimal worker account and read-only exact-source deployment",
+    "CreateJobObject/kill-on-close and assign before any native dispatch;breakaway denied",
+    "Authenticated narrow IPC,exact inherited handle allowlist,secret/env isolation",
+    "One-shot broker durable intent before call,monotonic deadline and independent UTC",
+    "On timeout/unknown kill contained tree,record external terminal UNKNOWN;no retry/resume",
+    "No native calls for cleanup after outcome unknown;separate supervised recovery authorization"
+  ],
+  "implementation_limits": "Actual ACL,owner SID,Windows directory-handle race resistance,Job Objects,host process linkage and power-loss durability remain unqualified. Synthetic ACL vectors never stand in for these gates.",
+  "native_execution": "NOT_IMPLEMENTED_NOT_AUTHORIZED",
+  "owned_fixture_tests": [
+    "Fixed source-hash synthetic child only",
+    "No arbitrary command parameters or descendant spawning in child",
+    "Actual Python process exit/kill with rawPID/exit/stdout/stderr evidence"
+  ],
+  "root_design": [
+    "Owner SID and protected explicit DACL;unknown inheritance/ACE semantics blocked",
+    "Pinned volume/FileID and opened directory handle,relative child creation with race-safe native API",
+    "No reparse/hardlink/alternate streams,path aliases or directory replacement",
+    "Exclusive immutable attempt/nonce/terminal records;partial lock blocks future admission",
+    "Independent outside-root evidence pins and operator review"
+  ]
+}
