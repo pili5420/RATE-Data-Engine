@@ -1,0 +1,47 @@
+{
+  "blocking_defect": "RATE-GUI-AUTH-TARGET-001",
+  "contract": "RATE_GUI_TARGET_IDENTITY_BINDING_CONTRACT_V1",
+  "engineering_mode": "OFFLINE_SYNTHETIC_ONLY",
+  "execution_authorized": false,
+  "formal_execution_permits_created": 0,
+  "future_real_authorization_required_fields": [
+    "independent authority/source pins",
+    "role identity-only or bound diagnostic",
+    "fresh attempt/nonce and UTC validity",
+    "exact Tool/Schema SHA256",
+    "exact Host/Session/Desktop/observer Station scope",
+    "exact executable path/SHA256/volume+file identity/class predicate",
+    "phase-specific exact API/read-field map/access rights/bounds/timeouts/output root",
+    "for diagnostic: approved resolved PID+creation/HWND+TID+generation identity, resolution evidence SHA and independent review ACK"
+  ],
+  "gate2_final_status": "BLOCKED_PENDING_SEPARATE_IDENTITY_RESOLUTION_AND_REVIEW",
+  "native_implementation": "NOT_IMPLEMENTED_NOT_AUTHORIZED; no native Permit loader or transport exists in the new component.",
+  "non_atomic": "All sequential reads remain non-atomic; change-and-return or later changes cannot be universally excluded. No atomic snapshot/continuous-state guarantee.",
+  "original_halt_root_cause": "UNKNOWN",
+  "phase_a": "Review a fixed Host/Session/Desktop/observer Station and exact executable path/SHA256/volume+file ID/class predicate. No live target is inferred from historical observations.",
+  "phase_b": "Only a separately authorized identity-only adapter may collect bounded descriptor/seed candidates, process creation+image/file identity and independent window-generation evidence. Exactly one valid candidate is required; any unknown or ambiguity halts.",
+  "phase_c": "Identity resolution produces evidence only. Independent Control Center review must bind its evidence SHA, exact identity SHA and a separate diagnostic Read Scope SHA; a separate diagnostic authority is required. Identity-only authority never diagnoses.",
+  "process_instance": [
+    "host",
+    "session_id",
+    "pid",
+    "creation_filetime_100ns",
+    "executable_path",
+    "executable_sha256",
+    "volume_serial",
+    "file_id"
+  ],
+  "real_identity_evidence_requires_new_review": true,
+  "scope_role": "Identity-only permits bounded discovery; Diagnostic forbids EnumWindows and requires the approved exact target before and after each read. No title-driven fallback or rediscovery.",
+  "synthetic_schema": "TARGET_IDENTITY_BINDING_SCHEMA_V1.json",
+  "title_role": "Auxiliary evidence only after bound-target verification; original exact three captions, two-read reliability, Full/Admin/High/Session/Desktop and exactly-one requirements retained.",
+  "window_generation_requirement": "Synthetic tests use an explicit lossless lifecycle ledger; this is NOT a Win32 window creation timestamp or a claim that such native evidence already exists. A separately engineered/reviewed provider must justify provenance, complete coverage, event loss/order and reuse detection. If unprovable, identity remains UNKNOWN.",
+  "window_instance": [
+    "hwnd",
+    "tid",
+    "class_name",
+    "desktop",
+    "observer_station_scope",
+    "independent_window_generation_evidence"
+  ]
+}
