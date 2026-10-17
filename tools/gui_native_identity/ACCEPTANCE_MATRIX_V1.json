@@ -1,0 +1,247 @@
+{
+  "failure_whitelists_allowed": 0,
+  "relaxed_assertions_allowed": 0,
+  "requirements": [
+    {
+      "id": "NID-01",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "stacked isolation"
+    },
+    {
+      "id": "NID-02",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "no live entry/binder"
+    },
+    {
+      "id": "NID-03",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "host identity"
+    },
+    {
+      "id": "NID-04",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "session desktop observer station"
+    },
+    {
+      "id": "NID-05",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "observer parent provenance"
+    },
+    {
+      "id": "NID-06",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "token Admin Full High"
+    },
+    {
+      "id": "NID-07",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "PID creation restart"
+    },
+    {
+      "id": "NID-08",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "executable path alias"
+    },
+    {
+      "id": "NID-09",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "executable streaming SHA"
+    },
+    {
+      "id": "NID-10",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "file identity/metadata/reparse"
+    },
+    {
+      "id": "NID-11",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "HWND TID class identity"
+    },
+    {
+      "id": "NID-12",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "bounded enumeration"
+    },
+    {
+      "id": "NID-13",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "unique candidate"
+    },
+    {
+      "id": "NID-14",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "API fields rights arguments"
+    },
+    {
+      "id": "NID-15",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "Win32 errors partial receipts"
+    },
+    {
+      "id": "NID-16",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "pre/post deadlines"
+    },
+    {
+      "id": "NID-17",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "canonical schema strict types"
+    },
+    {
+      "id": "NID-18",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "sealed provider and source pins"
+    },
+    {
+      "id": "NID-19",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "duplicate CREATE"
+    },
+    {
+      "id": "NID-20",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "DESTROY"
+    },
+    {
+      "id": "NID-21",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "event gap/reorder"
+    },
+    {
+      "id": "NID-22",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "loss incomplete provenance"
+    },
+    {
+      "id": "NID-23",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "boot generation conflict"
+    },
+    {
+      "id": "NID-24",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "no HWND timestamp claim"
+    },
+    {
+      "id": "NID-25",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "external witness heads"
+    },
+    {
+      "id": "NID-26",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "identity-only separation"
+    },
+    {
+      "id": "NID-27",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "independent review ACK"
+    },
+    {
+      "id": "NID-28",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "durable one-shot intent"
+    },
+    {
+      "id": "NID-29",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "attempt nonce replay"
+    },
+    {
+      "id": "NID-30",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "crash UNKNOWN no resume"
+    },
+    {
+      "id": "NID-31",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "physical root isolation"
+    },
+    {
+      "id": "NID-32",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "no automatic promotion"
+    },
+    {
+      "id": "NID-33",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "owned/borrowed handles"
+    },
+    {
+      "id": "NID-34",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "ABI UTF16 SID file/process bytes"
+    },
+    {
+      "id": "NID-35",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "file read boundary short/truncated"
+    },
+    {
+      "id": "NID-36",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "tool schema scope mutation"
+    },
+    {
+      "id": "NID-37",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "native DLL calls zero"
+    },
+    {
+      "id": "NID-38",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "accepted304 regressions"
+    },
+    {
+      "id": "NID-39",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "independent clean reviewer exact head"
+    },
+    {
+      "id": "NID-40",
+      "offline_status": "PENDING_EXECUTION",
+      "production_status": "BLOCKED_NOT_AUTHORIZED",
+      "requirement": "protected/HALT non-interference"
+    }
+  ],
+  "skips_allowed": 0
+}

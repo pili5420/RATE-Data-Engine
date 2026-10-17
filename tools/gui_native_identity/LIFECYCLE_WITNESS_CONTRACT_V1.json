@@ -1,0 +1,18 @@
+{
+  "atomic_snapshot": false,
+  "chain": "Independently pinned pre/final heads;strict global sequence and increasing ticks;all event identities retained;first CREATE exactly once per HWND generation then UNCHANGED only",
+  "coverage": "armed begin precedes first API request,final horizon/checkpoint follows last;per-window creation anchor and terminal interval sample required;zero loss",
+  "fail_closed": [
+    "duplicate CREATE",
+    "DESTROY",
+    "event loss/gap/reorder",
+    "boot mismatch",
+    "process restart",
+    "HWND reuse/TID replacement",
+    "epoch mismatch",
+    "missing provenance/coverage/window or interval"
+  ],
+  "generation": "Explicit independently witnessed token;never inferred as a Win32 HWND creation timestamp",
+  "native_sources": "WinEvent/ETW or any self-declared native lossless origin is rejected as INDETERMINATE until separately qualified;signatures alone cannot establish completeness",
+  "source": "SYNTHETIC_VERIFIABLE_LIFECYCLE_LEDGER only"
+}
