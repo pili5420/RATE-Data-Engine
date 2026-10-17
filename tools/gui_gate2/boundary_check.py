@@ -34,13 +34,14 @@ def audit_boundary(root,packaged=False):
     for p in root.rglob('*'):
         physical(p)
         if p.is_file():need(p.stat().st_nlink==1,'SOURCE_HARDLINK')
-    need(json.loads((root/'DELIVERY_BOUNDARY_V2.json').read_bytes())==POLICY,'DELIVERY_POLICY_MISMATCH')
-    need(hashlib.sha256((root/'title_validation_pure_v2.py').read_bytes()).hexdigest()==PURE_SHA,'PURE_VALIDATOR_PIN')
-    need(hashlib.sha256((root/'TITLE_EVIDENCE_SCHEMA_V2.json').read_bytes()).hexdigest()==SCHEMA_SHA,'TITLE_SCHEMA_PIN')
+    snapshot={name:(root/name).read_bytes() for name in sorted(actual)}
+    need(json.loads(snapshot['DELIVERY_BOUNDARY_V2.json'])==POLICY,'DELIVERY_POLICY_MISMATCH')
+    need(hashlib.sha256(snapshot['title_validation_pure_v2.py']).hexdigest()==PURE_SHA,'PURE_VALIDATOR_PIN')
+    need(hashlib.sha256(snapshot['TITLE_EVIDENCE_SCHEMA_V2.json']).hexdigest()==SCHEMA_SHA,'TITLE_SCHEMA_PIN')
     runtime_imports={'identity_binding.py':{'hashlib','importlib.util','json','pathlib','re'},'title_validation_pure_v2.py':{'datetime','hashlib','pathlib','re'}}
     records=[]
     for p in sorted(root.glob('*.py')):
-        tree=ast.parse(p.read_bytes());imports=set()
+        tree=ast.parse(snapshot[p.name]);imports=set()
         for n in ast.walk(tree):
             if isinstance(n,(ast.ClassDef,ast.FunctionDef)):need(n.name not in {'NativeBackend','validate_live_permit','collect'},'LEGACY_EXECUTABLE_DEFINITION')
             if isinstance(n,ast.Import):imports.update(x.name for x in n.names)
@@ -51,17 +52,20 @@ def audit_boundary(root,packaged=False):
                     need(call not in {'exec','eval','compile','__import__'} and not any(x in call for x in ['WinDLL','CDLL','windll','import_module','write_bytes','write_text','mkdir','unlink']),'RUNTIME_EXECUTION_OR_MUTATION_CAPABILITY')
                 if isinstance(n,ast.If):need('__name__' not in ast.unparse(n.test),'RUNTIME_CLI_ENTRY')
         if p.name in runtime_imports:need(imports==runtime_imports[p.name],'RUNTIME_IMPORT_CLOSURE')
-        records.append({'path':p.name,'imports':sorted(imports),'sha256':hashlib.sha256(p.read_bytes()).hexdigest()})
-    source=(root/'identity_binding.py').read_text(encoding='utf-8')
+        records.append({'path':p.name,'imports':sorted(imports),'sha256':hashlib.sha256(snapshot[p.name]).hexdigest()})
+    source=snapshot['identity_binding.py'].decode('utf-8')
     need("HERE/'title_validation_pure_v2.py'" in source and "HERE/'TITLE_EVIDENCE_SCHEMA_V2.json'" in source and 'accepted_baseline' not in source,'FIXED_PURE_IMPORT_ONLY')
     need("raise Denied('LIVE_IDENTITY_RESOLUTION_AND_DIAGNOSTIC_NOT_IMPLEMENTED_OR_AUTHORIZED')" in source,'LIVE_ENTRY_MUST_REJECT')
-    return {'status':'PASS_OFFLINE_DELIVERY_BOUNDARY','files':sorted(actual),'python':records,'native_enforcement_claimed':False,'no_legacy_files_or_loader':True}
+    return {'status':'PASS_OFFLINE_DELIVERY_BOUNDARY','files':sorted(actual),'file_pins':{name:hashlib.sha256(data).hexdigest() for name,data in snapshot.items()},'python':records,'native_enforcement_claimed':False,'no_legacy_files_or_loader':True}
 
 def build_bundle(root,destination):
-    audit_boundary(root);destination=evidence_path(destination)
+    audit=audit_boundary(root);destination=evidence_path(destination)
     need(destination.parent.is_dir() and not destination.exists() and destination.suffix=='.zip','EXCLUSIVE_NEW_BUNDLE_DESTINATION')
+    admitted={name:(root/name).read_bytes() for name in RUNTIME_FILES}
+    need(all(hashlib.sha256(data).hexdigest()==audit['file_pins'][name] for name,data in admitted.items()),'SOURCE_CHANGED_AFTER_AUDIT')
     with zipfile.ZipFile(destination,'x',zipfile.ZIP_DEFLATED) as z:
-        for name in RUNTIME_FILES:z.writestr(name,(root/name).read_bytes())
+        for name,data in admitted.items():z.writestr(name,data)
     with zipfile.ZipFile(destination) as z:
         need(set(z.namelist())==set(RUNTIME_FILES) and z.testzip() is None,'BUNDLE_CONTENTS')
+        need(all(hashlib.sha256(z.read(name)).hexdigest()==audit['file_pins'][name] for name in RUNTIME_FILES),'BUNDLE_ADMITTED_BYTES_MISMATCH')
     return {'path':str(destination),'sha256':hashlib.sha256(destination.read_bytes()).hexdigest(),'files':list(RUNTIME_FILES),'purpose':'OFFLINE_LIBRARY_ONLY_NOT_DEPLOYMENT_AUTHORIZATION'}

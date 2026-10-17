@@ -64,6 +64,23 @@ class Round2Tests(unittest.TestCase):
             self.assertFalse(p.exists())
     def test_output_must_be_absolute(self):
         with self.assertRaisesRegex(ValueError,'ABSOLUTE_PHYSICAL_PATH'):b.build_bundle(P,Path('relative.zip'))
+    def test_manifest_cannot_promote_native_authority(self):
+        src=self.source();p=src/'DELIVERY_BOUNDARY_V2.json';v=json.loads(p.read_bytes());v['native_execution_authorized']=True;p.write_bytes(json.dumps(v).encode())
+        with self.assertRaisesRegex(ValueError,'DELIVERY_POLICY_MISMATCH'):b.build_bundle(src,self.root()/'denied.zip')
+    def test_missing_pure_validator_blocks_packaging(self):
+        src=self.source();(src/'title_validation_pure_v2.py').unlink()
+        with self.assertRaisesRegex(ValueError,'CLOSED_DELIVERY_FILE_SET'):b.build_bundle(src,self.root()/'denied.zip')
+    def mutate_after_audit(self,name,data):
+        src=self.source();out=self.root()/'denied.zip';original=b.audit_boundary
+        def audit_then_mutate(root):
+            audit=original(root);p=root/name;p.write_bytes(p.read_bytes()+data);return audit
+        b.audit_boundary=audit_then_mutate
+        try:
+            with self.assertRaisesRegex(ValueError,'SOURCE_CHANGED_AFTER_AUDIT'):b.build_bundle(src,out)
+            self.assertFalse(out.exists())
+        finally:b.audit_boundary=original
+    def test_python_change_after_audit_cannot_be_packaged(self):self.mutate_after_audit('identity_binding.py',b'\nimport ctypes\n')
+    def test_schema_change_after_audit_cannot_be_packaged(self):self.mutate_after_audit('TITLE_EVIDENCE_SCHEMA_V2.json',b' ')
 
 LIFECYCLE_CASES=[
 ('duplicate_create',lambda p:p['events'][1].update(kind='CREATE'),'DUPLICATE_CREATE'),
