@@ -8,12 +8,12 @@ from gui_native_identity import SyntheticWorkspace,OfflineIdentityCandidate
 from gui_native_identity.protocol import validate_model,digest
 from gui_native_identity.tests.fixtures import bundle
 def main():
- p=argparse.ArgumentParser();p.add_argument('--root',type=Path,required=True);p.add_argument('--mode',choices=['after_attempt','after_claim','after_result'],required=True);p.add_argument('--attempt',required=True);p.add_argument('--nonce',required=True);a=p.parse_args()
+ p=argparse.ArgumentParser();p.add_argument('--root',type=Path,required=True);p.add_argument('--mode',choices=['after_lock','after_attempt','after_claim','after_result'],required=True);p.add_argument('--attempt',required=True);p.add_argument('--nonce',required=True);a=p.parse_args()
  w=SyntheticWorkspace(a.root);m,provider,v=bundle(w,attempt=a.attempt,nonce=a.nonce);validate_model(m,w,provider.identity,digest(v))
  original=w.write_new
  def crash_after(path,value):
   result=original(path,value)
-  if a.mode=='after_attempt' and path.name.startswith('attempt-') or a.mode=='after_result' and path.name=='RESULT.json':os._exit(73)
+  if a.mode=='after_lock' and path.name=='CLAIM_IN_PROGRESS.lock' or a.mode=='after_attempt' and path.name.startswith('attempt-') or a.mode=='after_result' and path.name=='RESULT.json':os._exit(73)
   return result
  w.write_new=crash_after
  if a.mode=='after_result':OfflineIdentityCandidate().run(m,provider,v,w)

@@ -1,5 +1,5 @@
 """Regressions for independent183c7db7 findings; no native execution."""
-import copy,hashlib,json,unittest
+import copy,hashlib,json,threading,unittest
 from uuid import uuid4
 from unittest.mock import patch
 from .. import protocol
@@ -12,7 +12,9 @@ from . import fixtures as f
 
 class ReviewCorrectiveTests(unittest.TestCase):
  def new(self,count=1):
-  w=SyntheticWorkspace(CandidateTests.workspace);return w,*f.bundle(w,count)
+  if not hasattr(self,'case_root'):
+   self.case_root=CandidateTests.workspace.parent/(CandidateTests.workspace.name+'-review-'+uuid4().hex);self.case_root.mkdir()
+  w=SyntheticWorkspace(self.case_root);return w,*f.bundle(w,count)
  def private(self):
   root=CandidateTests.workspace.parent/(CandidateTests.workspace.name+'-private-'+uuid4().hex);root.mkdir();w=SyntheticWorkspace(root);return w,*f.bundle(w)
  def denied(self,result):self.assertIn(result['status'],{'BLOCKED','INDETERMINATE'});self.assertFalse(result['diagnostic_authorized']);self.assertNotIn('identity',result)
@@ -99,6 +101,35 @@ class ReviewCorrectiveTests(unittest.TestCase):
   self.assertEqual(len(p.calls),count);self.assertEqual(w.audit_attempt(m['attempt_id'])['state'],'RESOLVED_OFFLINE_IDENTITY_ONLY')
  def test_result_trace_detached_from_mutable_provider(self):
   w,m,p,v=self.new();r=OfflineIdentityCandidate().run(m,p,v,w);before=digest(r);p.calls[0]['receipt']['result']='mutated';self.assertEqual(digest(r),before)
+ def test_concurrent_scan_and_first_write_crash_is_serialized(self):
+  w,b,p,v=self.new();paused=threading.Event();release=threading.Event();result=[];partial=[];original=w.write_new
+  def pause_before_attempt(path,value):
+   if path.name.startswith('attempt-'):
+    paused.set()
+    if not release.wait(15):raise RuntimeError('TEST_SCHEDULER_TIMEOUT')
+   return original(path,value)
+  w.write_new=pause_before_attempt
+  worker=threading.Thread(target=lambda:result.append(OfflineIdentityCandidate().run(b,p,v,w)));worker.start()
+  try:
+   self.assertTrue(paused.wait(15));other=SyntheticWorkspace(w.root);a,ap,av=f.bundle(other,nonce=b['nonce']);a_write=other.write_new
+   def crash_after_attempt(path,value):
+    out=a_write(path,value)
+    if path.name.startswith('attempt-'):partial.append(True);raise RuntimeError('SYNTHETIC_FIRST_WRITE_CRASH')
+    return out
+   other.write_new=crash_after_attempt;ar=OfflineIdentityCandidate().run(a,ap,av,other);self.denied(ar);self.assertEqual(ap.calls,[]);self.assertFalse(partial,'Another claim must not reach first attempt write while B holds its admission lock')
+  finally:release.set();worker.join(20)
+  self.assertFalse(worker.is_alive());self.assertEqual(result[0]['status'],'RESOLVED_OFFLINE_IDENTITY_ONLY')
+ def test_successful_claim_lock_header_preserved_by_commit_rename(self):
+  w,m,p,v=self.new();w.claim(m);self.assertFalse((w.journal/'CLAIM_IN_PROGRESS.lock').exists());completed=w.journal/('claim-completed-'+digest(m['attempt_id'])+'.json');data=json.loads(completed.read_bytes());self.assertEqual(data['nonce_sha256'],digest(m['nonce']));self.assertEqual(data['attempt_id'],m['attempt_id']);self.assertTrue(data['no_resume'])
+ def test_partial_claim_lock_blocks_different_nonce_without_cleanup(self):
+  w,m,p,v=self.new();original=w.write_new
+  def crash_after_lock(path,value):
+   out=original(path,value)
+   if path.name=='CLAIM_IN_PROGRESS.lock':raise RuntimeError('SYNTHETIC_CRASH_AFTER_LOCK')
+   return out
+  w.write_new=crash_after_lock
+  with self.assertRaisesRegex(RuntimeError,'AFTER_LOCK'):w.claim(m)
+  lock=w.journal/'CLAIM_IN_PROGRESS.lock';before=lock.read_bytes();other=SyntheticWorkspace(w.root);a,ap,av=f.bundle(other);r=OfflineIdentityCandidate().run(a,ap,av,other);self.denied(r);self.assertEqual(ap.calls,[]);self.assertEqual(lock.read_bytes(),before);self.assertEqual(other.audit_attempt(m['attempt_id'])['state'],'UNKNOWN_PARTIAL_OR_CRASH')
 
 ENUM_NEGATIVES=[('duplicate',{'handles':[1,1],'complete':True,'reported_count':2}),('bool_handle',{'handles':[True],'complete':True,'reported_count':1}),('bool_count',{'handles':[1],'complete':True,'reported_count':True}),('count_mismatch',{'handles':[1],'complete':True,'reported_count':2}),('incomplete',{'handles':[1],'complete':False,'reported_count':1}),('empty_unexpected',{'handles':[],'complete':True,'reported_count':1})]
 def enum_negative(value):

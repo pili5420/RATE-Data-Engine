@@ -32,18 +32,29 @@ class SyntheticWorkspace:
    need(not self._claimed,'WORKSPACE_SESSION_ALREADY_CONSUMED');self._claimed=True
   self.verify();attempt=digest(model['attempt_id']);nonce=digest(model['nonce']);self.attempt=self.journal/('attempt-'+attempt+'.json');nonce_path=self.journal/('nonce-'+nonce+'.json')
   need(not self.attempt.exists() and not nonce_path.exists(),'ATTEMPT_OR_NONCE_REPLAY_NO_RESUME')
+  lock=self.journal/'CLAIM_IN_PROGRESS.lock';need(not lock.exists(),'ACTIVE_OR_PARTIAL_CLAIM_BLOCKS_REPLAY_NO_RETRY_NO_RESUME','INDETERMINATE')
+  lock_value={'artifact_kind':'SYNTHETIC_EXCLUSIVE_CLAIM_NOT_LIVE_AUTHORITY','attempt_id':model['attempt_id'],'nonce_sha256':nonce,'model_sha256':digest(model),'no_resume':True}
+  lock_sha=self.write_new(lock,lock_value)  # xb is the cross-process admission point.
+  # Any exception/crash from here retains this lock forever. There is no stale-
+  # lock timeout, owner-death recovery, retry, cleanup, or repair operation.
   # The first durable attempt record reserves BOTH names. A crash before the
   # secondary nonce index must never allow a fresh attempt to reuse its nonce.
   records=list(self.journal.iterdir());need(len(records)<=60000,'JOURNAL_SCAN_BOUND','INDETERMINATE')
   for path in records:
-   self._physical(path);need(path.is_file() and re.fullmatch(r'(attempt|nonce|terminal)-[0-9a-f]{64}\.json',path.name) is not None,'UNKNOWN_JOURNAL_ENTRY','INDETERMINATE')
+   self._physical(path)
+   if path==lock:continue
+   need(path.is_file() and re.fullmatch(r'(attempt|nonce|terminal|claim-completed)-[0-9a-f]{64}\.json',path.name) is not None,'UNKNOWN_JOURNAL_ENTRY','INDETERMINATE')
    if path.name.startswith('attempt-'):
     prior=decode(path.read_bytes());self._validate_intent(prior,path)
     need(prior['nonce_sha256']!=nonce,'DURABLE_INTENT_NONCE_REPLAY_NO_RESUME')
   intent={'artifact_kind':'SYNTHETIC_INTENT_NOT_LIVE_PERMIT','state':'CLAIMED_UNKNOWN_UNTIL_TERMINAL','attempt_id':model['attempt_id'],'nonce_sha256':nonce,'model_sha256':digest(model),'no_resume':True}
   self.write_new(self.attempt,intent)
   self.write_new(nonce_path,{'attempt_sha256':attempt,'model_sha256':digest(model)})
-  output=self.evidence/model['attempt_id'];need(not output.exists(),'EVIDENCE_ROOT_ALREADY_EXISTS');output.mkdir();self._physical(output);self.output=output;self.intent=intent;return intent
+  output=self.evidence/model['attempt_id'];need(not output.exists(),'EVIDENCE_ROOT_ALREADY_EXISTS');output.mkdir();self._physical(output);self.output=output;self.intent=intent
+  completed=self.journal/('claim-completed-'+attempt+'.json');self.verify();self._physical(lock);need(hashlib.sha256(lock.read_bytes()).hexdigest()==lock_sha and not completed.exists(),'CLAIM_LOCK_IDENTITY_OR_DESTINATION_UNKNOWN','INDETERMINATE')
+  # Normal successful completion preserves the lock header by atomic rename,
+  # rather than deleting it. Windows rename does not replace an existing file.
+  lock.rename(completed);self._physical(completed);self.verify();return intent
  def finish(self,result):
   need(hasattr(self,'intent'),'NO_CLAIMED_ATTEMPT');self.verify()
   evidence_sha=self.write_new(self.output/'RESULT.json',result)
@@ -54,7 +65,9 @@ class SyntheticWorkspace:
  def audit_attempt(self,attempt_id):
   need(type(attempt_id) is str and re.fullmatch('SYNTHETIC-[A-Za-z0-9-]{8,96}',attempt_id) is not None,'SYNTHETIC_ATTEMPT_ONLY')
   self.verify();key=digest(attempt_id);a=self.journal/('attempt-'+key+'.json');t=self.journal/('terminal-'+key+'.json')
-  if not a.exists():return {'state':'NOT_ATTEMPTED','retry_authorized':False}
+  if not a.exists():
+   if (self.journal/'CLAIM_IN_PROGRESS.lock').exists():return {'state':'UNKNOWN_PARTIAL_OR_CRASH','retry_authorized':False,'resume_authorized':False}
+   return {'state':'NOT_ATTEMPTED','retry_authorized':False}
   self._physical(a);intent=decode(a.read_bytes());self._validate_intent(intent,a);need(intent['attempt_id']==attempt_id,'INTENT_SCHEMA')
   if not t.exists():return {'state':'UNKNOWN_PARTIAL_OR_CRASH','retry_authorized':False,'resume_authorized':False}
   self._physical(t);terminal=decode(t.read_bytes());exact(terminal,{'state','intent_sha256','result_sha256','no_resume'});need(terminal['intent_sha256']==digest(intent) and terminal['no_resume'] is True and terminal['state'] in {'RESOLVED_OFFLINE_IDENTITY_ONLY','BLOCKED','INDETERMINATE'},'TERMINAL_INTENT_MISMATCH','INDETERMINATE')

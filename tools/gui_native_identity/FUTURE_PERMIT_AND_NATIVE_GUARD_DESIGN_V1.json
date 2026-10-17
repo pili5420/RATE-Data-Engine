@@ -1,5 +1,6 @@
 {
   "artifact_type": "DESIGN_CONTRACT_NOT_A_PERMIT",
+  "cross_process_claim_serialization": "Exclusive xb CLAIM_IN_PROGRESS.lock precedes scan and reservations. Any partial/crash retains the lock and blocks all later claims without stale recovery. Successful complete admission atomically renames the header to claim-completed history;no lock evidence is deleted. This is process-crash serialization,not power-loss/ACL proof.",
   "first_write_reservation": "The first durable attempt header reserves both attempt and nonce;bounded strict intent scanning closes the crash gap before the secondary nonce index. Malformed/incomplete or unknown intent entries block new requests;no reservation is repaired or removed.",
   "ack_model_binding": "ACK binds the exact canonical model digest,admitted code/schema,scope/provider and identity/result digests from the same attempt. It grants no execution or diagnostic authority.",
   "durability_limits": "fsync plus exclusive files is a synthetic journal test,not power-loss/directory-media durability or a live authorization ledger",

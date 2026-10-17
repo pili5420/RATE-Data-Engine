@@ -238,11 +238,11 @@ for i,data in enumerate(RAW_JSON_NEGATIVES):setattr(CandidateTests,'test_canonic
 
 def crash_test(mode):
  def test(self):
-  attempt='SYNTHETIC-'+uuid4().hex;nonce='SYNTHETIC-'+uuid4().hex;cmd=[sys.executable,'-I','-B','-S',str(Path(__file__).with_name('fault_probe.py')),'--root',str(ROOT),'--mode',mode,'--attempt',attempt,'--nonce',nonce]
+  crash_root=self.new()[0].root;attempt='SYNTHETIC-'+uuid4().hex;nonce='SYNTHETIC-'+uuid4().hex;cmd=[sys.executable,'-I','-B','-S',str(Path(__file__).with_name('fault_probe.py')),'--root',str(crash_root),'--mode',mode,'--attempt',attempt,'--nonce',nonce]
   child=subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE);out,err=child.communicate(timeout=20)
   (ROOT/('child-'+attempt+'.stdout.log')).write_bytes(out);(ROOT/('child-'+attempt+'.stderr.log')).write_bytes(err)
   (ROOT/('child-'+attempt+'.process.json')).write_bytes(canonical({'command':cmd,'pid':child.pid,'exit_code':child.returncode,'native_provider':'NOT_PRESENT','mode':mode}))
-  self.assertEqual(child.returncode,73,err.decode(errors='replace'));w=SyntheticWorkspace(ROOT);self.assertEqual(w.audit_attempt(attempt)['state'],'UNKNOWN_PARTIAL_OR_CRASH');m,p,v=f.bundle(w,attempt=attempt,nonce=nonce);self.denied(OfflineIdentityCandidate().run(m,p,v,w));self.assertEqual(p.calls,[])
-  fresh=SyntheticWorkspace(ROOT);m,p,v=f.bundle(fresh,nonce=nonce);self.denied(OfflineIdentityCandidate().run(m,p,v,fresh),'REPLAY');self.assertEqual(p.calls,[])
+  self.assertEqual(child.returncode,73,err.decode(errors='replace'));w=SyntheticWorkspace(crash_root);self.assertEqual(w.audit_attempt(attempt)['state'],'UNKNOWN_PARTIAL_OR_CRASH');m,p,v=f.bundle(w,attempt=attempt,nonce=nonce);self.denied(OfflineIdentityCandidate().run(m,p,v,w));self.assertEqual(p.calls,[])
+  fresh=SyntheticWorkspace(crash_root);m,p,v=f.bundle(fresh,nonce=nonce);self.denied(OfflineIdentityCandidate().run(m,p,v,fresh),'REPLAY');self.assertEqual(p.calls,[])
  return test
-for mode in ['after_attempt','after_claim','after_result']:setattr(CandidateTests,'test_real_owned_child_crash_'+mode,crash_test(mode))
+for mode in ['after_lock','after_attempt','after_claim','after_result']:setattr(CandidateTests,'test_real_owned_child_crash_'+mode,crash_test(mode))

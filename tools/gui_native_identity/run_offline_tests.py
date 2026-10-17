@@ -6,7 +6,7 @@ from uuid import uuid4
 def allowed_crash_child(exe,cmd,python,probe,root):
  if exe not in (None,python):return False
  prefix=[python,'-I','-B','-S',probe,'--root',str(root)]
- pattern=re.escape(subprocess.list2cmdline(prefix))+r' --mode (after_attempt|after_claim|after_result) --attempt SYNTHETIC-[A-Za-z0-9-]{8,96} --nonce SYNTHETIC-[A-Za-z0-9-]{8,96}'
+ pattern=re.escape(subprocess.list2cmdline(prefix))+r' --mode (after_lock|after_attempt|after_claim|after_result) --attempt SYNTHETIC-[A-Za-z0-9-]{8,96} --nonce SYNTHETIC-[A-Za-z0-9-]{8,96}'
  if type(cmd) is list:cmd=subprocess.list2cmdline(cmd)
  return type(cmd) is str and re.fullmatch(pattern,cmd) is not None
 
@@ -25,7 +25,7 @@ def main():
  def audit(event,items):
   if event=='subprocess.Popen':
    exe,cmd,cwd,env=items
-   allowed=allowed_crash_child(exe,cmd,sys.executable,probe,root)
+   allowed=any(allowed_crash_child(exe,cmd,sys.executable,probe,p) for p in [root,*root.parent.glob(root.name+'-*')] if p.is_dir() and not p.is_symlink())
    children.append({'executable':exe,'args':cmd,'allowed':allowed})
    if not allowed:violations.append(event);raise RuntimeError('UNAUTHORIZED_TEST_CHILD')
   if event.startswith('socket.') or event in {'os.system','os.startfile','ctypes.dlopen'}:

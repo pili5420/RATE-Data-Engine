@@ -37,6 +37,9 @@ root replacement tests are not proof of Windows ACL security, directory-handle
 race resistance or power-loss durability; those remain future native blockers.
 The first durable attempt header also reserves its nonce even before the
 secondary nonce index exists. Strict scanning rejects reuse after that crash.
+An exclusive cross-process claim lock serializes scan and reservations. Partial
+or crashed admission retains this lock and blocks every later claim;there is no
+stale recovery. Successful admission preserves its header by a commit rename.
 Fixed initial/final bounded enumeration and all-window identity fences include
 excluded candidates; these are scheduled observations, never failure retries.
 ACK validation binds one exact model/result pair, including scope and provider.
