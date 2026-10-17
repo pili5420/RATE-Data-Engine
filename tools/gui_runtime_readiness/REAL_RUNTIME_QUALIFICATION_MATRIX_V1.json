@@ -1,0 +1,106 @@
+{
+  "gate2_final": "BLOCKED",
+  "gates": [
+    {
+      "id": "RT-01",
+      "requirement": "Actual x86/x64 ABI/compiler and native read API binding",
+      "current_status": "BLOCKED",
+      "implemented_capability": "21API declarations+owned wiredecoders;static C++ assertions",
+      "evidence_available": "SDK_COMPILER_READ_ONLY_INVENTORY.json;newABItests",
+      "remaining_blocker": "No SDK/compiler or realAPItransport",
+      "required_real_qualification": "Separate trusted SDK/compiler x86/x64 compile,then authorized nonGUI/native qualification",
+      "required_separate_authorization": "Separate native qualification authorization;no GUI dispatch now"
+    },
+    {
+      "id": "RT-02",
+      "requirement": "Native binding/dispatch hard boundary",
+      "current_status": "BLOCKED",
+      "implemented_capability": "NativeBindingUnavailable;no loader/FFI",
+      "evidence_available": "Static/import/testboundary evidence",
+      "remaining_blocker": "Real binder and supervised capability enforcement absent",
+      "required_real_qualification": "Review exactnativeentry with target-scoped authority",
+      "required_separate_authorization": "Explicit realadapter/nativeexecution authorization"
+    },
+    {
+      "id": "RT-03",
+      "requirement": "Trusted host/boot/operator/parent provenance",
+      "current_status": "BLOCKED",
+      "implemented_capability": "11role signed syntheticprovenance interfaces",
+      "evidence_available": "Newhost/boot/operator/parent negative tests",
+      "remaining_blocker": "No real externalattestation service/trustroot",
+      "required_real_qualification": "Independent live host/service/elevation/parent attestation",
+      "required_separate_authorization": "Separate realtrustsource and identity-only permit"
+    },
+    {
+      "id": "RT-04",
+      "requirement": "Native lifecycle coverage/generation",
+      "current_status": "BLOCKED",
+      "implemented_capability": "Failclosed certificate contract and feasibility alternatives",
+      "evidence_available": "LIFECYCLE_FEASIBILITY_V1.json;signedsyntheticoracle tests",
+      "remaining_blocker": "No independentlycomplete nativegeneration source",
+      "required_real_qualification": "Prove interval/source/loss/generation outsideheads",
+      "required_separate_authorization": "Newwitnessengineering and livecollectionauthorization"
+    },
+    {
+      "id": "RT-05",
+      "requirement": "Formal permit/UTC/revocation",
+      "current_status": "BLOCKED",
+      "implemented_capability": "Role-separatedtest roots;intervaltime;perreadexpiry;nonce",
+      "evidence_available": "Synthetic signatures/clock/revocation/replay tests",
+      "remaining_blocker": "No productionroots,realUTC/revocationservice or formalpermit",
+      "required_real_qualification": "Independent servicequalification,revocation/UTC failuretests",
+      "required_separate_authorization": "Explicitformalidentitypermit authority,not this testrealm"
+    },
+    {
+      "id": "RT-06",
+      "requirement": "ACL/owner/directory-handle race safety",
+      "current_status": "BLOCKED",
+      "implemented_capability": "Owned relativeSDparser+private immutablefilestore;readinessdesign",
+      "evidence_available": "ACLnegative and actualprivatestat/fsynctests",
+      "remaining_blocker": "No nativeACL or opened-directory-relative Windowsraceproof",
+      "required_real_qualification": "Realowner/protectedDACL/reparse/hardlink and handlesecurity",
+      "required_separate_authorization": "Separate isolated nativefilesystem qualification"
+    },
+    {
+      "id": "RT-07",
+      "requirement": "NativeJob/cancellation/containment",
+      "current_status": "BLOCKED",
+      "implemented_capability": "Data-onlysuspended/assigned/intent/resume/cancelstate;7bindings",
+      "evidence_available": "Statemachinefaults;inheritedownedchildcrash evidence",
+      "remaining_blocker": "No realJobObject/descendant/cancel guarantee",
+      "required_real_qualification": "AssignbeforeResume,noninheritedJob,killtree and zeroactiveprocessproof",
+      "required_separate_authorization": "Separateownednativechildcontainmentauthorization"
+    },
+    {
+      "id": "RT-08",
+      "requirement": "Power-loss/media durability",
+      "current_status": "BLOCKED",
+      "implemented_capability": "Exclusiveacceptedjournal+immutableprivatefilewrite",
+      "evidence_available": "Actualfsync/partialfailuretests;acceptedcrashjournal",
+      "remaining_blocker": "No powercut/storage-controller/media proof",
+      "required_real_qualification": "Independentpowerloss/filesystemdurability qualification",
+      "required_separate_authorization": "Separatehardware/OS/storagefaultauthorization"
+    },
+    {
+      "id": "RT-09",
+      "requirement": "Target-limitedliveidentityauthorization",
+      "current_status": "BLOCKED",
+      "implemented_capability": "Exacttool/schema/scope/provenance pins;syntheticonly",
+      "evidence_available": "Scope/signature/role/targetnegatives",
+      "remaining_blocker": "No livePermitloader/actualtargetevidence",
+      "required_real_qualification": "Human-issued separatepermit,one-shotexternalintent",
+      "required_separate_authorization": "Explicitliveidentity-only authorization"
+    },
+    {
+      "id": "RT-10",
+      "requirement": "IndependentreviewACK anddiagnosticgrant",
+      "current_status": "BLOCKED",
+      "implemented_capability": "SeparateREVIEW/DIAGNOSTICroles;ACKcannotpromote",
+      "evidence_available": "Roleconfusion/unknownpromotion/revokedACKtests",
+      "remaining_blocker": "No realidentityreview or diagnosticgrant",
+      "required_real_qualification": "Reviewactualidentityevidence before distinctdiagnosticgrant",
+      "required_separate_authorization": "Separatetarget-specificdiagnostic authorization"
+    }
+  ],
+  "mock_compile_signed_data_cannot_promote_real_gate": true
+}

@@ -1,0 +1,98 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_kind",
+    "attempt_id",
+    "nonce",
+    "issuer_sequence",
+    "previous_head",
+    "issued_utc_ns",
+    "expires_utc_ns",
+    "tool_sha256",
+    "schema_sha256",
+    "scope",
+    "scope_sha256",
+    "transport_sha256",
+    "provenance_sha256",
+    "clock_sha256",
+    "revocation_sha256",
+    "revocation_epoch",
+    "native_execution_authorized",
+    "diagnostic_authorized"
+  ],
+  "properties": {
+    "artifact_kind": {
+      "const": "RQR_SYNTHETIC_IDENTITY_ONLY_NOT_LIVE_PERMIT"
+    },
+    "attempt_id": {
+      "type": "string",
+      "pattern": "SYNTHETIC-[A-Za-z0-9-]{6,84}"
+    },
+    "nonce": {
+      "type": "string",
+      "pattern": "SYNTHETIC-[A-Za-z0-9-]{6,84}"
+    },
+    "issuer_sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "previous_head": {
+      "type": "string",
+      "pattern": "[0-9a-f]{64}"
+    },
+    "issued_utc_ns": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "expires_utc_ns": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "tool_sha256": {
+      "type": "string",
+      "pattern": "[0-9a-f]{64}"
+    },
+    "schema_sha256": {
+      "type": "string",
+      "pattern": "[0-9a-f]{64}"
+    },
+    "scope": {
+      "type": "object"
+    },
+    "scope_sha256": {
+      "type": "string",
+      "pattern": "[0-9a-f]{64}"
+    },
+    "transport_sha256": {
+      "type": "string",
+      "pattern": "[0-9a-f]{64}"
+    },
+    "provenance_sha256": {
+      "type": "string",
+      "pattern": "[0-9a-f]{64}"
+    },
+    "clock_sha256": {
+      "type": "string",
+      "pattern": "[0-9a-f]{64}"
+    },
+    "revocation_sha256": {
+      "type": "string",
+      "pattern": "[0-9a-f]{64}"
+    },
+    "revocation_epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "native_execution_authorized": {
+      "const": false
+    },
+    "diagnostic_authorized": {
+      "const": false
+    }
+  }
+}

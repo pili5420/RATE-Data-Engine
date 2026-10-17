@@ -1,0 +1,804 @@
+{
+  "scope": "All21 accepted identity APIs;7 containment and12 support declarations; no native loader",
+  "rows": [
+    {
+      "api": "GetComputerNameExW",
+      "dll": "kernel32.dll",
+      "return_type": "BOOL",
+      "parameters": [
+        "COMPUTER_NAME_FORMAT",
+        "OUT_UTF16",
+        "INOUT_DWORD"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "IMPLEMENTED",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": [
+        "host"
+      ]
+    },
+    {
+      "api": "GetCurrentProcessId",
+      "dll": "kernel32.dll",
+      "return_type": "DWORD",
+      "parameters": [],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "IMPLEMENTED",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": [
+        "observer_pid"
+      ]
+    },
+    {
+      "api": "GetCurrentThreadId",
+      "dll": "kernel32.dll",
+      "return_type": "DWORD",
+      "parameters": [],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "IMPLEMENTED",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": [
+        "observer_tid"
+      ]
+    },
+    {
+      "api": "ProcessIdToSessionId",
+      "dll": "kernel32.dll",
+      "return_type": "BOOL",
+      "parameters": [
+        "DWORD",
+        "OUT_DWORD"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "IMPLEMENTED",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": [
+        "session"
+      ]
+    },
+    {
+      "api": "GetProcessWindowStation",
+      "dll": "user32.dll",
+      "return_type": "BORROWED_HWINSTA",
+      "parameters": [],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "IMPLEMENTED",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": [
+        "station_handle"
+      ]
+    },
+    {
+      "api": "GetThreadDesktop",
+      "dll": "user32.dll",
+      "return_type": "BORROWED_HDESK",
+      "parameters": [
+        "DWORD"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "IMPLEMENTED",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": [
+        "desktop_handle"
+      ]
+    },
+    {
+      "api": "GetUserObjectInformationW",
+      "dll": "user32.dll",
+      "return_type": "BOOL",
+      "parameters": [
+        "HANDLE",
+        "INT32",
+        "OUT_BYTES",
+        "DWORD",
+        "OUT_DWORD"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "IMPLEMENTED",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": [
+        "object_name"
+      ]
+    },
+    {
+      "api": "EnumWindows",
+      "dll": "user32.dll",
+      "return_type": "BOOL",
+      "parameters": [
+        "WNDENUMPROC",
+        "LPARAM"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "IMPLEMENTED",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": [
+        "hwnds",
+        "complete"
+      ]
+    },
+    {
+      "api": "IsWindow",
+      "dll": "user32.dll",
+      "return_type": "BOOL",
+      "parameters": [
+        "HWND"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "IMPLEMENTED",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": [
+        "exists"
+      ]
+    },
+    {
+      "api": "GetWindowThreadProcessId",
+      "dll": "user32.dll",
+      "return_type": "DWORD",
+      "parameters": [
+        "HWND",
+        "OUT_DWORD"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "IMPLEMENTED",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": [
+        "pid",
+        "tid"
+      ]
+    },
+    {
+      "api": "GetClassNameW",
+      "dll": "user32.dll",
+      "return_type": "INT32",
+      "parameters": [
+        "HWND",
+        "OUT_UTF16",
+        "INT32"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "IMPLEMENTED",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": [
+        "class_name"
+      ]
+    },
+    {
+      "api": "OpenProcess",
+      "dll": "kernel32.dll",
+      "return_type": "OWNED_HANDLE",
+      "parameters": [
+        "DWORD",
+        "BOOL",
+        "DWORD"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "IMPLEMENTED",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": [
+        "process_handle"
+      ]
+    },
+    {
+      "api": "GetProcessTimes",
+      "dll": "kernel32.dll",
+      "return_type": "BOOL",
+      "parameters": [
+        "HANDLE",
+        "OUT_FILETIME",
+        "OUT_FILETIME",
+        "OUT_FILETIME",
+        "OUT_FILETIME"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "IMPLEMENTED",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": [
+        "creation",
+        "exit",
+        "kernel",
+        "user"
+      ]
+    },
+    {
+      "api": "QueryFullProcessImageNameW",
+      "dll": "kernel32.dll",
+      "return_type": "BOOL",
+      "parameters": [
+        "HANDLE",
+        "DWORD",
+        "OUT_UTF16",
+        "INOUT_DWORD"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "IMPLEMENTED",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": [
+        "executable_path"
+      ]
+    },
+    {
+      "api": "OpenProcessToken",
+      "dll": "advapi32.dll",
+      "return_type": "BOOL",
+      "parameters": [
+        "HANDLE",
+        "DWORD",
+        "OUT_HANDLE"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "IMPLEMENTED",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": [
+        "token_handle"
+      ]
+    },
+    {
+      "api": "GetTokenInformation",
+      "dll": "advapi32.dll",
+      "return_type": "BOOL",
+      "parameters": [
+        "HANDLE",
+        "TOKEN_INFORMATION_CLASS",
+        "OUT_BYTES",
+        "DWORD",
+        "OUT_DWORD"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "IMPLEMENTED",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": [
+        "token"
+      ]
+    },
+    {
+      "api": "CreateFileW",
+      "dll": "kernel32.dll",
+      "return_type": "OWNED_HANDLE",
+      "parameters": [
+        "IN_UTF16",
+        "DWORD",
+        "DWORD",
+        "NULL_SECURITY_ATTRIBUTES",
+        "DWORD",
+        "DWORD",
+        "NULL_TEMPLATE_HANDLE"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "IMPLEMENTED",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": [
+        "file_handle"
+      ]
+    },
+    {
+      "api": "GetFinalPathNameByHandleW",
+      "dll": "kernel32.dll",
+      "return_type": "DWORD",
+      "parameters": [
+        "HANDLE",
+        "OUT_UTF16",
+        "DWORD",
+        "DWORD"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "IMPLEMENTED",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": [
+        "final_path"
+      ]
+    },
+    {
+      "api": "GetFileInformationByHandleEx",
+      "dll": "kernel32.dll",
+      "return_type": "BOOL",
+      "parameters": [
+        "HANDLE",
+        "FILE_INFO_BY_HANDLE_CLASS",
+        "OUT_BYTES",
+        "DWORD"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "IMPLEMENTED",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": [
+        "file_info"
+      ]
+    },
+    {
+      "api": "ReadFile",
+      "dll": "kernel32.dll",
+      "return_type": "BOOL",
+      "parameters": [
+        "HANDLE",
+        "OUT_BYTES",
+        "DWORD",
+        "OUT_DWORD",
+        "NULL_OVERLAPPED"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "IMPLEMENTED",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": [
+        "data_hex"
+      ]
+    },
+    {
+      "api": "CloseHandle",
+      "dll": "kernel32.dll",
+      "return_type": "BOOL",
+      "parameters": [
+        "OWNED_HANDLE"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "IMPLEMENTED",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": [
+        "closed"
+      ]
+    },
+    {
+      "api": "CreateJobObjectW",
+      "dll": "kernel32.dll",
+      "return_type": "OWNED_HANDLE",
+      "parameters": [
+        "NULL_SECURITY_ATTRIBUTES",
+        "NULL_NAME"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "DESIGN_STATE_MACHINE_ONLY",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": []
+    },
+    {
+      "api": "SetInformationJobObject",
+      "dll": "kernel32.dll",
+      "return_type": "BOOL",
+      "parameters": [
+        "HANDLE",
+        "JOBOBJECTINFOCLASS",
+        "IN_BYTES",
+        "DWORD"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "DESIGN_STATE_MACHINE_ONLY",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": []
+    },
+    {
+      "api": "AssignProcessToJobObject",
+      "dll": "kernel32.dll",
+      "return_type": "BOOL",
+      "parameters": [
+        "HANDLE",
+        "HANDLE"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "DESIGN_STATE_MACHINE_ONLY",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": []
+    },
+    {
+      "api": "QueryInformationJobObject",
+      "dll": "kernel32.dll",
+      "return_type": "BOOL",
+      "parameters": [
+        "HANDLE",
+        "JOBOBJECTINFOCLASS",
+        "OUT_BYTES",
+        "DWORD",
+        "OUT_DWORD"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "DESIGN_STATE_MACHINE_ONLY",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": []
+    },
+    {
+      "api": "TerminateJobObject",
+      "dll": "kernel32.dll",
+      "return_type": "BOOL",
+      "parameters": [
+        "HANDLE",
+        "UINT32"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "DESIGN_STATE_MACHINE_ONLY",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": []
+    },
+    {
+      "api": "CancelSynchronousIo",
+      "dll": "kernel32.dll",
+      "return_type": "BOOL",
+      "parameters": [
+        "HANDLE"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "DESIGN_STATE_MACHINE_ONLY",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": []
+    },
+    {
+      "api": "WaitForSingleObject",
+      "dll": "kernel32.dll",
+      "return_type": "DWORD",
+      "parameters": [
+        "HANDLE",
+        "DWORD"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "DESIGN_STATE_MACHINE_ONLY",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": []
+    },
+    {
+      "api": "GetLastError",
+      "dll": "kernel32.dll",
+      "return_type": "DWORD",
+      "parameters": [],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "DESIGN_ONLY_NOT_IN_READ_SCOPE",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": []
+    },
+    {
+      "api": "SetLastError",
+      "dll": "kernel32.dll",
+      "return_type": "VOID",
+      "parameters": [
+        "DWORD"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "DESIGN_ONLY_NOT_IN_READ_SCOPE",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": []
+    },
+    {
+      "api": "CreateProcessW",
+      "dll": "kernel32.dll",
+      "return_type": "BOOL",
+      "parameters": [
+        "LPCWSTR",
+        "INOUT_LPWSTR",
+        "NULL_PROCESS_SECURITY",
+        "NULL_THREAD_SECURITY",
+        "BOOL",
+        "DWORD",
+        "ENVIRONMENT_BLOCK",
+        "LPCWSTR",
+        "STARTUPINFOW",
+        "OUT_PROCESS_INFORMATION"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "DESIGN_ONLY_NOT_IN_READ_SCOPE",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": []
+    },
+    {
+      "api": "ResumeThread",
+      "dll": "kernel32.dll",
+      "return_type": "DWORD",
+      "parameters": [
+        "HANDLE"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "DESIGN_ONLY_NOT_IN_READ_SCOPE",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": []
+    },
+    {
+      "api": "GetExitCodeProcess",
+      "dll": "kernel32.dll",
+      "return_type": "BOOL",
+      "parameters": [
+        "HANDLE",
+        "OUT_DWORD"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "DESIGN_ONLY_NOT_IN_READ_SCOPE",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": []
+    },
+    {
+      "api": "GetProcessId",
+      "dll": "kernel32.dll",
+      "return_type": "DWORD",
+      "parameters": [
+        "HANDLE"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "DESIGN_ONLY_NOT_IN_READ_SCOPE",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": []
+    },
+    {
+      "api": "GetSecurityInfo",
+      "dll": "advapi32.dll",
+      "return_type": "DWORD",
+      "parameters": [
+        "HANDLE",
+        "SE_OBJECT_TYPE",
+        "SECURITY_INFORMATION",
+        "OUT_PSID",
+        "OUT_PSID",
+        "OUT_PACL",
+        "OUT_PACL",
+        "OUT_SECURITY_DESCRIPTOR"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "DESIGN_ONLY_NOT_IN_READ_SCOPE",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": []
+    },
+    {
+      "api": "LocalFree",
+      "dll": "kernel32.dll",
+      "return_type": "HLOCAL",
+      "parameters": [
+        "HLOCAL"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "DESIGN_ONLY_NOT_IN_READ_SCOPE",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": []
+    },
+    {
+      "api": "FlushFileBuffers",
+      "dll": "kernel32.dll",
+      "return_type": "BOOL",
+      "parameters": [
+        "HANDLE"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "DESIGN_ONLY_NOT_IN_READ_SCOPE",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": []
+    },
+    {
+      "api": "InitializeProcThreadAttributeList",
+      "dll": "kernel32.dll",
+      "return_type": "BOOL",
+      "parameters": [
+        "ATTRIBUTE_LIST",
+        "DWORD",
+        "DWORD",
+        "INOUT_SIZE_T"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "DESIGN_ONLY_NOT_IN_READ_SCOPE",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": []
+    },
+    {
+      "api": "UpdateProcThreadAttribute",
+      "dll": "kernel32.dll",
+      "return_type": "BOOL",
+      "parameters": [
+        "ATTRIBUTE_LIST",
+        "DWORD",
+        "DWORD_PTR",
+        "LPVOID",
+        "SIZE_T",
+        "NULL_PREVIOUS_VALUE",
+        "NULL_RETURN_SIZE"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "DESIGN_ONLY_NOT_IN_READ_SCOPE",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": []
+    },
+    {
+      "api": "DeleteProcThreadAttributeList",
+      "dll": "kernel32.dll",
+      "return_type": "VOID",
+      "parameters": [
+        "ATTRIBUTE_LIST"
+      ],
+      "abi": [
+        "x86_WINAPI_STDCALL",
+        "Windows_x64"
+      ],
+      "candidate_binding": "IMPLEMENTED_DECLARATIVE_ONLY",
+      "wire_decoder": "DESIGN_ONLY_NOT_IN_READ_SCOPE",
+      "offline_test_status": "PENDING_FINAL_EVIDENCE",
+      "native_status": "NATIVE_UNQUALIFIED",
+      "read_fields": []
+    }
+  ],
+  "compile_only": "Two compile-only.cpp files contain only static_assert/decltype. SDK/compiler absent; not compiled, no compile PASS claimed."
+}
