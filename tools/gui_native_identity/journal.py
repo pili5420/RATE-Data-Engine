@@ -6,7 +6,7 @@ durability need native qualification; fsync alone is not claimed as that proof.
 """
 import hashlib,os,re,threading
 from pathlib import Path
-from .protocol import need,exact,canonical,decode,digest,Denied
+from .protocol import need,exact,canonical,decode,digest,hash64,Denied
 class SyntheticWorkspace:
  def __init__(self,root):
   self.root=Path(root);need(self.root.is_absolute() and self.root.parent==Path(r'D:\Codex') and re.fullmatch('RATE-Gate2-Native-Offline-(Tests|Review)-[A-Za-z0-9-]+',self.root.name) is not None,'SYNTHETIC_PHYSICAL_WORKSPACE_ONLY')
@@ -32,6 +32,14 @@ class SyntheticWorkspace:
    need(not self._claimed,'WORKSPACE_SESSION_ALREADY_CONSUMED');self._claimed=True
   self.verify();attempt=digest(model['attempt_id']);nonce=digest(model['nonce']);self.attempt=self.journal/('attempt-'+attempt+'.json');nonce_path=self.journal/('nonce-'+nonce+'.json')
   need(not self.attempt.exists() and not nonce_path.exists(),'ATTEMPT_OR_NONCE_REPLAY_NO_RESUME')
+  # The first durable attempt record reserves BOTH names. A crash before the
+  # secondary nonce index must never allow a fresh attempt to reuse its nonce.
+  records=list(self.journal.iterdir());need(len(records)<=60000,'JOURNAL_SCAN_BOUND','INDETERMINATE')
+  for path in records:
+   self._physical(path);need(path.is_file() and re.fullmatch(r'(attempt|nonce|terminal)-[0-9a-f]{64}\.json',path.name) is not None,'UNKNOWN_JOURNAL_ENTRY','INDETERMINATE')
+   if path.name.startswith('attempt-'):
+    prior=decode(path.read_bytes());self._validate_intent(prior,path)
+    need(prior['nonce_sha256']!=nonce,'DURABLE_INTENT_NONCE_REPLAY_NO_RESUME')
   intent={'artifact_kind':'SYNTHETIC_INTENT_NOT_LIVE_PERMIT','state':'CLAIMED_UNKNOWN_UNTIL_TERMINAL','attempt_id':model['attempt_id'],'nonce_sha256':nonce,'model_sha256':digest(model),'no_resume':True}
   self.write_new(self.attempt,intent)
   self.write_new(nonce_path,{'attempt_sha256':attempt,'model_sha256':digest(model)})
@@ -40,11 +48,14 @@ class SyntheticWorkspace:
   need(hasattr(self,'intent'),'NO_CLAIMED_ATTEMPT');self.verify()
   evidence_sha=self.write_new(self.output/'RESULT.json',result)
   self.write_new(self.journal/('terminal-'+digest(self.intent['attempt_id'])+'.json'),{'state':result['status'],'intent_sha256':digest(self.intent),'result_sha256':evidence_sha,'no_resume':True})
+ def _validate_intent(self,intent,path):
+  exact(intent,{'artifact_kind','state','attempt_id','nonce_sha256','model_sha256','no_resume'})
+  need(intent['artifact_kind']=='SYNTHETIC_INTENT_NOT_LIVE_PERMIT' and intent['state']=='CLAIMED_UNKNOWN_UNTIL_TERMINAL' and type(intent['attempt_id']) is str and re.fullmatch('SYNTHETIC-[A-Za-z0-9-]{8,96}',intent['attempt_id']) is not None and hash64(intent['nonce_sha256']) and hash64(intent['model_sha256']) and intent['no_resume'] is True and path.name=='attempt-'+digest(intent['attempt_id'])+'.json','INTENT_SCHEMA_OR_FILE_BINDING','INDETERMINATE')
  def audit_attempt(self,attempt_id):
   need(type(attempt_id) is str and re.fullmatch('SYNTHETIC-[A-Za-z0-9-]{8,96}',attempt_id) is not None,'SYNTHETIC_ATTEMPT_ONLY')
   self.verify();key=digest(attempt_id);a=self.journal/('attempt-'+key+'.json');t=self.journal/('terminal-'+key+'.json')
   if not a.exists():return {'state':'NOT_ATTEMPTED','retry_authorized':False}
-  self._physical(a);intent=decode(a.read_bytes());exact(intent,{'artifact_kind','state','attempt_id','nonce_sha256','model_sha256','no_resume'});need(intent.get('artifact_kind')=='SYNTHETIC_INTENT_NOT_LIVE_PERMIT' and intent['attempt_id']==attempt_id and intent['no_resume'] is True,'INTENT_SCHEMA')
+  self._physical(a);intent=decode(a.read_bytes());self._validate_intent(intent,a);need(intent['attempt_id']==attempt_id,'INTENT_SCHEMA')
   if not t.exists():return {'state':'UNKNOWN_PARTIAL_OR_CRASH','retry_authorized':False,'resume_authorized':False}
   self._physical(t);terminal=decode(t.read_bytes());exact(terminal,{'state','intent_sha256','result_sha256','no_resume'});need(terminal['intent_sha256']==digest(intent) and terminal['no_resume'] is True and terminal['state'] in {'RESOLVED_OFFLINE_IDENTITY_ONLY','BLOCKED','INDETERMINATE'},'TERMINAL_INTENT_MISMATCH','INDETERMINATE')
   nonce=self.journal/('nonce-'+intent['nonce_sha256']+'.json');self._physical(nonce);record=decode(nonce.read_bytes());need(record=={'attempt_sha256':key,'model_sha256':intent['model_sha256']},'NONCE_RESERVATION_MISMATCH','INDETERMINATE')

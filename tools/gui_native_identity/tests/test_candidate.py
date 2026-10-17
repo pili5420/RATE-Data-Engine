@@ -16,7 +16,9 @@ class CandidateTests(unittest.TestCase):
   if r['status']!='RESOLVED_OFFLINE_IDENTITY_ONLY':raise AssertionError(r)
   cls.good_trace=copy.deepcopy(p.calls);cls.api_index={api:next(i+1 for i,row in enumerate(p.calls) if row['request']['api']==api) for api in API_FIELDS}
  def new(self,count=1):
-  w=SyntheticWorkspace(ROOT);return w,*f.bundle(w,count)
+  if not hasattr(self,'case_root'):
+   self.case_root=ROOT.parent/(ROOT.name+'-case-'+uuid4().hex);self.case_root.mkdir()
+  w=SyntheticWorkspace(self.case_root);return w,*f.bundle(w,count)
  def run_model(self,edit=None,count=1):
   w,m,p,v=self.new(count)
   if edit:replacement=edit(w,m,p,v);p=replacement if replacement is not None else p
@@ -30,19 +32,26 @@ class CandidateTests(unittest.TestCase):
  def test_zero_candidate(self):self.denied(self.run_model(count=0)[0],'EXACTLY_ONE')
  def test_multiple_candidates(self):self.denied(self.run_model(count=2)[0],'EXACTLY_ONE')
  def test_known_class_exclusion_and_unique(self):
-  def edit(w,m,p,v):world=copy.deepcopy(p.scenario);world['windows'][1]['class_name']='Other';return f.replace_provider(m,world)
+  def edit(w,m,p,v):
+   world=copy.deepcopy(p.scenario);world['windows'][1]['class_name']='Other'
+   for event in v['events']:
+    if event['identity']['hwnd']==2:event['identity']['class_name']='Other'
+   f.bind_witness(m,v);return f.replace_provider(m,world)
   r,*_=self.run_model(edit,2);self.assertEqual(r['identity'],f.identity())
  def test_nonmatching_image_never_file_read(self):
-  def edit(w,m,p,v):world=copy.deepcopy(p.scenario);world['processes']['101']['path']=r'C:\Windows\System32\control.exe';return f.replace_provider(m,world)
+  def edit(w,m,p,v):
+   world=copy.deepcopy(p.scenario);world['processes']['101']['path']=r'C:\Windows\System32\control.exe'
+   for event in v['events']:event['identity']['executable_path']=r'C:\Windows\System32\control.exe'
+   f.bind_witness(m,v);return f.replace_provider(m,world)
   r,w,m,p,v=self.run_model(edit);self.denied(r,'EXACTLY_ONE');self.assertFalse(any(x['request']['api']=='CreateFileW' for x in p.calls))
  def test_no_title_api_ever_requested(self):
   r,w,m,p,v=self.run_model();self.assertFalse(any('WindowText' in x['request']['api'] for x in p.calls));self.assertFalse(any(x['request']['api'] in {'ReadProcessMemory','WriteFile','SetWindowTextW'} for x in p.calls))
  def test_no_borrowed_handle_closed(self):
   r,w,m,p,v=self.run_model();closed={x['request']['args']['handle'] for x in p.calls if x['request']['api']=='CloseHandle'};borrowed={x['receipt']['result'] for x in p.calls if x['request']['api'] in {'GetThreadDesktop','GetProcessWindowStation'}};self.assertFalse(closed&borrowed)
  def test_attempt_replay_new_session(self):
-  r,w,m,p,v=self.run_model();other=SyntheticWorkspace(ROOT);fresh=ScriptedWindowsProvider(p.scenario);self.denied(OfflineIdentityCandidate().run(m,fresh,v,other),'REPLAY');self.assertEqual(fresh.calls,[])
+  r,w,m,p,v=self.run_model();other=SyntheticWorkspace(w.root);fresh=ScriptedWindowsProvider(p.scenario);self.denied(OfflineIdentityCandidate().run(m,fresh,v,other),'REPLAY');self.assertEqual(fresh.calls,[])
  def test_nonce_replay_new_attempt(self):
-  r,w,m,p,v=self.run_model();other=SyntheticWorkspace(ROOT);a,provider,witness=f.bundle(other,nonce=m['nonce']);self.denied(OfflineIdentityCandidate().run(a,provider,witness,other),'REPLAY');self.assertEqual(provider.calls,[])
+  r,w,m,p,v=self.run_model();other=SyntheticWorkspace(w.root);a,provider,witness=f.bundle(other,nonce=m['nonce']);self.denied(OfflineIdentityCandidate().run(a,provider,witness,other),'REPLAY');self.assertEqual(provider.calls,[])
  def test_same_session_cannot_claim_second_model(self):
   w,m,p,v=self.new();w.claim(m);a,_,_=f.bundle(w)
   with self.assertRaisesRegex(Denied,'SESSION_ALREADY_CONSUMED'):w.claim(a)
@@ -50,7 +59,7 @@ class CandidateTests(unittest.TestCase):
   w,m,p,v=self.new();candidate=OfflineIdentityCandidate();self.assertEqual(candidate.run(m,p,v,w)['status'],'RESOLVED_OFFLINE_IDENTITY_ONLY');ws,other,provider,proof=self.new();self.denied(candidate.run(other,provider,proof,ws),'CANDIDATE_SESSION_ALREADY_CONSUMED');self.assertEqual(provider.calls,[])
  def test_error_attempt_cannot_resume(self):
   def edit(w,m,p,v):world=copy.deepcopy(p.scenario);world['faults']=[{'call':1,'kind':'unknown'}];return f.replace_provider(m,world)
-  r,w,m,p,v=self.run_model(edit);self.denied(r);self.assertEqual(w.audit_attempt(m['attempt_id'])['state'],'INDETERMINATE');other=SyntheticWorkspace(ROOT);fresh=ScriptedWindowsProvider(p.scenario);self.denied(OfflineIdentityCandidate().run(m,fresh,v,other),'REPLAY');self.assertEqual(fresh.calls,[])
+  r,w,m,p,v=self.run_model(edit);self.denied(r);self.assertEqual(w.audit_attempt(m['attempt_id'])['state'],'INDETERMINATE');other=SyntheticWorkspace(w.root);fresh=ScriptedWindowsProvider(p.scenario);self.denied(OfflineIdentityCandidate().run(m,fresh,v,other),'REPLAY');self.assertEqual(fresh.calls,[])
  def test_review_ack_binds_evidence_no_promotion(self):
   r,w,m,p,v=self.run_model();ack=f.ack(r,m);out=validate_review_ack(ack,r,m);self.assertFalse(out['diagnostic_authorized']);self.assertFalse(out['native_execution_authorized']);self.assertIn('BLOCKED',out['gate2_final_status'])
  def test_ack_is_not_identity_model(self):
@@ -134,7 +143,7 @@ class CandidateTests(unittest.TestCase):
  def test_concurrent_same_attempt_single_winner(self):
   w,m,p,v=self.new();barrier=threading.Barrier(2);outputs=[]
   def worker():
-   ws=SyntheticWorkspace(ROOT);provider=ScriptedWindowsProvider(p.scenario);barrier.wait();outputs.append((OfflineIdentityCandidate().run(copy.deepcopy(m),provider,copy.deepcopy(v),ws),len(provider.calls)))
+   ws=SyntheticWorkspace(w.root);provider=ScriptedWindowsProvider(p.scenario);barrier.wait();outputs.append((OfflineIdentityCandidate().run(copy.deepcopy(m),provider,copy.deepcopy(v),ws),len(provider.calls)))
   threads=[threading.Thread(target=worker) for _ in range(2)]
   for t in threads:t.start()
   for t in threads:t.join(20);self.assertFalse(t.is_alive())
@@ -153,7 +162,7 @@ class CandidateTests(unittest.TestCase):
   for bad in [cmd+['--live'],['cmd.exe','/c','ver'],cmd[:-1]+['SYNTHETIC-12345678 & whoami'],cmd[:5]+['--root',str(ROOT.parent)]+cmd[7:]]:self.assertFalse(allowed_crash_child(None,subprocess.list2cmdline(bad),sys.executable,probe,ROOT))
   self.assertFalse(allowed_crash_child('cmd.exe',cmd,sys.executable,probe,ROOT))
  def test_workspace_replaced_at_real_filesystem(self):
-  path=ROOT.parent/('RATE-Gate2-Native-Offline-Tests-'+uuid4().hex);path.mkdir();w=SyntheticWorkspace(path);preserved=path.with_name(path.name+'-preserved');path.rename(preserved);path.mkdir()
+  path=ROOT.parent/(ROOT.name+'-replacement-'+uuid4().hex);path.mkdir();w=SyntheticWorkspace(path);preserved=path.with_name(path.name+'-preserved');path.rename(preserved);path.mkdir()
   with self.assertRaisesRegex(Denied,'WORKSPACE_REPLACED'):w.verify()
  def test_witness_external_final_head_mismatch(self):
   def edit(w,m,p,v):m['witness_final_head']='f'*64
@@ -234,5 +243,6 @@ def crash_test(mode):
   (ROOT/('child-'+attempt+'.stdout.log')).write_bytes(out);(ROOT/('child-'+attempt+'.stderr.log')).write_bytes(err)
   (ROOT/('child-'+attempt+'.process.json')).write_bytes(canonical({'command':cmd,'pid':child.pid,'exit_code':child.returncode,'native_provider':'NOT_PRESENT','mode':mode}))
   self.assertEqual(child.returncode,73,err.decode(errors='replace'));w=SyntheticWorkspace(ROOT);self.assertEqual(w.audit_attempt(attempt)['state'],'UNKNOWN_PARTIAL_OR_CRASH');m,p,v=f.bundle(w,attempt=attempt,nonce=nonce);self.denied(OfflineIdentityCandidate().run(m,p,v,w));self.assertEqual(p.calls,[])
+  fresh=SyntheticWorkspace(ROOT);m,p,v=f.bundle(fresh,nonce=nonce);self.denied(OfflineIdentityCandidate().run(m,p,v,fresh),'REPLAY');self.assertEqual(p.calls,[])
  return test
 for mode in ['after_attempt','after_claim','after_result']:setattr(CandidateTests,'test_real_owned_child_crash_'+mode,crash_test(mode))

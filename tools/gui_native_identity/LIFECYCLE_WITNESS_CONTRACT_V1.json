@@ -1,5 +1,6 @@
 {
   "atomic_snapshot": false,
+  "all_candidate_binding": "Every enumerated window, including excluded classes/images, must match its witnessed window identity and remain stable at the scheduled final fence. Every lifecycle group must be valid and cover the interval. Two fixed bounded sweeps must have identical handle sets;neither is a failure retry. These observations still do not provide an atomic GUI snapshot.",
   "chain": "Independently pinned pre/final heads;strict global sequence and increasing ticks;all event identities retained;first CREATE exactly once per HWND generation then UNCHANGED only",
   "coverage": "armed begin precedes first API request,final horizon/checkpoint follows last;per-window creation anchor and terminal interval sample required;zero loss",
   "fail_closed": [

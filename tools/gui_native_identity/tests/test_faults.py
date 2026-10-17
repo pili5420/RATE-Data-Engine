@@ -1,4 +1,5 @@
 import copy,struct,unittest
+from uuid import uuid4
 from ..adapter import OfflineIdentityCandidate,NativeCallGuard
 from ..protocol import digest,Denied
 from ..provider import ScriptedWindowsProvider
@@ -9,6 +10,8 @@ from .test_candidate import CandidateTests
 class FaultTests(unittest.TestCase):
  @classmethod
  def setUpClass(cls):cls.root=CandidateTests.workspace;cls.trace=CandidateTests.good_trace
+ def setUp(self):
+  self.root=CandidateTests.workspace.parent/(CandidateTests.workspace.name+'-fault-'+uuid4().hex);self.root.mkdir()
  def run_fault(self,api,kind,value=None,path=None,occurrence=0,window_only=False):
   rows=[(i+1,row) for i,row in enumerate(self.trace) if row['request']['api']==api and (not window_only or row['request']['subject']['role']=='window')];index=rows[occurrence][0]
   w=SyntheticWorkspace(self.root);m,p,v=f.bundle(w);world=copy.deepcopy(p.scenario);fault={'call':index,'kind':kind}

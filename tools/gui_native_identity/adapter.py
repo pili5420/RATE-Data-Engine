@@ -3,10 +3,10 @@
 No live provider substitution, native binder, real Permit loader or diagnostic
 operation is admitted. Post-call time checks are not native cancellation proof.
 """
-import hashlib,struct,traceback,threading
+import copy,hashlib,struct,traceback,threading
 from . import abi
 from .contracts import KIND,PROVIDER_KIND,API_FIELDS,ARG_KEYS,RIGHTS,FINAL_GATE
-from .protocol import need,exact,integer,canonical,digest,validate_model,windows_path,Denied,code_identity
+from .protocol import need,exact,integer,canonical,digest,validate_model,windows_path,Denied,code_identity,schema_identity,bound_schema,schema_check,MODEL_KEYS
 from .provider import ScriptedWindowsProvider
 from .witness import LifecycleWitness
 from .journal import SyntheticWorkspace
@@ -15,7 +15,7 @@ from .baseline import accepted
 class NativeCallGuard:
  def __init__(self,model,provider,workspace):
   need(type(provider) is ScriptedWindowsProvider,'ONLY_SEALED_SYNTHETIC_PROVIDER');need(hasattr(workspace,'intent') and workspace.intent['model_sha256']==digest(model),'DURABLE_INTENT_REQUIRED')
-  self.model,self.provider,self.workspace=model,provider,workspace;self.model_hash=digest(model);self.code_hash=code_identity();self.failed=False;self.calls=[];self.last_end=model['issued_tick_ns'];self.first=None;self.owned={};self.borrowed={};self.windows=set();self.owners={};self.enum_calls=0
+  self.model,self.provider,self.workspace=model,provider,workspace;self.model_hash=digest(model);self.code_hash=code_identity();self.failed=False;self.terminal=False;self.calls=[];self.last_end=model['issued_tick_ns'];self.first=None;self.owned={};self.borrowed={};self.windows=set();self.owners={};self.enum_calls=0
  def _subject_pid(self,subject):
   role=subject.get('role');o=self.model['scope']['observer']
   if role in {'observer','parent'}:
@@ -37,7 +37,7 @@ class NativeCallGuard:
   if api in {'OpenProcess','ProcessIdToSessionId'}:need(integer(args.get('pid'),1,2**32) and args['pid']==pid,'EXACT_PROCESS_SUBJECT')
   if api=='GetThreadDesktop':
    tid=s['observer']['tid'] if role=='observer' else self.owners.get(subject.get('hwnd'),(None,None))[0];need(role in {'observer','window'} and type(args.get('tid')) is int and args['tid']==tid,'EXACT_THREAD_SUBJECT')
-  if api=='EnumWindows':self.enum_calls+=1;need(self.enum_calls==1 and args=={'max_windows':s['max_windows']} and type(args['max_windows']) is int,'ENUMERATION_RETRY_OR_BOUND')
+  if api=='EnumWindows':self.enum_calls+=1;need(self.enum_calls<=2 and args=={'max_windows':s['max_windows']} and type(args['max_windows']) is int,'ENUMERATION_RETRY_OR_BOUND')
   if api in {'GetProcessTimes','QueryFullProcessImageNameW','OpenProcessToken','GetTokenInformation','ReadFile','GetFileInformationByHandleEx','GetFinalPathNameByHandleW','CloseHandle'}:
    handle=args.get('handle');need(integer(handle,1) and handle in self.owned,'UNKNOWN_OR_BORROWED_HANDLE')
    expected='process' if api in {'GetProcessTimes','QueryFullProcessImageNameW','OpenProcessToken'} else 'token' if api=='GetTokenInformation' else 'file' if api!='CloseHandle' else self.owned[handle]['kind']
@@ -58,7 +58,7 @@ class NativeCallGuard:
    owner=abi.owner_pair(result);hwnd=subject['hwnd'];need(hwnd not in self.owners or self.owners[hwnd]==owner,'HWND_REUSE_OR_OWNER_CHANGED','INDETERMINATE');self.owners[hwnd]=owner
  def call(self,api,args,subject,fields=None,access=None):
   try:
-   need(not self.failed,'FAILED_NATIVE_GUARD_NO_RETRY');self.workspace.verify();need(digest(self.model)==self.model_hash and code_identity()==self.code_hash,'MODEL_OR_CODE_MUTATED')
+   need(not self.failed,'FAILED_NATIVE_GUARD_NO_RETRY');need(not self.terminal,'TERMINAL_ATTEMPT_NO_FURTHER_REQUESTS');self.workspace.verify();need(digest(self.model)==self.model_hash and code_identity()==self.code_hash and schema_identity()==self.model['schema_sha256'],'MODEL_OR_CODE_MUTATED_OR_SCHEMA_CHANGED')
    need(api in API_FIELDS,'UNAUTHORIZED_API_OR_DIAGNOSTIC_READ');need(type(args) is dict and type(subject) is dict,'CALL_ARGUMENT_SCHEMA')
    fields=list(API_FIELDS[api]) if fields is None else fields;access=dict(RIGHTS) if access is None else access
    need(canonical(fields)==canonical(list(API_FIELDS[api])) and canonical(access)==canonical(RIGHTS),'EXACT_API_FIELD_ACCESS_BOUNDARY');self._arguments(api,args,subject)
@@ -74,7 +74,7 @@ class NativeCallGuard:
    need(r['end_ns']<self.model['expires_tick_ns'] and r['end_ns']-r['start_ns']<=s['per_call_ms']*1000000 and r['end_ns']-self.model['issued_tick_ns']<=s['total_ms']*1000000,'NATIVE_TIMEOUT_OR_EXPIRED','INDETERMINATE')
    need(type(r['last_error']) is int and 0<=r['last_error']<2**32,'NATIVE_ERROR_TYPE')
    self.calls.append({'ticket':ticket,'request':req,'receipt':r});self.first=r['start_ns'] if self.first is None else self.first;self.last_end=r['end_ns']
-   need(r['status']=='OK' and r['last_error']==0,'NATIVE_API_ERROR_OR_UNKNOWN','INDETERMINATE');need(digest(self.model)==self.model_hash and code_identity()==self.code_hash,'MODEL_OR_CODE_MUTATED');self.workspace.verify();self._register(api,r['result'],args,subject);return r['result']
+   need(r['status']=='OK' and r['last_error']==0,'NATIVE_API_ERROR_OR_UNKNOWN','INDETERMINATE');need(digest(self.model)==self.model_hash and code_identity()==self.code_hash and schema_identity()==self.model['schema_sha256'],'MODEL_OR_CODE_MUTATED_OR_SCHEMA_CHANGED');self.workspace.verify();self._register(api,r['result'],args,subject);return r['result']
   except BaseException:self.failed=True;raise
 
 class OfflineIdentityCandidate:
@@ -89,19 +89,24 @@ class OfflineIdentityCandidate:
    lifecycle=LifecycleWitness(witness,model);before=self._context();enum=self._call('EnumWindows',{'max_windows':model['scope']['max_windows']},{'role':'observer'})
    exact(enum,{'handles','complete','reported_count'});need(type(enum['handles']) is list and enum['complete'] is True and type(enum['reported_count']) is int and len(enum['handles'])==enum['reported_count']<=model['scope']['max_windows'],'ENUMERATION_INCOMPLETE_OR_BOUND','INDETERMINATE')
    need(all(integer(h,1) for h in enum['handles']) and len(set(enum['handles']))==len(enum['handles']),'ENUMERATION_HANDLE_ALIAS_OR_DUPLICATE','INDETERMINATE')
-   candidates=[];excluded=[]
+   candidates=[];excluded=[];self.observed_windows={}
    for hwnd in enum['handles']:
     identity=self._inspect(hwnd,lifecycle)
     if identity is None:excluded.append(hwnd)
     else:candidates.append(identity)
    need(len(candidates)==1,'EXACTLY_ONE_UNIQUE_CANDIDATE','INDETERMINATE')
-   after=self._context();need(before==after,'OBSERVER_CONTEXT_CHANGED','INDETERMINATE');identity=candidates[0];proof=lifecycle.verify(identity,guard.first,guard.last_end,enum['handles'])
+   after=self._context();need(before==after,'OBSERVER_CONTEXT_CHANGED','INDETERMINATE')
+   final_enum=self._call('EnumWindows',{'max_windows':model['scope']['max_windows']},{'role':'observer'});need(set(final_enum['handles'])==set(enum['handles']),'ENUMERATED_WINDOW_SET_CHANGED','INDETERMINATE')
+   for hwnd,original in self.observed_windows.items():
+    final=self._window(hwnd);need(final==original,'ALL_CANDIDATE_WINDOW_CHANGED','INDETERMINATE');lifecycle.observe_window(final)
+   identity=candidates[0];proof=lifecycle.verify(identity,guard.first,guard.last_end,enum['handles'])
    need(not provider.handles and not guard.owned,'OWNED_HANDLE_LEAK','INDETERMINATE')
-   result={'artifact_kind':KIND,'status':'RESOLVED_OFFLINE_IDENTITY_ONLY','identity':identity,'identity_sha256':digest(identity),'scope_sha256':model['scope_sha256'],'provider_sha256':provider.identity,'witness':proof,'native_execution_authorized':False,'diagnostic_authorized':False,'independent_review_required':True,'gate2_final_status':FINAL_GATE,'atomic_snapshot':False,'trace':provider.calls,'model_sha256':digest(model),'no_auto_next':True}
+   result={'artifact_kind':KIND,'status':'RESOLVED_OFFLINE_IDENTITY_ONLY','identity':identity,'identity_sha256':digest(identity),'scope_sha256':model['scope_sha256'],'provider_sha256':provider.identity,'witness':proof,'native_execution_authorized':False,'diagnostic_authorized':False,'independent_review_required':True,'gate2_final_status':FINAL_GATE,'atomic_snapshot':False,'trace':copy.deepcopy(provider.calls),'model_sha256':digest(model),'no_auto_next':True}
   except Exception as exc:
    result={'artifact_kind':KIND,'status':getattr(exc,'state','INDETERMINATE'),'reason':str(exc),'error_type':type(exc).__name__,'traceback':traceback.format_exc(),'native_execution_authorized':False,'diagnostic_authorized':False,'independent_review_required':True,'gate2_final_status':FINAL_GATE,'no_retry':True,'no_resume':True,'no_auto_next':True,'trace':provider.calls if type(provider) is ScriptedWindowsProvider else []}
    if result['status'] not in {'BLOCKED','INDETERMINATE'}:result['status']='INDETERMINATE'
   if claimed:
+   if guard is not None:guard.terminal=True
    try:workspace.finish(result)
    except Exception as exc:result={'artifact_kind':KIND,'status':'INDETERMINATE','reason':'JOURNAL_OR_OUTPUT_UNKNOWN:'+str(exc),'native_execution_authorized':False,'diagnostic_authorized':False,'gate2_final_status':FINAL_GATE,'no_retry':True,'no_resume':True,'no_auto_next':True}
   return result
@@ -136,10 +141,11 @@ class OfflineIdentityCandidate:
   get=lambda kind:self._call('GetFileInformationByHandleEx',{'handle':handle,'class':kind},sub)
   ident=abi.file_id(get(18));standard=abi.file_standard(get(1));basic=abi.file_basic(get(0));basic.pop('access');return ident|standard|basic
  def _inspect(self,hwnd,witness):
-  s=self.model['scope'];p=s['policy'];before=self._window(hwnd)
+  s=self.model['scope'];p=s['policy'];before=self._window(hwnd);witness.observe_window(before);self.observed_windows[hwnd]=before
   if before['class_name']!=p['class_name']:return None
   sub={'role':'window','hwnd':hwnd,'pid':before['pid']};process=self._call('OpenProcess',{'pid':before['pid'],'desired_access':4096,'inherit':False},sub)
   ctime=abi.process_creation(self._call('GetProcessTimes',{'handle':process},sub));image=windows_path(abi.utf16(self._call('QueryFullProcessImageNameW',{'handle':process,'capacity':32768,'flags':0},sub),32768))
+  witness.observe_window(before|{'creation_filetime_100ns':ctime,'executable_path':image})
   if image!=p['executable_path']:self._call('CloseHandle',{'handle':process},sub);return None
   token_before=self._token(process,sub);file=self._call('CreateFileW',{'path':image,'desired_access':129,'share':7,'disposition':3,'flags':0x00200000},sub)
   final=windows_path(abi.utf16(self._call('GetFinalPathNameByHandleW',{'handle':file,'capacity':32768,'flags':0},sub),32768),extended=True);need(final==image,'EXECUTABLE_FINAL_PATH_MISMATCH')
@@ -159,5 +165,7 @@ class OfflineIdentityCandidate:
 def validate_review_ack(ack,result,model):
  exact(ack,{'artifact_kind','decision','identity_sha256','evidence_sha256','scope_sha256','tool_sha256','schema_sha256','diagnostic_authorized'})
  need(ack['artifact_kind']=='SYNTHETIC_REVIEW_ACK_NOT_EXECUTION_AUTHORITY' and ack['decision']=='INDEPENDENT_REVIEW_ONLY' and ack['diagnostic_authorized'] is False,'ACK_IS_NOT_EXECUTION_AUTHORITY')
- need(result['status']=='RESOLVED_OFFLINE_IDENTITY_ONLY' and ack['identity_sha256']==result['identity_sha256'] and ack['evidence_sha256']==digest(result) and ack['scope_sha256']==model['scope_sha256'] and ack['tool_sha256']==model['tool_sha256'] and ack['schema_sha256']==model['schema_sha256'],'REVIEW_ACK_IDENTITY_EVIDENCE_SCOPE_BINDING')
+ schema,pin=bound_schema();schema_check(model,schema);exact(model,MODEL_KEYS)
+ need(model['artifact_kind']==KIND and model['stage']=='IDENTITY_ONLY' and model['tool_sha256']==code_identity() and model['schema_sha256']==pin and digest(model['scope'])==model['scope_sha256'],'REVIEW_ACK_MODEL_BINDING')
+ need(result['artifact_kind']==KIND and result['status']=='RESOLVED_OFFLINE_IDENTITY_ONLY' and result['model_sha256']==digest(model) and result['scope_sha256']==model['scope_sha256'] and result['provider_sha256']==model['provider_sha256'] and digest(result['identity'])==result['identity_sha256'] and result['native_execution_authorized'] is False and result['diagnostic_authorized'] is False and result['gate2_final_status']==FINAL_GATE and ack['identity_sha256']==result['identity_sha256'] and ack['evidence_sha256']==digest(result) and ack['scope_sha256']==model['scope_sha256'] and ack['tool_sha256']==model['tool_sha256'] and ack['schema_sha256']==model['schema_sha256'],'REVIEW_ACK_IDENTITY_EVIDENCE_SCOPE_BINDING')
  return {'status':'REVIEW_ACK_BOUND_SYNTHETIC_ONLY','native_execution_authorized':False,'diagnostic_authorized':False,'gate2_final_status':FINAL_GATE}

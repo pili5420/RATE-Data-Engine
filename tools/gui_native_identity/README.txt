@@ -35,6 +35,11 @@ records under new dedicated private test roots. Partial or unknown outcomes
 remain non-resumable. No production ledger is opened. Path/reparse/hardlink and
 root replacement tests are not proof of Windows ACL security, directory-handle
 race resistance or power-loss durability; those remain future native blockers.
+The first durable attempt header also reserves its nonce even before the
+secondary nonce index exists. Strict scanning rejects reuse after that crash.
+Fixed initial/final bounded enumeration and all-window identity fences include
+excluded candidates; these are scheduled observations, never failure retries.
+ACK validation binds one exact model/result pair, including scope and provider.
 
 Sequential pre/post reads are not an atomic Windows GUI snapshot. Synthetic
 complete lifecycle provenance is never attributed to WinEvent/ETW. HWND has no

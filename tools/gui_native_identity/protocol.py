@@ -24,6 +24,9 @@ def decode(raw):
  need(canonical(x)==raw,'CANONICAL_JSON_REQUIRED');return x
 def code_identity():return digest({n:hashlib.sha256((HERE/n).read_bytes()).hexdigest() for n in RUNTIME_FILES})
 def schema_identity():return hashlib.sha256((HERE/'NATIVE_IDENTITY_SCHEMA_V1.json').read_bytes()).hexdigest()
+
+def bound_schema():
+ raw=(HERE/'NATIVE_IDENTITY_SCHEMA_V1.json').read_bytes();return json.loads(raw),hashlib.sha256(raw).hexdigest()
 def schema_check(value,node,root=None):
  root=node if root is None else root
  if '$ref' in node:return schema_check(value,root['$defs'][node['$ref'].split('/')[-1]],root)
@@ -50,11 +53,11 @@ def windows_path(value,extended=False):
  return str(p)
 MODEL_KEYS={'artifact_kind','stage','attempt_id','nonce','issued_tick_ns','expires_tick_ns','tool_sha256','schema_sha256','scope','scope_sha256','provider_sha256','witness_sha256','witness_pre_head','witness_final_head','workspace','evidence_root','journal_root'}
 def validate_model(x,workspace,provider_sha,witness_sha):
- schema_check(x,json.loads((HERE/'NATIVE_IDENTITY_SCHEMA_V1.json').read_bytes()))
+ schema,schema_sha=bound_schema();schema_check(x,schema)
  exact(x,MODEL_KEYS);need(x['artifact_kind']==KIND and x['stage']=='IDENTITY_ONLY','NO_LIVE_PERMIT_OR_DIAGNOSTIC_MODEL')
  for k in ['attempt_id','nonce']:need(type(x[k]) is str and re.fullmatch('SYNTHETIC-[A-Za-z0-9-]{8,96}',x[k]) is not None,'SYNTHETIC_ATTEMPT_NONCE_ONLY')
  need(integer(x['issued_tick_ns'],1) and integer(x['expires_tick_ns'],1) and x['issued_tick_ns']<x['expires_tick_ns'],'MODEL_TIME_WINDOW')
- need(x['tool_sha256']==code_identity() and x['schema_sha256']==schema_identity(),'EXACT_TOOL_SCHEMA_BINDING')
+ need(x['tool_sha256']==code_identity() and x['schema_sha256']==schema_sha,'EXACT_TOOL_SCHEMA_BINDING')
  s=x['scope'];exact(s,{'read_boundary','policy','observer','max_windows','max_file_bytes','chunk_bytes','max_calls','per_call_ms','total_ms'})
  need(canonical(s['read_boundary'])==canonical(SCOPE) and digest(s)==x['scope_sha256'],'EXACT_READ_SCOPE_BINDING')
  policy=s['policy'];exact(policy,{'host','session_id','desktop','observer_station','executable_path','executable_sha256','volume_serial','file_id','class_name','boot_id'})

@@ -34,6 +34,9 @@ class LifecycleWitness:
   need(digest(self.proof)==self.source_hash,'WITNESS_MUTATED')
   need(hwnd in self.groups,'MISSING_WINDOW_LIFECYCLE','INDETERMINATE');row=self.groups[hwnd][0]['identity']
   need(row['pid']==pid and row['tid']==tid and row['creation_filetime_100ns']==creation,'WINDOW_REUSE_OR_PROCESS_RESTART','INDETERMINATE');return row['window_epoch']
+ def observe_window(self,observation):
+  need(digest(self.proof)==self.source_hash,'WITNESS_MUTATED');events=self.groups.get(observation['hwnd'],[]);need(events,'MISSING_WINDOW_LIFECYCLE','INDETERMINATE')
+  first=events[0]['identity'];need(all(first.get(k)==v and type(first.get(k)) is type(v) for k,v in observation.items()),'ALL_CANDIDATE_WINDOW_WITNESS_MISMATCH','INDETERMINATE')
  def verify(self,identity,start,end,enumerated):
   need(digest(self.proof)==self.source_hash,'WITNESS_MUTATED')
   need(set(self.groups)==set(enumerated),'ENUMERATION_LIFECYCLE_SET_MISMATCH','INDETERMINATE')
