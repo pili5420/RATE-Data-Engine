@@ -13,8 +13,8 @@ import re
 
 VERSION='RATE_GUI_GATE2_OFFLINE_V1'
 PURPOSE='OFFLINE_SYNTHETIC_MODEL_NO_EXECUTION_AUTHORITY'
-BASELINE_SHA='3488a20b13021f7c9072f475c8bcfe7c5be703ff82eea847c0216d00fb8fc228'
-BASELINE_SCHEMA_SHA='4c55b48bc6eb5a9a9d4065a578be355764e5f2541d97089fdc0e35869bd29a02'
+TITLE_VALIDATOR_SHA='759d049b963287ac7897f0d086883d6aa42084db245566c39b5dcfe81e5f5c5a'
+TITLE_SCHEMA_SHA='4c55b48bc6eb5a9a9d4065a578be355764e5f2541d97089fdc0e35869bd29a02'
 HERE=Path(__file__).resolve().parent
 OUTPUT_PARENT=PureWindowsPath(r'D:\Codex\RATE-GUI-GATE2-RUNS')
 IDENTITY_KEYS={'host','session_id','desktop','observer_station','pid','creation_filetime_100ns','executable_path','executable_sha256','volume_serial','file_id','hwnd','tid','class_name','window_epoch'}
@@ -115,13 +115,18 @@ def lifecycle(proof,before,after):
     need(type(proof['lost_events']) is int and proof['lost_events']==0,'LIFECYCLE_LOSS_UNKNOWN')
     need(uint(proof['epoch_before']) and uint(proof['epoch_after']) and proof['epoch_before']==proof['epoch_after']==before['window_epoch']==after['window_epoch'],'WINDOW_REPLACEMENT_OR_REUSE','MISMATCH')
     need(type(proof['events']) is list and proof['events'],'MISSING_LIFECYCLE_EVIDENCE')
-    previous=0
+    previous=0;state='UNCREATED'
     for event in proof['events']:
         exact(event,{'sequence','kind','hwnd','epoch'});need(type(event['sequence']) is int and event['sequence']==previous+1,'LIFECYCLE_TRACE_GAP');previous=event['sequence']
         need(event['kind'] in {'CREATE','UNCHANGED','DESTROY'},'LIFECYCLE_EVENT_KIND')
         need(type(event['hwnd']) is int and event['hwnd']==before['hwnd'] and type(event['epoch']) is int and event['epoch']==before['window_epoch'],'WINDOW_REPLACEMENT_OR_REUSE','MISMATCH')
         need(event['kind']!='DESTROY','WINDOW_DESTROYED','MISMATCH')
-    need(proof['events'][0]['kind']=='CREATE','UNANCHORED_WINDOW_GENERATION')
+        if state=='UNCREATED':
+            need(event['kind']=='CREATE','UNANCHORED_WINDOW_GENERATION')
+            state='ALIVE'
+        else:
+            need(event['kind']=='UNCHANGED','DUPLICATE_CREATE_WINDOW_GENERATION_CONTRADICTION','MISMATCH')
+    need(len(proof['events'])>=2 and state=='ALIVE','MISSING_LIFECYCLE_INTERVAL_EVIDENCE','INDETERMINATE')
 
 class AttemptJournal:
     """Synthetic state only. Future native adapter needs durable exclusive intent."""
@@ -228,8 +233,8 @@ def validate_review_ack(ack,resolved,diagnostic_grant,now_ns):
     need(all(uint(v) for v in [ack['issued_ns'],ack['expires_ns'],now_ns]) and ack['issued_ns']<=now_ns<ack['expires_ns'],'REVIEW_ACK_TIME_WINDOW')
 
 def accepted_title_module():
-    source=HERE/'accepted_baseline'/'rate_readonly_gui_diag_v2.py';schema=HERE/'accepted_baseline'/'GUI_DIAGNOSTIC_EVIDENCE_SCHEMA_V2.json'
-    need(hashlib.sha256(source.read_bytes()).hexdigest()==BASELINE_SHA and hashlib.sha256(schema.read_bytes()).hexdigest()==BASELINE_SCHEMA_SHA,'ACCEPTED_TITLE_BASELINE_PIN_MISMATCH')
+    source=HERE/'title_validation_pure_v2.py';schema=HERE/'TITLE_EVIDENCE_SCHEMA_V2.json'
+    need(hashlib.sha256(source.read_bytes()).hexdigest()==TITLE_VALIDATOR_SHA and hashlib.sha256(schema.read_bytes()).hexdigest()==TITLE_SCHEMA_SHA,'ACCEPTED_TITLE_BASELINE_PIN_MISMATCH')
     spec=importlib.util.spec_from_file_location('accepted_title_pure',source);module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
     return module
 

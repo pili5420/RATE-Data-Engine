@@ -1,6 +1,7 @@
 {
   "blocking_defect": "RATE-GUI-AUTH-TARGET-001",
   "contract": "RATE_GUI_TARGET_IDENTITY_BINDING_CONTRACT_V1",
+  "corrective_revision": "PR72_ROUND2_OFFLINE_SECURITY_V2",
   "engineering_mode": "OFFLINE_SYNTHETIC_ONLY",
   "execution_authorized": false,
   "formal_execution_permits_created": 0,
@@ -15,6 +16,24 @@
     "for diagnostic: approved resolved PID+creation/HWND+TID+generation identity, resolution evidence SHA and independent review ACK"
   ],
   "gate2_final_status": "BLOCKED_PENDING_SEPARATE_IDENTITY_RESOLUTION_AND_REVIEW",
+  "legacy_isolation": "Original V1/V2 executable baseline and original142 tests relocated byte-identically into separately pinned external quarantine evidence; not present/importable in delivery. Original81 test source retained byte-identically; full223 run only in external synthetic regression workspace. Runtime loads only pinned pure title validator.",
+  "lifecycle_state_machine": {
+    "allowed_after_create": [
+      "UNCHANGED"
+    ],
+    "blocked": [
+      "duplicate CREATE including same HWND/TID/epoch",
+      "DESTROY",
+      "missing creation or interval sample",
+      "sequence gap/duplicate/reorder",
+      "unknown/lost/incomplete generation evidence"
+    ],
+    "first_event": "CREATE(sequence1)",
+    "initial": "UNCREATED",
+    "minimum_events": 2,
+    "real_witness": "NOT_IMPLEMENTED; synthetic trace is not real identity provenance",
+    "transition": "UNCREATED -> ALIVE exactly once"
+  },
   "native_implementation": "NOT_IMPLEMENTED_NOT_AUTHORIZED; no native Permit loader or transport exists in the new component.",
   "non_atomic": "All sequential reads remain non-atomic; change-and-return or later changes cannot be universally excluded. No atomic snapshot/continuous-state guarantee.",
   "original_halt_root_cause": "UNKNOWN",

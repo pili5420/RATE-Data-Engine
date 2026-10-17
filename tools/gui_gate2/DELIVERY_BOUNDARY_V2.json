@@ -1,0 +1,21 @@
+{
+  "allowed_entry": "identity_binding offline synthetic library functions only",
+  "deployment_authorized": false,
+  "external_legacy_archive_may_be_loaded": false,
+  "historical_tests": "Original81 source is unchanged engineering-only; original142 and native baseline are in external quarantine, never packaged. Full223 are rerun outside delivery with frozen pins.",
+  "native_execution_authorized": false,
+  "native_permit_loader": false,
+  "no_auto_next": true,
+  "runtime_files": [
+    "identity_binding.py",
+    "title_validation_pure_v2.py",
+    "TITLE_EVIDENCE_SCHEMA_V2.json",
+    "TITLE_VALIDATION_PROVENANCE.json",
+    "TARGET_IDENTITY_BINDING_SCHEMA_V1.json",
+    "TARGET_IDENTITY_BINDING_CONTRACT_V1.json",
+    "AUTHORIZED_READ_BOUNDARY_CONTRACT_V1.json",
+    "DELIVERY_BOUNDARY_V2.json",
+    "README.txt"
+  ],
+  "version": "RATE_GUI_OFFLINE_DELIVERY_BOUNDARY_V2"
+}
