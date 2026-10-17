@@ -1,0 +1,55 @@
+{
+  "gate2_final": "BLOCKED",
+  "gates": [
+    {
+      "id": "RT-01",
+      "requirement": "Actual Windows x64/x86 compiler/ABI and all read API native glue",
+      "status": "BLOCKED_NOT_EXECUTED_NOT_AUTHORIZED"
+    },
+    {
+      "id": "RT-02",
+      "requirement": "Real DLL binding/dispatch and hard capability enforcement",
+      "status": "BLOCKED_NOT_EXECUTED_NOT_AUTHORIZED"
+    },
+    {
+      "id": "RT-03",
+      "requirement": "Trusted live Host/Boot/Session/Operator/Parent attestation",
+      "status": "BLOCKED_NOT_EXECUTED_NOT_AUTHORIZED"
+    },
+    {
+      "id": "RT-04",
+      "requirement": "Native lifecycle generation/full coverage/loss proof",
+      "status": "BLOCKED_NOT_EXECUTED_NOT_AUTHORIZED"
+    },
+    {
+      "id": "RT-05",
+      "requirement": "Production trust roots/signing/revocation/trusted UTC/live Permit",
+      "status": "BLOCKED_NOT_EXECUTED_NOT_AUTHORIZED"
+    },
+    {
+      "id": "RT-06",
+      "requirement": "Real owner/DACL/volume/directory-handle filesystem race proof",
+      "status": "BLOCKED_NOT_EXECUTED_NOT_AUTHORIZED"
+    },
+    {
+      "id": "RT-07",
+      "requirement": "Windows Job Object/native cancellation/descendant containment",
+      "status": "BLOCKED_NOT_EXECUTED_NOT_AUTHORIZED"
+    },
+    {
+      "id": "RT-08",
+      "requirement": "Power-loss/media durable ledger protocol",
+      "status": "BLOCKED_NOT_EXECUTED_NOT_AUTHORIZED"
+    },
+    {
+      "id": "RT-09",
+      "requirement": "Separate real target-limited Identity-Only execution authorization",
+      "status": "BLOCKED_NOT_EXECUTED_NOT_AUTHORIZED"
+    },
+    {
+      "id": "RT-10",
+      "requirement": "Independent real identity review ACK and distinct Diagnostic Grant",
+      "status": "BLOCKED_NOT_EXECUTED_NOT_AUTHORIZED"
+    }
+  ]
+}

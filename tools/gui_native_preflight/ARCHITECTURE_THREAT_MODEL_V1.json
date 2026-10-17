@@ -1,0 +1,37 @@
+{
+  "attacks": [
+    "ABI width/alignment/overflow/header alias/uninitialized tail",
+    "SID count/pointer/owner/lease and UTF16 surrogate/truncation",
+    "Signature role,realm,type,replay,revocation rollback,time expiry",
+    "Host/boot/session/operator/parent and generation divergence",
+    "Missing/reordered/duplicate/destroy lifecycle events and prefix/head divergence",
+    "Crash,overlapping nonce admission,unknown result and root races",
+    "Root reparse/inheritance/owner/ACL uncertainty and injected native provider"
+  ],
+  "automatic_diagnostic_promotion": false,
+  "limits": [
+    "Windows SDK headers/compiler unavailable;layout tests do not qualify real x86/x64 ABI",
+    "Post-receipt logical deadlines are not real native cancellation proof",
+    "Python child kill tests cover owned no-descendant fixture workers;not Windows Job Object containment",
+    "Signed data alone does not prove lifecycle completeness or real host/ACL trust",
+    "Only six read API wire candidates;remaining PR73 API glue requires future native engineering",
+    "Sequential reads are not an atomic snapshot;original HALT cause UNKNOWN",
+    "fsync/process-crash behavior is not power-loss durability"
+  ],
+  "native_qualification": "BLOCKED",
+  "pipeline": [
+    "Strict signed synthetic model/external scope + host + revocation pins",
+    "Public-only role-separated test trust;no signing or real Permit loader in runtime",
+    "Separate complete synthetic lifecycle oracle + signed witness + independent external head",
+    "Physical private synthetic root + synthetic ACL/directory identity design",
+    "Accepted PR73 exclusive admission/crash/nonce journal",
+    "Per-call exact API,args,fields,rights,subject + code/schema/time guard",
+    "Owned byte arenas:capacity/initialized length/lease/ABI pointer ranges;no native dereference",
+    "Observed target/user/Admin/High/file hash equality then synthetic result;separate ACK only"
+  ],
+  "trusted_assumptions": [
+    "Trusted exact source/interpreter and installed pinned crypto;not hostile in-process Python containment",
+    "Independent synthetic expected pins/oracle are test authorities only",
+    "No actual Windows GUI/API binding exists in this package"
+  ]
+}

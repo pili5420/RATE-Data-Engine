@@ -1,0 +1,8 @@
+{
+  "interpreter": "CPython 3.12.10 64-bit; -I -B -S",
+  "packages": [{"name": "cryptography", "version": "50.0.2", "purpose": "Synthetic-only Ed25519 verification and ephemeral test keys", "native_component": "PyCA compiled crypto extension; no Windows GUI binding"}],
+  "installation": "Preinstalled, no installation or network activity by package or tests",
+  "exact_installed_file_sha256": "Captured outside repository in final evidence DEPENDENCY_IDENTITY.json",
+  "runtime_qualification": "BLOCKED",
+  "windows_native_transport": "NOT_IMPLEMENTED_NOT_AUTHORIZED"
+}

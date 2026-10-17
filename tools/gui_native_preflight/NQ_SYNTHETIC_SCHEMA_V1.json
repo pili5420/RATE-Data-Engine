@@ -1,0 +1,252 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "artifact_kind": {
+      "const": "NQ_SYNTHETIC_IDENTITY_MODEL_NOT_LIVE_PERMIT"
+    },
+    "attempt_id": {
+      "maxLength": 4096,
+      "pattern": "SYNTHETIC-[A-Za-z0-9-]{6,84}",
+      "type": "string"
+    },
+    "diagnostic_authorized": {
+      "const": false
+    },
+    "expires_utc_ns": {
+      "maximum": 18446744073709551615,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "host_sha256": {
+      "maxLength": 4096,
+      "pattern": "[0-9a-f]{64}",
+      "type": "string"
+    },
+    "issued_utc_ns": {
+      "maximum": 18446744073709551615,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "issuer_sequence": {
+      "maximum": 18446744073709551615,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "native_execution_authorized": {
+      "const": false
+    },
+    "nonce": {
+      "maxLength": 4096,
+      "pattern": "SYNTHETIC-[A-Za-z0-9-]{6,84}",
+      "type": "string"
+    },
+    "realm": {
+      "const": "NQ_SYNTHETIC_TEST_REALM_NOT_PRODUCTION"
+    },
+    "revocation_epoch": {
+      "maximum": 18446744073709551615,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "revocation_sha256": {
+      "maxLength": 4096,
+      "pattern": "[0-9a-f]{64}",
+      "type": "string"
+    },
+    "schema_sha256": {
+      "maxLength": 4096,
+      "pattern": "[0-9a-f]{64}",
+      "type": "string"
+    },
+    "scope": {
+      "additionalProperties": false,
+      "properties": {
+        "abi": {
+          "enum": [
+            "win32",
+            "win64"
+          ],
+          "type": "string"
+        },
+        "boundary": {
+          "type": "object"
+        },
+        "evidence_root": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "journal_root": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "max_calls": {
+          "maximum": 64,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "per_call_ns": {
+          "maximum": 60000000000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "target": {
+          "additionalProperties": false,
+          "properties": {
+            "boot": {
+              "maxLength": 4096,
+              "type": "string"
+            },
+            "class_name": {
+              "maxLength": 4096,
+              "type": "string"
+            },
+            "creation": {
+              "maximum": 18446744073709551615,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "desktop": {
+              "maxLength": 4096,
+              "type": "string"
+            },
+            "executable_path": {
+              "maxLength": 4096,
+              "type": "string"
+            },
+            "executable_sha256": {
+              "maxLength": 4096,
+              "pattern": "[0-9a-f]{64}",
+              "type": "string"
+            },
+            "file_id": {
+              "maxLength": 4096,
+              "pattern": "[0-9a-f]{32}",
+              "type": "string"
+            },
+            "generation": {
+              "maximum": 18446744073709551615,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "host": {
+              "maxLength": 4096,
+              "type": "string"
+            },
+            "hwnd": {
+              "maximum": 18446744073709551615,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "operator_sid": {
+              "maxLength": 4096,
+              "type": "string"
+            },
+            "pid": {
+              "maximum": 18446744073709551615,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "session": {
+              "maximum": 18446744073709551615,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "station": {
+              "maxLength": 4096,
+              "type": "string"
+            },
+            "tid": {
+              "maximum": 18446744073709551615,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "host",
+            "boot",
+            "session",
+            "desktop",
+            "station",
+            "operator_sid",
+            "pid",
+            "creation",
+            "hwnd",
+            "tid",
+            "class_name",
+            "executable_path",
+            "executable_sha256",
+            "file_id",
+            "generation"
+          ],
+          "type": "object"
+        },
+        "total_ns": {
+          "maximum": 60000000000,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "boundary",
+        "abi",
+        "target",
+        "max_calls",
+        "per_call_ns",
+        "total_ns",
+        "evidence_root",
+        "journal_root"
+      ],
+      "type": "object"
+    },
+    "scope_sha256": {
+      "maxLength": 4096,
+      "pattern": "[0-9a-f]{64}",
+      "type": "string"
+    },
+    "stage": {
+      "const": "IDENTITY_ONLY"
+    },
+    "tool_sha256": {
+      "maxLength": 4096,
+      "pattern": "[0-9a-f]{64}",
+      "type": "string"
+    },
+    "transport_sha256": {
+      "maxLength": 4096,
+      "pattern": "[0-9a-f]{64}",
+      "type": "string"
+    },
+    "witness_anchor_sha256": {
+      "maxLength": 4096,
+      "pattern": "[0-9a-f]{64}",
+      "type": "string"
+    },
+    "workspace": {
+      "maxLength": 4096,
+      "type": "string"
+    }
+  },
+  "required": [
+    "artifact_kind",
+    "realm",
+    "stage",
+    "attempt_id",
+    "nonce",
+    "issuer_sequence",
+    "issued_utc_ns",
+    "expires_utc_ns",
+    "tool_sha256",
+    "schema_sha256",
+    "scope",
+    "scope_sha256",
+    "host_sha256",
+    "transport_sha256",
+    "revocation_epoch",
+    "revocation_sha256",
+    "witness_anchor_sha256",
+    "workspace",
+    "native_execution_authorized",
+    "diagnostic_authorized"
+  ],
+  "type": "object"
+}

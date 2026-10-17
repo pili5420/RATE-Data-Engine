@@ -1,0 +1,82 @@
+RATE Phase NQ - Offline native runtime preflight engineering
+
+This additive package is stacked on accepted PR #73 at
+17eef21312f8f355e254970274609ab9d15ca71e. It preserves every accepted
+source byte and mode. The original Gate 2 remains BLOCKED and the original
+HALT root cause remains UNKNOWN.
+
+Runtime entry: OfflinePreflight.run accepts only closed synthetic artifacts,
+a SyntheticTrust public-only test root and the exact MockNativeTransport type.
+There is no Windows DLL binder, native callable address, real Permit loader,
+live CLI, desktop/process enumeration or diagnostic activation path.
+NativeTransportUnavailable always rejects. Python in-process integrity is a
+trusted-interpreter assumption, not a sandbox against hostile Python code.
+
+The only CLI is run_offline_tests.py. It creates private synthetic directories
+and runs fixed, owned fixture children. Do not install this test CLI as a native
+service, launcher or production authorization component.
+
+ABI: win32 and win64 describe modeled Windows LLP64/default-pack layouts.
+ByteArena owns copied synthetic bytes, verifies native-width integer bounds,
+initialized ranges, SID pointer ownership, alignment, buffer leases and UTF-16
+code-unit counts. No pointer is dereferenced. Golden layout vectors are not
+actual Windows SDK compiler tests. SDK headers and x86/x64 compiler/runtime
+qualification are unavailable and remain BLOCKED. Six selected high-risk read
+API wire prototypes are implemented; the remaining PR #73 read API native glue,
+including actual file-handle identity acquisition, remains BLOCKED. Executable
+File ID, host/boot/session and parent identity are signed synthetic claims,
+not independently acquired native observations. File-content SHA is decoded
+and checked against the bound synthetic target. These limits must not be hidden
+by the offline acceptance result.
+
+Trust: PyCA cryptography 50.0.2 verifies Ed25519 with seven distinct roles.
+Tests generate ephemeral in-memory synthetic keys. Private keys are never
+serialized. Public roots and all signed artifacts have explicit synthetic,
+non-production purpose markers. There is no production trust provisioning.
+Exact tool/schema/scope/host/transport/revocation pins, an independent prefix
+and external lifecycle ACK bind each synthetic attempt. Issuer sequence and
+witness sequence are independent. The signed host attestation is an input
+fixture, not proof of a real parent, Administrator token or trusted clock.
+Review ACK cannot confer execution or diagnostic authority; revoked reviewers
+and promotion flags are rejected. It uses the admission's pinned revocation
+snapshot, not a live revocation service; reauthorization is required for any
+future runtime operation. No Diagnostic Grant is executable here.
+
+Witness: an independently signed witness and external ACK must exactly match
+a separately supplied finite synthetic complete-event oracle. Only one CREATE,
+then UNCHANGED events, with contiguous sequence, correct heads, identity and
+bounded ticks are admitted. Duplicate CREATE, DESTROY, loss, reordering, gaps,
+generation changes or unknown provenance fail closed. A signature or a native
+WinEvent/ETW source label does not establish losslessness. Actual event-source
+completeness is UNKNOWN. Sequential reads are not an atomic GUI snapshot.
+
+Containment: post-receipt logical deadlines and sealing are model checks only.
+Actual native cancellation, hard process resource limits and Windows Job Object
+descendant containment remain BLOCKED. Six owned fixture child processes test
+four abrupt crash points (after lock, attempt, claim, result), one timeout/kill
+and one clean secret-isolation case. The child never creates descendants and
+does not invoke native DLLs. No unrelated process is touched. Complete raw
+PID/command/exit/log evidence is preserved in private test roots.
+
+Journal/root: this package composes the byte-identical accepted PR #73 journal.
+Exclusive one-shot intent reserves attempt/nonce, partial state is UNKNOWN and
+prevents resume, retry and recovery. Root validation uses the accepted private
+test namespace. ACL/owner/DACL/directory-handle contracts are synthetic design
+vectors, never native ACL proof. Actual filesystem race resistance, independent
+durability and power-loss behavior remain unqualified. fsync and owned-process
+crash tests do not prove power-loss durability.
+
+Reproduction in the authorized Windows offline test environment:
+  <pinned Python 3.12> -I -B -S <source>/tools/gui_native_preflight/run_offline_tests.py
+    --output <fresh private evidence directory>
+The runner pins the preinstalled cryptography version and records its compiled
+crypto dependency separately from forbidden Windows GUI DLL dispatch. No
+dependency is installed or downloaded by the tool or tests.
+
+Final evidence must contain fresh 304 + 238 accepted regression tests, all new
+NQ tests, exact-source hashes, raw logs, independent clean-worktree review,
+protected before/after hashes and separate offline/runtime gate matrices.
+Skips, relaxed assertions and failure whitelists are forbidden. Mock PASS never
+authorizes runtime. Pagefile, production, original HALT, Campaign, Ledger and
+accepted PR #72/#73 are protected. No automatic next phase, merge, deploy,
+permit issuance/consumption or live identity/GUI operation is authorized.
