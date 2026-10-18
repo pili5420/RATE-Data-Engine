@@ -1,0 +1,93 @@
+{
+  "accepted_base_head": "7208a58e3b0eadc3ee910d508af04191b018a219",
+  "exact_commit_binding": "Final Git head bound by external review/evidence manifest, not a self-referential in-tree commit field",
+  "excluded": [
+    "runner_collect.ps1",
+    "NativeBackend",
+    "Permit Loader",
+    "Live target CLI",
+    "Production files"
+  ],
+  "execution_authorized": false,
+  "files": {
+    "tools/pagefile_limited_readonly_authorization/.gitattributes": {
+      "bytes": 14,
+      "sha256": "a79691a93b46e49ce460c26ef22afcc03d6eca1e63bf2edbc20e96159510f6c9"
+    },
+    "tools/pagefile_limited_readonly_authorization/CANDIDATE_SCHEMA_V1.json": {
+      "bytes": 1495,
+      "sha256": "00c4a3c299319a746927cf015a834451955b82eebc697f0df15ff23857331653"
+    },
+    "tools/pagefile_limited_readonly_authorization/ENGINEERING_CR_V1.json": {
+      "bytes": 1460,
+      "sha256": "3125893f09fc57c5eab9c953e470599dcfb1f84f091ce57dd5cd62378832ca80"
+    },
+    "tools/pagefile_limited_readonly_authorization/EXECUTION_SAFETY_CONTRACT_V1.json": {
+      "bytes": 1476,
+      "sha256": "2a68e847e24551909506ffc2ca19caef0d8571da5aaac4868614058ce2057b5d"
+    },
+    "tools/pagefile_limited_readonly_authorization/EXTERNAL_EVIDENCE_REQUEST_V1.json": {
+      "bytes": 16846,
+      "sha256": "2c672848c9a1df7b974ec005660f9be08604828acd98a7f8715f095257127309"
+    },
+    "tools/pagefile_limited_readonly_authorization/README.txt": {
+      "bytes": 3918,
+      "sha256": "83056ea53e7c6619e88fc4d43aeced8397b127dd764255f16835263c00768d32"
+    },
+    "tools/pagefile_limited_readonly_authorization/READ_SCOPE_V1.json": {
+      "bytes": 3582,
+      "sha256": "42a53bfdc24b7dc7b04074cee29864ce58682106acc2e1ded123cf5b32bc4859"
+    },
+    "tools/pagefile_limited_readonly_authorization/SOURCE_AUTHORITY_REVIEW_V1.json": {
+      "bytes": 2580,
+      "sha256": "cb290a3aa285ace2cfddfd6f7d5bf555ee3fbc0153516e67ab69e1ae6d2366c8"
+    },
+    "tools/pagefile_limited_readonly_authorization/SOURCE_GAP_SEPARATION_V1.json": {
+      "bytes": 1118,
+      "sha256": "f4ff1df01280550be9d98f3ed3aa94dcb523ad0ea71f705183e89dd46aa52242"
+    },
+    "tools/pagefile_limited_readonly_authorization/THREAT_MODEL_V1.json": {
+      "bytes": 2217,
+      "sha256": "6054f8b6030bb90425f7b1734d27dd83ebc2d091e7c51b5b19eef90e4a09f966"
+    },
+    "tools/pagefile_limited_readonly_authorization/UNISSUED_REQUEST_V1.json": {
+      "bytes": 1209,
+      "sha256": "6359e1ee1cb4af99bad479402d0afaa44fa30c676284e9b761fcc3e569d2227c"
+    },
+    "tools/pagefile_limited_readonly_authorization/candidate.py": {
+      "bytes": 10976,
+      "sha256": "14914dc6e29c0562191b8fbacea45c38f505d4eaacaf785bb6d9b38f49a175e2"
+    },
+    "tools/pagefile_limited_readonly_authorization/run_offline_tests.py": {
+      "bytes": 4086,
+      "sha256": "dd3ba075998bb479075805758c8f22cc07401bc69546a677257cf9152c0b04b4"
+    },
+    "tools/pagefile_limited_readonly_authorization/synthetic_fixtures.py": {
+      "bytes": 984,
+      "sha256": "f2630f9a839a203b27f9edc3fe749689562b5443be0fc05fd34f24f703535dc2"
+    },
+    "tools/pagefile_limited_readonly_authorization/test_candidate.py": {
+      "bytes": 12330,
+      "sha256": "e3c0d8901f48508d10a8d729b19ba7997b3c2069d4a0e74a7039a51515564e3d"
+    },
+    "tools/pagefile_limited_readonly_authorization/verify_bundle.py": {
+      "bytes": 2217,
+      "sha256": "67c15dcc816285c62653620cb3595cf93189ec01c50180b2644d7a112f5e941f"
+    },
+    "tools/pagefile_non_gui_evidence/EVIDENCE_DECISION_CONTRACT_V1.json": {
+      "bytes": 3840,
+      "sha256": "513130c7ab18fb6f8c31c444e606abe65760a6edc642c2f945595d4cf2b8dbd9"
+    },
+    "tools/pagefile_non_gui_evidence/EVIDENCE_SCHEMA_V1.json": {
+      "bytes": 1052,
+      "sha256": "2126fca45026a23bbe4be80f6a2b29a760ef6a38e470b3c33dab92c8f05bcbbd"
+    },
+    "tools/pagefile_non_gui_evidence/evidence.py": {
+      "bytes": 17377,
+      "sha256": "1279dfe85cd3685e7af081908235a969ee2172a6c021d4022c793284de6f5e70"
+    }
+  },
+  "manifest_self_exclusion": "Own exact bytes pinned by final Git head and external evidence SHA256; local manifest alone is not a trust root or authorization",
+  "native_transport": false,
+  "version": "PF_LRO_CLOSED_OFFLINE_BUNDLE_V1"
+}

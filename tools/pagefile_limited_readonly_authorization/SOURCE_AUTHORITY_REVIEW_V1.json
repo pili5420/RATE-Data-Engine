@@ -1,0 +1,15 @@
+{
+  "source_scope": "Microsoft primary documentation, original target unqueried",
+  "sources": [
+    {"url":"https://learn.microsoft.com/en-us/windows/win32/wmisdk/where-clause","fact":"WQL string constants escape literal backslash with another backslash; equality comparisons are case-insensitive.","candidate_application":"Only exact literal D filters are proposed; no dynamic Query/Filter or fallback. This does not qualify real target provider behavior."},
+    {"url":"https://learn.microsoft.com/en-us/powershell/module/cimcmdlets/get-ciminstance?view=powershell-7.5","fact":"Filter can narrow class instances; Property projection may still include key properties; InputObject can carry remote provenance.","candidate_application":"Fixed namespace/class/property/filter plan only, InputObject/remote/session forbidden. Projected records restricted to named fields; native provider internals unqualified."},
+    {"url":"https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-pagefilesetting","fact":"Configuration describes pagefile parameters at startup and changes may be deferred; differs from runtime usage.","candidate_application":"Do not infer per-drive 0/0 policy or boot-applied history."},
+    {"url":"https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-pagefileusage","fact":"Usage describes runtime pagefile allocation/use, not independent proof current configuration applied at boot.","candidate_application":"Retain raw values and units; no policy or boot-applied PASS."},
+    {"url":"https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-computersystem","fact":"AutomaticManagedPagefile is a system-wide Boolean setting.","candidate_application":"Not a per-D policy certificate."},
+    {"url":"https://learn.microsoft.com/en-us/windows/win32/wmisdk/access-to-wmi-namespaces","fact":"Namespace read, write and method permissions differ.","candidate_application":"Require externally reviewed least-privilege read rights; no enabling privileges/elevation/ACL changes."},
+    {"url":"https://learn.microsoft.com/en-us/dotnet/api/microsoft.win32.registrykey.opensubkey?view=net-9.0","fact":"OpenSubKey false specifies read-only access.","candidate_application":"Exact value read only; not proof of surrounding process containment or physical output security."}
+  ],
+  "review_limit":"Generic documentation and offline syntax reasoning do not prove target availability, provider identity, independent trust, cancellation, per-drive sizing policy or applied-state history.",
+  "source_gaps_closed":false,
+  "target_queries":0
+}

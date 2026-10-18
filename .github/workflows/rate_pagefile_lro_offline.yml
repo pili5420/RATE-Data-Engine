@@ -1,0 +1,44 @@
+name: RATE PF-LRO-001 offline contracts only
+on:
+  pull_request:
+    branches: [codex/pagefile-nongui-readonly-evidence-v1]
+    types: [opened, synchronize, reopened]
+    paths:
+      - tools/pagefile_limited_readonly_authorization/**
+      - .github/workflows/rate_pagefile_lro_offline.yml
+permissions:
+  contents: read
+env:
+  GIT_CONFIG_COUNT: '1'
+  GIT_CONFIG_KEY_0: core.autocrlf
+  GIT_CONFIG_VALUE_0: 'false'
+jobs:
+  offline-only:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'codex/pagefile-limited-readonly-authorization-v1' &&
+      github.event.pull_request.base.sha == '7208a58e3b0eadc3ee910d508af04191b018a219'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          submodules: false
+          lfs: false
+      - name: Pure offline synthetic and inherited regression; no collector
+        shell: pwsh
+        run: python -I -B -S tools/pagefile_limited_readonly_authorization/run_offline_tests.py --output "$env:RUNNER_TEMP/PF-LRO-offline-tests"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: pf-lro-offline-${{ matrix.os }}-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/PF-LRO-offline-tests
+          if-no-files-found: error
+          overwrite: false

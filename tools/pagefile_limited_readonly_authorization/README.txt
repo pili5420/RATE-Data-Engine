@@ -1,0 +1,19 @@
+RATE PF-LRO-001 Limited Read-Only Authorization Closure Candidate
+
+This is a STACKED branch based on accepted PR78 head 7208a58e3b0eadc3ee910d508af04191b018a219, NOT independent main-based work.
+Current mode: offline engineering and external evidence preparation only.
+Final recommendation: BLOCKED_EXTERNAL_EVIDENCE_REQUIRED. Do not issue, activate or consume a Read-Only Permit.
+
+candidate.py is a pure offline validator/design model. There is no native Windows transport, registry/CIM collector, provider callback, Permit loader/signer, target-output operation, Live CLI or activation path. SYNTHETIC_ONLY is the only candidate raw-input realm. Original-target and hosted-runner data are rejected; no relabeling or runner-guard removal is performed. No actual original target schema/collector is qualified by this package.
+
+Read READ_SCOPE_V1.json, EXECUTION_SAFETY_CONTRACT_V1.json and EXTERNAL_EVIDENCE_REQUEST_V1.json together. The plan specifies fixed local classes/fields, fixed literal D filters and a one-row CIM bound. Fixed Filter is a NEW reviewed design, not a change to PR78's runner tool and not a dispatched/qualified source. Any unavailable filter/provider/version must HALT without unfiltered fallback. Exact PagingFiles MultiString can contain other drives; this unavoidable raw-value collateral requires separate explicit approval and retention boundaries. WMI property projection does not attest provider-internal access.
+
+For machine administrators and independent reviewers: submit the twelve requested evidence categories in one complete externally authenticated bundle only after separate collection authorization. Each row specifies owner, authority, proof, collection/verification method, freshness and binding. Do not execute a collector, provision the target output root, change ACL/Pagefile/OS, reboot or obtain new host data under this engineering request. Where a trusted authority or current evidence is unavailable, return MISSING/UNQUALIFIED and preserve EXTERNAL_DEPENDENCY_BLOCKED. Historical hostname, SMBIOS UUID, Runner metadata, Registry strings, self-signed reports, hashes and local time alone do not establish independent trust.
+
+No original host identity or physical output root is populated in UNISSUED_REQUEST_V1.json. Actual nonce, attempt, deadline, issuer and signature remain null. Offline simulation does not reserve a nonce or write intent. review_external_submissions only verifies supplied byte hashes; PRESENT_UNQUALIFIED never means independently verified. It deliberately cannot manufacture external qualification or Permit authority. Formal issuer/root/revocation, genuine identity, physical file-handle/DACL/volume/race resistance, cancellation, trusted UTC and power-loss durability require separate externally evidenced qualification.
+
+PF-SOURCE-001 and002 remain BLOCKED and excluded from raw-only claims. PF-SOURCE-003 aliases canonical PF-TRUST-003 and is NOT excludable from actual reads. Original GUI Gate2 BLOCKED, HALT root cause UNKNOWN. All other unreleased runtime gates remain BLOCKED. Sequential reads are not atomic and endpoints cannot exclude ABA.
+
+run_offline_tests.py is an engineering test CLI only; never a target collector CLI. It runs synthetic/static tests with network/subprocess/ctypes/winreg blocked and writes solely to a fresh isolated engineering evidence directory. The audit hook and environment checks are not a hostile-code sandbox or a formal Permit. Full logs, test IDs, failures, source hashes and independent exact-head review are in the final external evidence package. BUNDLE_MANIFEST_V1.json binds exact candidate/tool/schema/scope/dependency bytes; the external final package binds the final Git head without a self-referential commit hash.
+
+Stop after offline review. No original-host query, Pagefile/OS modification, reboot, Production/Campaign/Ledger/HALT write, Merge/Deploy/Activation or automatic next stage.
