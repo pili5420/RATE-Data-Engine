@@ -1,0 +1,150 @@
+{
+  "contract": "RT04_MINIMUM_LIFECYCLE_EVIDENCE_V1",
+  "amends_accepted_contracts": false,
+  "original_target_qualified": false,
+  "requirements": [
+    {
+      "id": "R01",
+      "name": "Source Trust / Attestation",
+      "required_evidence": "Exact source implementation/configuration hash,independent root,Host/Boot and original-target coverage semantics,revocation and auditability.",
+      "available_windows_mechanism": "Signed binaries,platform attestation,provider identity can support provenance.",
+      "evidence_gap": "No concrete original-target source attests that every relevant window transition is emitted and recorded.",
+      "counterexample": "A genuine signature authenticates a signed incomplete stream.",
+      "independent_verification": "Independent source/vendor review plus attested source-to-journal semantics;not observer self-certification.",
+      "current_feasibility": "BLOCKED_ORIGINAL_TARGET",
+      "sources": [
+        "S05",
+        "S13",
+        "S14",
+        "S15"
+      ]
+    },
+    {
+      "id": "R02",
+      "name": "Pre-observation Readiness",
+      "required_evidence": "Attested source subscription/epoch+consumer readiness barrier before interval and creation,or independently trusted prior history.",
+      "available_windows_mechanism": "Hook/session registration and message-loop readiness are prospective mechanisms.",
+      "evidence_gap": "No creation-history bridge for an already-existing original target is supplied.",
+      "counterexample": "Window born before listener is absent from received CREATE stream.",
+      "independent_verification": "Verify source-side barrier,consumer readiness and clock/order relation;reject unbridged prior lifetime.",
+      "current_feasibility": "PARTIAL_MECHANISMS_NO_COMPLETE_PROOF",
+      "sources": [
+        "S01",
+        "S04"
+      ]
+    },
+    {
+      "id": "R03",
+      "name": "Creation-anchored Generation",
+      "required_evidence": "Nonreused source-generated generation committed at creation,linked to exact process/window instance.",
+      "available_windows_mechanism": "HWND and creator PID/TID;owner-side creation instrumentation for a cooperating owner.",
+      "evidence_gap": "No qualified generation source for original target;process creation is not window creation.",
+      "counterexample": "Same HWND/PID/TID/class after destroy+reuse.",
+      "independent_verification": "Verify independent creation anchor and lineage;never infer timestamp from HWND.",
+      "current_feasibility": "BLOCKED_ORIGINAL_TARGET",
+      "sources": [
+        "S03",
+        "S08",
+        "S09",
+        "S11"
+      ]
+    },
+    {
+      "id": "R04",
+      "name": "Complete Interval Certificate",
+      "required_evidence": "Exact authorized object/window universe including excluded candidates,begin/end,fences,coverage semantics,epochs and all creation/destruction transitions.",
+      "available_windows_mechanism": "Provider-specific event streams and owner journals can contribute evidence.",
+      "evidence_gap": "No independently justified original-target emission universe and full interval certificate.",
+      "counterexample": "Two observers agree on the same omitted event.",
+      "independent_verification": "Compare against independently trusted source/oracle and outside interval certificate;scope every object ID/child/domain.",
+      "current_feasibility": "BLOCKED_ORIGINAL_TARGET",
+      "sources": [
+        "S04",
+        "S05",
+        "S10"
+      ]
+    },
+    {
+      "id": "R05",
+      "name": "Loss / Gap / Reordering",
+      "required_evidence": "Source-generated order and loss detectability,epoch continuity,reentrancy resolution,buffer statistics and unknown policy.",
+      "available_windows_mechanism": "WinEvent queue order;application reentrancy control;ETW session statistics and consumption timestamps.",
+      "evidence_gap": "Zero transport counters cannot prove source emission;timestamp/completion order differs from causal source order.",
+      "counterexample": "Disabled event source yields zero recorded losses;completion reentrancy swaps order.",
+      "independent_verification": "Check sequence+chain+epochs+source semantics and all loss layers independently;unknown halts.",
+      "current_feasibility": "PARTIAL_DETECTION_NO_COMPLETENESS",
+      "sources": [
+        "S01",
+        "S02",
+        "S06",
+        "S07",
+        "S16"
+      ]
+    },
+    {
+      "id": "R06",
+      "name": "Host / Boot / Session / Desktop",
+      "required_evidence": "Independent current attestation and exact authorized Host/Boot/Session/Desktop/WindowStation per source/observer/interval.",
+      "available_windows_mechanism": "Context metadata and independently qualified platform attestation could contribute.",
+      "evidence_gap": "No current identity/attestation is collected;historical or sampled context alone is insufficient.",
+      "counterexample": "A valid stream from another boot or desktop is substituted.",
+      "independent_verification": "Cross-bind all signed source/interval/head/target records to external pins;require fresh scope-qualified evidence.",
+      "current_feasibility": "BLOCKED_RUNTIME_SOURCE",
+      "sources": [
+        "S15"
+      ]
+    },
+    {
+      "id": "R07",
+      "name": "Process / Window Binding",
+      "required_evidence": "PID+process creation FILETIME+executable path/hash/file identity,HWND+TID+class+generation,with trusted clock mapping.",
+      "available_windows_mechanism": "GetWindowThreadProcessId and GetProcessTimes give complementary process/window metadata.",
+      "evidence_gap": "These APIs alone do not provide window-generation provenance or continuity.",
+      "counterexample": "PID restart or generation substitution preserves numeric IDs.",
+      "independent_verification": "Validate entire process instance and creation anchor across all events and interval fences.",
+      "current_feasibility": "PARTIAL_METADATA_NO_GENERATION",
+      "sources": [
+        "S08",
+        "S09"
+      ]
+    },
+    {
+      "id": "R08",
+      "name": "Independent Evidence Heads",
+      "required_evidence": "Externally fixed initial sequence/head and final horizon/head,source/stream/scope digests and anti-fork ACK.",
+      "available_windows_mechanism": "Hash chains and signatures are implementable offline.",
+      "evidence_gap": "Head integrity does not establish whether the source emitted a complete stream.",
+      "counterexample": "Attacker rehashes/re-signs a contiguous incomplete stream.",
+      "independent_verification": "Compare independently supplied pins and full source universe;do not derive expected head from packet.",
+      "current_feasibility": "OFFLINE_CONTRACT_ONLY",
+      "sources": [
+        "S05",
+        "S07"
+      ]
+    },
+    {
+      "id": "R09",
+      "name": "Timeout / Crash / Unknown",
+      "required_evidence": "Bounded verified interval/deadline,durable one-shot intent,outcome/closure,external crash handling;unknown cannot resume/retry/fallback.",
+      "available_windows_mechanism": "Owner lifecycle messages and journals can support a separately qualified design.",
+      "evidence_gap": "Crash,power-loss,readiness and trusted-clock guarantees are not supplied by window callbacks.",
+      "counterexample": "Owner or observer dies between transition and journal commitment.",
+      "independent_verification": "Independent supervisor/storage/clock qualification;preserve partial state and consume failed attempt.",
+      "current_feasibility": "OFFLINE_MODEL_ONLY_NATIVE_BLOCKED",
+      "sources": [
+        "S12"
+      ]
+    },
+    {
+      "id": "R10",
+      "name": "Independent Reviewer ACK",
+      "required_evidence": "Separate reviewer binds exact source/scope/interval/heads/evidence and states qualification scope;no diagnostic grant implied.",
+      "available_windows_mechanism": "Independent engineering review is feasible;runtime ACK requires actual qualified evidence.",
+      "evidence_gap": "No original-target runtime evidence exists for review or execution authorization.",
+      "counterexample": "A signed ACK for synthetic or incomplete evidence is promoted to native PASS.",
+      "independent_verification": "Reproduce verification at exact head with separate roots and explicit scope;refuse cross-target/authority promotion.",
+      "current_feasibility": "ASSESSMENT_REVIEW_ONLY_RUNTIME_BLOCKED",
+      "sources": []
+    }
+  ]
+}

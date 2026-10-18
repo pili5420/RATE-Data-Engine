@@ -1,0 +1,42 @@
+{
+  "status": "PROPOSALS_ONLY_NOT_AUTHORIZED",
+  "preserve_original_safety_model": true,
+  "recommended_first_step": "Control Center selects either original-target vendor/source feasibility inquiry or an explicitly different cooperating target;do not relax lifecycle/identity requirements.",
+  "proposals": [
+    {
+      "cr": "RT04_VENDOR_SOURCE_EVIDENCE_REQUEST",
+      "responsible": "Control Center + original target owner/OS vendor",
+      "scope": "Documents/source guarantees,exact provider/schema/domain/epoch/generation/readiness/certificate acquisition;no native collection.",
+      "entry_evidence": [
+        "B01/B02 concrete source commitments",
+        "independent source review path"
+      ],
+      "approval_needed": "New explicit source investigation CR;any access beyond public documents separately approved."
+    },
+    {
+      "cr": "RT04_COOPERATING_OWNER_ALTERNATIVE_TARGET",
+      "responsible": "Control Center + fixture owner + independent witness security team",
+      "scope": "Approve alternative target and architecture;design all-path instrumentation and independent oracle/trust/closure.",
+      "entry_evidence": [
+        "Explicit target/safety-model change approval",
+        "Owner source review and exact object domain",
+        "No transfer to original target"
+      ],
+      "approval_needed": "Separate engineering CR first;any real GUI creation/observation needs its own explicit execution authorization."
+    },
+    {
+      "cr": "RT04_OS_WITNESS_DESIGN_REVIEW",
+      "responsible": "OS vendor + kernel/security reviewers + Control Center",
+      "scope": "Concrete source capability and attestation analysis only until distinct authority granted.",
+      "entry_evidence": [
+        "Documented HWND generation/completeness semantics",
+        "Independent attestation and verifier design",
+        "Threat model and deployment feasibility"
+      ],
+      "approval_needed": "Driver/hook/injection/privileged runtime or OS change is outside this task and remains prohibited."
+    }
+  ],
+  "native_qualification_authorized": false,
+  "permit_issued": false,
+  "no_auto_next": true
+}

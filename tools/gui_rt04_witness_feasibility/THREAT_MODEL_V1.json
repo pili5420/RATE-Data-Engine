@@ -1,0 +1,33 @@
+{
+  "assets": [
+    "Original target identity/lifecycle safety contract",
+    "Independent creation/generation/interval truth",
+    "Accepted PR72-76/source/evidence/HALT integrity",
+    "No-auto-next and authority separation"
+  ],
+  "attacker_capabilities": [
+    "Omit/reorder/replay/substitute local records",
+    "Rehash and genuinely sign an incomplete synthetic stream using its local role keys",
+    "Forge zero loss self-claims",
+    "Reuse HWND/PID/TID labels,change generation/epoch/host/boot/context",
+    "Promote signed assessment/review/test PASS into native authority"
+  ],
+  "model_trust_assumptions": [
+    "Independent immutable synthetic roots,oracle digest,scope,interval,pre/final heads and event count are separate inputs.",
+    "The finite oracle fully enumerates only its declared invented model;this assumption is NOT established for Windows.",
+    "Python interpreter/dependency and engineering test environment are trusted;not a hostile same-process sandbox."
+  ],
+  "boundaries": [
+    "No native collector/backend/Windows API invocation,driver/hook/injection or live input/permit loader.",
+    "Only ephemeral synthetic Ed25519 keys in tests;private keys never written.",
+    "Two observer agreement/signatures/hash chains alone cannot establish event emission completeness.",
+    "In-memory one-shot is a model,not durable runtime anti-replay/closure qualification.",
+    "Normal Python/PyCA compiled crypto executes;zero explicit native GUI/identity dispatch,not zero normal OS native code."
+  ],
+  "residual_risks": [
+    "No actual original target identity/source/trust/interval evidence obtained.",
+    "Non-atomic sequential observation;same endpoint values may conceal intervening lifecycle.",
+    "Host/boot/clock/ACL/containment/durability/formalPermit remain separately unqualified.",
+    "NO-GO is scoped to assessed/current concrete sources,not a universal impossibility claim."
+  ]
+}

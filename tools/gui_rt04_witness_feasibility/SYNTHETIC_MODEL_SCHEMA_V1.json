@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:rate:rt04:finite-model-only:v1",
+  "title": "Offline finite model ONLY;not a native evidence/Permit schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "oracle",
+    "observer_a",
+    "observer_b",
+    "certificate",
+    "review_ack"
+  ],
+  "properties": {
+    "oracle": {
+      "$ref": "#/$defs/envelope"
+    },
+    "observer_a": {
+      "$ref": "#/$defs/envelope"
+    },
+    "observer_b": {
+      "$ref": "#/$defs/envelope"
+    },
+    "certificate": {
+      "$ref": "#/$defs/envelope"
+    },
+    "review_ack": {
+      "$ref": "#/$defs/envelope"
+    }
+  },
+  "$defs": {
+    "envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "payload",
+        "signature"
+      ],
+      "properties": {
+        "role": {
+          "enum": [
+            "oracle",
+            "observer_a",
+            "observer_b",
+            "certifier",
+            "reviewer"
+          ]
+        },
+        "payload": {
+          "type": "object",
+          "description": "Role-specific closed payload,strict integers,bounds,immutable external scope/interval/head pins and relational rules are enforced by finite_model.py;no native source labels accepted."
+        },
+        "signature": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{128}$"
+        }
+      }
+    }
+  },
+  "x-runtime-qualification": "BLOCKED",
+  "x-limit": "Schema documents envelope shape only;the executable verifier enforces every role-specific closed schema and relational rule. Passing JSON Schema alone is insufficient."
+}
