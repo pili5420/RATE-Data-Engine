@@ -1,0 +1,93 @@
+{
+  "change_request": "PF-PERSONAL-001",
+  "enterprise_relaxation_matrix": [
+    {
+      "condition": "Independent host/asset authority",
+      "personal_treatment": "Owner declares exact host plus local context cross-checks",
+      "residual_risk": "Owner/local OS can be mistaken or compromised"
+    },
+    {
+      "condition": "Independent boot provenance",
+      "personal_treatment": "Local boot time before/after only",
+      "residual_risk": "Not a trusted boot epoch; restart/rollback races remain"
+    },
+    {
+      "condition": "Independent volume authority",
+      "personal_treatment": "Local D mapping plus volume identity before/after",
+      "residual_risk": "Mapping can change; no independent physical-disk attestation"
+    },
+    {
+      "condition": "Independent operator appointment",
+      "personal_treatment": "Owner confirms ownership/management and account SID",
+      "residual_risk": "SID/account is not proof of ownership or a separate principal"
+    },
+    {
+      "condition": "Independent trusted UTC",
+      "personal_treatment": "Bounded local Windows time; Owner confirms time window",
+      "residual_risk": "Clock adjustment/rollback/host compromise can defeat timing"
+    },
+    {
+      "condition": "Independent provider/source attestation",
+      "personal_treatment": "Exact source/tool hash and fixed fields; reviewed source",
+      "residual_risk": "Hash and metadata do not establish authentic provider or signed origin"
+    },
+    {
+      "condition": "Enterprise physical immutable/durable output",
+      "personal_treatment": "Dedicated folder, minimum rights, hashes, partial evidence retention",
+      "residual_risk": "No atomic snapshot, immutable storage or power-loss durability guarantee"
+    },
+    {
+      "condition": "Independent authorization issuer",
+      "personal_treatment": "Per-attempt explicit Owner confirmation; separate review still required",
+      "residual_risk": "Owner consent is unauthenticated human evidence, not enterprise Permit"
+    }
+  ],
+  "immutable_original_states": {
+    "GUI_Gate2": "BLOCKED",
+    "enterprise_G0": "BLOCKED",
+    "enterprise_evidence": "0/12 QUALIFIED",
+    "original_HALT_root_cause": "UNKNOWN",
+    "source_gaps": [
+      "PF-SOURCE-001",
+      "PF-SOURCE-002",
+      "PF-SOURCE-003"
+    ]
+  },
+  "independent_review_is_identity_attestation": false,
+  "labels": [
+    "LOCAL_OBSERVED",
+    "OWNER_CONFIRMED",
+    "CROSS_CHECKED",
+    "INDETERMINATE",
+    "UNAVAILABLE",
+    "INDEPENDENTLY_ATTESTED_NOT_ESTABLISHED"
+  ],
+  "labels_are_evidence_roles_not_increasing_security_ranks": true,
+  "observed_target_evidence_this_round": "NONE",
+  "original_external_evidence": "0/12 QUALIFIED",
+  "owner_can_refuse_or_stop_next_operation": true,
+  "risk_acknowledgements": [
+    "OWNER_DECLARATION_NOT_INDEPENDENT_PROOF",
+    "LOCAL_METADATA_CAN_BE_SPOOFED",
+    "LOCAL_CLOCK_NOT_TRUSTED_UTC",
+    "SEQUENTIAL_READS_NOT_ATOMIC",
+    "LOCAL_FS_NOT_POWER_LOSS_DURABLE",
+    "NO_ENTERPRISE_OR_GUI_PROMOTION",
+    "D_POLICY_AND_BOOT_APPLIED_NOT_PROVEN",
+    "NATIVE_CANCELLATION_NOT_QUALIFIED"
+  ],
+  "runtime_authorized": false,
+  "silent_periodic_reading": false,
+  "tiers": {
+    "ENTERPRISE_INDEPENDENT_ATTESTED": {
+      "authority": "Independent enterprise authorities and evidence; unchanged",
+      "substitutable_by_personal": false
+    },
+    "PERSONAL_OWNER_ATTESTED": {
+      "authority": "Owner expressly owns/manages and approves each operation",
+      "independent_identity": false,
+      "local_metadata_not_attestation": true
+    }
+  },
+  "version": "PF_PERSONAL_TRUST_MODEL_V1"
+}

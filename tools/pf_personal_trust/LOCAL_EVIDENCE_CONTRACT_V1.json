@@ -1,0 +1,187 @@
+{
+  "TPM": {
+    "allowed": "Three fixed initial-state booleans only; no methods",
+    "independent_hardware_attestation": false,
+    "no_GetTpm_whole_object": "Avoid OwnerAuth and other unapproved fields",
+    "optional": true,
+    "presence_if_unavailable": "UNAVAILABLE; never fabricated",
+    "readiness": "INDETERMINATE; these initial booleans do not prove TpmReady"
+  },
+  "always_unproven": [
+    "D_POLICY_NOT_PROVEN",
+    "BOOT_APPLIED_NOT_PROVEN"
+  ],
+  "configuration": "CONFIGURATION_OBSERVED means only returned setting parameters, not current effective policy",
+  "field_sources": {
+    "account": {
+      "api": "WindowsIdentity.GetCurrent.User.Value+Process.GetCurrentProcess.SessionId",
+      "authority": "Local OS/provider only; Owner context is OWNER_CONFIRMED; matching independent local projections can be CROSS_CHECKED but never independently attested",
+      "availability": "UNAVAILABLE_FOR_ORIGINAL_HOST_THIS_ROUND",
+      "class": "CURRENT_ACCOUNT",
+      "evidence_role": "LOCAL_OBSERVED only after a separately authorized actual read",
+      "fields": [
+        "UserSID",
+        "SessionId"
+      ],
+      "filter": null,
+      "max_rows": 1,
+      "namespace": "CURRENT_PROCESS"
+    },
+    "computer": {
+      "api": "Get-CimInstance",
+      "authority": "Local OS/provider only; Owner context is OWNER_CONFIRMED; matching independent local projections can be CROSS_CHECKED but never independently attested",
+      "availability": "UNAVAILABLE_FOR_ORIGINAL_HOST_THIS_ROUND",
+      "class": "Win32_ComputerSystem",
+      "evidence_role": "LOCAL_OBSERVED only after a separately authorized actual read",
+      "fields": [
+        "Name",
+        "AutomaticManagedPagefile"
+      ],
+      "filter": null,
+      "max_rows": 1,
+      "namespace": "ROOT/CIMV2"
+    },
+    "os": {
+      "api": "Get-CimInstance",
+      "authority": "Local OS/provider only; Owner context is OWNER_CONFIRMED; matching independent local projections can be CROSS_CHECKED but never independently attested",
+      "availability": "UNAVAILABLE_FOR_ORIGINAL_HOST_THIS_ROUND",
+      "class": "Win32_OperatingSystem",
+      "evidence_role": "LOCAL_OBSERVED only after a separately authorized actual read",
+      "fields": [
+        "CSName",
+        "Version",
+        "BuildNumber",
+        "LastBootUpTime"
+      ],
+      "filter": null,
+      "max_rows": 1,
+      "namespace": "ROOT/CIMV2"
+    },
+    "registry": {
+      "api": "RegistryKey.OpenBaseKey.Registry64.OpenSubKey(writable=False).GetValue(DoNotExpandEnvironmentNames)",
+      "authority": "Local OS/provider only; Owner context is OWNER_CONFIRMED; matching independent local projections can be CROSS_CHECKED but never independently attested",
+      "availability": "UNAVAILABLE_FOR_ORIGINAL_HOST_THIS_ROUND",
+      "class": "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management",
+      "evidence_role": "LOCAL_OBSERVED only after a separately authorized actual read",
+      "fields": [
+        "PagingFiles"
+      ],
+      "filter": null,
+      "max_rows": 1,
+      "namespace": "HKLM"
+    },
+    "settings": {
+      "api": "Get-CimInstance",
+      "authority": "Local OS/provider only; Owner context is OWNER_CONFIRMED; matching independent local projections can be CROSS_CHECKED but never independently attested",
+      "availability": "UNAVAILABLE_FOR_ORIGINAL_HOST_THIS_ROUND",
+      "class": "Win32_PageFileSetting",
+      "evidence_role": "LOCAL_OBSERVED only after a separately authorized actual read",
+      "fields": [
+        "Name",
+        "InitialSize",
+        "MaximumSize"
+      ],
+      "filter": "Name = 'D:\\\\pagefile.sys'",
+      "max_rows": 1,
+      "namespace": "ROOT/CIMV2"
+    },
+    "tpm": {
+      "api": "Get-CimInstance",
+      "authority": "Local OS/provider only; Owner context is OWNER_CONFIRMED; matching independent local projections can be CROSS_CHECKED but never independently attested",
+      "availability": "UNAVAILABLE_FOR_ORIGINAL_HOST_THIS_ROUND",
+      "class": "Win32_Tpm",
+      "evidence_role": "LOCAL_OBSERVED only after a separately authorized actual read",
+      "fields": [
+        "IsEnabled_InitialValue",
+        "IsActivated_InitialValue",
+        "IsOwned_InitialValue"
+      ],
+      "filter": null,
+      "max_rows": 1,
+      "namespace": "ROOT/CIMV2/Security/MicrosoftTpm"
+    },
+    "usage": {
+      "api": "Get-CimInstance",
+      "authority": "Local OS/provider only; Owner context is OWNER_CONFIRMED; matching independent local projections can be CROSS_CHECKED but never independently attested",
+      "availability": "UNAVAILABLE_FOR_ORIGINAL_HOST_THIS_ROUND",
+      "class": "Win32_PageFileUsage",
+      "evidence_role": "LOCAL_OBSERVED only after a separately authorized actual read",
+      "fields": [
+        "Name",
+        "AllocatedBaseSize",
+        "CurrentUsage",
+        "PeakUsage",
+        "TempPageFile"
+      ],
+      "filter": "Name = 'D:\\\\pagefile.sys'",
+      "max_rows": 1,
+      "namespace": "ROOT/CIMV2"
+    },
+    "volume": {
+      "api": "Get-CimInstance",
+      "authority": "Local OS/provider only; Owner context is OWNER_CONFIRMED; matching independent local projections can be CROSS_CHECKED but never independently attested",
+      "availability": "UNAVAILABLE_FOR_ORIGINAL_HOST_THIS_ROUND",
+      "class": "Win32_Volume",
+      "evidence_role": "LOCAL_OBSERVED only after a separately authorized actual read",
+      "fields": [
+        "DeviceID",
+        "DriveLetter",
+        "SerialNumber"
+      ],
+      "filter": "DriveLetter = 'D:'",
+      "max_rows": 1,
+      "namespace": "ROOT/CIMV2"
+    }
+  },
+  "global": "SYSTEM_WIDE_AUTOMATIC_SETTING_OBSERVED is not per-D policy",
+  "independent_attestation": "INDEPENDENTLY_ATTESTED_NOT_ESTABLISHED",
+  "inference_prohibitions": [
+    "0/0 does not prove D system-managed",
+    "Global True does not prove D policy",
+    "Missing instance is INDETERMINATE, never policy evidence",
+    "Registry string is corroboration/raw data only, never effective-policy proof",
+    "TPM flag/metadata/hash is not independent attestation"
+  ],
+  "labels": [
+    "LOCAL_OBSERVED",
+    "OWNER_CONFIRMED",
+    "CROSS_CHECKED",
+    "INDETERMINATE",
+    "UNAVAILABLE",
+    "INDEPENDENTLY_ATTESTED_NOT_ESTABLISHED"
+  ],
+  "query_limitations": "Get-CimInstance requested properties can return keys/system metadata. Future adapter must project and reject unexpected fields without serializing whole CIM objects. Deadlines here are modeled, not hard native cancellation.",
+  "raw_record": {
+    "API_unavailable": "Retain explicit status with null raw/digest; no fallback",
+    "base64": "Strict canonical bytes",
+    "canonical_UTF8_single_LF": true,
+    "duplicate_key": "REJECT",
+    "missing_record": "REJECT",
+    "sha256": "Digest of actual raw UTF8 bytes, not authentication",
+    "uint32_not_boolean": true
+  },
+  "realm_this_round": "OFFLINE_SYNTHETIC_NOT_HOST_EVIDENCE",
+  "record_order": [
+    "account_before",
+    "os_before",
+    "computer_before",
+    "volume_before",
+    "tpm",
+    "settings",
+    "usage",
+    "registry",
+    "account_after",
+    "os_after",
+    "computer_after",
+    "volume_after"
+  ],
+  "registry_collateral": "The single exact PagingFiles value may contain other-drive paths. Owner must explicitly accept its raw local capture. Do not read other registry values or disclose raw value publicly.",
+  "runtime": "RUNTIME_USAGE_OBSERVED means only returned usage/allocation fields",
+  "timestamps": "Local OS strings only; not trusted UTC; before/after consistency is not an atomic snapshot",
+  "tool_identity": {
+    "no_self_hash_promotion": true,
+    "signature": "NOT_SIGNED_NOT_INDEPENDENT_SOURCE_ATTESTATION",
+    "source": "Reviewed exact Git source and raw SHA256"
+  },
+  "version": "PF_PERSONAL_LOCAL_EVIDENCE_CONTRACT_V1"
+}
