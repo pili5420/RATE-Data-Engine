@@ -1,0 +1,65 @@
+{
+  "canonical": "UTF-8 canonical JSON (sorted keys, no spaces, ensure_ascii=False), exactly one LF; duplicate keys/floats rejected",
+  "mandatory_nonqualification": {
+    "NoAutoNext": true,
+    "boot_applied": "BOOT_APPLIED_NOT_PROVEN",
+    "d_policy": "D_POLICY_NOT_PROVEN",
+    "original_host_authorized": false,
+    "owner_consent_issued": false
+  },
+  "private_version": "PF_PERSONAL_002_NATIVE_PRIVATE_V1",
+  "public_identity_fields_forbidden": [
+    "UserSID",
+    "CSName",
+    "LastBootUpTime",
+    "DeviceID",
+    "SerialNumber",
+    "PagingFiles",
+    "raw_base64"
+  ],
+  "public_record_keys": [
+    "id",
+    "query",
+    "status",
+    "elapsed_ms",
+    "provider_availability",
+    "raw_sha256",
+    "raw_bytes",
+    "row_count",
+    "projection",
+    "hresult",
+    "error_recorded"
+  ],
+  "public_version": "PF_PERSONAL_002_RUNNER_PUBLIC_V1",
+  "realm": "RUNNER_ONLY_NOT_ORIGINAL_HOST_EVIDENCE",
+  "records": {
+    "count": 12,
+    "order": [
+      "account_before",
+      "os_before",
+      "computer_before",
+      "volume_before",
+      "tpm",
+      "settings",
+      "usage",
+      "registry",
+      "account_after",
+      "os_after",
+      "computer_after",
+      "volume_after"
+    ],
+    "query_contract_sha256": "f96d742c5da542e1f2cd99cc6d49cd1b751ac0cb999c10d159ecb3f283ec5bd3",
+    "query_ms_bound": 5000,
+    "raw_byte_bound_per_record": 16384,
+    "row_bound": 1,
+    "status": [
+      "OBSERVED",
+      "SOURCE_ABSENT",
+      "UNAVAILABLE",
+      "HALT"
+    ],
+    "total_ms_bound": 120000
+  },
+  "semantic_validator": "evidence_protocol.evaluate_private + check_public; exact-key/type/enumeration/consistency checks; schema alone grants no authority",
+  "version": "PF_PERSONAL_002_EVIDENCE_SCHEMA_V1"
+}
