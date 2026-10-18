@@ -156,3 +156,8 @@ class Tests(unittest.TestCase):
   p.w=types.SimpleNamespace(DWORD=lambda:types.SimpleNamespace(value=0));p.c=types.SimpleNamespace(byref=lambda v:v,get_last_error=lambda:0)
   with self.assertRaisesRegex(job.ContainmentError,'RELEASE_EXIT_CHANGED'):p.release_confirmed([{'handle':100,'exit_code':0}])
   self.assertEqual(closed,[]);self.assertEqual(p.handles,[100])
+ def test_wait_failed_preserves_raw_result_and_win32_error(self):
+  import types,job
+  p=self.close_provider(set());p.hp=100;p.k=types.SimpleNamespace(WaitForSingleObject=lambda h,t:0xffffffff)
+  with self.assertRaises(job.ContainmentError) as caught:p.wait_owned(.1)
+  self.assertEqual(caught.exception.raw_wait_result,0xffffffff);self.assertEqual(caught.exception.win32_error,6)

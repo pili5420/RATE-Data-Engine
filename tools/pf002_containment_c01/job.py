@@ -2,7 +2,7 @@
 import os,subprocess,time,threading,queue,sys,hashlib,json,types,shutil
 from pathlib import Path
 class ContainmentError(RuntimeError):
- def __init__(self,code,win32_error=None):super().__init__(code);self.win32_error=win32_error
+ def __init__(self,code,win32_error=None,raw_wait_result=None):super().__init__(code);self.win32_error=win32_error;self.raw_wait_result=raw_wait_result
 def checked_command(command,env):
  src=Path(__file__).resolve().parent
  fault=[sys.executable,'-I','-B','-S',str(src/'fault_worker.py')]
@@ -149,7 +149,7 @@ class WindowsJob:
   states=[]
   for index,h in enumerate(self.handles):
    wait=self.k.WaitForSingleObject(h,0);value=self.w.DWORD()
-   if wait not in (0,258):raise ContainmentError('HANDLE_STATE_UNKNOWN',self.c.get_last_error() if wait==0xffffffff else None)
+   if wait not in (0,258):raise ContainmentError('HANDLE_STATE_UNKNOWN',self.c.get_last_error() if wait==0xffffffff else None,wait)
    if not self.k.GetExitCodeProcess(h,self.c.byref(value)):raise ContainmentError('HANDLE_EXIT_UNKNOWN',self.c.get_last_error())
    states.append({'kind':'root' if index==0 else 'descendant','handle':int(h),'wait':wait,'exit_code':value.value})
   return {'root_exit_code':root_code.value,'active':active,'job_pids':self.pids(),'handles':states,'utc_ns':time.time_ns(),'monotonic_ns':time.monotonic_ns()}
@@ -161,7 +161,7 @@ class WindowsJob:
   released=[]
   for h,row in zip(list(self.handles),expected):
    wait=self.k.WaitForSingleObject(h,0)
-   if wait!=0:raise ContainmentError('RELEASE_UNSIGNALED_FORBIDDEN',self.c.get_last_error() if wait==0xffffffff else None)
+   if wait!=0:raise ContainmentError('RELEASE_UNSIGNALED_FORBIDDEN',self.c.get_last_error() if wait==0xffffffff else None,wait)
    value=self.w.DWORD()
    if not self.k.GetExitCodeProcess(h,self.c.byref(value)):raise ContainmentError('RELEASE_EXIT_UNKNOWN',self.c.get_last_error())
    if value.value!=row['exit_code']:raise ContainmentError('RELEASE_EXIT_CHANGED')
@@ -171,12 +171,12 @@ class WindowsJob:
   return released
  def wait_owned(self,seconds):
   result=self.k.WaitForSingleObject(self.hp,max(0,int(seconds*1000)))
-  if result not in (0,258):raise ContainmentError('WAIT_UNKNOWN',self.c.get_last_error() if result==0xffffffff else None)
+  if result not in (0,258):raise ContainmentError('WAIT_UNKNOWN',self.c.get_last_error() if result==0xffffffff else None,result)
   return result
  def confirm_handles(self,end):
   for h in self.handles:
    wait=self.k.WaitForSingleObject(h,max(0,int((end-time.monotonic())*1000)))
-   if wait!=0:raise ContainmentError('OWN_HANDLE_NOT_SIGNALED_WITHIN_BOUND',self.c.get_last_error() if wait==0xffffffff else None)
+   if wait!=0:raise ContainmentError('OWN_HANDLE_NOT_SIGNALED_WITHIN_BOUND',self.c.get_last_error() if wait==0xffffffff else None,wait)
  def close(self):
   rows=[]
   if self.job:

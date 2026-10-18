@@ -113,7 +113,9 @@ def run():
     while pending:
      e,v=pending.pop(0);j.emit(e,v)
    code=str(exc) if re.fullmatch('[A-Z_]{1,120}',str(exc)) else type(exc).__name__
-   j.emit('CASE_ABORT',{'status':'UNKNOWN','error_code':code,'win32_error':getattr(exc,'win32_error',None),'NoRetry':True,'NoResume':True})
+   winerror=getattr(exc,'win32_error',None)
+   if winerror is None:winerror=getattr(exc,'winerror',None)
+   j.emit('CASE_ABORT',{'status':'UNKNOWN','error_code':code,'win32_error':winerror,'raw_wait_result':getattr(exc,'raw_wait_result',None),'NoRetry':True,'NoResume':True})
    if job is not None:
     try:
      job.terminate_owned(126);j.emit('FAIL_CLOSED_OWN_JOB_TERMINATION',{'requested_exit':126,'job_name':job.job_name})
