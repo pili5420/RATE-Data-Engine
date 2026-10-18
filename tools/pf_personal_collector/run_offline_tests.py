@@ -5,6 +5,7 @@ SRC=Path(__file__).resolve().parent;ROOT=SRC.parent.parent;BASE=ROOT/'tools/pf_p
 def output(raw):
  p=Path(raw)
  if not p.is_absolute() or p!=p.resolve() or any(x in ('.','..') for x in re.split(r'[/\\]',raw)):raise ValueError('CANONICAL_ABSOLUTE')
+ if any(re.search(r'[:<>"|?*\x00-\x1f]',x) or x.endswith((' ','.')) for x in p.parts[1:]):raise ValueError('NO_ADS_OR_RESERVED_PATH')
  runner=Path(os.environ['RUNNER_TEMP']).resolve() if os.environ.get('GITHUB_ACTIONS')=='true' else None
  approved=runner is not None and p.is_relative_to(runner) and p!=runner
  if not approved:
