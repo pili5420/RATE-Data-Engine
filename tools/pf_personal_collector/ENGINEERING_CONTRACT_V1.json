@@ -10,7 +10,7 @@
     "qualification",
     "reproduction"
   ],
-  "network": "Parent only: signed OIDC request and four public official GitHub metadata GETs. Child has no remote sessions or inherited bearer. Do not report whole job network=0.",
+  "network": "Parent only: signed OIDC request and four public official GitHub metadata GETs. Child has no remote sessions or repository/OIDC-request credential; signed OIDC proof is delivered only by anonymous pipe. Do not report whole job network=0.",
   "no_retry_no_resume_no_fallback": true,
   "optional_tpm": "Unavailable only for typed missing provider status; no requery or privilege change.",
   "original_statuses": {

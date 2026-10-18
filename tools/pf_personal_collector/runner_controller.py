@@ -116,7 +116,7 @@ def run():
   'accepted_scope_sha256':hashlib.sha256((ROOT/'tools/pf_personal_trust/READ_SCOPE_V1.json').read_bytes()).hexdigest(),
   'runner_image_os':image_os,'runner_image_version':image_version,'python_version':'.'.join(map(str,sys.version_info[:3])),'python_bits':64 if sys.maxsize>2**32 else 32,
   'repository_token_permissions':'contents:read only; id-token:write only for provenance token minting, not repository writes',
-  'bearer_proof_is_machine_attestation':False,'native_child_inherited_GitHub_bearer':False})
+  'bearer_proof_is_machine_attestation':False,'native_child_inherited_repository_or_oidc_request_credential':False,'signed_oidc_proof_delivered_by_anonymous_pipe':True})
  save(public/'SOURCE_MANIFEST.json',sources())
  stage='NATIVE_PROCESS'
  try:
