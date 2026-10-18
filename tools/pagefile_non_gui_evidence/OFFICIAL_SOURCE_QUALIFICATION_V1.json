@@ -95,7 +95,7 @@
       "privilege_requirements": "Local namespace Enable Account/read-key rights,actual availability/security unqualified;no escalation or enabling SeCreatePagefilePrivilege",
       "configuration_semantics": "Local volume identifier,optional drive letter and serial metadata;legacy official documentation.",
       "runtime_semantics": "Only S03 directly describes Pagefile runtime;all other sources do not certify applied policy",
-      "known_limitations": "Actual class/provider availability must be qualified on target OS. Expected class Provider MS_VOLUME is a candidate to verify on hosted runner,not inferred from DLL name. Metadata is not physical-volume attestation;before/after equality cannot exclude ABA.",
+      "known_limitations": "Legacy documentation names Vdswmi.dll;class Provider qualifier is separately observed as MSVDS__PROVIDER in official artifact12123636561/run39093072871,Windows2022image20261012.333.1. Initial guessed MS_VOLUME was rejected and corrected,not allowed as a fallback. This runner-specific empirical profile is not a guarantee of target OS support or trust. Metadata is not physical-volume attestation;before/after equality cannot exclude ABA.",
       "fact_inference_distinction": "Configuration/runtime source facts are documented;limits and conservative decision rules are engineering inferences"
     },
     {

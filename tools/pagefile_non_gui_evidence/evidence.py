@@ -12,7 +12,7 @@ CLASSES = {
     'computer': ('Win32_ComputerSystem', ('Name', 'AutomaticManagedPagefile'), 'CIMWin32'),
     'boot': ('Win32_OperatingSystem', ('CSName', 'LastBootUpTime', 'Version', 'BuildNumber'), 'CIMWin32'),
     'product': ('Win32_ComputerSystemProduct', ('UUID',), 'CIMWin32'),
-    'volumes': ('Win32_Volume', ('DeviceID', 'DriveLetter', 'SerialNumber'), 'MS_VOLUME'),
+    'volumes': ('Win32_Volume', ('DeviceID', 'DriveLetter', 'SerialNumber'), 'MSVDS__PROVIDER'),
     'settings': ('Win32_PageFileSetting', ('Name', 'InitialSize', 'MaximumSize'), 'CIMWin32'),
     'usage': ('Win32_PageFileUsage', ('Name', 'AllocatedBaseSize', 'CurrentUsage', 'PeakUsage', 'TempPageFile'), 'CIMWin32'),
 }

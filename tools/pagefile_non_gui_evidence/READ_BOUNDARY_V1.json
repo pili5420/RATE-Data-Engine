@@ -34,7 +34,7 @@
         "DriveLetter",
         "SerialNumber"
       ],
-      "provider": "MS_VOLUME"
+      "provider": "MSVDS__PROVIDER"
     },
     "settings": {
       "class": "Win32_PageFileSetting",

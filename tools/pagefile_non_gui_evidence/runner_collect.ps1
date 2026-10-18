@@ -37,7 +37,7 @@ $definitions=@{
     computer=@{Class='Win32_ComputerSystem';Fields=@('Name','AutomaticManagedPagefile');Provider='CIMWin32'}
     boot=@{Class='Win32_OperatingSystem';Fields=@('CSName','LastBootUpTime','Version','BuildNumber');Provider='CIMWin32'}
     product=@{Class='Win32_ComputerSystemProduct';Fields=@('UUID');Provider='CIMWin32'}
-    volumes=@{Class='Win32_Volume';Fields=@('DeviceID','DriveLetter','SerialNumber');Provider='MS_VOLUME'}
+    volumes=@{Class='Win32_Volume';Fields=@('DeviceID','DriveLetter','SerialNumber');Provider='MSVDS__PROVIDER'}
     settings=@{Class='Win32_PageFileSetting';Fields=@('Name','InitialSize','MaximumSize');Provider='CIMWin32'}
     usage=@{Class='Win32_PageFileUsage';Fields=@('Name','AllocatedBaseSize','CurrentUsage','PeakUsage','TempPageFile');Provider='CIMWin32'}
 }

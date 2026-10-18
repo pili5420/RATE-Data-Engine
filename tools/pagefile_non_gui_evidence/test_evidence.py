@@ -146,6 +146,12 @@ class Contract(unittest.TestCase):
     def test_provider_mismatch(self):
         self.p['records'][0]['provider']='Other';self.unknown('QUERY_SCOPE_OR_PROVIDER')
 
+    def test_previously_assumed_volume_provider_is_not_accepted(self):
+        self.p['records'][3]['provider']='MS_VOLUME';self.unknown('QUERY_SCOPE_OR_PROVIDER')
+
+    def test_provider_dll_name_is_not_registration_identity(self):
+        self.p['records'][3]['provider']='Vdswmi';self.unknown('QUERY_SCOPE_OR_PROVIDER')
+
     def test_class_injection(self):
         self.p['records'][0]['class']='Win32_Process';self.unknown('QUERY_SCOPE_OR_PROVIDER')
 
