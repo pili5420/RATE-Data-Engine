@@ -1,0 +1,70 @@
+{
+  "base_head": "3b3107786da0a3ba54705f6b24ba7b68a2a056e6",
+  "files": {
+    ".gitattributes": {
+      "bytes": 14,
+      "sha256": "a79691a93b46e49ce460c26ef22afcc03d6eca1e63bf2edbc20e96159510f6c9"
+    },
+    "ENGINEERING_BOUNDARY.md": {
+      "bytes": 4410,
+      "sha256": "c2bdffc8f2e1ef6f8052d5a096b5abc681c4ab00f76c90758cc63ee574383e1e"
+    },
+    "EVIDENCE_SCHEMA_V1.json": {
+      "bytes": 3075,
+      "sha256": "b7ac9f506887f2a9c21750163b0829249903b8ab7644d77f21cd89b2e99e87fb"
+    },
+    "GITHUB_OIDC_JWKS_PINNED.json": {
+      "bytes": 5547,
+      "sha256": "5f8164c9696c27837ad18c5fe7c7022a433bd5390183e8ff15c74d82233270f4"
+    },
+    "canonical_file.py": {
+      "bytes": 9603,
+      "sha256": "2b6ef236a980789d663be8a64b60222ff446869312111e023e8d45c7b3d3a7fd"
+    },
+    "controller.py": {
+      "bytes": 14159,
+      "sha256": "6d459137192d4a456b5810abeda726a27e40448d5bec1f2a1b4c3aa6d45736ca"
+    },
+    "file_evidence.py": {
+      "bytes": 4314,
+      "sha256": "41ded9e0277512d2fa9db5ce97c4c01aab3edbf5eb9f2458bbbe9d65a73c1c65"
+    },
+    "http_evidence.py": {
+      "bytes": 6205,
+      "sha256": "156396f6b90988e4a99e773e186b4ceaef8c16c90c2877f3c320cadfe1fd0587"
+    },
+    "job.py": {
+      "bytes": 10345,
+      "sha256": "06f129b69bfe325ff8dd67596d853e9c6eaebd86f48b02816c2cb62d8f2f3f64"
+    },
+    "model.py": {
+      "bytes": 5538,
+      "sha256": "bdaaee4a003faee13e48bd833312412908b237d895cbde286ae96e96046156cb"
+    },
+    "normal_worker.py": {
+      "bytes": 2396,
+      "sha256": "0ab97348f3570756b57e1d1b67b768e53ff2ebeb3161b4f521d2dfc699e34069"
+    },
+    "probe.py": {
+      "bytes": 10542,
+      "sha256": "239b7aa2d8fcda31a7907ac0655f71c5ae8b17579def62c1eff8d50968dce98c"
+    },
+    "run_tests.py": {
+      "bytes": 3159,
+      "sha256": "ae9bbe79c7014d533fe12e521d4b65428022bbd14fc80f5162c471bfc035ce13"
+    },
+    "runner_proof.py": {
+      "bytes": 3855,
+      "sha256": "45ed8cef783caf57832b8e5b0a28cd2ff7dacc5552dff6adf4baeab8bbd2724b"
+    },
+    "source_loader.py": {
+      "bytes": 2043,
+      "sha256": "8af204fff14693031083ddb489a55a59b2d32adb2e52256e689aa4d151730db0"
+    },
+    "test_canonical.py": {
+      "bytes": 21116,
+      "sha256": "6c9b4cd22c752cca57e65c023ca92e5dbb9c0bf63742e8e723a7bb604465122e"
+    }
+  },
+  "version": "PF002_C04_CANONICAL_SOURCE_V1"
+}
