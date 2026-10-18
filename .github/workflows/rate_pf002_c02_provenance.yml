@@ -1,0 +1,84 @@
+name: RATE PF002 C02 owned Job provenance normal only
+on:
+  push:
+    branches: [codex/pf002-c02-job-member-provenance-v1]
+    paths:
+      - tools/pf002_c02_job_member_provenance/**
+      - .github/workflows/rate_pf002_c02_provenance.yml
+permissions:
+  contents: read
+env:
+  GIT_CONFIG_COUNT: '1'
+  GIT_CONFIG_KEY_0: core.autocrlf
+  GIT_CONFIG_VALUE_0: 'false'
+  PYTHONDONTWRITEBYTECODE: '1'
+jobs:
+  offline:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          submodules: false
+          lfs: false
+      - name: Inherited 108 offline regression; no native calls
+        shell: pwsh
+        run: python -I -B -S tools/pf_personal_collector/run_offline_tests.py --output "$env:RUNNER_TEMP/C02-offline/inherited"
+      - name: Five pure descriptor predicates; no CIM API
+        shell: pwsh
+        run: |
+          $result = & ./tools/pf_personal_collector/test_descriptor_policy.ps1
+          if (($result | ConvertFrom-Json).status -ne 'PASS') { throw 'PURE_DESCRIPTOR_FAILED' }
+          [IO.File]::WriteAllText("$env:RUNNER_TEMP/C02-offline/DESCRIPTOR_TEST_RESULT.json", $result + [char]10, [Text.UTF8Encoding]::new($false))
+      - name: Inherited C01 57 offline regression
+        shell: pwsh
+        run: python -I -B -S tools/pf002_containment_c01/run_tests.py --output "$env:RUNNER_TEMP/C02-offline/c01"
+      - name: New offline forensic boundary and decoder tests
+        shell: pwsh
+        run: python -I -B -S tools/pf002_c02_job_member_provenance/run_tests.py --output "$env:RUNNER_TEMP/C02-offline/new"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: c02-offline-${{ matrix.os }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/C02-offline
+          if-no-files-found: error
+          overwrite: false
+  native:
+    needs: offline
+    strategy:
+      fail-fast: false
+      matrix:
+        role: [qualification, reproduction]
+    runs-on: windows-2022
+    timeout-minutes: 6
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PF002_C02_PROFILE: SIGNED_HOSTED_RUNNER_JOB_FORENSICS_ONLY
+      PF002_ROLE: ${{ matrix.role }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          submodules: false
+          lfs: false
+      - name: Only one newly owned normal worker; bounded Job-only readonly identity
+        shell: pwsh
+        run: python -I -B -S tools/pf002_c02_job_member_provenance/controller.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: c02-native-${{ matrix.role }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/PF002-C02-${{ github.run_id }}-1-${{ matrix.role }}/public
+          if-no-files-found: error
+          overwrite: false

@@ -1,0 +1,58 @@
+{
+  "base_head": "5eb345159adc74b1be90a62965a99a6d112ccc57",
+  "files": {
+    ".gitattributes": {
+      "bytes": 14,
+      "sha256": "a79691a93b46e49ce460c26ef22afcc03d6eca1e63bf2edbc20e96159510f6c9"
+    },
+    "ENGINEERING_BOUNDARY.md": {
+      "bytes": 6038,
+      "sha256": "aada6511b1ec7caa7a93a395c4dafbc0c99e36414d871c487d961e60ccf752f4"
+    },
+    "EVIDENCE_SCHEMA_V1.json": {
+      "bytes": 1034,
+      "sha256": "ef21cebab66eed603573d4d8b8fb32f3fb4113b20f6126005d0fedd7dfc35768"
+    },
+    "GITHUB_OIDC_JWKS_PINNED.json": {
+      "bytes": 5547,
+      "sha256": "5f8164c9696c27837ad18c5fe7c7022a433bd5390183e8ff15c74d82233270f4"
+    },
+    "controller.py": {
+      "bytes": 11023,
+      "sha256": "fe18d91ac725679b42b52cbd1781a55ea4f97905038751e5591e0d9be6a40242"
+    },
+    "job.py": {
+      "bytes": 10345,
+      "sha256": "6de07d1036887bbe6d9228d734f2dc69a20a3548725020c2ebfef6948de6b63a"
+    },
+    "model.py": {
+      "bytes": 4514,
+      "sha256": "7b963f47c0eb7451fa13cf01013d77b7955ed96574e90bc59c6fdd7b7c7c18fc"
+    },
+    "normal_worker.py": {
+      "bytes": 2396,
+      "sha256": "19dc88323ead67db85c989e205785e2ee91a0a1810b55043e432aeaebb972c71"
+    },
+    "probe.py": {
+      "bytes": 10976,
+      "sha256": "c0a5849dc03b55057eea8bd67388000b30b22cea2eb455f024b5a87a3f0c94a4"
+    },
+    "run_tests.py": {
+      "bytes": 3159,
+      "sha256": "1544918660e03319e342f9c169741f29ab09cabb7e50ae03c5929f4c71e488cd"
+    },
+    "runner_proof.py": {
+      "bytes": 3842,
+      "sha256": "eafc6f0be706a275092e200fe776d3e740bebe2aa0ee4108f48f1c8b7151afeb"
+    },
+    "source_loader.py": {
+      "bytes": 1994,
+      "sha256": "b985b54abbb0ade2e9597b08cd15b7e181aa06e4f0896c8c646223a59837a874"
+    },
+    "test_forensics.py": {
+      "bytes": 11105,
+      "sha256": "f4adabbcb0f04ff4373a38a527839cf86c0eaa2e5c83035feca15dd95ac0de78"
+    }
+  },
+  "version": "PF002_C02_FORENSICS_SOURCE_V1"
+}
