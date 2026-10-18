@@ -215,7 +215,39 @@ class Tests(unittest.TestCase):
   v,op,events=self.make([Response(c.canonical({'value':OIDC}))])
   with patch.object(proof,'verify_token',side_effect=proof.Refused('CLAIM_sha')):
    with self.assertRaises(proof.Refused):c.authenticate(v,HEAD,RID,'qualification',src.closed(S))
-  self.assertEqual(len(op.requests),1);self.assertEqual(v.records[0]['fixed_request_stage'],'OIDC_TOKEN')
+  self.assertEqual(len(op.requests),1);self.assertEqual(v.records[0]['fixed_request_stage'],'OIDC_TOKEN');self.assertEqual(v.state,'HALTED')
+ def test_authenticate_binding_rejection_permanently_halts_transport(self):
+  selected=proof.check_claims(claims(),int(time.time()),HEAD,RID,'1')
+  v,op,e=self.make([Response(c.canonical({'value':OIDC})),Response(c.canonical({'id':12346}))])
+  with patch.object(proof,'verify_token',return_value=selected):
+   with self.assertRaises(proof.Refused):c.authenticate(v,HEAD,RID,'qualification',src.closed(S))
+  self.assertEqual(v.state,'HALTED')
+  with self.assertRaises(t.Rejected):v.fetch('PR86_BASE_REF')
+  self.assertEqual(len(op.requests),2)
+ def test_authenticate_bad_signature_permanently_halts_transport(self):
+  key=json.loads((S/'GITHUB_OIDC_JWKS_PINNED.json').read_bytes())['keys'][0]
+  def enc(raw):return base64.urlsafe_b64encode(raw).decode().rstrip('=')
+  header={'alg':'RS256','typ':'JWT','kid':key['kid']};size=len(proof.b64(key['n']))
+  token=enc(c.canonical(header))+'.'+enc(c.canonical(claims()))+'.'+enc(b'\0'*size)
+  v,op,e=self.make([Response(c.canonical({'value':token}))])
+  with self.assertRaisesRegex(proof.Refused,'RUNNER_SIGNATURE'):c.authenticate(v,HEAD,RID,'qualification',src.closed(S))
+  self.assertEqual(v.state,'HALTED')
+  with self.assertRaises(t.Rejected):v.fetch('RUN_RECORD')
+  self.assertEqual(len(op.requests),1)
+ def test_authenticate_ref_and_tree_rejection_are_terminal(self):
+  selected=proof.check_claims(claims(),int(time.time()),HEAD,RID,'1')
+  run={'id':int(RID),'head_sha':HEAD,'head_branch':proof.BRANCH,'event':'workflow_dispatch','display_title':'PF002-C04-R2 qualification','run_attempt':1,'path':src.WORKFLOW,'repository':{'id':1370145728,'full_name':proof.REPO}}
+  ref={'ref':'refs/heads/'+t.BASE_BRANCH,'object':{'type':'commit','sha':t.BASE}}
+  for stage in ('REF','TREE'):
+   current,prior=self.tree_fixture();r=copy.deepcopy(ref)
+   if stage=='REF':r['object']['sha']='a'*40
+   else:prior['tree'][0]['sha']='a'*40
+   v,op,e=self.make([Response(c.canonical(x)) for x in ({'value':OIDC},run,r,current,prior)])
+   with patch.object(proof,'verify_token',return_value=selected):
+    with self.assertRaises(proof.Refused):c.authenticate(v,HEAD,RID,'qualification',src.closed(S))
+   self.assertEqual(v.state,'HALTED')
+   with self.assertRaises(t.Rejected):v.fetch('OIDC_TOKEN')
+   self.assertEqual(len(op.requests),3 if stage=='REF' else 5)
  def test_bad_oidc_response_schema_never_reads_rest(self):
   v,op,events=self.make([Response(c.canonical({'value':OIDC,'extra':API}))])
   with self.assertRaisesRegex(proof.Refused,'OIDC_RESPONSE_SCHEMA'):c.authenticate(v,HEAD,RID,'qualification',src.closed(S))

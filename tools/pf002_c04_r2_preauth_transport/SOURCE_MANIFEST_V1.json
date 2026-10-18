@@ -21,8 +21,8 @@
       "sha256": "5f8164c9696c27837ad18c5fe7c7022a433bd5390183e8ff15c74d82233270f4"
     },
     "controller.py": {
-      "bytes": 10492,
-      "sha256": "f10ac8be73e1b98ebcf1a6fc3066146c30f3180351589c59fd23e5ec5633044f"
+      "bytes": 10660,
+      "sha256": "e383bf61c808b0f6dcfe2e14a98397eb16aa515198403fd2a1c0d06f21ca83f0"
     },
     "run_tests.py": {
       "bytes": 3100,
@@ -37,8 +37,8 @@
       "sha256": "9db3e96f444280998d59633a73c5ff4a18afb1aa225b47454e70530a42481e2d"
     },
     "test_preauth.py": {
-      "bytes": 25197,
-      "sha256": "39627b96e546d60cd878d04a4e06ff28e50539eb77efca281292c8a7d68d9847"
+      "bytes": 27521,
+      "sha256": "6a2ee4ed6f0c766625c29d5c09163923ab1c86fe3f56afd63c7c5d5a788ca786"
     },
     "transport.py": {
       "bytes": 8688,

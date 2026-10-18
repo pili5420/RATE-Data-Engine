@@ -30,6 +30,12 @@ def validate_context(env,name,version,argv):
  return role,head,rid
 
 def authenticate(t,head,rid,role,manifest,root=ROOT,now=None):
+ try:return _authenticate(t,head,rid,role,manifest,root,now)
+ except BaseException:
+  t.halt()
+  raise
+
+def _authenticate(t,head,rid,role,manifest,root=ROOT,now=None):
  response=t.fetch('OIDC_TOKEN');proof.need(type(response) is dict and set(response)=={'value'},'OIDC_RESPONSE_SCHEMA')
  token=response['value']
  claims=proof.verify_token(token,(root/'tools/pf002_c04_r2_preauth_transport/GITHUB_OIDC_JWKS_PINNED.json').read_bytes(),int(time.time()) if now is None else now,head,rid,'1')
