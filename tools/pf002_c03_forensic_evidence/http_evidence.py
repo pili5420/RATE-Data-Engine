@@ -28,7 +28,8 @@ class Transport:
  def __init__(self,head,runid,emit,opener=None):
   proof.need(type(head) is str and re.fullmatch('[0-9a-f]{40}',head) and type(runid) is str and runid.isascii() and runid.isdigit(),'REQUEST_CONTEXT')
   self.head=head;self.runid=runid;self.emit=emit;self.seen=set();self.records=[]
-  self.opener=opener if opener is not None else urllib.request.build_opener(NoRedirect())
+  # Never discover environment/system proxies (Windows discovery may read Registry).
+  self.opener=opener if opener is not None else urllib.request.build_opener(urllib.request.ProxyHandler({}),NoRedirect())
  def endpoint(self,stage,url):
   proof.need(stage in STAGES and type(url) is str,'FIXED_REQUEST_STAGE')
   u=urllib.parse.urlparse(url)

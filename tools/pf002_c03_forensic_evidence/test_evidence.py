@@ -210,3 +210,10 @@ class Tests(unittest.TestCase):
   self.assertEqual(ns['safe_halt'](model.Unknown('IMAGE_DISK_IDENTITY_CHANGED')), 'IMAGE_DISK_IDENTITY_CHANGED')
  def test_native_halt_error_attribute_not_exfiltrated(self):
   ns=self.controller_functions();exc=OSError('SECRET');exc.winerror='SECRET_VALUE';self.assertIsNone(ns['safe_native_error'](exc));exc.winerror=5;self.assertEqual(ns['safe_native_error'](exc),5)
+ def test_no_environment_or_registry_proxy_discovery(self):
+  actual=http.urllib.request.getproxies
+  def forbidden():raise AssertionError('SYSTEM_PROXY_DISCOVERY_FORBIDDEN')
+  http.urllib.request.getproxies=forbidden
+  try:t=http.Transport('a'*40,'123',lambda *a:None)
+  finally:http.urllib.request.getproxies=actual
+  self.assertFalse(any(getattr(h,'proxies',None) for h in t.opener.handlers))
