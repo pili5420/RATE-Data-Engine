@@ -1,9 +1,11 @@
 """Own-process fault worker. No host source reads; requires signed engineering proof."""
-import os,sys,time,json,subprocess
+import os,sys,time,json,subprocess,hashlib
 from pathlib import Path
 SRC=Path(__file__).resolve().parent
-sys.path.append(str(SRC))
-import runner_proof as p
+_raw=(SRC/'source_loader.py').read_bytes();_m=json.loads((SRC/'SOURCE_MANIFEST_V1.json').read_bytes())
+if _m['files']['source_loader.py']!={'bytes':len(_raw),'sha256':hashlib.sha256(_raw).hexdigest()}:raise ValueError('BOOTSTRAP_SOURCE_HASH')
+_ns={'__file__':str(SRC/'source_loader.py')};exec(compile(_raw,str(SRC/'source_loader.py'),'exec',dont_inherit=True),_ns)
+p=_ns['Loader'](SRC).load('runner_proof')
 def main():
  p.need(os.name=='nt' and len(sys.argv)==2 and sys.argv[1] in ('normal','crash','hang','descendant_hang'),'FIXED_FAULT_MODE')
  import msvcrt

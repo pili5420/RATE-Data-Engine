@@ -31,6 +31,12 @@ jobs:
       - name: Pure inherited and collector regression; native dispatch forbidden
         shell: pwsh
         run: python -I -B -S tools/pf_personal_collector/run_offline_tests.py --output "$env:RUNNER_TEMP/PF002-offline"
+      - name: Pure unpopulated CIM descriptor predicate tests; no source API calls
+        shell: pwsh
+        run: |
+          $result = & ./tools/pf_personal_collector/test_descriptor_policy.ps1
+          if (($result | ConvertFrom-Json).status -ne 'PASS') { throw 'PURE_DESCRIPTOR_TESTS_FAILED' }
+          [IO.File]::WriteAllText("$env:RUNNER_TEMP/PF002-offline/DESCRIPTOR_TEST_RESULT.json", $result + [char]10, [Text.UTF8Encoding]::new($false))
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

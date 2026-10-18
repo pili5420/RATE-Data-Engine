@@ -2,10 +2,13 @@
 import hashlib,json,os,re,sys,time,urllib.parse,urllib.request,shutil
 from pathlib import Path
 SRC=Path(__file__).resolve().parent;ROOT=SRC.parent.parent
-sys.path.append(str(ROOT/'tools/pf_personal_trust'));sys.path.append(str(SRC))
-import runner_proof as proof
-import personal_model as base
-from evidence_protocol import evaluate_private,check_public
+# Bootstrap from verified bytes, never SourceFileLoader or a pre-existing __pycache__.
+_manifest=json.loads((SRC/'SOURCE_MANIFEST_V1.json').read_bytes());_loader_raw=(SRC/'source_loader.py').read_bytes()
+if _manifest['files']['source_loader.py']!={'bytes':len(_loader_raw),'sha256':hashlib.sha256(_loader_raw).hexdigest()}:raise ValueError('BOOTSTRAP_SOURCE_HASH')
+_ns={'__file__':str(SRC/'source_loader.py')};exec(compile(_loader_raw,str(SRC/'source_loader.py'),'exec',dont_inherit=True),_ns)
+loader=_ns['Loader'](SRC)
+proof=loader.load('runner_proof');base=loader.load('personal_model');protocol=loader.load('evidence_protocol')
+evaluate_private,check_public=protocol.evaluate_private,protocol.check_public
 class NoRedirect(urllib.request.HTTPRedirectHandler):
  def redirect_request(self,*a,**k):raise proof.Refused('HTTPS_REDIRECT_FORBIDDEN')
 def fetch(url,headers=None,bound=1048576):
@@ -83,7 +86,7 @@ def failure_receipts(private):
    'fixed_source_error':v.get('message') if v.get('message') in fixed_codes else 'PROVIDER_DETAILS_PRIVATE_NOT_PUBLIC'})
  return {'realm':'RUNNER_ONLY_NOT_ORIGINAL_HOST_EVIDENCE','errors':rows,'private_details_publicly_retained':False}
 def one_process(command,private,env,token,deadline,descendant=False):
- from windows_job import WindowsJob
+ WindowsJob=loader.load('windows_job').WindowsJob
  job=WindowsJob()
  try:
   birth=job.launch(command,ROOT,env,private,token)

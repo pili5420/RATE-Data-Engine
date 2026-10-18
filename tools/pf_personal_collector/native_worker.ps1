@@ -50,6 +50,7 @@ try {
 $scopePath=[IO.Path]::Combine($PSScriptRoot,'..','pf_personal_trust','READ_SCOPE_V1.json');$sb=[IO.File]::ReadAllBytes($scopePath)
 if ((Hash256 $sb) -cne 'f96d742c5da542e1f2cd99cc6d49cd1b751ac0cb999c10d159ecb3f283ec5bd3') { throw 'ACCEPTED_SCOPE_CHANGED' }
 $scope=[Text.Encoding]::UTF8.GetString($sb) | Microsoft.PowerShell.Utility\ConvertFrom-Json -AsHashtable
+. ([IO.Path]::Combine($PSScriptRoot,'descriptor_policy.ps1')) # fixed pinned pure predicate, no dynamic target
 $root=[IO.Path]::GetFullPath($env:PF002_PRIVATE_ROOT)
 if ($env:PF002_ROLE -cnotin @('qualification','reproduction')) { throw 'FIXED_RUNNER_ROLE' }
 $runnerRoot=[IO.Path]::GetFullPath($env:PF002_RUNNER_ROOT)
@@ -105,7 +106,10 @@ foreach ($id in $scope.order) {
                 if ($rows.Count -ge 1) { throw 'SINGLE_ROW_BOUND' }
                 if ($instance.CimSystemProperties.Namespace.Replace('\','/') -ine $spec.namespace -or $instance.CimSystemProperties.ClassName -cne $spec.class) { throw 'RESPONSE_SOURCE_MISMATCH' }
                 foreach ($property in $instance.CimInstanceProperties) {
-                    if ($property.Name -cnotin $spec.fields -and ($property.Flags -band [Microsoft.Management.Infrastructure.CimFlags]::Key) -eq 0) { throw 'EXTRA_NONKEY_PROPERTY' }
+                    if ($property.Name -cnotin $spec.fields -and ($property.Flags -band [Microsoft.Management.Infrastructure.CimFlags]::Key) -eq 0) {
+                        # -Property leaves unpopulated class descriptors. Only explicit null metadata may be discarded.
+                        if (-not (UnrequestedDescriptorSafe ([long]$property.Flags) $property.Value)) { throw 'EXTRA_NONKEY_PROPERTY' }
+                    }
                 }
                 $row=@{}
                 foreach ($field in $spec.fields) {

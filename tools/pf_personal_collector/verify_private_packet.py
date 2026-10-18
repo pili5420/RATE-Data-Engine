@@ -8,7 +8,7 @@ The caller verifies the source manifest against the official Exact Git Head firs
 """
 import base64
 import hashlib
-import importlib.util
+import types
 import json
 import os
 from pathlib import Path
@@ -76,13 +76,15 @@ def read_sources(source):
     need(sha(base_raw)==BASE_SHA and sha(scope_raw)==SCOPE_SHA,'VERIFIER_ACCEPTED_BASE_UNCHANGED')
     return manifest_raw,entries,accepted
 
-def load_exact(name, path):
+def load_exact(name, path, expected_sha):
     need(name not in sys.modules,'VERIFIER_MODULE_ALREADY_LOADED')
-    spec=importlib.util.spec_from_file_location(name,path)
-    need(spec is not None and spec.loader is not None,'VERIFIER_MODULE_LOADER')
-    module=importlib.util.module_from_spec(spec)
+    # Execute the bytes we rehash, never a timestamp/hash-validated __pycache__ substitute.
+    raw=ordinary_file(path,1048576)
+    need(sha(raw)==expected_sha,'VERIFIER_COMPILED_SOURCE_HASH')
+    module=types.ModuleType(name)
+    module.__file__=str(path)
     sys.modules[name]=module
-    spec.loader.exec_module(module)
+    exec(compile(raw,str(path),'exec',dont_inherit=True),module.__dict__)
     need(Path(module.__file__).resolve()==path,'VERIFIER_MODULE_ORIGIN')
     return module
 
@@ -106,8 +108,8 @@ def run(argv):
     source=Path(__file__).resolve().parent
     manifest_raw,entries,accepted=read_sources(source)
     sys.addaudithook(audit)
-    base=load_exact('personal_model',accepted/'personal_model.py')
-    protocol=load_exact('evidence_protocol',source/'evidence_protocol.py')
+    base=load_exact('personal_model',accepted/'personal_model.py',BASE_SHA)
+    protocol=load_exact('evidence_protocol',source/'evidence_protocol.py',entries['evidence_protocol.py']['sha256'])
     packet_path=Path(packet_arg)
     need(packet_path.name=='PRIVATE_PACKET.json','VERIFIER_FIXED_PACKET_NAME')
     packet_raw=ordinary_file(packet_path,524288)

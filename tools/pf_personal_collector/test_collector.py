@@ -51,6 +51,9 @@ class CollectorTests(unittest.TestCase):
  def test_extra_cim_raw_property_rejected(self):
   p=f.packet();import synthetic_fixtures as old
   rows=old.rows(p,1);rows[0]['Extra']='secret';f.rows(p,1,rows);self.bad(p)
+ def test_required_requested_null_is_still_rejected(self):
+  p=f.packet();import synthetic_fixtures as old
+  rows=old.rows(p,1);rows[0]['CSName']=None;f.rows(p,1,rows);self.bad(p)
  def test_partial_truncated_duplicate_noncanonical_evidence(self):
   raw=f.wire(f.packet())
   for bad in (raw[:-4],b'{"a":1,"a":2}\n',json.dumps(f.packet()).encode(),raw+b'\n'):
@@ -156,3 +159,20 @@ class CollectorTests(unittest.TestCase):
  def test_versioned_schema_agrees_with_records_and_bounds(self):
   s=json.loads((SRC/'EVIDENCE_SCHEMA_V1.json').read_bytes());r=self.assess(f.packet())
   self.assertEqual(set(s['public_record_keys']),set(r['records'][0]));self.assertEqual(s['records']['order'],list(b.ORDER));self.assertEqual(s['records']['raw_byte_bound_per_record'],b.SCOPE['max_raw_bytes'])
+ def test_untracked_cache_rejected_by_closed_source_loader(self):
+  import source_loader as load
+  d=ENGINEERING_OUTPUT_ROOT/'cache_injection_fixture';d.mkdir();raw=b'value=1\n';(d/'safe.py').write_bytes(raw)
+  (d/'SOURCE_MANIFEST_V1.json').write_text(json.dumps({'files':{'safe.py':{'sha256':hashlib.sha256(raw).hexdigest(),'bytes':len(raw)}}}))
+  self.assertEqual(load.closed_bytes(d)['safe.py'],raw)
+  (d/'__pycache__').mkdir()
+  with self.assertRaisesRegex(ValueError,'NO_CACHE'):load.closed_bytes(d)
+ def test_verifier_compiles_pinned_bytes_ignoring_malicious_timestamp_cache(self):
+  import importlib.util,marshal,struct,sys
+  import verify_private_packet as v
+  d=ENGINEERING_OUTPUT_ROOT/'verifier_cache_fixture';d.mkdir();path=d/'safe.py';raw=b'value="SAFE"\n';path.write_bytes(raw)
+  cache=Path(importlib.util.cache_from_source(str(path)));cache.parent.mkdir()
+  malicious=compile('raise RuntimeError("MALICIOUS_CACHE_EXECUTED")',str(path),'exec')
+  cache.write_bytes(importlib.util.MAGIC_NUMBER+struct.pack('<III',0,int(path.stat().st_mtime),len(raw))+marshal.dumps(malicious))
+  name='pf002_exact_source_cache_test'
+  try:self.assertEqual(v.load_exact(name,path,hashlib.sha256(raw).hexdigest()).value,'SAFE')
+  finally:sys.modules.pop(name,None)
