@@ -1,0 +1,49 @@
+{
+  "files": {
+    ".gitattributes": {
+      "bytes": 14,
+      "sha256": "a79691a93b46e49ce460c26ef22afcc03d6eca1e63bf2edbc20e96159510f6c9"
+    },
+    "BASE_TREE_V1.json": {
+      "bytes": 136661,
+      "sha256": "68be12ee21c4cd6c6d63767791aa54f2f73c6f1685d9b4a154a655cf7cdf9cb6"
+    },
+    "ENGINEERING_CR_AND_BOUNDARY.md": {
+      "bytes": 5666,
+      "sha256": "961ec24aedff59bbafc6fbaa14798198a6fdc7044660ff2a19e00c5be58cba81"
+    },
+    "EVIDENCE_SCHEMA_V1.json": {
+      "bytes": 601,
+      "sha256": "5508ecfec44e914d70400f147194853b80bb404d79b327ce5b76e8fd0243c2e9"
+    },
+    "GITHUB_OIDC_JWKS_PINNED.json": {
+      "bytes": 5547,
+      "sha256": "5f8164c9696c27837ad18c5fe7c7022a433bd5390183e8ff15c74d82233270f4"
+    },
+    "controller.py": {
+      "bytes": 10492,
+      "sha256": "f10ac8be73e1b98ebcf1a6fc3066146c30f3180351589c59fd23e5ec5633044f"
+    },
+    "run_tests.py": {
+      "bytes": 3100,
+      "sha256": "f8ab4d00f8df21b8e9c36bdbc985b7d2116c95c342e008fe5652ea85ac100010"
+    },
+    "runner_proof.py": {
+      "bytes": 3849,
+      "sha256": "9b6173c45be300bd23ebc2d5e06badcb3b357c7cdc81fe9510af4e4a4db57175"
+    },
+    "source_integrity.py": {
+      "bytes": 3828,
+      "sha256": "9db3e96f444280998d59633a73c5ff4a18afb1aa225b47454e70530a42481e2d"
+    },
+    "test_preauth.py": {
+      "bytes": 25197,
+      "sha256": "39627b96e546d60cd878d04a4e06ff28e50539eb77efca281292c8a7d68d9847"
+    },
+    "transport.py": {
+      "bytes": 8688,
+      "sha256": "f4428b2cbfdb08f6a892ef9662a00682a517a6b10d231ddc36197cd5ec202dcb"
+    }
+  },
+  "version": "PF002_C04_R2_SOURCE_V1"
+}
