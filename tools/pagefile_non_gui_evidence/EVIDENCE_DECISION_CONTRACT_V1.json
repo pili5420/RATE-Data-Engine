@@ -1,5 +1,14 @@
 {
   "schema": "PAGEFILE_NON_GUI_DECISION_V1",
+  "candidate_contract_revision": 2,
+  "per_conclusion_binding_fields": [
+    "source_record_ids: exact applicable context and direct-source query IDs",
+    "evidence_binding: full observed identity,target_path,raw_packet_sha256,query_interval,clock and matching provider/class/field/time/raw-digest source_records",
+    "required_consistency: exact subclaim prerequisites",
+    "missing_evidence: subclaim-specific missing proof,including independent source/context trust and original-host authorization",
+    "reason: explicit subclaim outcome and limits"
+  ],
+  "D_config_corroboration_rule": "Missing or contradictory required Registry/CIM corroboration forces the D_config child to INDETERMINATE. Retained raw CIM values are unqualified facts,not a verified configuration subclaim. The top-level conflict result never overrides this child gate.",
   "shared_evidence_fields": [
     "Exact observed Host name+UUID,LastBootUpTime and Volume DeviceID+Serial+DriveLetter;independent trust remains unavailable",
     "Fixed query id/class/namespace/provider/field list",

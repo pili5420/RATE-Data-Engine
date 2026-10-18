@@ -202,6 +202,40 @@ def analyze(raw):
         result = 'CONFIG_RUNTIME_CONFLICT'; reason.append('CONFIG_PRESENT_RUNTIME_ABSENT_PENDING_REBOOT_NOT_PROVEN')
     elif config['InitialSize'] > 0 and not config['InitialSize'] <= usage['AllocatedBaseSize'] <= config['MaximumSize']:
         result = 'CONFIG_RUNTIME_CONFLICT'; reason.append('CONFIG_RUNTIME_SIZE_MISMATCH_PENDING_REBOOT_NOT_PROVEN')
+    config_corroborated = config is not None and registry.get(target) == (config['InitialSize'], config['MaximumSize'])
+    if not config_corroborated:
+        observations['D_config']['status'] = 'INDETERMINATE'
+    context_ids = [qid for qid in ORDER if qid.endswith(('_before', '_after'))]
+    direct_ids = {'global_policy': [], 'D_config': ['settings', 'registry'], 'D_runtime': ['usage'], 'D_system_managed': ['settings', 'usage', 'registry'], 'boot_applied': ['settings', 'usage', 'registry']}
+    requirements = {
+        'global_policy': ['Strict Boolean at both endpoints', 'Same observed Host/Boot/Volume context', 'SYSTEM_WIDE_ONLY; no per-drive inference'],
+        'D_config': ['Exact D volume and path', 'Strict CIM sizing values', 'Matching Registry literal size tokens required', 'Configuration intent is not runtime or boot application'],
+        'D_runtime': ['Exact D volume and path', 'Complete typed non-temporary Usage record', 'Runtime observation is not sizing policy or boot applicability'],
+        'D_system_managed': ['Authoritative per-drive policy semantics', 'Independent source and target context qualification', 'No 0/0, absent-instance or global=True inference'],
+        'boot_applied': ['Trusted configuration history across boot boundary', 'Independent applied-state certificate', 'LastBootUpTime and matching current values are insufficient'],
+    }
+    reasons = {
+        'global_policy': 'Observed self-reported system-wide Boolean only; no D policy or original-host qualification.',
+        'D_config': 'CIM configuration intent with matching literal Registry corroboration only; not applied-state proof.' if config_corroborated else 'D configuration subclaim is INDETERMINATE because required CIM/Registry corroboration is missing or contradictory; raw CIM values remain unqualified evidence.',
+        'D_runtime': 'Observed self-reported non-temporary D runtime Usage only; no policy or applied-state proof.' if usage else 'D runtime Usage is missing; no runtime subclaim is established.',
+        'D_system_managed': 'SOURCE_GAP: reviewed sources do not supply an authoritative per-drive policy certificate.',
+        'boot_applied': 'REBOOT_APPLICABILITY_UNPROVEN: current snapshots and OS restart time do not supply trusted configuration history or application proof.',
+    }
+    for name, observation in observations.items():
+        ids = [qid for qid in ORDER if qid in context_ids or qid in direct_ids[name]]
+        observation['source_record_ids'] = ids
+        observation['evidence_binding'] = {'identity': identity, 'target_path': packet['target_path'], 'raw_packet_sha256': common['raw_packet_sha256'], 'query_interval': common['query_interval'], 'clock': common['clock'], 'source_records': [row for row in common['provider_records'] if row['id'] in ids]}
+        observation['required_consistency'] = requirements[name]
+        observation['missing_evidence'] = ['INDEPENDENT_HOST_BOOT_VOLUME_SOURCE_ATTESTATION', 'ORIGINAL_TARGET_HOST_AUTHORIZATION']
+        if name == 'D_config' and not config_corroborated:
+            observation['missing_evidence'].append('MATCHING_REGISTRY_CIM_CONFIG_CORROBORATION')
+        if name == 'D_runtime' and usage is None:
+            observation['missing_evidence'].append('D_RUNTIME_USAGE')
+        if name == 'D_system_managed':
+            observation['missing_evidence'].append('AUTHORITATIVE_PER_DRIVE_POLICY_SOURCE')
+        if name == 'boot_applied':
+            observation['missing_evidence'].append('TRUSTED_CONFIG_HISTORY_AND_BOOT_APPLIED_CERTIFICATE')
+        observation['reason'] = reasons[name]
     return dict(common, status=result, observations=observations, missing_evidence=reason, reason='Limited observation is separate from D policy / boot-applied qualification; hashes and matching sequential reads do not supply authenticity, ABA exclusion or boot history.')
 
 

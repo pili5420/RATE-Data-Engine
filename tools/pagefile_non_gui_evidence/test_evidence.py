@@ -235,6 +235,32 @@ class Contract(unittest.TestCase):
         for field in ('identity','query_interval','clock','raw_packet_sha256','provider_records','missing_evidence','reason'):self.assertIn(field,r)
         self.assertEqual(len(r['provider_records']),11);self.assertFalse(r['identity']['trusted_host_boot_volume_attestation'])
 
+    def test_every_child_carries_explicit_evidence_and_reason(self):
+        r=self.result()
+        for name,child in r['observations'].items():
+            with self.subTest(child=name):
+                self.assertTrue(child['reason']);self.assertIsInstance(child['missing_evidence'],list);self.assertTrue(child['required_consistency']);self.assertTrue(child['source_record_ids'])
+                for key in ('identity','query_interval','clock','raw_packet_sha256'):self.assertEqual(child['evidence_binding'][key],r[key])
+                self.assertEqual(child['evidence_binding']['target_path'],'D:\\pagefile.sys')
+
+    def test_child_source_records_match_immutable_packet_digests(self):
+        r=self.result();records={x['id']:x for x in r['provider_records']}
+        for child in r['observations'].values():
+            self.assertEqual(child['evidence_binding']['source_records'],[records[qid] for qid in child['source_record_ids']])
+            self.assertTrue(all(x['raw_sha256'] for x in child['evidence_binding']['source_records']))
+
+    def test_registry_conflict_does_not_verify_config_child(self):
+        set_data(self.p,'registry',{'kind':'MultiString','PagingFiles':['D:\\pagefile.sys 1024 4096']})
+        child=self.result()['observations']['D_config'];self.assertEqual(child['status'],'INDETERMINATE');self.assertTrue(child['missing_evidence']);self.assertIn('contradictory',child['reason'])
+
+    def test_registry_missing_does_not_verify_config_child(self):
+        set_data(self.p,'registry',{'kind':'MultiString','PagingFiles':[]})
+        child=self.result()['observations']['D_config'];self.assertEqual(child['status'],'INDETERMINATE');self.assertIsNotNone(child['values']);self.assertTrue(child['missing_evidence'])
+
+    def test_runtime_child_missing_evidence_specific(self):
+        set_data(self.p,'usage',[]);child=self.result()['observations']['D_runtime']
+        self.assertEqual(child['status'],'INDETERMINATE');self.assertIn('D_RUNTIME_USAGE',child['missing_evidence']);self.assertTrue(child['reason'])
+
 
 class StaticBoundary(unittest.TestCase):
     def test_validator_has_no_os_collector(self):
