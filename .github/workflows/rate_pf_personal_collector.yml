@@ -1,0 +1,73 @@
+name: RATE PF-PERSONAL-002 hosted-runner read-only collector
+on:
+  push:
+    branches: [codex/pf-personal-readonly-collector-v1]
+    paths:
+      - tools/pf_personal_collector/**
+      - .github/workflows/rate_pf_personal_collector.yml
+permissions:
+  contents: read
+env:
+  GIT_CONFIG_COUNT: '1'
+  GIT_CONFIG_KEY_0: core.autocrlf
+  GIT_CONFIG_VALUE_0: 'false'
+  PYTHONDONTWRITEBYTECODE: '1'
+jobs:
+  offline:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          submodules: false
+          lfs: false
+      - name: Pure inherited and collector regression; native dispatch forbidden
+        shell: pwsh
+        run: python -I -B -S tools/pf_personal_collector/run_offline_tests.py --output "$env:RUNNER_TEMP/PF002-offline"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: pf002-offline-${{ matrix.os }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/PF002-offline
+          if-no-files-found: error
+          overwrite: false
+  native:
+    needs: offline
+    strategy:
+      fail-fast: false
+      matrix:
+        role: [qualification, reproduction]
+    runs-on: windows-2022
+    timeout-minutes: 6
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PF002_PROFILE: SIGNED_HOSTED_RUNNER_ENGINEERING_ONLY
+      PF002_ROLE: ${{ matrix.role }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          submodules: false
+          lfs: false
+      - name: Actual fixed local CIM Registry reads; never original-host evidence
+        shell: pwsh
+        run: python -I -B -S tools/pf_personal_collector/runner_controller.py
+      - name: Upload only fixed reviewed public evidence directory
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pf002-native-${{ matrix.role }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/PF-PERSONAL-002-${{ github.run_id }}-1-${{ matrix.role }}/public
+          if-no-files-found: error
+          overwrite: false

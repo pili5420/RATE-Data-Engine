@@ -1,0 +1,49 @@
+{
+  "original_host_execution": "NOT_AUTHORIZED",
+  "overall_runtime_safety": "BLOCKED",
+  "owner_consent": "NOT_ISSUED",
+  "subgates": [
+    {
+      "capability": "Fixed local readonly APIs, schema/field/row/byte bounds",
+      "evidence": "Source review, offline negatives, actual runner receipts",
+      "id": "RS-01",
+      "status": "PENDING_ACTUAL_RUNNER"
+    },
+    {
+      "capability": "Owned child and descendant Job cancellation",
+      "evidence": "Real own-child normal/crash/hang + held descendant handle + Job active=0",
+      "id": "RS-02",
+      "status": "PENDING_ACTUAL_RUNNER"
+    },
+    {
+      "capability": "External WMI provider hard cancellation",
+      "id": "RS-03",
+      "reason": "Provider processes are outside collector Job. OperationTimeoutSec and process kill are insufficient.",
+      "status": "BLOCKED"
+    },
+    {
+      "capability": "Physical output security against hostile same-token race/admin",
+      "id": "RS-04",
+      "reason": "Fresh roots/CreateNew/reparse checks and flush do not prove handle-bound DACL, race immunity or power-loss durability.",
+      "status": "BLOCKED"
+    },
+    {
+      "capability": "Original-host protection against stolen signed runner bearer",
+      "id": "RS-05",
+      "reason": "OIDC provenance is not machine attestation; no original-host authorization supplied.",
+      "status": "BLOCKED"
+    },
+    {
+      "capability": "Parent abnormal-death switch",
+      "id": "RS-06",
+      "reason": "Job kill-on-close configured; separately induced parent death not qualified by these tests.",
+      "status": "BLOCKED"
+    },
+    {
+      "capability": "Native outcome/attempt replay",
+      "evidence": "CreateNew intent + run_attempt=1 + exact head/branch/workflow + partial evidence preservation; unknown outcome stops.",
+      "id": "RS-07",
+      "status": "ENGINEERED"
+    }
+  ]
+}

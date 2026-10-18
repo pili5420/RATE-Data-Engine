@@ -1,0 +1,83 @@
+{
+  "base": "9cec01c262e9d0881432d08c2844924893612cee",
+  "files": {
+    ".gitattributes": {
+      "bytes": 14,
+      "sha256": "a79691a93b46e49ce460c26ef22afcc03d6eca1e63bf2edbc20e96159510f6c9"
+    },
+    "ENGINEERING_CONTRACT_V1.json": {
+      "bytes": 5064,
+      "sha256": "9a102a6e1e0758ce686493b9333c4b60559f425847052903119db7908eaba875"
+    },
+    "EVIDENCE_SCHEMA_V1.json": {
+      "bytes": 1734,
+      "sha256": "944613a630a45d87540a1396430918ab6b014ff6e0acfed9506a3c6949b163c9"
+    },
+    "FUTURE_OWNER_CONSENT_REQUIREMENTS.json": {
+      "bytes": 677,
+      "sha256": "afdca1b2aa6ab58faed3501b5c23490f45b0e4a9b35da2cdb19d87ffbbaaba67"
+    },
+    "GITHUB_OIDC_JWKS_PINNED.json": {
+      "bytes": 5547,
+      "sha256": "5f8164c9696c27837ad18c5fe7c7022a433bd5390183e8ff15c74d82233270f4"
+    },
+    "README.md": {
+      "bytes": 4387,
+      "sha256": "f6ffa1b58d99506afa057020477c3c94d1a30cb9218c315b618d261709dea2af"
+    },
+    "RUNTIME_SAFETY_MATRIX_V1.json": {
+      "bytes": 1861,
+      "sha256": "f8b9b2a3e17f58ac56ff8beef4aef56333c219325e70716f182b7ed7d7573955"
+    },
+    "evidence_protocol.py": {
+      "bytes": 13712,
+      "sha256": "e5bb453c0bdaf6faf99d0679feb2a99154692f0a0c7b14e9ed52606b150f1cd9"
+    },
+    "fault_leaf.py": {
+      "bytes": 782,
+      "sha256": "90987ec70940410225db613d75ed7e211421411e07485b7b21f2d864fe14e66e"
+    },
+    "fault_worker.py": {
+      "bytes": 1753,
+      "sha256": "7271a235fc85b2f88e88652a0ef9f2a4c3bddccd7b9fa0eed0a536c4b08f7965"
+    },
+    "native_worker.ps1": {
+      "bytes": 12957,
+      "sha256": "8eca968062a0c3f1908013daac70e88d6a22be09c3aa2a5c6805e2e08080f7dd"
+    },
+    "offline_fixtures.py": {
+      "bytes": 1171,
+      "sha256": "83cceee34f14492fc81f1cf61216281fbc46eb612690d79de403de8bfb9f9e33"
+    },
+    "run_offline_tests.py": {
+      "bytes": 4371,
+      "sha256": "3173b8766cc5bff0835a4d8462c5a53231fef535825b1d94d95a9c9199d36890"
+    },
+    "runner_controller.py": {
+      "bytes": 12273,
+      "sha256": "d60196cd54cef88f3cb4ec6d5b62b1eddabbcc2836e84ebf9940fbdb63f207b9"
+    },
+    "runner_proof.py": {
+      "bytes": 3840,
+      "sha256": "4248bdb22f474e6808d8f4c6f9993d058dae80d63867507fdc93b8f15e42b76b"
+    },
+    "source_policy.py": {
+      "bytes": 1487,
+      "sha256": "d12935223a87fb0493531114f353c0b3ad8cde6aab82f14fcba5abe4ce622fa0"
+    },
+    "test_collector.py": {
+      "bytes": 10382,
+      "sha256": "2c2e58ac4ba1ad1c1c4f95dacbfc0c5eff5e5447cc4172583d8df6e30a9a1672"
+    },
+    "verify_private_packet.py": {
+      "bytes": 8378,
+      "sha256": "7a8535181af7c32e7feebee071f73185e89a9a95c276b7d08f82a74808378bee"
+    },
+    "windows_job.py": {
+      "bytes": 6881,
+      "sha256": "61578467718877e1e9a091102a065f9e1a3864efa436c33378800b6e616dee89"
+    }
+  },
+  "scope_sha256": "f96d742c5da542e1f2cd99cc6d49cd1b751ac0cb999c10d159ecb3f283ec5bd3",
+  "version": "PF_PERSONAL_002_SOURCE_V1"
+}
