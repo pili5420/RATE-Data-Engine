@@ -1,0 +1,10 @@
+{
+  "version": "PF002_C04_R2_PREAUTH_ONLY_V1",
+  "realm": "HOSTED_PREAUTH_ONLY_NOT_NATIVE_AUTHORITY",
+  "stages": ["OIDC_TOKEN", "RUN_RECORD", "PR86_BASE_REF", "CURRENT_TREE", "PR86_TREE"],
+  "http_record_fields": ["fixed_request_stage", "endpoint_host", "fixed_path_id", "http_status", "safe_error_category", "outcome", "github_request_id", "rate_limit_limit", "rate_limit_remaining", "rate_limit_reset", "retry_after_seconds"],
+  "never_export": ["response_body", "Authorization", "token", "JWT", "exception_text", "environment"],
+  "native_dispatches": 0,
+  "owned_jobs": 0,
+  "NoAutoNext": true
+}
