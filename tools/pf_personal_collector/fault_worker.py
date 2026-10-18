@@ -19,7 +19,8 @@ def main():
  if mode=='crash':return 7
  if mode=='descendant_hang':
   # Fixed test child only, inheriting this Job, no breakaway and no proof/credentials.
-  env={k:v for k,v in os.environ.items() if k in ('PATH','SystemRoot','SYSTEMROOT','WINDIR','TEMP','TMP')}
-  subprocess.Popen([sys.executable,'-I','-B','-S',str(SRC/'fault_leaf.py'),str(root),str(os.getpid())],env=env,stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,close_fds=True)
+  env={k:v for k,v in os.environ.items() if k in ('PATH','SystemRoot','SYSTEMROOT','WINDIR','TEMP','TMP','PF002_HEAD','PF002_RUN_ID','PF002_ROLE','PF002_RUNNER_ROOT')}
+  child=subprocess.Popen([sys.executable,'-I','-B','-S',str(SRC/'fault_leaf.py'),str(root),str(os.getpid())],env=env,stdin=subprocess.PIPE,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,close_fds=True)
+  child.stdin.write(b);child.stdin.close() # proof remains private on anonymous pipe; never ENV/argv/file
  while True:time.sleep(.1)
 if __name__=='__main__':raise SystemExit(main())

@@ -34,12 +34,12 @@
       "sha256": "e5bb453c0bdaf6faf99d0679feb2a99154692f0a0c7b14e9ed52606b150f1cd9"
     },
     "fault_leaf.py": {
-      "bytes": 782,
-      "sha256": "90987ec70940410225db613d75ed7e211421411e07485b7b21f2d864fe14e66e"
+      "bytes": 1246,
+      "sha256": "9f45bc6a9176c36f7c44bcf1510fb9aa4685b21301e1df9ace80925845067f4f"
     },
     "fault_worker.py": {
-      "bytes": 1753,
-      "sha256": "7271a235fc85b2f88e88652a0ef9f2a4c3bddccd7b9fa0eed0a536c4b08f7965"
+      "bytes": 1923,
+      "sha256": "3dffc06ec929eb50224e809af7defa29da8061121498b5b656bb215888de5e21"
     },
     "native_worker.ps1": {
       "bytes": 12957,
@@ -66,8 +66,8 @@
       "sha256": "d12935223a87fb0493531114f353c0b3ad8cde6aab82f14fcba5abe4ce622fa0"
     },
     "test_collector.py": {
-      "bytes": 10382,
-      "sha256": "2c2e58ac4ba1ad1c1c4f95dacbfc0c5eff5e5447cc4172583d8df6e30a9a1672"
+      "bytes": 11630,
+      "sha256": "a7cfb658781d92216b9010e71107a1a89db8eecab22fc0d2c9d3b1a52e35f5da"
     },
     "verify_private_packet.py": {
       "bytes": 8378,

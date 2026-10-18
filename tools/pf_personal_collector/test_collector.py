@@ -138,3 +138,21 @@ class CollectorTests(unittest.TestCase):
  def test_native_modules_do_not_import_fixtures_or_owner_loader(self):
   for name in ('runner_controller.py','native_worker.ps1','windows_job.py','fault_worker.py'):
    text=(SRC/name).read_text();self.assertNotIn('import offline_fixtures',text);self.assertNotIn('personal_model.consent(',text);self.assertNotIn('shell=True',text)
+ def test_fault_leaf_requires_signed_proof_before_writes(self):
+  text=(SRC/'fault_leaf.py').read_text();self.assertLess(text.index('proof.verify_token('),text.index(".open('xb')"));self.assertIn("'PF002_HEAD'",text)
+ def test_cancellation_failure_is_not_success(self):
+  from windows_job import WindowsJob,ContainmentError
+  class API:
+   def WaitForSingleObject(self,*a):return 258
+   def TerminateJobObject(self,*a):return False
+  job=WindowsJob.__new__(WindowsJob);job.k=API();job.hp=1;job.job=2
+  with self.assertRaisesRegex(ContainmentError,'CANCELLATION_FAILED'):job.wait(1)
+ def test_unknown_wait_state_is_not_success(self):
+  from windows_job import WindowsJob,ContainmentError
+  class API:
+   def WaitForSingleObject(self,*a):return 0xffffffff
+  job=WindowsJob.__new__(WindowsJob);job.k=API();job.hp=1
+  with self.assertRaisesRegex(ContainmentError,'WAIT_UNKNOWN'):job.wait(1)
+ def test_versioned_schema_agrees_with_records_and_bounds(self):
+  s=json.loads((SRC/'EVIDENCE_SCHEMA_V1.json').read_bytes());r=self.assess(f.packet())
+  self.assertEqual(set(s['public_record_keys']),set(r['records'][0]));self.assertEqual(s['records']['order'],list(b.ORDER));self.assertEqual(s['records']['raw_byte_bound_per_record'],b.SCOPE['max_raw_bytes'])
