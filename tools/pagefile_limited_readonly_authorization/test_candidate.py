@@ -113,6 +113,14 @@ class CandidateTests(unittest.TestCase):
   try:
    with self.assertRaises(ValueError):verify(root)
   finally:p.unlink()
+ def test_reference_dependency_package_sibling_rejected(self):
+  from tools.pagefile_limited_readonly_authorization.verify_bundle import check_package_siblings
+  for suffix in ['py','pyc','pyd','cp312-win_amd64.pyd','so']:
+   with self.assertRaises(ValueError):check_package_siblings(['pagefile_non_gui_evidence.'+suffix])
+ def test_reference_candidate_package_sibling_rejected(self):
+  from tools.pagefile_limited_readonly_authorization.verify_bundle import check_package_siblings
+  for suffix in ['py','pyc','pyd','cp312-win_amd64.pyd','so']:
+   with self.assertRaises(ValueError):check_package_siblings(['pagefile_limited_readonly_authorization.'+suffix])
  def test_safety_document_matches_code(self):
   self.assertEqual(json.loads((Path(c.__file__).parent/'EXECUTION_SAFETY_CONTRACT_V1.json').read_bytes()),c.offline_safety_contract())
  def test_candidate_schema_scope_identity(self):

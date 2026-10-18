@@ -15,6 +15,8 @@ prior=repo/'tools'/'pagefile_non_gui_evidence'
 for directory in [repo/'tools',prior,source]:
  if any(p.name.startswith('__init__.') for p in directory.iterdir()):raise SystemExit('PREIMPORT_NAMESPACE_INITIALIZER_FORBIDDEN')
 if any(p.name.startswith('tools.') for p in repo.iterdir()):raise SystemExit('PREIMPORT_ROOT_NAMESPACE_SHADOW')
+for stem in ('pagefile_non_gui_evidence','pagefile_limited_readonly_authorization'):
+ if any(p.name.startswith(stem+'.') for p in (repo/'tools').iterdir()):raise SystemExit('PREIMPORT_PACKAGE_SIBLING_SHADOW')
 if any(p.suffix.lower() in ('.pyd','.so','.dll','.pyc') for p in source.iterdir()):raise SystemExit('PREIMPORT_NATIVE_OR_COMPILED_INJECTION')
 sys.path.insert(0,str(source))
 from verify_bundle import verify,verify_reference_tree

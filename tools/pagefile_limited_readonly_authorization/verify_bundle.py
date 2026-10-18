@@ -11,6 +11,10 @@ REFERENCE_NAMES=('.gitattributes','ENGINEERING_CR_V1.json','evaluate_runner.py',
 def need(ok,reason):
  if not ok:raise ValueError(reason)
 
+def check_package_siblings(names):
+ for stem in ('pagefile_non_gui_evidence','pagefile_limited_readonly_authorization'):
+  need(not any(name.startswith(stem+'.') for name in names),'PACKAGE_SIBLING_SHADOW_FORBIDDEN:'+stem)
+
 def _verify(repo,reference_tree):
  repo=Path(repo);source=repo/'tools/pagefile_limited_readonly_authorization'
  manifest=json.loads((source/'BUNDLE_MANIFEST_V1.json').read_bytes())
@@ -26,6 +30,7 @@ def _verify(repo,reference_tree):
  for directory in [repo/'tools',dependency,source]:
   need(not any(p.name.startswith('__init__.') for p in directory.iterdir()),'NAMESPACE_INITIALIZER_FORBIDDEN')
  need(not any(p.name.startswith('tools.') for p in repo.iterdir()),'ROOT_NAMESPACE_SHADOW_FORBIDDEN')
+ check_package_siblings([p.name for p in (repo/'tools').iterdir()])
  if reference_tree:
   context=manifest['accepted_reference_context']
   need(set(context)==set(REFERENCE_NAMES),'ACCEPTED_REFERENCE_CONTEXT_SET')
