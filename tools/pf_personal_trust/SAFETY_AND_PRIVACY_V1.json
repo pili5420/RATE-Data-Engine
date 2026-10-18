@@ -1,0 +1,36 @@
+{
+  "actual_host_preparation": "NOT_EXECUTED",
+  "dedicated_folder_pattern": "D:\\RATE-Personal-Evidence\\<approved-attempt>",
+  "error_handling": [
+    "Preserve raw partial output and start/end/local clock limitations",
+    "Terminal HALT/UNKNOWN; no retry/resume/fallback/next attempt",
+    "Do not reuse stale or unknown consent"
+  ],
+  "future_physical_checks": [
+    "Owner approves exact destination",
+    "Fresh dedicated directory under local volume; no UNC/device/ADS/dot paths",
+    "Owner SID and existing DACL checked; no automatic ACL edit or ownership takeover",
+    "Reject symlink/junction/reparse anywhere in ancestors",
+    "Hold directory identity; detect volume/mapping/parent changes; fail closed on race/unknown",
+    "Exclusive new intent and files; never overwrite or cleanup failed partial evidence",
+    "Review disk space and least existing access; no automatic Administrator/UAC/SeCreatePagefilePrivilege"
+  ],
+  "lexical_model_is_physical_root_proof": false,
+  "no_auto_next": true,
+  "privacy": [
+    "No passwords, tokens, TPM OwnerAuth, private keys, command history or environment dump",
+    "Raw host/SID/volume/registry values remain private in approved folder",
+    "Evidence review produces a separate manually approved redacted public report; no automatic upload of target raw data",
+    "Redacted copies carry separate hashes and never replace originals"
+  ],
+  "rights": "Read current identity, fixed local CIM properties and Registry64 query-value only. No remote session, method invocation, writes, privilege enablement or arbitrary shell.",
+  "unproven": [
+    "OS/provider compromise",
+    "Atomic directory race containment",
+    "Independent clock",
+    "Power-loss durability",
+    "Native cancellation",
+    "Malicious Owner/administrator/interpreter resistance"
+  ],
+  "version": "PF_PERSONAL_SAFETY_V1"
+}

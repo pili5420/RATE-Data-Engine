@@ -1,0 +1,80 @@
+{
+  "CR": "PF-PERSONAL-001",
+  "NoAutoNext": true,
+  "acceptance": [
+    {
+      "gate": "PA-01",
+      "requirement": "Personal trust model with explicit reductions"
+    },
+    {
+      "gate": "PA-02",
+      "requirement": "Tier separation"
+    },
+    {
+      "gate": "PA-03",
+      "requirement": "Per-attempt Owner consent contract"
+    },
+    {
+      "gate": "PA-04",
+      "requirement": "Fixed read-only candidate and no dispatch"
+    },
+    {
+      "gate": "PA-05",
+      "requirement": "Strict raw/negative/safety evidence tests"
+    },
+    {
+      "gate": "PA-06",
+      "requirement": "Independent engineering review"
+    },
+    {
+      "gate": "PA-07",
+      "requirement": "Original GUI and source gaps unchanged"
+    },
+    {
+      "gate": "PA-08",
+      "requirement": "Original host not queried"
+    },
+    {
+      "gate": "PA-09",
+      "requirement": "New main-based Draft PR/exact head/evidence"
+    },
+    {
+      "gate": "PA-10",
+      "requirement": "Future separate Owner authorization requirements"
+    }
+  ],
+  "allowed_changes": [
+    "tools/pf_personal_trust/**",
+    ".github/workflows/rate_pf_personal_offline.yml"
+  ],
+  "architecture": [
+    "Pure personal_model validates fictional Owner contract and canonical raw observations",
+    "Fixed read plan is declarative; no native collector or callback",
+    "Synthetic fixtures and in-memory lifecycle fault model only",
+    "Source-manifest-first isolated offline regression harness",
+    "Independent clean-head review; private evidence package and read-only Windows/Linux CI"
+  ],
+  "authorization": "SCOPED_OFFLINE_CHANGE_REQUEST_ENGINEERING",
+  "base_main": "fbdfbfcf0a003cd6de49911bc0a784275a32031c",
+  "branch": "codex/pf-personal-owner-trust-v1",
+  "current_runtime": "NOT_IMPLEMENTED_NOT_AUTHORIZED",
+  "deliverable_capability": "Executable offline validation architecture plus non-executable native acquisition design. Not a runnable original-host collector.",
+  "not_claimed": [
+    "No native functional qualification",
+    "No real Owner consent produced",
+    "No target evidence obtained"
+  ],
+  "optional_runner_acquisition": "NOT_SELECTED_NOT_REQUIRED_FOR_OFFLINE_CONTRACT_ACCEPTANCE",
+  "original_states": {
+    "GUI_Gate2": "BLOCKED",
+    "enterprise_G0": "BLOCKED",
+    "enterprise_evidence": "0/12 QUALIFIED",
+    "original_HALT_root_cause": "UNKNOWN",
+    "source_gaps": [
+      "PF-SOURCE-001",
+      "PF-SOURCE-002",
+      "PF-SOURCE-003"
+    ]
+  },
+  "scope": "Alternative personal trust architecture; no enterprise G0 modification"
+}

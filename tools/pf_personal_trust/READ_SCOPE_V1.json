@@ -1,0 +1,126 @@
+{
+  "access": "EXISTING_TOKEN_READ_ONLY_NO_ENABLE_PRIVILEGES",
+  "fallback": false,
+  "local_only": true,
+  "max_raw_bytes": 16384,
+  "max_records": 12,
+  "native_transport": "NOT_IMPLEMENTED_NOT_AUTHORIZED",
+  "order": [
+    "account_before",
+    "os_before",
+    "computer_before",
+    "volume_before",
+    "tpm",
+    "settings",
+    "usage",
+    "registry",
+    "account_after",
+    "os_after",
+    "computer_after",
+    "volume_after"
+  ],
+  "queries": {
+    "account": {
+      "api": "WindowsIdentity.GetCurrent.User.Value+Process.GetCurrentProcess.SessionId",
+      "class": "CURRENT_ACCOUNT",
+      "fields": [
+        "UserSID",
+        "SessionId"
+      ],
+      "filter": null,
+      "max_rows": 1,
+      "namespace": "CURRENT_PROCESS"
+    },
+    "computer": {
+      "api": "Get-CimInstance",
+      "class": "Win32_ComputerSystem",
+      "fields": [
+        "Name",
+        "AutomaticManagedPagefile"
+      ],
+      "filter": null,
+      "max_rows": 1,
+      "namespace": "ROOT/CIMV2"
+    },
+    "os": {
+      "api": "Get-CimInstance",
+      "class": "Win32_OperatingSystem",
+      "fields": [
+        "CSName",
+        "Version",
+        "BuildNumber",
+        "LastBootUpTime"
+      ],
+      "filter": null,
+      "max_rows": 1,
+      "namespace": "ROOT/CIMV2"
+    },
+    "registry": {
+      "api": "RegistryKey.OpenBaseKey.Registry64.OpenSubKey(writable=False).GetValue(DoNotExpandEnvironmentNames)",
+      "class": "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management",
+      "fields": [
+        "PagingFiles"
+      ],
+      "filter": null,
+      "max_rows": 1,
+      "namespace": "HKLM"
+    },
+    "settings": {
+      "api": "Get-CimInstance",
+      "class": "Win32_PageFileSetting",
+      "fields": [
+        "Name",
+        "InitialSize",
+        "MaximumSize"
+      ],
+      "filter": "Name = 'D:\\\\pagefile.sys'",
+      "max_rows": 1,
+      "namespace": "ROOT/CIMV2"
+    },
+    "tpm": {
+      "api": "Get-CimInstance",
+      "class": "Win32_Tpm",
+      "fields": [
+        "IsEnabled_InitialValue",
+        "IsActivated_InitialValue",
+        "IsOwned_InitialValue"
+      ],
+      "filter": null,
+      "max_rows": 1,
+      "namespace": "ROOT/CIMV2/Security/MicrosoftTpm"
+    },
+    "usage": {
+      "api": "Get-CimInstance",
+      "class": "Win32_PageFileUsage",
+      "fields": [
+        "Name",
+        "AllocatedBaseSize",
+        "CurrentUsage",
+        "PeakUsage",
+        "TempPageFile"
+      ],
+      "filter": "Name = 'D:\\\\pagefile.sys'",
+      "max_rows": 1,
+      "namespace": "ROOT/CIMV2"
+    },
+    "volume": {
+      "api": "Get-CimInstance",
+      "class": "Win32_Volume",
+      "fields": [
+        "DeviceID",
+        "DriveLetter",
+        "SerialNumber"
+      ],
+      "filter": "DriveLetter = 'D:'",
+      "max_rows": 1,
+      "namespace": "ROOT/CIMV2"
+    }
+  },
+  "query_deadline_seconds": 5,
+  "remote": false,
+  "resume": false,
+  "retry": false,
+  "target": "D:\\pagefile.sys",
+  "total_deadline_seconds": 120,
+  "version": "PF_PERSONAL_READ_SCOPE_V1"
+}

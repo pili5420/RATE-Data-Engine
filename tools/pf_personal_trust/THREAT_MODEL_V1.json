@@ -1,0 +1,76 @@
+{
+  "adversaries": [
+    "Mistaken automation",
+    "consent replay",
+    "scope injection/remote substitution",
+    "corrupt or racing local observations",
+    "malicious local process/administrator (not solved by this tier)"
+  ],
+  "assets": [
+    "Owner control",
+    "read boundary",
+    "private raw evidence",
+    "immutable accepted enterprise/HALT states"
+  ],
+  "boundaries": [
+    [
+      "Owner statement -> contract",
+      "No authentication claim; grammar/binding checks only, synthetic in this build"
+    ],
+    [
+      "Local provider -> raw record",
+      "Fixed source/fields/rows/bytes/types/digest; unknown or contradiction fail closed"
+    ],
+    [
+      "Observation -> conclusion",
+      "No D-policy/boot-applied/enterprise/GUI promotion"
+    ],
+    [
+      "Engineering -> target runtime",
+      "No native adapter, consent loader, activation CLI, scheduler or provider callback"
+    ],
+    [
+      "Private raw -> external review",
+      "Manual disclosure approval and separate redacted derivatives"
+    ]
+  ],
+  "claims_excluded": [
+    "Live execution",
+    "Real consent authentication",
+    "Enterprise equivalence",
+    "Native enforcement",
+    "Atomicity/durable storage",
+    "Independent target identity"
+  ],
+  "failure_matrix": [
+    {
+      "case": "Absent/implicit/stale Owner consent",
+      "response": "REJECT before any operation"
+    },
+    {
+      "case": "Tool/scope/host/target/output mismatch",
+      "response": "REJECT"
+    },
+    {
+      "case": "API unavailable/missing instance/context mismatch",
+      "response": "INDETERMINATE; stop, no fallback"
+    },
+    {
+      "case": "Malformed/duplicate/noncanonical/type-confused/tampered bytes",
+      "response": "REJECT; preserve input in external engineering log"
+    },
+    {
+      "case": "Clock uncertainty/rollback/unknown outcome",
+      "response": "HALT; no trusted-time or restart inference"
+    },
+    {
+      "case": "TPM unavailable",
+      "response": "UNAVAILABLE with no fabricated attestation; other independent child observations do not gain TPM trust"
+    },
+    {
+      "case": "Crash/timeout/cancel/replay",
+      "response": "Terminal UNKNOWN/HALT; no auto-next; runtime journal still unqualified"
+    }
+  ],
+  "version": "PF_PERSONAL_THREAT_MODEL_V1"
+}

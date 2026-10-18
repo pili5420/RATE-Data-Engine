@@ -1,0 +1,37 @@
+{
+  "Owner_stop_limitation": "No current native process or cancellation adapter exists. Immediate in-flight cancellation needs separate qualification; Owner can always deny the next operation.",
+  "actual_attempt": null,
+  "actual_host": null,
+  "actual_output": null,
+  "actual_owner_consent": "NOT_REQUESTED_NOT_ISSUED",
+  "actual_tool_sha256": null,
+  "durable_intent_requirement": "Future reviewed runtime uses exclusive fresh file creation; local storage tampering/rollback/power-loss remain unproven; uncertain state HALT, do not regenerate consent",
+  "enterprise_permit": false,
+  "future_live_consent_loader": "NOT_IMPLEMENTED",
+  "future_sequence": [
+    "Control Center accepts CR and future runtime collector/safety qualification",
+    "Owner supplies/privately confirms current host identification; no current target read is authorized",
+    "Independent review of exact candidate/tool/scope and limitations",
+    "New separate authority permits the precisely scoped target observation and evidence output",
+    "Owner sees exact bound request and explicitly confirms this attempt",
+    "Before query: verify identity/output/rights/time and append fresh intent; fail closed on unavailable safety",
+    "Fixed reads only; Owner stop, mismatch/error/timeout -> HALT; preserve partial outputs",
+    "Hash raw evidence and record start/end/local clock limitations; review before external disclosure",
+    "Closed/unknown/failed attempt never resumed; any later action requires a fresh separately authorized request"
+  ],
+  "in_memory_model_is_not_replay_protection_across_processes": true,
+  "offline_model_realm": "OFFLINE_SYNTHETIC_NOT_HOST_EVIDENCE",
+  "offline_model_version": "PF_PERSONAL_SYNTHETIC_CONSENT_V1",
+  "required_bindings": [
+    "Exact Host/context (Owner declaration plus future local cross-check)",
+    "Exact reviewed tool SHA256 and optional independently verified signature status",
+    "Exact read scope SHA256 and D pagefile target",
+    "Owner owns/manages confirmation",
+    "Explicit approval of THIS single attempt",
+    "Unique nonce and attempt identity",
+    "Explicit start/end window; local clock limitation acknowledged",
+    "Dedicated evidence path approved in advance",
+    "Risk acknowledgements and no automatic next operation"
+  ],
+  "version": "PF_PERSONAL_OWNER_CONSENT_CONTRACT_V1"
+}

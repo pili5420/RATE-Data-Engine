@@ -1,0 +1,70 @@
+{
+  "files": {
+    ".gitattributes": {
+      "bytes": 14,
+      "sha256": "a79691a93b46e49ce460c26ef22afcc03d6eca1e63bf2edbc20e96159510f6c9"
+    },
+    "ENGINEERING_CR_V1.json": {
+      "bytes": 2538,
+      "sha256": "49ff694b9da7110824084e180643855569fc6d73254894480d9dc0c7d0f0aa4a"
+    },
+    "EVIDENCE_SCHEMA_V1.json": {
+      "bytes": 12209,
+      "sha256": "d6e252c915e7f97808feb425eb86d141c8877bf3057af851e1caaa29f460157d"
+    },
+    "FUTURE_OWNER_REQUEST_UNISSUED.json": {
+      "bytes": 638,
+      "sha256": "a84e76d29a458784503219c558a202dd076b1690ce83668abf95c7b39d4d664f"
+    },
+    "LOCAL_EVIDENCE_CONTRACT_V1.json": {
+      "bytes": 7768,
+      "sha256": "1fcd6d0ef37ae2fd5556d49a33521cbf4d371acd9e41c25ef0ae5f0113742e65"
+    },
+    "OWNER_CONSENT_CONTRACT_V1.json": {
+      "bytes": 2336,
+      "sha256": "ff870d028e3861e687792dd16aa4896239f901a14fee46594ac57884bb1cbe2d"
+    },
+    "PERSONAL_TRUST_MODEL_V1.json": {
+      "bytes": 3592,
+      "sha256": "4930e22b5a214a49631952b63e1b96ecf583096cca02a290b2e6a724a2bd3f94"
+    },
+    "README.txt": {
+      "bytes": 4437,
+      "sha256": "0844be4930eb4263a32a178667b885b05ae0eb366fcad11eca619c9f72fd0c48"
+    },
+    "READ_SCOPE_V1.json": {
+      "bytes": 3019,
+      "sha256": "f96d742c5da542e1f2cd99cc6d49cd1b751ac0cb999c10d159ecb3f283ec5bd3"
+    },
+    "SAFETY_AND_PRIVACY_V1.json": {
+      "bytes": 1856,
+      "sha256": "5ca3dc3a5a314748a0faa1b3bf1cc80c12ea467f10d87f1d8b080953532ab4bf"
+    },
+    "SOURCE_AUTHORITY_REVIEW_V1.json": {
+      "bytes": 1708,
+      "sha256": "1ef3eb83ba7cbd00dbcee328b732af5fb1d85ceabad952157bcb7a6a5e4b900c"
+    },
+    "THREAT_MODEL_V1.json": {
+      "bytes": 2277,
+      "sha256": "642e0f53fe43e6d7b9b5801fb85308e515b706a5effaf68372edc91f9ef213ba"
+    },
+    "personal_model.py": {
+      "bytes": 17517,
+      "sha256": "3dc05082c401deec27e8da809a4382c5b8abc69d8bd24c165292690d7fba9fd7"
+    },
+    "run_offline_tests.py": {
+      "bytes": 4532,
+      "sha256": "82de06b000a3a6492fe94fb5da416e030d2ff396add45ce170fb1799966fee05"
+    },
+    "synthetic_fixtures.py": {
+      "bytes": 3020,
+      "sha256": "0253a7f97d36e09dc6a45aaa8472e5f1dd41a1c6913efd033971e70b55426595"
+    },
+    "test_personal_model.py": {
+      "bytes": 17291,
+      "sha256": "bb34940093817aba0fe7b0ff45312eeccea7a9f26376da5c48540ed25c215172"
+    }
+  },
+  "profile": "OFFLINE_SOURCE_DIRECTORY_ONLY_NOT_RUNTIME_ROOT_SECURITY",
+  "schema": "PF_PERSONAL_SOURCE_MANIFEST_V1"
+}

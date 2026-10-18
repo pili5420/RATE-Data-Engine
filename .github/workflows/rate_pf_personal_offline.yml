@@ -1,0 +1,46 @@
+name: RATE PF-PERSONAL-001 offline trust model
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - tools/pf_personal_trust/**
+      - .github/workflows/rate_pf_personal_offline.yml
+permissions:
+  contents: read
+env:
+  GIT_CONFIG_COUNT: '1'
+  GIT_CONFIG_KEY_0: core.autocrlf
+  GIT_CONFIG_VALUE_0: 'false'
+  GITHUB_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+jobs:
+  offline-only:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'codex/pf-personal-owner-trust-v1' &&
+      github.event.pull_request.base.sha == 'fbdfbfcf0a003cd6de49911bc0a784275a32031c'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          submodules: false
+          lfs: false
+      - name: Strict pure offline tests; no target acquisition
+        shell: pwsh
+        run: python -I -B -S tools/pf_personal_trust/run_offline_tests.py --output "$env:RUNNER_TEMP/PF-PERSONAL-offline"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: pf-personal-offline-${{ matrix.os }}-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/PF-PERSONAL-offline
+          if-no-files-found: error
+          overwrite: false
+
