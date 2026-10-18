@@ -66,6 +66,22 @@ def native_env(private,role,head,rid,runner):
  env={k:os.environ[k] for k in names if k in os.environ}
  env.update(PF002_PRIVATE_ROOT=str(private),PF002_ROLE=role,PF002_HEAD=head,PF002_RUN_ID=rid,PF002_RUN_ATTEMPT='1',PF002_RUNNER_ROOT=str(runner),PYTHONDONTWRITEBYTECODE='1')
  return env
+def failure_receipts(private):
+ rows=[]
+ known_status={'Failed','AccessDenied','InvalidNamespace','InvalidParameter','InvalidClass','NotFound','NotSupported','InvalidQuery','QueryLanguageNotSupported','TypeMismatch','ServerLimitsExceeded','InvalidOperationTimeout'}
+ fixed_codes=set(re.findall("throw '([A-Z_]+)'",(SRC/'native_worker.ps1').read_text()))
+ for i,name in enumerate(base.ORDER,1):
+  path=private/f'error_{i:02d}.json'
+  if not path.exists():continue
+  raw=path.read_bytes();v=proof.strict(raw,65536)
+  kind=v.get('exception_type','')
+  proof.need(type(kind) is str and re.fullmatch('[A-Za-z_][A-Za-z0-9_.]{0,199}',kind) is not None,'PRIVATE_ERROR_TYPE')
+  def number(key):
+   n=v.get(key);proof.need(n is None or type(n) is int and -(2**31)<=n<2**32,'PRIVATE_ERROR_NUMBER');return n
+  rows.append({'id':name,'private_error_sha256':hashlib.sha256(raw).hexdigest(),'exception_type':kind,'hresult':number('hresult'),'native_error':number('native_error'),
+   'cim_status':v.get('cim_status') if v.get('cim_status') in known_status else 'UNCLASSIFIED_OR_NOT_CIM',
+   'fixed_source_error':v.get('message') if v.get('message') in fixed_codes else 'PROVIDER_DETAILS_PRIVATE_NOT_PUBLIC'})
+ return {'realm':'RUNNER_ONLY_NOT_ORIGINAL_HOST_EVIDENCE','errors':rows,'private_details_publicly_retained':False}
 def one_process(command,private,env,token,deadline,descendant=False):
  from windows_job import WindowsJob
  job=WindowsJob()
@@ -107,6 +123,7 @@ def run():
   executable=shutil.which('pwsh');proof.need(executable is not None,'POWERSHELL_REQUIRED')
   process=one_process([executable,'-NoProfile','-NonInteractive','-File',str(SRC/'native_worker.ps1')],private,env,token,150)
   save(public/'NATIVE_PROCESS.json',process)
+  save(public/'SAFE_FAILURE_RECEIPTS.json',failure_receipts(private))
   proof.need(not process['deadline_triggered'],'NATIVE_OUTCOME_UNKNOWN_TIMEOUT_NO_RETRY')
   stage='PRIVATE_VALIDATION'
   report=evaluate_private((private/'PRIVATE_PACKET.json').read_bytes(),head,rid,attempt)

@@ -54,8 +54,8 @@
       "sha256": "79407db9744ba5bf449aaf1aeefc73a88a953ad0b5b441aa6eabe914413abebe"
     },
     "runner_controller.py": {
-      "bytes": 12273,
-      "sha256": "d60196cd54cef88f3cb4ec6d5b62b1eddabbcc2836e84ebf9940fbdb63f207b9"
+      "bytes": 13651,
+      "sha256": "5fcdafab1f0dd8a83f35ce0ac4fadc1e93d714147168ba2be5fe1fa8b7e2e018"
     },
     "runner_proof.py": {
       "bytes": 3840,
