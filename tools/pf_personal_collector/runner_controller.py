@@ -87,7 +87,7 @@ def failure_receipts(private):
  return {'realm':'RUNNER_ONLY_NOT_ORIGINAL_HOST_EVIDENCE','errors':rows,'private_details_publicly_retained':False}
 def one_process(command,private,env,token,deadline,descendant=False):
  WindowsJob=loader.load('windows_job').WindowsJob
- job=WindowsJob()
+ job=WindowsJob(token,env)
  try:
   birth=job.launch(command,ROOT,env,private,token)
   if descendant:

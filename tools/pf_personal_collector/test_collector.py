@@ -156,6 +156,14 @@ class CollectorTests(unittest.TestCase):
    def WaitForSingleObject(self,*a):return 0xffffffff
   job=WindowsJob.__new__(WindowsJob);job.k=API();job.hp=1
   with self.assertRaisesRegex(ContainmentError,'WAIT_UNKNOWN'):job.wait(1)
+ def test_job_constructor_unsigned_proof_cannot_reach_kernel(self):
+  from windows_job import WindowsJob,ContainmentError
+  with self.assertRaises((ValueError,ContainmentError)):WindowsJob('SYNTHETIC_CONSENT_NOT_PROOF',{})
+  text=(SRC/'windows_job.py').read_text();self.assertLess(text.index('verifier.verify_token('),text.index("ctypes.WinDLL("))
+ def test_job_helper_rejects_arbitrary_commands(self):
+  from windows_job import checked_command,ContainmentError
+  for command in (['cmd','/c','whoami'],['pwsh','-Command','Get-CimInstance'],['python','unapproved.py']):
+   with self.assertRaisesRegex(ContainmentError,'NO_SHELL'):checked_command(command,{})
  def test_versioned_schema_agrees_with_records_and_bounds(self):
   s=json.loads((SRC/'EVIDENCE_SCHEMA_V1.json').read_bytes());r=self.assess(f.packet())
   self.assertEqual(set(s['public_record_keys']),set(r['records'][0]));self.assertEqual(s['records']['order'],list(b.ORDER));self.assertEqual(s['records']['raw_byte_bound_per_record'],b.SCOPE['max_raw_bytes'])

@@ -58,8 +58,8 @@
       "sha256": "79407db9744ba5bf449aaf1aeefc73a88a953ad0b5b441aa6eabe914413abebe"
     },
     "runner_controller.py": {
-      "bytes": 14253,
-      "sha256": "572b05c2a1f5c1e48c573667cf65f52a838546fba4065ee74cc178d5287d7d9e"
+      "bytes": 14262,
+      "sha256": "cfe65fca58ac74ac67b7217a78a302301aab83a0d45a76265eb2c34a6681c324"
     },
     "runner_proof.py": {
       "bytes": 3840,
@@ -74,8 +74,8 @@
       "sha256": "d12935223a87fb0493531114f353c0b3ad8cde6aab82f14fcba5abe4ce622fa0"
     },
     "test_collector.py": {
-      "bytes": 13067,
-      "sha256": "a79f86ae2c8e0784b41cca3e1054c5af398b889a13b41ae5af63aeeee308cf74"
+      "bytes": 13724,
+      "sha256": "bb6a6a5318968e944b7e4c9c56a525f4dcb1fb46f53c33f6a11656ddffde0316"
     },
     "test_descriptor_policy.ps1": {
       "bytes": 1070,
@@ -86,8 +86,8 @@
       "sha256": "c39ef5c66a26816904a9d3167a91cd44a5fce3b3f86287e4481352eab518b95a"
     },
     "windows_job.py": {
-      "bytes": 6881,
-      "sha256": "61578467718877e1e9a091102a065f9e1a3864efa436c33378800b6e616dee89"
+      "bytes": 8956,
+      "sha256": "05d7ab0b561a7fba54253f75e16377dba407ebc4068fc3fc230b3bdad4f7434e"
     }
   },
   "scope_sha256": "f96d742c5da542e1f2cd99cc6d49cd1b751ac0cb999c10d159ecb3f283ec5bd3",

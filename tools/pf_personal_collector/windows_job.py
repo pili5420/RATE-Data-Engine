@@ -1,9 +1,24 @@
 """Windows hosted-runner process containment. Imported lazily after signed runner proof."""
-import os,subprocess,time,threading,queue
+import os,subprocess,time,threading,queue,sys,hashlib,json,types,shutil
+from pathlib import Path
 class ContainmentError(RuntimeError):pass
+def checked_command(command,env):
+ src=Path(__file__).resolve().parent
+ fault=[sys.executable,'-I','-B','-S',str(src/'fault_worker.py')]
+ native=[shutil.which('pwsh',path=env.get('PATH','')),'-NoProfile','-NonInteractive','-File',str(src/'native_worker.ps1')]
+ if command==native and native[0] is not None:return 'private'
+ if type(command) is list and command[:-1]==fault and command[-1] in ('normal','crash','hang','descendant_hang'):return 'fault_'+command[-1]
+ raise ContainmentError('FIXED_WORKER_COMMAND_ONLY_NO_SHELL')
 class WindowsJob:
- def __init__(self):
+ def __init__(self,signed_proof,env):
   if os.name!='nt':raise ContainmentError('WINDOWS_RUNNER_ONLY')
+  # Independently authenticate before ANY kernel dispatch. No caller-controlled bypass flag.
+  src=Path(__file__).resolve().parent;raw=(src/'runner_proof.py').read_bytes();m=json.loads((src/'SOURCE_MANIFEST_V1.json').read_bytes())
+  if m['files']['runner_proof.py']!={'bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest()}:raise ContainmentError('JOB_PROOF_SOURCE_HASH')
+  verifier=types.ModuleType('job_runner_proof');exec(compile(raw,str(src/'runner_proof.py'),'exec',dont_inherit=True),verifier.__dict__)
+  verifier.verify_token(signed_proof,(src/'GITHUB_OIDC_JWKS_PINNED.json').read_bytes(),int(time.time()),env.get('PF002_HEAD'),env.get('PF002_RUN_ID'),env.get('PF002_RUN_ATTEMPT'))
+  if env.get('PF002_ROLE') not in ('qualification','reproduction'):raise ContainmentError('JOB_FIXED_ROLE')
+  self.proof,self.expected_env=signed_proof,dict(env)
   import ctypes
   from ctypes import wintypes as w
   import _winapi
@@ -38,6 +53,12 @@ class WindowsJob:
  def launch(self,command,cwd,env,private,proof):
   """Caller chooses only fixed reviewed worker paths; token goes through anonymous stdin pipe."""
   if self.handles:raise ContainmentError('ONE_CHILD_PER_JOB_NO_REUSE')
+  if proof!=self.proof or env!=self.expected_env:raise ContainmentError('JOB_PROOF_OR_ENV_CHANGED')
+  leaf=checked_command(command,env)
+  expected=Path(env['PF002_RUNNER_ROOT'])/('PF-PERSONAL-002-'+env['PF002_RUN_ID']+'-1-'+env['PF002_ROLE'])/leaf
+  if private!=expected or private!=private.resolve() or str(private)!=env['PF002_PRIVATE_ROOT'] or Path(cwd)!=Path(__file__).resolve().parent.parent.parent:raise ContainmentError('JOB_FIXED_OUTPUT_CWD')
+  for p in (private,*private.parents):
+   if not p.is_dir() or p.is_symlink() or getattr(p.stat(),'st_file_attributes',0)&0x400:raise ContainmentError('JOB_PHYSICAL_ROOT')
   import msvcrt
   read_fd,write_fd=os.pipe()
   os.set_inheritable(read_fd,True);os.set_inheritable(write_fd,False)
