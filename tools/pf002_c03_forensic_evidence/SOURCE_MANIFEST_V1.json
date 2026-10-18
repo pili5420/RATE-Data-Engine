@@ -1,0 +1,66 @@
+{
+  "base_head": "c6a7e615d4037124f9da96a502b9d3482afd2e9e",
+  "files": {
+    ".gitattributes": {
+      "bytes": 14,
+      "sha256": "a79691a93b46e49ce460c26ef22afcc03d6eca1e63bf2edbc20e96159510f6c9"
+    },
+    "ENGINEERING_BOUNDARY.md": {
+      "bytes": 6070,
+      "sha256": "bb86cb5fb0076d78b8b2f20df3ad35782c22cd5a5953f641c6a77f80d675c579"
+    },
+    "EVIDENCE_SCHEMA_V1.json": {
+      "bytes": 1608,
+      "sha256": "d3cfd4b506ae89d2c032141d9f5ccbc224f6128cde2c48f5de980cf9c02a1270"
+    },
+    "GITHUB_OIDC_JWKS_PINNED.json": {
+      "bytes": 5547,
+      "sha256": "5f8164c9696c27837ad18c5fe7c7022a433bd5390183e8ff15c74d82233270f4"
+    },
+    "controller.py": {
+      "bytes": 13399,
+      "sha256": "74828efb3958b2fa0dd365d3111106fd8fa146f3085c7f11dd31ea9b6071661b"
+    },
+    "file_evidence.py": {
+      "bytes": 4343,
+      "sha256": "ee0e4c05400bfcdc7b31f8f81bac77c0edd3d1f9d1be9ece295c325f981d522b"
+    },
+    "http_evidence.py": {
+      "bytes": 6092,
+      "sha256": "3c6f7bb5efc0f36348d969c15e71fbca05b1602d5b75e86a62b14b263ddb0fb1"
+    },
+    "job.py": {
+      "bytes": 10345,
+      "sha256": "98a5b49d482c9aa3629d96cda6d497567f517335225f543e02a53c41070a0bd1"
+    },
+    "model.py": {
+      "bytes": 4514,
+      "sha256": "7b963f47c0eb7451fa13cf01013d77b7955ed96574e90bc59c6fdd7b7c7c18fc"
+    },
+    "normal_worker.py": {
+      "bytes": 2396,
+      "sha256": "eccb22d895f49e542b24f4899ee7ca7977ddd7a3c5220066acf523d244e1d188"
+    },
+    "probe.py": {
+      "bytes": 9813,
+      "sha256": "f710e57f96d541e77b76edb5b5fc5643c5d0fb5d6efa11eb1d736da037e4abe4"
+    },
+    "run_tests.py": {
+      "bytes": 3156,
+      "sha256": "d22254b1972b0c90693e4b7dac76c89e5b0b18728cadd8a8bd04f5c2f97f04af"
+    },
+    "runner_proof.py": {
+      "bytes": 3836,
+      "sha256": "0611ec2a645e43acb0f171bc76288ccbbd51b6e63ec916a354cb998824bed5c8"
+    },
+    "source_loader.py": {
+      "bytes": 2026,
+      "sha256": "c1d022a600111a18642fa0f9ff36b4aa0749d2ce29c26b877d5f131a2855dc84"
+    },
+    "test_evidence.py": {
+      "bytes": 17482,
+      "sha256": "95c3faa5c43af16231f392e9718f43466a2f4ae249a656c822606c08564df227"
+    }
+  },
+  "version": "PF002_C03_FORENSICS_SOURCE_V1"
+}

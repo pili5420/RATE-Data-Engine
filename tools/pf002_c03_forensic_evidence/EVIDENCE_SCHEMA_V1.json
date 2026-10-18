@@ -1,0 +1,13 @@
+{
+  "version": "PF002_C03_FORENSIC_EVIDENCE_V1",
+  "base_head": "c6a7e615d4037124f9da96a502b9d3482afd2e9e",
+  "journal": {"encoding": "canonical UTF-8 JSON plus one LF", "sequence": "strict increasing", "previous_sha256": "previous complete record bytes or null for first", "maximum_records": 8192, "maximum_record_bytes": 65536, "create_new_only": true},
+  "preauth_receipt": {"authority": "NONE", "requests_max": 5, "fixed_stages": ["OIDC_TOKEN", "RUN_RECORD", "PR83_BASE_REF", "CURRENT_TREE", "PR83_TREE"], "fields": ["fixed_request_stage", "endpoint_host", "fixed_path_id", "http_status", "error_type", "nonsecret_error_code", "outcome"], "forbidden": ["token", "headers", "JWT", "signature", "full_URL", "query", "environment", "response_body", "exception_text"], "native_on_auth_failure": false},
+  "image_identity": {"operations": ["OPEN_HANDLE_FSTAT_BEFORE", "OPEN_HANDLE_FSTAT_AFTER", "SAME_PATH_STAT"], "original_identity_fields": ["st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns"], "additional_observation_fields": ["st_birthtime_ns", "st_atime_ns", "st_mode", "st_file_attributes", "st_reparse_tag"], "before_after_path": "all original fields equal or HALT; emit mismatch fields first", "native_error": "numeric from Python OSError if available; successful internal native API status unavailable", "loaded_image_attestation": false, "atomic_snapshot": false},
+  "scope": "one Normal newly owned Job case per role; not containment qualification",
+  "roles": ["qualification", "reproduction"],
+  "attempt": 1,
+  "RS02": "BLOCKED",
+  "owner_consent_issued": false,
+  "NoAutoNext": true
+}
