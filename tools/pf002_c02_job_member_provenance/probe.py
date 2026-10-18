@@ -5,20 +5,26 @@ from job import WindowsJob,ContainmentError
 import model
 
 def disk_image(path,end,fixed_drive=None):
- p=Path(path)
- model.need(p.is_absolute() and not str(p).startswith(('\\\\','//')),'LOCAL_PHYSICAL_IMAGE_ONLY')
- # Reject mapped/remote drives BEFORE resolve/stat/open can touch that volume.
- model.need(callable(fixed_drive) and fixed_drive(p.anchor) is True,'IMAGE_DRIVE_NOT_FIXED')
- model.need(p==p.resolve(),'LOCAL_PHYSICAL_IMAGE_ONLY')
- for q in (p,*p.parents):model.need(not q.is_symlink() and not(getattr(q.lstat(),'st_file_attributes',0)&0x400),'IMAGE_REPARSE')
- with p.open('rb') as f:
-  a=os.fstat(f.fileno());model.need(0<a.st_size<=32*1024*1024,'IMAGE_SIZE_BOUND');digest=hashlib.sha256();count=0
-  while count<a.st_size:
-   model.need(time.monotonic()<=end,'IMAGE_DEADLINE');b=f.read(min(65536,a.st_size-count));model.need(bool(b),'IMAGE_TRUNCATED');digest.update(b);count+=len(b)
-  b=os.fstat(f.fileno());c=p.stat()
-  identity=lambda s:(s.st_dev,s.st_ino,s.st_size,s.st_mtime_ns,s.st_ctime_ns)
-  model.need(identity(a)==identity(b)==identity(c),'IMAGE_DISK_IDENTITY_CHANGED')
- return {'sha256':digest.hexdigest(),'bytes':count,'file_id':a.st_ino,'volume_id':a.st_dev,'mtime_ns':a.st_mtime_ns,'creation_ns':a.st_ctime_ns,'loaded_image_attestation':False}
+ """Retired entry: reject every runtime call, never downgrade to Python stat/hash."""
+ p=Path(path);model.need(p.is_absolute() and not str(p).startswith(('\\\\','//')),'LOCAL_PHYSICAL_IMAGE_ONLY')
+ model.need(callable(fixed_drive),'IMAGE_DRIVE_NOT_FIXED')
+ model.need(time.monotonic()<=end,'IMAGE_DEADLINE')
+ raise model.Unknown('LEGACY_COMPARATOR_NOT_RUNTIME_QUALIFIED')
+
+LEGACY_RUNTIME_STATUS='LEGACY_COMPARATOR_NOT_RUNTIME_QUALIFIED'
+_OFFLINE_VERIFIED_MODULE=None
+def offline_contract():
+ global _OFFLINE_VERIFIED_MODULE
+ import types
+ p=Path(__file__).resolve().parent.parent/'pf002_c04_r1_legacy_contract'/'offline_contract.py';raw=p.read_bytes()
+ model.need(hashlib.sha256(raw).hexdigest()=='975fcc11a143cce4f93cf0baa8866a44adcb5e8e0f8e28850284a5ed8eb26149','PINNED_OFFLINE_SUCCESSOR_SOURCE')
+ if _OFFLINE_VERIFIED_MODULE is None:
+  module=types.ModuleType('explicit_offline_contract');module.__file__=str(p);exec(compile(raw,str(p),'exec',dont_inherit=True),module.__dict__);_OFFLINE_VERIFIED_MODULE=module
+ return _OFFLINE_VERIFIED_MODULE
+def offline_reader(path,size,change=None,fail_phase=None):
+ return offline_contract().FixtureReader(path,size,change,fail_phase)
+def validate_offline_fixture(path,end,fixed_drive,emit,reader):
+ return offline_contract().validate_fixture(model,path,end,fixed_drive,emit,reader)
 
 class Probe(WindowsJob):
  def __init__(self,token,env,emit,end):

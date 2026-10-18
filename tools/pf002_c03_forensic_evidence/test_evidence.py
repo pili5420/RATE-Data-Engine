@@ -116,37 +116,38 @@ class Tests(unittest.TestCase):
   a=file.metadata(self.stat());b=dict(a,st_dev=12);c=dict(a,st_ino=23);d=file.differences(a,b,c)
   self.assertEqual(d,{'before_vs_after':['st_dev'],'before_vs_path':['st_ino'],'after_vs_path':['st_dev','st_ino']})
  def test_file_stable_self_created_fixture(self):
-  rows=[];p=self.image();r=file.disk_image(str(p),time.monotonic()+5,lambda a:True,lambda *a:rows.append(a));self.assertEqual(r['sha256'],hashlib.sha256(b'abc').hexdigest());self.assertFalse(r['loaded_image_attestation']);self.assertTrue(rows[-1][1]['equal']);self.assertEqual(len([r for r in rows if r[0]=='IMAGE_IDENTITY_QUERY']),3)
+  rows=[];p=self.image()
+  with self.assertRaisesRegex(model.Unknown,'LEGACY_COMPARATOR_NOT_RUNTIME_QUALIFIED'):file.disk_image(str(p),time.monotonic()+5,lambda a:True,lambda *a:rows.append(a))
+  reader=file.offline_reader(p,3);r=file.validate_offline_fixture(str(p),time.monotonic()+5,lambda a:True,lambda *a:rows.append(a),reader)
+  self.assertEqual(r['sha256'],hashlib.sha256(b'abc').hexdigest());self.assertFalse(r['loaded_image_attestation']);self.assertFalse(r['runtime_qualified']);self.assertEqual(r['native_calls'],0)
+  comparisons=[v for k,v in rows if k=='CANONICAL_FILE_COMPARISON'];self.assertEqual(len(comparisons),1);self.assertTrue(comparisons[0]['equal'])
+  self.assertEqual(len(reader.observations),5);self.assertEqual(len(r['fixture_filesystem_observations']),5);self.assertEqual(len([r for r in rows if r[0]=='OFFLINE_SYNTHETIC_CANONICAL_OBSERVATION']),5)
+  self.assertEqual(r['canonical_identity']['creation_time_100ns'],100);self.assertEqual(r['canonical_identity']['change_time_100ns'],300)
  def patched_fstat(self,change):
-  p=self.image();rows=[];actual=file.os.fstat;n=[0]
-  def fake(fd):
-   q=actual(fd);v={k:getattr(q,k) for k in (*file.IDENTITY_FIELDS,*file.EXTRA_FIELDS) if hasattr(q,k)};n[0]+=1
-   if n[0]==2:v[change]+=1
-   return types.SimpleNamespace(**v)
-  file.os.fstat=fake
-  try:
-   with self.assertRaisesRegex(model.Unknown,'IMAGE_DISK_IDENTITY_CHANGED'):file.disk_image(str(p),time.monotonic()+5,lambda a:True,lambda *a:rows.append(a))
-  finally:file.os.fstat=actual
-  comparison=rows[-1][1];self.assertIn(change,comparison['mismatch_fields']['before_vs_after']);self.assertFalse(comparison['equal']);self.assertFalse(comparison['loaded_image_attestation'])
+  # V2 successor: fault the equivalent source-specific canonical field, not an ambiguous Python alias.
+  mapping={'st_dev':'volume_serial_u64','st_ino':'file_id_128_le','st_size':'file_size_bytes','st_mtime_ns':'last_write_time_100ns','st_ctime_ns':'change_time_100ns'}
+  p=self.image();rows=[];reader=file.offline_reader(p,3,mapping[change])
+  with self.assertRaisesRegex(model.Unknown,'CANONICAL_FILE_IDENTITY_CHANGED'):file.validate_offline_fixture(str(p),time.monotonic()+5,lambda a:True,lambda *a:rows.append(a),reader)
+  comparison=next(v for k,v in rows if k=='CANONICAL_FILE_COMPARISON');self.assertIn(mapping[change],comparison['mismatch_fields']['OPENED_AFTER_HASH']);self.assertFalse(comparison['equal']);self.assertFalse(comparison['loaded_image_attestation'])
+  self.assertTrue(all(v['python_file_closed'] for k,v in rows if k=='FILE_CLOSE_RESULT'))
  def test_file_dev_mismatch_evidence_then_halt(self):self.patched_fstat('st_dev')
  def test_file_ino_mismatch_evidence_then_halt(self):self.patched_fstat('st_ino')
  def test_file_size_mismatch_evidence_then_halt(self):self.patched_fstat('st_size')
  def test_file_mtime_mismatch_evidence_then_halt(self):self.patched_fstat('st_mtime_ns')
  def test_file_ctime_mismatch_evidence_then_halt(self):self.patched_fstat('st_ctime_ns')
  def test_file_fstat_error_record_no_message(self):
-  p=self.image();rows=[];actual=file.os.fstat
-  def fail(fd):raise OSError(5,'SECRET_PATH_TOKEN')
-  file.os.fstat=fail
-  try:
-   with self.assertRaises(OSError):file.disk_image(str(p),time.monotonic()+5,lambda a:True,lambda *a:rows.append(a))
-  finally:file.os.fstat=actual
-  self.assertEqual(rows[-1][1]['status'],'UNKNOWN');self.assertEqual(rows[-1][1]['errno'],5);self.assertNotIn('SECRET',json.dumps(rows))
+  p=self.image();rows=[];reader=file.offline_reader(p,3,fail_phase='OPENED_BEFORE')
+  with self.assertRaises(OSError):file.validate_offline_fixture(str(p),time.monotonic()+5,lambda a:True,lambda *a:rows.append(a),reader)
+  failure=next(v for k,v in rows if k=='OFFLINE_QUERY_RESULT');self.assertEqual(failure['status'],'UNKNOWN');self.assertEqual(failure['errno'],5);self.assertNotIn('SECRET',json.dumps(rows));self.assertEqual(len(reader.observations),0)
  def test_file_no_sink_cannot_proceed(self):
   with self.assertRaisesRegex(model.Unknown,'DURABLE'):file.disk_image(str(self.image()),time.monotonic()+5,lambda a:True)
  def test_file_remote_reject_before_access(self):
   with self.assertRaisesRegex(model.Unknown,'LOCAL_PHYSICAL'):file.disk_image('\\\\host\\share\\a',time.monotonic()+5,lambda a:True,lambda *a:None)
  def test_file_nonfixed_reject_before_file_read(self):
-  with self.assertRaisesRegex(model.Unknown,'NOT_FIXED'):file.disk_image(str(self.image()),time.monotonic()+5,lambda a:False,lambda *a:None)
+  p=self.image();reader=file.offline_reader(p,3)
+  with self.assertRaisesRegex(model.Unknown,'LEGACY_COMPARATOR_NOT_RUNTIME_QUALIFIED'):file.disk_image(str(p),time.monotonic()+5,lambda a:False,lambda *r:None)
+  with self.assertRaisesRegex(model.Unknown,'NOT_FIXED'):file.validate_offline_fixture(str(p),time.monotonic()+5,lambda a:False,lambda *r:None,reader)
+  self.assertEqual(reader.actual,[]);self.assertEqual(reader.observations,[])
  def test_file_deadline_not_relaxed(self):
   rows=[]
   with self.assertRaisesRegex(model.Unknown,'DEADLINE'):file.disk_image(str(self.image()),time.monotonic()-1,lambda a:True,lambda *a:rows.append(a))

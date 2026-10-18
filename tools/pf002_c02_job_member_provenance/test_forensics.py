@@ -91,7 +91,12 @@ class Tests(unittest.TestCase):
  def test_network_image_path_rejected_before_file_access(self):
   with self.assertRaisesRegex(model.Unknown,'LOCAL_PHYSICAL'):probe.disk_image('\\\\server\\share\\image.exe',time.monotonic()+1)
  def test_disk_hash_own_fixture_stable_identity(self):
-  p=ENGINEERING_OUTPUT_ROOT/'fake_image.bin';p.write_bytes(b'own synthetic image');r=probe.disk_image(str(p),time.monotonic()+1,lambda anchor:True);self.assertEqual(r['sha256'],hashlib.sha256(p.read_bytes()).hexdigest());self.assertFalse(r['loaded_image_attestation'])
+  p=ENGINEERING_OUTPUT_ROOT/'fake_image.bin';p.write_bytes(b'own synthetic image');rows=[]
+  with self.assertRaisesRegex(model.Unknown,'LEGACY_COMPARATOR_NOT_RUNTIME_QUALIFIED'):probe.disk_image(str(p),time.monotonic()+1,lambda anchor:True)
+  reader=probe.offline_reader(p,19);r=probe.validate_offline_fixture(str(p),time.monotonic()+5,lambda a:True,lambda *a:rows.append(a),reader)
+  self.assertEqual(r['sha256'],hashlib.sha256(p.read_bytes()).hexdigest());self.assertFalse(r['loaded_image_attestation']);self.assertFalse(r['runtime_qualified']);self.assertEqual(r['native_calls'],0)
+  self.assertEqual(r['canonical_identity']['creation_time_100ns'],100);self.assertEqual(r['canonical_identity']['change_time_100ns'],300);self.assertEqual(len(r['fixture_filesystem_observations']),5);self.assertEqual(len(reader.observations),5)
+  self.assertEqual(len(r['file_id_128_le']),32);self.assertTrue(all(row['python_file_closed'] for event,row in rows if event=='FILE_CLOSE_RESULT'))
  def test_disk_hash_deadline_no_fallback(self):
   p=ENGINEERING_OUTPUT_ROOT/'late_image.bin';p.write_bytes(b'a')
   with self.assertRaisesRegex(model.Unknown,'DEADLINE'):probe.disk_image(str(p),time.monotonic()-1,lambda anchor:True)
@@ -123,7 +128,10 @@ class Tests(unittest.TestCase):
   self.assertTrue(p.membership(111,11));self.assertEqual(rows[0][1]['api'],'IsProcessInJob')
  def test_nonfixed_drive_rejected_before_resolve_or_open(self):
   p=ENGINEERING_OUTPUT_ROOT/'does_not_exist.bin'
-  with self.assertRaisesRegex(model.Unknown,'NOT_FIXED'):probe.disk_image(str(p),time.monotonic()+1,lambda anchor:False)
+  with self.assertRaisesRegex(model.Unknown,'LEGACY_COMPARATOR_NOT_RUNTIME_QUALIFIED'):probe.disk_image(str(p),time.monotonic()+1,lambda anchor:False)
+  reader=probe.offline_reader(p,1)
+  with self.assertRaisesRegex(model.Unknown,'NOT_FIXED'):probe.validate_offline_fixture(str(p),time.monotonic()+1,lambda a:False,lambda *r:None,reader)
+  self.assertEqual(reader.actual,[]);self.assertEqual(reader.observations,[])
  def test_missing_drive_proof_rejected(self):
   p=ENGINEERING_OUTPUT_ROOT/'also_missing.bin'
   with self.assertRaisesRegex(model.Unknown,'NOT_FIXED'):probe.disk_image(str(p),time.monotonic()+1)
