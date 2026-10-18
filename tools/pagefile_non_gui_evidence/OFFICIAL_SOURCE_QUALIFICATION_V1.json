@@ -1,0 +1,191 @@
+{
+  "source_scope": "Microsoft primary documentation only;no Q&A inference as authority",
+  "actual_original_host_queries": 0,
+  "sources": [
+    {
+      "id": "S01",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-computersystem",
+      "provider": "CIMWin32",
+      "namespace": "ROOT/CIMV2",
+      "read_fields": [
+        "Name",
+        "AutomaticManagedPagefile"
+      ],
+      "privilege_requirements": "Local namespace Enable Account/read-key rights,actual availability/security unqualified;no escalation or enabling SeCreatePagefilePrivilege",
+      "configuration_semantics": "Global Boolean system management setting. Not a per-drive policy field.",
+      "runtime_semantics": "Only S03 directly describes Pagefile runtime;all other sources do not certify applied policy",
+      "known_limitations": "No current D allocation or boot-applied policy is established.",
+      "fact_inference_distinction": "Configuration/runtime source facts are documented;limits and conservative decision rules are engineering inferences"
+    },
+    {
+      "id": "S02",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-pagefilesetting",
+      "provider": "CIMWin32",
+      "namespace": "ROOT/CIMV2",
+      "read_fields": [
+        "Name",
+        "InitialSize",
+        "MaximumSize"
+      ],
+      "privilege_requirements": "Local namespace Enable Account/read-key rights,actual availability/security unqualified;no escalation or enabling SeCreatePagefilePrivilege",
+      "configuration_semantics": "Configuration used at startup; changes may defer to startup; sizes uint32 megabytes. Distinct from Usage.",
+      "runtime_semantics": "Only S03 directly describes Pagefile runtime;all other sources do not certify applied policy",
+      "known_limitations": "No documented 0/0-to-D-system-managed contract;missing instance does not prove policy.",
+      "fact_inference_distinction": "Configuration/runtime source facts are documented;limits and conservative decision rules are engineering inferences"
+    },
+    {
+      "id": "S03",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-pagefileusage",
+      "provider": "CIMWin32",
+      "namespace": "ROOT/CIMV2",
+      "read_fields": [
+        "Name",
+        "AllocatedBaseSize",
+        "CurrentUsage",
+        "PeakUsage",
+        "TempPageFile"
+      ],
+      "privilege_requirements": "Local namespace Enable Account/read-key rights,actual availability/security unqualified;no escalation or enabling SeCreatePagefilePrivilege",
+      "configuration_semantics": "Runtime allocation/current/peak disk use in megabytes and temporary-file flag.",
+      "runtime_semantics": "Only S03 directly describes Pagefile runtime;all other sources do not certify applied policy",
+      "known_limitations": "Runtime allocation does not identify sizing policy or prove current requested settings applied;historical peak may exceed current allocation.",
+      "fact_inference_distinction": "Configuration/runtime source facts are documented;limits and conservative decision rules are engineering inferences"
+    },
+    {
+      "id": "S04",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-operatingsystem",
+      "provider": "CIMWin32",
+      "namespace": "ROOT/CIMV2",
+      "read_fields": [
+        "CSName",
+        "LastBootUpTime",
+        "Version",
+        "BuildNumber"
+      ],
+      "privilege_requirements": "Local namespace Enable Account/read-key rights,actual availability/security unqualified;no escalation or enabling SeCreatePagefilePrivilege",
+      "configuration_semantics": "LastBootUpTime is OS last restart date/time.",
+      "runtime_semantics": "Only S03 directly describes Pagefile runtime;all other sources do not certify applied policy",
+      "known_limitations": "Not a trusted Boot nonce,configuration-history record,secure UTC or boot-applied policy certificate.",
+      "fact_inference_distinction": "Configuration/runtime source facts are documented;limits and conservative decision rules are engineering inferences"
+    },
+    {
+      "id": "S05",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-computersystemproduct",
+      "provider": "CIMWin32",
+      "namespace": "ROOT/CIMV2",
+      "read_fields": [
+        "UUID"
+      ],
+      "privilege_requirements": "Local namespace Enable Account/read-key rights,actual availability/security unqualified;no escalation or enabling SeCreatePagefilePrivilege",
+      "configuration_semantics": "SMBIOS system product UUID can aid host metadata binding.",
+      "runtime_semantics": "Only S03 directly describes Pagefile runtime;all other sources do not certify applied policy",
+      "known_limitations": "Not independent attestation;unknown/default or cloned values cannot establish trusted host identity.",
+      "fact_inference_distinction": "Configuration/runtime source facts are documented;limits and conservative decision rules are engineering inferences"
+    },
+    {
+      "id": "S06",
+      "url": "https://learn.microsoft.com/en-us/previous-versions/windows/desktop/legacy/aa394515(v=vs.85)",
+      "provider": "Vdswmi.dll;actual Provider qualifier observed separately",
+      "namespace": "ROOT/CIMV2",
+      "read_fields": [
+        "DeviceID",
+        "DriveLetter",
+        "SerialNumber"
+      ],
+      "privilege_requirements": "Local namespace Enable Account/read-key rights,actual availability/security unqualified;no escalation or enabling SeCreatePagefilePrivilege",
+      "configuration_semantics": "Local volume identifier,optional drive letter and serial metadata;legacy official documentation.",
+      "runtime_semantics": "Only S03 directly describes Pagefile runtime;all other sources do not certify applied policy",
+      "known_limitations": "Actual class/provider availability must be qualified on target OS. Expected class Provider MS_VOLUME is a candidate to verify on hosted runner,not inferred from DLL name. Metadata is not physical-volume attestation;before/after equality cannot exclude ABA.",
+      "fact_inference_distinction": "Configuration/runtime source facts are documented;limits and conservative decision rules are engineering inferences"
+    },
+    {
+      "id": "S07",
+      "url": "https://learn.microsoft.com/en-us/troubleshoot/windows-client/performance/windows-based-computer-freeze-troubleshooting",
+      "provider": "Registry",
+      "namespace": "HKLM/SYSTEM/CurrentControlSet/Control/Session Manager/Memory Management",
+      "read_fields": [
+        "PagingFiles"
+      ],
+      "privilege_requirements": "Local namespace Enable Account/read-key rights,actual availability/security unqualified;no escalation or enabling SeCreatePagefilePrivilege",
+      "configuration_semantics": "Troubleshooting prose distinguishes un-sized system-managed entries from sized custom entries. PageFileSetting MappingStrings also names PagingFiles.",
+      "runtime_semantics": "Only S03 directly describes Pagefile runtime;all other sources do not certify applied policy",
+      "known_limitations": "No complete modern registry grammar or authoritative 0/0/boot-applied inference. Candidate only matches a narrow literal path+decimal pair against CIM;unknown formats remain SOURCE_GAP.",
+      "fact_inference_distinction": "Configuration/runtime source facts are documented;limits and conservative decision rules are engineering inferences"
+    },
+    {
+      "id": "S08",
+      "url": "https://learn.microsoft.com/en-us/powershell/module/cimcmdlets/get-ciminstance?view=powershell-7.5",
+      "provider": "CimCmdlets",
+      "namespace": "Fixed ROOT/CIMV2 classes/properties",
+      "read_fields": [
+        "Namespace",
+        "ClassName",
+        "Property",
+        "OperationTimeoutSec",
+        "ErrorAction"
+      ],
+      "privilege_requirements": "Local namespace Enable Account/read-key rights,actual availability/security unqualified;no escalation or enabling SeCreatePagefilePrivilege",
+      "configuration_semantics": "Local COM when remote/session options absent;InputObject may carry remote provenance.",
+      "runtime_semantics": "Only S03 directly describes Pagefile runtime;all other sources do not certify applied policy",
+      "known_limitations": "Exact plan denies ComputerName,CimSession,InputObject,Query,ResourceUri and arbitrary fields. Response timeout is not proof of provider cancellation.",
+      "fact_inference_distinction": "Configuration/runtime source facts are documented;limits and conservative decision rules are engineering inferences"
+    },
+    {
+      "id": "S09",
+      "url": "https://learn.microsoft.com/en-us/powershell/module/cimcmdlets/get-cimclass?view=powershell-7.5",
+      "provider": "CimCmdlets",
+      "namespace": "Fixed ROOT/CIMV2 classes",
+      "read_fields": [
+        "CimClassQualifiers.Provider"
+      ],
+      "privilege_requirements": "Local namespace Enable Account/read-key rights,actual availability/security unqualified;no escalation or enabling SeCreatePagefilePrivilege",
+      "configuration_semantics": "Read-only class metadata supports provider/schema observation.",
+      "runtime_semantics": "Only S03 directly describes Pagefile runtime;all other sources do not certify applied policy",
+      "known_limitations": "Class metadata has no independent host/session attestation. No wildcard class/namespace enumeration.",
+      "fact_inference_distinction": "Configuration/runtime source facts are documented;limits and conservative decision rules are engineering inferences"
+    },
+    {
+      "id": "S10",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/wmisdk/access-to-wmi-namespaces",
+      "provider": "WMI security",
+      "namespace": "ROOT/CIMV2",
+      "read_fields": [
+        "Enable Account read permission"
+      ],
+      "privilege_requirements": "Local namespace Enable Account/read-key rights,actual availability/security unqualified;no escalation or enabling SeCreatePagefilePrivilege",
+      "configuration_semantics": "Namespace read rights differ from writes/method execution. PageFileSetting docs discuss SeCreatePagefilePrivilege for instance creation.",
+      "runtime_semantics": "Only S03 directly describes Pagefile runtime;all other sources do not certify applied policy",
+      "known_limitations": "No privilege enabling,UAC elevation,ACL modification or retry on denial. Read privileges depend on actual local security;access failure remains unknown.",
+      "fact_inference_distinction": "Configuration/runtime source facts are documented;limits and conservative decision rules are engineering inferences"
+    },
+    {
+      "id": "S11",
+      "url": "https://learn.microsoft.com/en-us/dotnet/api/microsoft.win32.registrykey.opensubkey?view=net-9.0",
+      "provider": "Microsoft.Win32.RegistryKey",
+      "namespace": "Registry64/LocalMachine",
+      "read_fields": [
+        "OpenSubKey exact subkey,false"
+      ],
+      "privilege_requirements": "Local namespace Enable Account/read-key rights,actual availability/security unqualified;no escalation or enabling SeCreatePagefilePrivilege",
+      "configuration_semantics": "Explicit false requests read-only subkey.",
+      "runtime_semantics": "Only S03 directly describes Pagefile runtime;all other sources do not certify applied policy",
+      "known_limitations": "No OpenRemoteBaseKey,create,set,delete,or write rights. Profile is audited source,not a hostile in-process sandbox.",
+      "fact_inference_distinction": "Configuration/runtime source facts are documented;limits and conservative decision rules are engineering inferences"
+    },
+    {
+      "id": "S12",
+      "url": "https://learn.microsoft.com/en-us/dotnet/api/microsoft.win32.registrykey.getvalue?view=net-9.0",
+      "provider": "Microsoft.Win32.RegistryKey",
+      "namespace": "Exact Memory Management key",
+      "read_fields": [
+        "GetValueKind PagingFiles",
+        "GetValue PagingFiles DoNotExpandEnvironmentNames"
+      ],
+      "privilege_requirements": "Local namespace Enable Account/read-key rights,actual availability/security unqualified;no escalation or enabling SeCreatePagefilePrivilege",
+      "configuration_semantics": "Preserves raw typed value without environment expansion.",
+      "runtime_semantics": "Only S03 directly describes Pagefile runtime;all other sources do not certify applied policy",
+      "known_limitations": "Missing/wrong kind/partial/unsupported grammar remain unknown. Registry read is current configuration,not independent applied-state history.",
+      "fact_inference_distinction": "Configuration/runtime source facts are documented;limits and conservative decision rules are engineering inferences"
+    }
+  ]
+}

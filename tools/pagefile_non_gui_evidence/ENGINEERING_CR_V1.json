@@ -1,0 +1,29 @@
+{
+  "authorization": "SCOPED_NON_GUI_READ_ONLY_FEASIBILITY",
+  "base": "fbdfbfcf0a003cd6de49911bc0a784275a32031c",
+  "branch": "codex/pagefile-nongui-readonly-evidence-v1",
+  "stacked_dependency": false,
+  "independent_main_based_architecture": true,
+  "scope": [
+    "tools/pagefile_non_gui_evidence/**",
+    ".github/workflows/rate_pagefile_nongui_readonly.yml"
+  ],
+  "assumptions": [
+    "Trusted installed Python/PowerShell and GitHubhostedrunner/toolactions;no hostile inprocess sandbox claim",
+    "Only testfixtures and independently identified hostedrunnerrawsources;nooriginalhostqueries",
+    "Providerclasslabels/metadata observed,notattestation",
+    "Independent source/reviewerRoot needed for futuretargetqualification"
+  ],
+  "threats": [
+    "global/perdrive conflation",
+    "configuration/runtime/applicabilityconflation",
+    "source/remote/commandinjection",
+    "wronghost/boot/volume/clock",
+    "missing/partial/error/corruptdata",
+    "replay/wrongCIhead/attempt",
+    "falsepromotionofrunner/syntheticresults",
+    "filesystemrace/providerhang/forgedsource beyondofflineprovenance"
+  ],
+  "response": "Strictfixedplan andfailcloseddataanalysis;allfulltargetqualificationblocked;partialfilespreserved;noautonext",
+  "original_GUI_gate2_contract_amended": false
+}

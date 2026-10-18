@@ -1,0 +1,53 @@
+{
+  "schema": "PAGEFILE_NON_GUI_DECISION_V1",
+  "shared_evidence_fields": [
+    "Exact observed Host name+UUID,LastBootUpTime and Volume DeviceID+Serial+DriveLetter;independent trust remains unavailable",
+    "Fixed query id/class/namespace/provider/field list",
+    "Query UTC endpoints,monotonic elapsed value and local-clock/cancellation limitations",
+    "Raw UTF8 bytes encoded base64 plusSHA256 and original packetdigest",
+    "Exact D:\\pagefile.sys target and actual volume mapping",
+    "Required cross-source consistency and explicitmissing evidence",
+    "Decision reason;no synthetic/runner transfer to originalhost,noGUIqualification"
+  ],
+  "conclusions": [
+    {
+      "status": "CONFIG_INTENT_OBSERVED",
+      "scope": "D configuration intent or separately labeled globalFalse observation",
+      "required": "Strict fixed CIM settings record and same D volume mapping;raw Registry literal token corroboration;no runtime/application inference"
+    },
+    {
+      "status": "RUNTIME_PAGEFILE_OBSERVED",
+      "scope": "D runtime provider observation only",
+      "required": "Strict Usage record with positive allocation,typed usage and non-temporary flag;source/context complete;no systemmanaged inference"
+    },
+    {
+      "status": "SYSTEM_MANAGED_POLICY_OBSERVED",
+      "scope": "SYSTEM_WIDE_ONLY",
+      "required": "Strict Boolean AutomaticManagedPagefile=True;never per-drive D label"
+    },
+    {
+      "status": "CONFIG_RUNTIME_CONFLICT",
+      "scope": "Observed configuration/Registry/runtime disagreement",
+      "required": "Contradictory requested vs observed facts;not proof reboot required or safe tochange"
+    },
+    {
+      "status": "REBOOT_APPLICABILITY_UNPROVEN",
+      "scope": "Boot-applied D policy",
+      "required": "Always retained absent trusted configuration history and applied-state certificate. LastBootUpTime alone insufficient"
+    },
+    {
+      "status": "INDETERMINATE",
+      "scope": "Unknown,incomplete,wrong host/boot/volume/source/time,unsupported grammar or errors",
+      "required": "No upgrade toPASS;empty observations for unreliable envelope/context. Partial valid sub-observations remain explicitly limited when only D config/runtime presence unproved"
+    },
+    {
+      "status": "BLOCKED",
+      "scope": "Full D systemmanaged/applied qualification and all originalhost/runtime authorization",
+      "required": "SOURCE_GAP for authoritative per-drive policy,boot history,independent context trust and separate target authorization"
+    }
+  ],
+  "sequential_reads_are_atomic": false,
+  "unchanged_endpoints_exclude_ABA": false,
+  "accepted_size_profile": "Nonnegative uint32;0/0 retained as uninterpreted observed sizing values. Onlypositivecustom min<=max enablesrangecorroboration. Unsupported syntax never expands/probespaths.",
+  "schema_only_insufficient": "evidence.py enforces strict types,closed records,raw digests,source plan,ordering and cross-source rules;JSONSchemaenvelopealone is not qualification."
+}

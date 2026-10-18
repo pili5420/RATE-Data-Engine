@@ -1,0 +1,19 @@
+{
+  "issued_authorization": false,
+  "proposal": "Separately review limited originalhost rawobservations only after resolving/scopeexcluding sourcegaps",
+  "prerequisites": [
+    "Explicit ControlCenter acceptance ofSOURCE_GAP/limitedscope;do not bypass originalGUIcontract",
+    "Exacttargethost/boot/volumetrustandreadfields/provider/version/APIrightsreview",
+    "Independent tool/schema/hash/readonlyboundaryreview",
+    "OutputrootACL/physicalpath/attemptdeadline+preservationreview",
+    "No formalexecutionPermitcreatedbythispackage;freshspecificread-onlyauthorizationrequired",
+    "Policy/applied-state claims need additional authoritative sources beforequalification"
+  ],
+  "prohibited": [
+    "originalhostqueriesnow",
+    "GUIenumeration/Identity/Diagnostic",
+    "Pagefile/OSconfiguration/reboot",
+    "Production/Ledger/Campaign/HALTchange",
+    "Merge/Deployment/Activation/AutomaticNext"
+  ]
+}
