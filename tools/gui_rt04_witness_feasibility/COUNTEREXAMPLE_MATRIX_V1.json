@@ -1,0 +1,102 @@
+{
+  "counterexamples": [
+    {
+      "id": "CE01",
+      "scenario": "window_before_subscription",
+      "test_id": "test_feasibility.FiniteProofTests.test_window_created_before_subscription",
+      "requirement": "R02",
+      "expected": "INDETERMINATE;RT04/Gate2 BLOCKED",
+      "decision_value": "Demonstrates why this necessary evidence cannot be replaced by local metadata or signatures."
+    },
+    {
+      "id": "CE02",
+      "scenario": "matching_handle_reuse",
+      "test_id": "test_feasibility.FiniteProofTests.test_matching_hwnd_value_with_reused_generation",
+      "requirement": "R03",
+      "expected": "INDETERMINATE;RT04/Gate2 BLOCKED",
+      "decision_value": "Demonstrates why this necessary evidence cannot be replaced by local metadata or signatures."
+    },
+    {
+      "id": "CE03",
+      "scenario": "missed_CREATE",
+      "test_id": "test_feasibility.FiniteProofTests.test_missed_create_valid_signature",
+      "requirement": "R02",
+      "expected": "INDETERMINATE;RT04/Gate2 BLOCKED",
+      "decision_value": "Demonstrates why this necessary evidence cannot be replaced by local metadata or signatures."
+    },
+    {
+      "id": "CE04",
+      "scenario": "missed_DESTROY_reuse",
+      "test_id": "test_feasibility.FiniteProofTests.test_missed_destroy_and_reuse_hidden_by_local_reindex",
+      "requirement": "R03",
+      "expected": "INDETERMINATE;RT04/Gate2 BLOCKED",
+      "decision_value": "Demonstrates why this necessary evidence cannot be replaced by local metadata or signatures."
+    },
+    {
+      "id": "CE05",
+      "scenario": "listener_restart",
+      "test_id": "test_feasibility.FiniteProofTests.test_listener_restart_epoch",
+      "requirement": "R05",
+      "expected": "INDETERMINATE;RT04/Gate2 BLOCKED",
+      "decision_value": "Demonstrates why this necessary evidence cannot be replaced by local metadata or signatures."
+    },
+    {
+      "id": "CE06",
+      "scenario": "buffer_loss",
+      "test_id": "test_feasibility.FiniteProofTests.test_event_buffer_loss",
+      "requirement": "R05",
+      "expected": "INDETERMINATE;RT04/Gate2 BLOCKED",
+      "decision_value": "Demonstrates why this necessary evidence cannot be replaced by local metadata or signatures."
+    },
+    {
+      "id": "CE07",
+      "scenario": "reentrancy",
+      "test_id": "test_feasibility.FiniteProofTests.test_reentrant_completion_unresolved",
+      "requirement": "R05",
+      "expected": "INDETERMINATE;RT04/Gate2 BLOCKED",
+      "decision_value": "Demonstrates why this necessary evidence cannot be replaced by local metadata or signatures."
+    },
+    {
+      "id": "CE08",
+      "scenario": "reordering",
+      "test_id": "test_feasibility.FiniteProofTests.test_reordered_completion_ticks",
+      "requirement": "R05",
+      "expected": "INDETERMINATE;RT04/Gate2 BLOCKED",
+      "decision_value": "Demonstrates why this necessary evidence cannot be replaced by local metadata or signatures."
+    },
+    {
+      "id": "CE09",
+      "scenario": "PID_restart_generation_substitution",
+      "test_id": "test_feasibility.FiniteProofTests.test_pid_restart_creation_time_substitution",
+      "requirement": "R07",
+      "expected": "INDETERMINATE;RT04/Gate2 BLOCKED",
+      "decision_value": "Demonstrates why this necessary evidence cannot be replaced by local metadata or signatures."
+    },
+    {
+      "id": "CE10",
+      "scenario": "forged_zero_loss_signed_incomplete",
+      "test_id": "test_feasibility.FiniteProofTests.test_forged_zero_loss_and_signed_incomplete_stream",
+      "requirement": "R04",
+      "expected": "INDETERMINATE;RT04/Gate2 BLOCKED",
+      "decision_value": "Demonstrates why this necessary evidence cannot be replaced by local metadata or signatures."
+    },
+    {
+      "id": "CE11",
+      "scenario": "wrong_external_final_head",
+      "test_id": "test_feasibility.FiniteProofTests.test_wrong_independent_final_head",
+      "requirement": "R08",
+      "expected": "INDETERMINATE;RT04/Gate2 BLOCKED",
+      "decision_value": "Demonstrates why this necessary evidence cannot be replaced by local metadata or signatures."
+    },
+    {
+      "id": "CE12",
+      "scenario": "concurrent_observer_disagreement",
+      "test_id": "test_feasibility.FiniteProofTests.test_concurrent_observer_disagreement",
+      "requirement": "R04",
+      "expected": "INDETERMINATE;RT04/Gate2 BLOCKED",
+      "decision_value": "Demonstrates why this necessary evidence cannot be replaced by local metadata or signatures."
+    }
+  ],
+  "finite_model_truth_boundary": "Original finite owner oracle digest/heads/scope are independently supplied immutable synthetic anchors. Attackers may re-sign local streams and certificates but cannot replace those external anchors. The oracle is a test assumption,not a real Windows source.",
+  "test_bound": "One finite declared synthetic window,2..64events. No additional test volume can resolve absent real source provenance."
+}

@@ -1,0 +1,136 @@
+{
+  "assessment": "OFFICIAL_DOCUMENTS_AND_EXPLICIT_INFERENCES_ONLY",
+  "native_collection": "NOT_EXECUTED",
+  "sources": [
+    {
+      "id": "S01",
+      "title": "SetWinEventHook",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwineventhook",
+      "documented_fact": "Out-of-context notifications are queued in sequential order. The registering thread needs a message loop. Callback processing may reenter; successful registration returns a hook handle.",
+      "engineering_inference": "This is a delivery/registration contract, not an independently attested historical generation/coverage certificate.",
+      "fact_vs_inference_separated": true
+    },
+    {
+      "id": "S02",
+      "title": "Guarding Against Reentrancy",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/winauto/guarding-against-reentrancy-in-hook-functions",
+      "documented_fact": "Additional events may reenter a callback; processing of a later event can finish first.",
+      "engineering_inference": "Distinguish guaranteed queue delivery order from application completion/journal order; unresolved reentrancy must halt.",
+      "fact_vs_inference_separated": true
+    },
+    {
+      "id": "S03",
+      "title": "IsWindow",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-iswindow",
+      "documented_fact": "The window can disappear after the check and recycled handles can identify a different window.",
+      "engineering_inference": "Matching handle values and endpoint existence do not establish a continuous window generation.",
+      "fact_vs_inference_separated": true
+    },
+    {
+      "id": "S04",
+      "title": "EnumWindows",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enumwindows",
+      "documented_fact": "Enumerates top-level windows, not general child windows; on Windows8+ this covers desktop-app top-level windows.",
+      "engineering_inference": "Enumeration yields a bounded current observation, not creation history or a full interval certificate.",
+      "fact_vs_inference_separated": true
+    },
+    {
+      "id": "S05",
+      "title": "About Event Tracing",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/etw/about-event-tracing",
+      "documented_fact": "ETW separates controllers, instrumented providers and consumers; enabled/disabled providers determine generation. Documented missing-event causes include size, buffers, consumers and disk throughput.",
+      "engineering_inference": "Transport statistics do not certify that an original target provider instrumented every required lifecycle transition.",
+      "fact_vs_inference_separated": true
+    },
+    {
+      "id": "S06",
+      "title": "EVENT_TRACE_PROPERTIES",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/evntrace/ns-evntrace-event_trace_properties",
+      "documented_fact": "EventsLost,LogBuffersLost,RealTimeBuffersLost describe session event/buffer recording and delivery loss.",
+      "engineering_inference": "Zero counters do not independently prove pre-subscription history or omitted/disabled source emission.",
+      "fact_vs_inference_separated": true
+    },
+    {
+      "id": "S07",
+      "title": "EventWrite",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/evntprov/nf-evntprov-eventwrite",
+      "documented_fact": "Routing depends on provider/event attributes. With no session recording the event, EventWrite does nothing and returns success.",
+      "engineering_inference": "A success code or signed zero-loss report alone cannot prove recording completeness.",
+      "fact_vs_inference_separated": true
+    },
+    {
+      "id": "S08",
+      "title": "GetWindowThreadProcessId",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowthreadprocessid",
+      "documented_fact": "Retrieves the creating thread identifier and optionally its process identifier for a window.",
+      "engineering_inference": "PID/TID binding is useful but this API supplies no creation-anchored window generation token.",
+      "fact_vs_inference_separated": true
+    },
+    {
+      "id": "S09",
+      "title": "GetProcessTimes",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getprocesstimes",
+      "documented_fact": "Provides process creation/exit/kernel/user times; creation is a process FILETIME.",
+      "engineering_inference": "Bind PID to process creation time; do not treat it as the creation time of each of that process's windows.",
+      "fact_vs_inference_separated": true
+    },
+    {
+      "id": "S10",
+      "title": "Event Constants",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/winauto/event-constants",
+      "documented_fact": "CREATE/DESTROY events are documented for standard UI elements including window objects; accessible-object servers also generate these events. Parent destruction implies destroyed children.",
+      "engineering_inference": "Events are useful evidence;object/child identity and exact domain must be specified. This is not a claim that Windows emits no window events.",
+      "fact_vs_inference_separated": true
+    },
+    {
+      "id": "S11",
+      "title": "CreateWindowExW",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-createwindowexw",
+      "documented_fact": "A successful call returns a new HWND and sends creation messages before returning. Creation can fail.",
+      "engineering_inference": "A controlled owner could instrument every relevant creation path and failed/partial creation; no such cooperation exists for the original target here.",
+      "fact_vs_inference_separated": true
+    },
+    {
+      "id": "S12",
+      "title": "WM_NCDESTROY",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-ncdestroy",
+      "documented_fact": "DestroyWindow sends WM_NCDESTROY after WM_DESTROY and after child destruction; the owner receives it through WindowProc.",
+      "engineering_inference": "Owner messages can support an instrumented design, but the assessed message contract is not an independently complete crash/power-loss journal.",
+      "fact_vs_inference_separated": true
+    },
+    {
+      "id": "S13",
+      "title": "PsSetCreateProcessNotifyRoutineEx",
+      "url": "https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/nf-ntddk-pssetcreateprocessnotifyroutineex",
+      "documented_fact": "Drivers register notifications for process creation and exit. Registration has integrity and lifecycle requirements.",
+      "engineering_inference": "Process notifications do not themselves attest every HWND lifecycle/generation; no driver is implemented or invoked.",
+      "fact_vs_inference_separated": true
+    },
+    {
+      "id": "S14",
+      "title": "ObRegisterCallbacks",
+      "url": "https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-obregistercallbacks",
+      "documented_fact": "Registers signed-kernel callbacks for process,thread and desktop handle operations.",
+      "engineering_inference": "This documented object domain is not a general full HWND lifecycle certificate. A signed binary alone does not prove its source coverage.",
+      "fact_vs_inference_separated": true
+    },
+    {
+      "id": "S15",
+      "title": "Azure Attestation overview",
+      "url": "https://learn.microsoft.com/en-us/azure/attestation/overview",
+      "documented_fact": "Attestation evaluates platform/TEE evidence under policies and returns cryptographic claims.",
+      "engineering_inference": "Platform/binary integrity claims need explicit event-source semantics to support lifecycle completeness;no service or real trust root is contacted.",
+      "fact_vs_inference_separated": true
+    },
+    {
+      "id": "S16",
+      "title": "ProcessTrace",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/evntrace/nf-evntrace-processtrace",
+      "documented_fact": "ETW consumption attempts timestamp ordering,with documented ordering limitations for clock adjustments,equal-time events on different CPUs and invalid timestamps.",
+      "engineering_inference": "Timestamp presentation order is not an independent lossless causal/window-generation witness.",
+      "fact_vs_inference_separated": true
+    }
+  ],
+  "research_limit": "Assessment of these documented mechanisms and supplied accepted source;not a universal Windows impossibility theorem. No concrete original-target provider/schema/attested complete interval source was identified.",
+  "unavailable_unused_reference": "An earlier guessed SystemGuard runtime-attestation URL was inaccessible;not relied on. S15 is the retrieved primary attestation overview."
+}

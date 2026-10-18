@@ -1,0 +1,71 @@
+{
+  "original_target": "Historical noncooperating Windows Virtual Memory system dialog;current PID/HWND/executable/Host/Boot/Session/Desktop identities UNKNOWN and not collected.",
+  "options": [
+    {
+      "id": "A",
+      "name": "WinEvent/ETW external observer",
+      "original_target_status": "NO_GO",
+      "different_cooperating_target_status": "NOT_ESTABLISHED_BY_EXTERNAL_OBSERVER_ALONE",
+      "criteria": {
+        "readiness_before_observation": "Hook/session registration and a ready message loop can be evidenced prospectively;not a retrospective source-side barrier for an already-existing target.",
+        "preexisting_window_provenance": "Current enumeration/process rundown is not the required prior window creation anchor.",
+        "trusted_hwnd_generation": "No assessed public observer field supplies independently trusted creation-generation lineage for the original target.",
+        "emission_and_recording_completeness": "Standard WinEvents exist,but no reviewed original-target provider+coverage attestation is available.",
+        "loss_reentrancy_order_detection": "Some loss/order failures are detectable;queue-order guarantees,completion reentrancy,session loss and source omission are different layers.",
+        "independent_full_coverage_certificate": "Not supplied or independently obtainable with the assessed public observer evidence alone."
+      },
+      "sources": [
+        "S01",
+        "S02",
+        "S03",
+        "S04",
+        "S05",
+        "S06",
+        "S07",
+        "S10",
+        "S16"
+      ]
+    },
+    {
+      "id": "B",
+      "name": "Cooperating instrumented window owner",
+      "original_target_status": "NO_GO",
+      "different_cooperating_target_status": "CONDITIONAL_GO_NEW_CR_ONLY",
+      "criteria": {
+        "readiness_before_observation": "Before any owner creation,register independent witnesses and commit a ready barrier.",
+        "preexisting_window_provenance": "Requires an independently preserved owner creation journal from before birth;otherwise UNKNOWN.",
+        "trusted_hwnd_generation": "Owner must mint a unique generation at creation,not derive it from HWND or a sampled title.",
+        "emission_and_recording_completeness": "Review every creation/destruction/library/child path within exact domain;crash and partial outcome remain unknown.",
+        "loss_reentrancy_order_detection": "Independent owner/source sequence,epoch and outside heads;loss/restart/contradiction halt.",
+        "independent_full_coverage_certificate": "Conditional only after source/attestation/clock/durability/independent interval proof are qualified for that cooperating owner."
+      },
+      "sources": [
+        "S08",
+        "S09",
+        "S11",
+        "S12"
+      ],
+      "scope_boundary": "A separate owner/test target does not qualify the original system dialog. No test window was created in this task."
+    },
+    {
+      "id": "C",
+      "name": "Independently attested OS/kernel witness",
+      "original_target_status": "NO_GO",
+      "different_cooperating_target_status": "CONCEPT_ONLY_TRUST_SOURCE_AND_AUTHORIZATION_REQUIRED",
+      "criteria": {
+        "readiness_before_observation": "Would require an attested OS source barrier established before the covered interval.",
+        "preexisting_window_provenance": "Would require trustworthy persisted creation/generation history or a separately justified bootstrap certificate.",
+        "trusted_hwnd_generation": "Requires a documented OS-backed generation with nonreuse and process/window binding semantics.",
+        "emission_and_recording_completeness": "Requires vendor/security-reviewed source-coverage guarantees;generic ETW/driver signing is insufficient.",
+        "loss_reentrancy_order_detection": "Requires attested event origin,epoch,loss observability and reliable causal sequencing.",
+        "independent_full_coverage_certificate": "No concrete qualified implementation,provider,trust source or deployment authorization is currently available."
+      },
+      "sources": [
+        "S13",
+        "S14",
+        "S15"
+      ],
+      "scope_boundary": "Documents and architecture only;no driver,hook,injection,OS modification or privileged runtime."
+    }
+  ]
+}

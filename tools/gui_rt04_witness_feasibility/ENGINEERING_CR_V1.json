@@ -1,0 +1,13 @@
+{
+  "authorization": "AUTHORIZED_FOR_SCOPED_OFFLINE_FEASIBILITY_ENGINEERING",
+  "branch": "codex/gui-gate2-rt04-witness-feasibility-v1",
+  "stacked_base": "codex/gui-gate2-rt01-compile-only-v1",
+  "base_sha": "6f2622eedddcd6073f9fb8aab2ab14be94aed27c",
+  "scope": "Public Microsoft documentation research,new architecture/evidence contract,bounded synthetic counterexamples,independent review,GO/NO-GO recommendation.",
+  "implementation_path": "tools/gui_rt04_witness_feasibility only",
+  "accepted_source_changes_allowed": false,
+  "native_source_or_collector_implemented": false,
+  "formal_permit_loader_or_issuer": false,
+  "tests": "All applicable new finite-model/schema/signature/identity/head/interval negatives plus documentation safety regression;zero skips/relaxations/whitelists. Existing accepted tests stay unchanged and are not falsely recounted as rerun.",
+  "stop_rule": "Publish final research/evidence and stop. A justified original-target NO-GO is a completed research result,not an engineering failure to be forced into PASS."
+}

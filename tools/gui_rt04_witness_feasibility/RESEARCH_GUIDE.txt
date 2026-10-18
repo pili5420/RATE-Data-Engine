@@ -1,0 +1,14 @@
+RATE RT-04 Trusted Lifecycle Witness Feasibility
+
+Original target decision: NO-GO (valid research completion).
+Full RT01,RT04,Gate2 BLOCKED. Original HALT UNKNOWN.
+
+Start with FEASIBILITY_DECISION_V1.json,OPTION_COMPARISON_V1.json and REQUIRED_EVIDENCE_CONTRACT_V1.json. Official facts and our inferences are separated in WINDOWS_SOURCE_ASSESSMENT_V1.json. No concrete trusted original-target generation/full-coverage certificate source is available from the assessed public mechanisms. WinEvents for window objects do exist;out-of-context queue order is documented. Neither those facts nor ETW zero counters/signatures establish the complete required source interval.
+
+An alternative cooperating owner is conditional ONLY for a different explicitly approved target. No real test window was created. Owner crash/partial creation,hidden/library/child paths and prior lifetimes need explicit treatment. OS-level witness is documentation/architecture only;process/desktop callbacks and platform attestation do not by themselves establish HWND lifecycle completeness. This is not a universal impossibility theorem.
+
+finite_model.py verifies one declared invented window with an independently pinned finite oracle and five separate synthetic signing roles. It never produces native COMPLETE/PASS,an execution Permit or original-target qualification. It preserves the accepted strict CREATE-once/UNCHANGED-only stable-identity interval;DESTROY,duplicate CREATE,reuse,gaps,restarts,unknowns halt. Its integer ticks are invented source-order positions,not native timestamps or an actual FILETIME-to-clock mapping. The process_creation_filetime field is fictional data used only for exact binding. An in-memory one-shot demonstration is not a durable native attempt journal. It does not cover the full real desktop candidate universe.
+
+Counterexamples include validly signed incomplete streams,forged zero loss,wrong external heads,observer disagreement and pre-subscription/reuse/race histories. Test PASS means the unsafe claim was rejected under the model assumptions;it is not Native Lifecycle Qualification. Test scope is finite and decision-driven;adding more synthetic tests cannot supply missing real trust.
+
+Use the fixed offline test runner only in a new isolated evidence directory. All API names in documents are references,never calls. No GUI enumeration,Identity Resolution,SetWinEventHook,ETW session,driver/hook/injection,native dispatch,formal Permit,Pagefile/OS/Production operation,accepted source/HALT/evidence change,merge/deploy/activation or automatic next stage. Read NEXT_AUTHORIZATION_BOUNDARY_V1.json for proposals only;none is activated.
