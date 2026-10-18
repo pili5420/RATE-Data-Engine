@@ -34,8 +34,8 @@
       "sha256": "19dc88323ead67db85c989e205785e2ee91a0a1810b55043e432aeaebb972c71"
     },
     "probe.py": {
-      "bytes": 10976,
-      "sha256": "c0a5849dc03b55057eea8bd67388000b30b22cea2eb455f024b5a87a3f0c94a4"
+      "bytes": 11133,
+      "sha256": "d08ff015ece434bc15ea9ff5c8a7d4ca214f4a399dba83dcc5398b6d7962c5e7"
     },
     "run_tests.py": {
       "bytes": 3159,
@@ -50,8 +50,8 @@
       "sha256": "b985b54abbb0ade2e9597b08cd15b7e181aa06e4f0896c8c646223a59837a874"
     },
     "test_forensics.py": {
-      "bytes": 11105,
-      "sha256": "f4adabbcb0f04ff4373a38a527839cf86c0eaa2e5c83035feca15dd95ac0de78"
+      "bytes": 12109,
+      "sha256": "efeff604c0ee552a8cc5ede69afeb0c9ea9514bccf8fb69485ef4f6790d7c1f1"
     }
   },
   "version": "PF002_C02_FORENSICS_SOURCE_V1"

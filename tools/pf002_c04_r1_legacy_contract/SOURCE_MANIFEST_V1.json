@@ -1,0 +1,62 @@
+{
+  "base_head": "c1280a3eed0610dc0ba9946c4ec628e919f15ee2",
+  "files": {
+    ".gitattributes": {
+      "bytes": 14,
+      "sha256": "a79691a93b46e49ce460c26ef22afcc03d6eca1e63bf2edbc20e96159510f6c9"
+    },
+    "CONTRACT_DELTA_V2.json": {
+      "bytes": 9374,
+      "sha256": "0bfd2fb19c6340b7c9608884e99c654ab117a5f887ac3af797a12dcb32ceb840"
+    },
+    "ENGINEERING_CR_AND_BOUNDARY.md": {
+      "bytes": 3780,
+      "sha256": "3c688e968925c8aa0797ec7b18b71122de93f62f56aecdb452751f3e1e245f35"
+    },
+    "EVIDENCE_SCHEMA_V2.json": {
+      "bytes": 3311,
+      "sha256": "f540b93e36752977bb5d2a4eafd07a7dc18cf62925d8f4f0e07ca7066300c6c0"
+    },
+    "GITHUB_OIDC_JWKS_PINNED.json": {
+      "bytes": 5547,
+      "sha256": "5f8164c9696c27837ad18c5fe7c7022a433bd5390183e8ff15c74d82233270f4"
+    },
+    "controller.py": {
+      "bytes": 14577,
+      "sha256": "bf4ae09f286ad274e6217328e431b3f2dbb34c73398bc35b9769547b2da7d903"
+    },
+    "http_evidence.py": {
+      "bytes": 6214,
+      "sha256": "b8fea3cc8256adb5c9dbb9a67f43c339ae38bda0b07b7d37abc7aece558cf06a"
+    },
+    "job.py": {
+      "bytes": 10354,
+      "sha256": "0b33a160c51b67d49f931ff93c54fb1f113bc7a9d101e2e9f29cfb1d3e6b4810"
+    },
+    "normal_worker.py": {
+      "bytes": 2402,
+      "sha256": "d4625f4b3f9da02bc1bf74e306953936ec2076e662343a8d29d0df92f4ff8422"
+    },
+    "offline_contract.py": {
+      "bytes": 3975,
+      "sha256": "975fcc11a143cce4f93cf0baa8866a44adcb5e8e0f8e28850284a5ed8eb26149"
+    },
+    "run_tests.py": {
+      "bytes": 3159,
+      "sha256": "7b7a89ba75b2a7b7440a5f3cddb72444969a23c7f9a39483bbebec840a1e3931"
+    },
+    "runner_proof.py": {
+      "bytes": 3867,
+      "sha256": "d3c5d59e9481f99d1934f213d9157be1999cd87b7b40ea888244aa079329e38e"
+    },
+    "source_loader.py": {
+      "bytes": 2133,
+      "sha256": "b9ce9b96bece7cc3ec4b9fd80f34d753714dd730fe6ef280c0c63b02e94892df"
+    },
+    "test_contract.py": {
+      "bytes": 12718,
+      "sha256": "ad986795faf2d3886a473745e4ea07f2cec5efa8ae0ffdabda76c39d7f7ff6a4"
+    }
+  },
+  "version": "PF002_C04_R1_SOURCE_V2"
+}
