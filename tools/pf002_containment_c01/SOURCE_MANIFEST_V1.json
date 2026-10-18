@@ -1,0 +1,66 @@
+{
+  "base_head": "90b27e3dd5f328883e1c9c809173df6ec61c9373",
+  "files": {
+    ".gitattributes": {
+      "bytes": 14,
+      "sha256": "a79691a93b46e49ce460c26ef22afcc03d6eca1e63bf2edbc20e96159510f6c9"
+    },
+    "ENGINEERING_CR.md": {
+      "bytes": 5665,
+      "sha256": "4f9a0f92f6af0fbe86636be319535bedf40633d896dc2e2fcadb9a314bc9d22a"
+    },
+    "EVIDENCE_SCHEMA_V1.json": {
+      "bytes": 1055,
+      "sha256": "691d3b511244df1242ac5b3f09346ff9e3e134a663030080fdeb381d78b15910"
+    },
+    "GITHUB_OIDC_JWKS_PINNED.json": {
+      "bytes": 5547,
+      "sha256": "5f8164c9696c27837ad18c5fe7c7022a433bd5390183e8ff15c74d82233270f4"
+    },
+    "controller.py": {
+      "bytes": 11825,
+      "sha256": "ccb9cc01ed6f4611290ebb71fe27b1356fbec16db2999b13b0eca82f70713deb"
+    },
+    "fault_leaf.py": {
+      "bytes": 1604,
+      "sha256": "25c10b188b5a198ad42c987e73972067a96cff1cc3c9d2e1cc616ef4ef34c950"
+    },
+    "fault_worker.py": {
+      "bytes": 2281,
+      "sha256": "a4386df4a9357e7cb061f4da9281518f36bdd7a4151b5e6cd2d7d357ae49df13"
+    },
+    "job.py": {
+      "bytes": 13573,
+      "sha256": "7e53b6ab6738a919080ca1613d5da502e7226fa3d71d41975043c9ceda8a3064"
+    },
+    "run_tests.py": {
+      "bytes": 3177,
+      "sha256": "64902a91a5b3d9ad733e3b7e262a61b3558d5e4370c5dc8e344604277231b39d"
+    },
+    "runner_proof.py": {
+      "bytes": 3846,
+      "sha256": "8bf90afcd67a68e0c5c0a9739475d938ee4903bf4f9019b046f71d849f71cdbd"
+    },
+    "source_loader.py": {
+      "bytes": 1986,
+      "sha256": "cb2d8968f0b0f4aa0b347f232fb2f8fbdb8f518b2c2af65eaf3d5d4d3bb49d5b"
+    },
+    "state.py": {
+      "bytes": 5588,
+      "sha256": "deda001d4578d6579d89dd782992bc349e72096336f2ec1540ee696d5bb77621"
+    },
+    "test_evidence.py": {
+      "bytes": 6394,
+      "sha256": "34478aeaf01bb22a4d8eac42efb56acc5f2205ea2622a9a3e66532b1862b083f"
+    },
+    "test_state.py": {
+      "bytes": 10499,
+      "sha256": "fc61872ddec90c5df65ceff814ef670b7366150a8f5211fdeb920ce20cdab778"
+    },
+    "verify_evidence.py": {
+      "bytes": 8954,
+      "sha256": "b348bcb161a68b1278f901e770ef953221c4eb24289a10533925bdecd4988453"
+    }
+  },
+  "version": "PF002_C01_SOURCE_V1"
+}
