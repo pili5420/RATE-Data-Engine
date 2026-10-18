@@ -1,0 +1,55 @@
+{
+  "boundaries": [
+    "source/hash integrity vs independent authenticity",
+    "synthetic data vs original target",
+    "pure candidate vs native enforcement",
+    "request/review vs genuine Permit",
+    "path string vs secure directory handle",
+    "clock label vs trusted UTC",
+    "in-memory state vs durability"
+  ],
+  "native_enforcement_qualified": false,
+  "runtime_sandbox_claim": false,
+  "threats": [
+    [
+      "Runner guard removed/spoofed",
+      "No existing code edited; pure candidate has no native API/transport/CLI; rejects Runner or original-target realm"
+    ],
+    [
+      "Read scope widened/remote/dynamic",
+      "Exact six classes/projections/literal D filters, provider/namespace hash; no unfiltered fallback; remaining Registry collateral explicitly disclosed"
+    ],
+    [
+      "Synthetic or self-signed identity promoted",
+      "Twelve external requirements remain missing/unqualified; even all supplied bytes never produce qualification"
+    ],
+    [
+      "Policy/boot semantic promotion",
+      "Three gaps stay BLOCKED; raw config/runtime observations separate; no implicit 0/0 interpretation"
+    ],
+    [
+      "PID/session/boot/volume identity race",
+      "Original context evidence required externally; no current identity query; sequential endpoint equality not atomic/ABA proof"
+    ],
+    [
+      "Output ACL/reparse/race/partial write",
+      "Physical output and handle/owner/DACL/durability qualification required externally; no target folder or file created"
+    ],
+    [
+      "Nonce replay/crash/unknown",
+      "Offline lifecycle tests + durable reservation/intent contract; actual journal/nonce/Permit not created"
+    ],
+    [
+      "Timeout/clock rollback/hang",
+      "Trusted UTC uncertainty and hard cancellation/containment remain external/runtime prerequisites; no claim 5s CIM option qualifies this"
+    ],
+    [
+      "Review ACK mistaken for execution",
+      "Independent offline review qualifies engineering only; no Permit loader/signer/activation/native transport present"
+    ],
+    [
+      "Automatic next stage",
+      "All statuses preserve can_issue_permit=false, execution_authorized=false and NoAutoNext; external blockers final"
+    ]
+  ]
+}

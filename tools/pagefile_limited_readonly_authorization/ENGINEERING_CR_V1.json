@@ -1,0 +1,24 @@
+{
+  "Live_CLI": "ABSENT",
+  "Permit_loader_signer": "ABSENT",
+  "accepted_files_modified": false,
+  "allowed_changes": [
+    "tools/pagefile_limited_readonly_authorization/**",
+    ".github/workflows/rate_pagefile_lro_offline.yml"
+  ],
+  "authority": "OFFLINE_ENGINEERING_AND_EXTERNAL_EVIDENCE_PREPARATION_ONLY",
+  "base_head": "7208a58e3b0eadc3ee910d508af04191b018a219",
+  "branch": "codex/pagefile-limited-readonly-authorization-v1",
+  "design_difference": "New immutable reviewed literal D filters and one-row projected results; existing runner collector remains byte-identical and uncalled. Filters are design-only, not proven native execution. Exact PagingFiles value can still contain collateral drive entries.",
+  "final_expected": "BLOCKED_EXTERNAL_EVIDENCE_REQUIRED unless genuinely accepted external identity/source/safety/authorization evidence exists; none was supplied here.",
+  "frozen_main": "fbdfbfcf0a003cd6de49911bc0a784275a32031c",
+  "id": "PF-LRO-001",
+  "native_transport": "ABSENT",
+  "no_Permit_issuance_or_consumption": true,
+  "no_merge_deploy": true,
+  "no_target_file_write": true,
+  "no_target_query": true,
+  "stacked_base_branch": "codex/pagefile-nongui-readonly-evidence-v1",
+  "stacked_dependency_explicit": true,
+  "tests": "All current offline candidate negative/regression cases plus inherited PR78 pure69; accepted external preflight111 reproduced separately from sealed hash-verified reference. No Runtime PASS derived."
+}

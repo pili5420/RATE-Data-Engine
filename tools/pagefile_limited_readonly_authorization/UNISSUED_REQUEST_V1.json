@@ -1,0 +1,46 @@
+{
+  "NoAutoNext": true,
+  "actual_D_volume": null,
+  "actual_boot": null,
+  "actual_clock": null,
+  "actual_host": null,
+  "attempt_id": null,
+  "authority": "OFFLINE_ENGINEERING_AND_EXTERNAL_EVIDENCE_PREPARATION_ONLY",
+  "base_head": "7208a58e3b0eadc3ee910d508af04191b018a219",
+  "can_issue_permit": false,
+  "deadline_utc": null,
+  "excluded_claims": [
+    "D system-managed policy",
+    "boot-applied configuration"
+  ],
+  "execution_authorized": false,
+  "formal_permit": null,
+  "issuer": null,
+  "kind": "UNISSUED_OFFLINE_REQUEST_ONLY",
+  "nonce": null,
+  "not_before_utc": null,
+  "operator": null,
+  "physical_output_root": null,
+  "requested_claims": "RAW_CONFIGURATION_AND_RAW_RUNTIME_ONLY",
+  "required_external_evidence": [
+    "HOST",
+    "BOOT",
+    "VOLUME",
+    "CLOCK",
+    "OPERATOR_RIGHTS",
+    "PROVIDER_PROFILE",
+    "TARGET_TOOL_QUALIFICATION",
+    "PHYSICAL_OUTPUT",
+    "DURABLE_ATTEMPT",
+    "DEADLINE_CONTAINMENT",
+    "SEPARATE_SCOPE_AUTHORIZATION",
+    "INDEPENDENT_EXTERNAL_REVIEW"
+  ],
+  "scope_sha256": "68b7500f281d91823bdacfc20ac460ad89e72293d97ed2628cc30b139a7a7741",
+  "signature": null,
+  "source_gaps": [
+    "PF-SOURCE-001",
+    "PF-SOURCE-002",
+    "PF-TRUST-003"
+  ]
+}

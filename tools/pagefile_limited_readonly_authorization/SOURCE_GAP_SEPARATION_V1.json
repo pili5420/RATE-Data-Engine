@@ -1,0 +1,30 @@
+{
+  "GUI_Gate2": "BLOCKED",
+  "no_gap_closed": true,
+  "original_HALT_root_cause": "UNKNOWN",
+  "rows": [
+    {
+      "claim": "D system-managed policy",
+      "id": "PF-SOURCE-001",
+      "limited_raw_CR": "Explicitly excluded; no 0/0, missing instance, global True or Registry inference",
+      "owner": "OS/provider source authority + Control Center",
+      "status": "BLOCKED"
+    },
+    {
+      "claim": "Boot-applied configuration",
+      "id": "PF-SOURCE-002",
+      "limited_raw_CR": "Explicitly excluded; runtime allocation/current settings/restart timestamp do not establish trusted applied history",
+      "owner": "Trusted configuration-history/applied-state authority",
+      "status": "BLOCKED"
+    },
+    {
+      "canonical_id": "PF-TRUST-003",
+      "claim": "Trusted original Host/Boot/Volume/Clock/source",
+      "id": "PF-SOURCE-003",
+      "limited_raw_CR": "NOT EXCLUDABLE for actual original-target reads; external proof required",
+      "owner": "Appointed platform/security/time/source authorities + independent reviewer",
+      "status": "BLOCKED"
+    }
+  ],
+  "sequential_non_atomic": true
+}

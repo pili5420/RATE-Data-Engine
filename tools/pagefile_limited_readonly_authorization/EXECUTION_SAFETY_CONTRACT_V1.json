@@ -1,0 +1,41 @@
+{
+  "DACL": null,
+  "any_error": "HALT_PRESERVE_UNKNOWN_OUTCOME",
+  "attempt_id": null,
+  "auto_next": false,
+  "cleanup_on_failure": false,
+  "clock_rules": [
+    "external trusted UTC and <=1000ms uncertainty design bound",
+    "conservative [not_before,deadline) <=120s",
+    "monotonic watchdog and verified cancellation/containment",
+    "clock rollback/boundary uncertainty => HALT"
+  ],
+  "deadline_utc": null,
+  "directory_file_identity": null,
+  "fallback": false,
+  "journal_rules": [
+    "independent durable nonce reservation before any read",
+    "intent hashes tool/schema/scope/target/boot/output/time",
+    "crash/unknown consumes future attempt; no local repair",
+    "external review of sealed raw evidence; no automatic promotion"
+  ],
+  "mode": "OFFLINE_CONTRACT_ONLY",
+  "native_enforcement": "NOT_IMPLEMENTED_NOT_QUALIFIED",
+  "nonce": null,
+  "not_before_utc": null,
+  "owner_SID": null,
+  "physical_root": null,
+  "read_scope_sha256": "68b7500f281d91823bdacfc20ac460ad89e72293d97ed2628cc30b139a7a7741",
+  "resume": false,
+  "retry": 0,
+  "root_rules": [
+    "exact pre-reviewed physical path",
+    "no UNC/device/ADS/traversal/alias/reparse/junction",
+    "owner SID and least-write DACL independently verified",
+    "handle-bound same-volume exclusive CreateNew",
+    "no overwrite; preserve every partial result",
+    "power-loss/directory-flush guarantees independently qualified"
+  ],
+  "trusted_clock_reference": null,
+  "volume_identity": null
+}

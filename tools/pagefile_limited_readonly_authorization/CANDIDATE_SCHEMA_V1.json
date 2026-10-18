@@ -1,0 +1,42 @@
+{
+  "$comment": "Executable candidate validates strict canonical UTF8 oneLF, base64, inherited schema/type/context/sequence/hash rules and D-only row projection. JSON Schema alone does not prove these. Actual original target packets and Runner realm are rejected; no realm rewriting or native transport exists.",
+  "$id": "urn:rate:pf-lro:offline-raw-candidate:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "accepted_engine_sha256": {
+      "const": "1279dfe85cd3685e7af081908235a969ee2172a6c021d4022c793284de6f5e70"
+    },
+    "accepted_schema_sha256": {
+      "const": "2126fca45026a23bbe4be80f6a2b29a760ef6a38e470b3c33dab92c8f05bcbbd"
+    },
+    "base_head": {
+      "const": "7208a58e3b0eadc3ee910d508af04191b018a219"
+    },
+    "realm": {
+      "const": "SYNTHETIC_ONLY"
+    },
+    "scope_sha256": {
+      "const": "68b7500f281d91823bdacfc20ac460ad89e72293d97ed2628cc30b139a7a7741"
+    },
+    "synthetic_source_packet_b64": {
+      "contentEncoding": "base64",
+      "maxLength": 524288,
+      "type": "string"
+    },
+    "version": {
+      "const": "PF_LRO_OFFLINE_RAW_CANDIDATE_V1"
+    }
+  },
+  "required": [
+    "version",
+    "realm",
+    "base_head",
+    "accepted_engine_sha256",
+    "accepted_schema_sha256",
+    "scope_sha256",
+    "synthetic_source_packet_b64"
+  ],
+  "title": "Original-target D Pagefile scope candidate, SYNTHETIC transport only; NOT a Live target schema or Permit",
+  "type": "object"
+}

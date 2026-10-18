@@ -1,0 +1,171 @@
+{
+  "accepted_base_head": "7208a58e3b0eadc3ee910d508af04191b018a219",
+  "accepted_reference_context": {
+    ".gitattributes": {
+      "bytes": 14,
+      "sha256": "a79691a93b46e49ce460c26ef22afcc03d6eca1e63bf2edbc20e96159510f6c9"
+    },
+    "ENGINEERING_CR_V1.json": {
+      "bytes": 1288,
+      "sha256": "56acec016da7e3940bdaab4ae52183c024d03bf486f5cd84909d0da135044d4e"
+    },
+    "EVIDENCE_DECISION_CONTRACT_V1.json": {
+      "bytes": 3840,
+      "sha256": "513130c7ab18fb6f8c31c444e606abe65760a6edc642c2f945595d4cf2b8dbd9"
+    },
+    "EVIDENCE_SCHEMA_V1.json": {
+      "bytes": 1052,
+      "sha256": "2126fca45026a23bbe4be80f6a2b29a760ef6a38e470b3c33dab92c8f05bcbbd"
+    },
+    "FEASIBILITY_DECISION_V1.json": {
+      "bytes": 2005,
+      "sha256": "ea52aa2d0228b61759a437822f989b101e29d7af7077bbf58913d4a953651b22"
+    },
+    "NEXT_AUTHORIZATION_BOUNDARY_V1.json": {
+      "bytes": 911,
+      "sha256": "1f4a0025c6642c5bde59fed99a17d24f00aabdba9b0f8f5dbb003bd5611954db"
+    },
+    "OFFICIAL_SOURCE_QUALIFICATION_V1.json": {
+      "bytes": 12915,
+      "sha256": "c72f07f1e29d3b7218c0fd2f675648914a4dd2e8ea57ed0f546535ad0b4df752"
+    },
+    "READ_BOUNDARY_V1.json": {
+      "bytes": 2939,
+      "sha256": "d65d6a20b2a510d1d0c78df7ad070ea5ddf138a7d661a4c05f9857dfa7d558c3"
+    },
+    "RESEARCH_GUIDE.txt": {
+      "bytes": 3477,
+      "sha256": "3bee549ae840a11479c17ea1174e45437edea6086c5585595531d3f598435d97"
+    },
+    "evaluate_runner.py": {
+      "bytes": 1306,
+      "sha256": "5581a177e82398c7092cfc7b4b16d9a4aac2966093d6e8228028f2aeef2d829c"
+    },
+    "evidence.py": {
+      "bytes": 17377,
+      "sha256": "1279dfe85cd3685e7af081908235a969ee2172a6c021d4022c793284de6f5e70"
+    },
+    "fixtures.py": {
+      "bytes": 2317,
+      "sha256": "f60431462e297f1ba25deba977af4c3df087a569f3c9b3cd01c8f481c97c0ba3"
+    },
+    "run_tests.py": {
+      "bytes": 4242,
+      "sha256": "81d8fe41b3a315949fd964d7fcc55900cd47e26abf209a444cb723a61b68eaca"
+    },
+    "runner_collect.ps1": {
+      "bytes": 9614,
+      "sha256": "b24643d5170ac68d19a13217f26579abcb6172b0734470085c63e01637cd42b3"
+    },
+    "test_collector_boundary.ps1": {
+      "bytes": 10747,
+      "sha256": "2db8dd3947e0fe61ed4c6e6f04da4b1d21eb4fb7fdeabaf777a6b53e2ddb2133"
+    },
+    "test_evidence.py": {
+      "bytes": 16535,
+      "sha256": "d47d4f0b6f180428bf1df945b46d488148667ebd14429d39b52ce0d514f57baf"
+    }
+  },
+  "exact_commit_binding": "Final Git head bound by external review/evidence manifest, not a self-referential in-tree commit field",
+  "excluded": [
+    "runner_collect.ps1",
+    "NativeBackend",
+    "Permit Loader",
+    "Live target CLI",
+    "Production files"
+  ],
+  "execution_authorized": false,
+  "files": {
+    "tools/pagefile_limited_readonly_authorization/.gitattributes": {
+      "bytes": 14,
+      "sha256": "a79691a93b46e49ce460c26ef22afcc03d6eca1e63bf2edbc20e96159510f6c9"
+    },
+    "tools/pagefile_limited_readonly_authorization/CANDIDATE_SCHEMA_V1.json": {
+      "bytes": 1495,
+      "sha256": "00c4a3c299319a746927cf015a834451955b82eebc697f0df15ff23857331653"
+    },
+    "tools/pagefile_limited_readonly_authorization/ENGINEERING_CR_V1.json": {
+      "bytes": 1460,
+      "sha256": "3125893f09fc57c5eab9c953e470599dcfb1f84f091ce57dd5cd62378832ca80"
+    },
+    "tools/pagefile_limited_readonly_authorization/EXECUTION_SAFETY_CONTRACT_V1.json": {
+      "bytes": 1476,
+      "sha256": "2a68e847e24551909506ffc2ca19caef0d8571da5aaac4868614058ce2057b5d"
+    },
+    "tools/pagefile_limited_readonly_authorization/EXTERNAL_EVIDENCE_REQUEST_V1.json": {
+      "bytes": 16846,
+      "sha256": "2c672848c9a1df7b974ec005660f9be08604828acd98a7f8715f095257127309"
+    },
+    "tools/pagefile_limited_readonly_authorization/README.txt": {
+      "bytes": 4845,
+      "sha256": "16c039f29ded0e0a224162f66720599bb3111c836c7724346582246127c7352c"
+    },
+    "tools/pagefile_limited_readonly_authorization/READ_SCOPE_V1.json": {
+      "bytes": 3582,
+      "sha256": "42a53bfdc24b7dc7b04074cee29864ce58682106acc2e1ded123cf5b32bc4859"
+    },
+    "tools/pagefile_limited_readonly_authorization/SOURCE_AUTHORITY_REVIEW_V1.json": {
+      "bytes": 2580,
+      "sha256": "cb290a3aa285ace2cfddfd6f7d5bf555ee3fbc0153516e67ab69e1ae6d2366c8"
+    },
+    "tools/pagefile_limited_readonly_authorization/SOURCE_GAP_SEPARATION_V1.json": {
+      "bytes": 1118,
+      "sha256": "f4ff1df01280550be9d98f3ed3aa94dcb523ad0ea71f705183e89dd46aa52242"
+    },
+    "tools/pagefile_limited_readonly_authorization/THREAT_MODEL_V1.json": {
+      "bytes": 2217,
+      "sha256": "6054f8b6030bb90425f7b1734d27dd83ebc2d091e7c51b5b19eef90e4a09f966"
+    },
+    "tools/pagefile_limited_readonly_authorization/UNISSUED_REQUEST_V1.json": {
+      "bytes": 1209,
+      "sha256": "6359e1ee1cb4af99bad479402d0afaa44fa30c676284e9b761fcc3e569d2227c"
+    },
+    "tools/pagefile_limited_readonly_authorization/candidate.py": {
+      "bytes": 10976,
+      "sha256": "14914dc6e29c0562191b8fbacea45c38f505d4eaacaf785bb6d9b38f49a175e2"
+    },
+    "tools/pagefile_limited_readonly_authorization/run_offline_tests.py": {
+      "bytes": 6160,
+      "sha256": "bb764514e25239b7feaf059e573105d4866ff82b56cdedca1ad3a98e0f419130"
+    },
+    "tools/pagefile_limited_readonly_authorization/synthetic_fixtures.py": {
+      "bytes": 984,
+      "sha256": "f2630f9a839a203b27f9edc3fe749689562b5443be0fc05fd34f24f703535dc2"
+    },
+    "tools/pagefile_limited_readonly_authorization/test_candidate.py": {
+      "bytes": 15188,
+      "sha256": "d5d7a0bd6a5615a0e7964583d01d20f11a12216a863b1d1d7234dc0530d93f2a"
+    },
+    "tools/pagefile_limited_readonly_authorization/verify_bundle.py": {
+      "bytes": 5243,
+      "sha256": "998915083647af88589c9205e521b612b08f0dbbb14430885846f7ab5297e311"
+    },
+    "tools/pagefile_non_gui_evidence/EVIDENCE_DECISION_CONTRACT_V1.json": {
+      "bytes": 3840,
+      "sha256": "513130c7ab18fb6f8c31c444e606abe65760a6edc642c2f945595d4cf2b8dbd9"
+    },
+    "tools/pagefile_non_gui_evidence/EVIDENCE_SCHEMA_V1.json": {
+      "bytes": 1052,
+      "sha256": "2126fca45026a23bbe4be80f6a2b29a760ef6a38e470b3c33dab92c8f05bcbbd"
+    },
+    "tools/pagefile_non_gui_evidence/evaluate_runner.py": {
+      "bytes": 1306,
+      "sha256": "5581a177e82398c7092cfc7b4b16d9a4aac2966093d6e8228028f2aeef2d829c"
+    },
+    "tools/pagefile_non_gui_evidence/evidence.py": {
+      "bytes": 17377,
+      "sha256": "1279dfe85cd3685e7af081908235a969ee2172a6c021d4022c793284de6f5e70"
+    },
+    "tools/pagefile_non_gui_evidence/fixtures.py": {
+      "bytes": 2317,
+      "sha256": "f60431462e297f1ba25deba977af4c3df087a569f3c9b3cd01c8f481c97c0ba3"
+    },
+    "tools/pagefile_non_gui_evidence/test_evidence.py": {
+      "bytes": 16535,
+      "sha256": "d47d4f0b6f180428bf1df945b46d488148667ebd14429d39b52ce0d514f57baf"
+    }
+  },
+  "manifest_self_exclusion": "Own exact bytes pinned by final Git head and external evidence SHA256; local manifest alone is not a trust root or authorization",
+  "native_transport": false,
+  "version": "PF_LRO_CLOSED_OFFLINE_BUNDLE_V1"
+}

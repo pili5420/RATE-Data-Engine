@@ -1,0 +1,138 @@
+{
+  "api_allowlist": [
+    "CimCmdlets\\Get-CimClass",
+    "CimCmdlets\\Get-CimInstance",
+    "Registry64.LocalMachine.OpenBaseKey",
+    "RegistryKey.OpenSubKey(false)",
+    "RegistryKey.GetValueKind",
+    "RegistryKey.GetValue(DoNotExpandEnvironmentNames)"
+  ],
+  "claim_scope": "RAW_CONFIGURATION_AND_RAW_RUNTIME_ONLY_NOT_D_POLICY_OR_BOOT_APPLIED",
+  "classes": {
+    "boot": {
+      "class": "Win32_OperatingSystem",
+      "fields": [
+        "CSName",
+        "LastBootUpTime",
+        "Version",
+        "BuildNumber"
+      ],
+      "provider": "CIMWin32"
+    },
+    "computer": {
+      "class": "Win32_ComputerSystem",
+      "fields": [
+        "Name",
+        "AutomaticManagedPagefile"
+      ],
+      "provider": "CIMWin32"
+    },
+    "product": {
+      "class": "Win32_ComputerSystemProduct",
+      "fields": [
+        "UUID"
+      ],
+      "provider": "CIMWin32"
+    },
+    "settings": {
+      "class": "Win32_PageFileSetting",
+      "fields": [
+        "Name",
+        "InitialSize",
+        "MaximumSize"
+      ],
+      "provider": "CIMWin32"
+    },
+    "usage": {
+      "class": "Win32_PageFileUsage",
+      "fields": [
+        "Name",
+        "AllocatedBaseSize",
+        "CurrentUsage",
+        "PeakUsage",
+        "TempPageFile"
+      ],
+      "provider": "CIMWin32"
+    },
+    "volumes": {
+      "class": "Win32_Volume",
+      "fields": [
+        "DeviceID",
+        "DriveLetter",
+        "SerialNumber"
+      ],
+      "provider": "MSVDS__PROVIDER"
+    }
+  },
+  "counts": {
+    "instance_reads": 10,
+    "metadata_reads": 10,
+    "raw_record_bytes": 98304,
+    "records": 11,
+    "registry_strings": 32,
+    "registry_value_reads": 1,
+    "rows_per_CIM_record": 1,
+    "string_characters": 512
+  },
+  "filter_qualification": "FIXED_DESIGN_ONLY_NOT_DISPATCHED_OR_TARGET_QUALIFIED; no dynamic Filter, Query, wildcard, remote/session/InputObject or unfiltered fallback",
+  "filters": {
+    "boot": null,
+    "computer": null,
+    "product": null,
+    "settings": "Name = 'D:\\\\pagefile.sys'",
+    "usage": "Name = 'D:\\\\pagefile.sys'",
+    "volumes": "DriveLetter = 'D:'"
+  },
+  "instance_parameters": [
+    "Namespace",
+    "ClassName",
+    "Property",
+    "OperationTimeoutSec=5",
+    "ErrorAction=Stop",
+    "EXACT_LITERAL_Filter_ONLY_WHEN_LISTED"
+  ],
+  "matching_endpoints_exclude_ABA": false,
+  "metadata_parameters": [
+    "Namespace",
+    "ClassName",
+    "OperationTimeoutSec=5",
+    "ErrorAction=Stop"
+  ],
+  "mode": "OFFLINE_CANDIDATE_NO_NATIVE_TRANSPORT",
+  "namespace": "ROOT/CIMV2",
+  "query_order": [
+    "computer_before",
+    "boot_before",
+    "product_before",
+    "volumes_before",
+    "settings",
+    "usage",
+    "registry",
+    "computer_after",
+    "boot_after",
+    "product_after",
+    "volumes_after"
+  ],
+  "registry": {
+    "hive": "LocalMachine",
+    "key": "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management",
+    "kind": "MultiString",
+    "value": "PagingFiles",
+    "view": "Registry64",
+    "writable": false
+  },
+  "registry_collateral": "Exact PagingFiles MultiString necessarily includes other-drive entries if present; bounded raw value requires separate explicit disclosure/retention approval. No other values or keys.",
+  "rights": [
+    "WMI namespace WBEM_ENABLE read only",
+    "Registry read-only exact subkey/value",
+    "future evidence-root CreateNew only; no system writes"
+  ],
+  "sequential_reads_atomic": false,
+  "target": "D:\\pagefile.sys",
+  "time_bounds": {
+    "CIM_option_seconds": 5,
+    "record_wall_seconds": 10,
+    "total_seconds": 120
+  },
+  "version": "PF_LRO_READ_SCOPE_V1"
+}
