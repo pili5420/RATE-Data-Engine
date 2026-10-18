@@ -1,0 +1,112 @@
+{
+  "NoAutoNext": true,
+  "PF002_runtime": "BLOCKED",
+  "RS02": "BLOCKED",
+  "base_head": "3b3107786da0a3ba54705f6b24ba7b68a2a056e6",
+  "canonical_identity": {
+    "all_fields_equal_required": true,
+    "atomic_snapshot": false,
+    "automatic_confirmation_retry": false,
+    "compared_fields": [
+      "volume_serial_u64",
+      "file_id_128_le",
+      "file_size_bytes",
+      "creation_time_100ns",
+      "change_time_100ns",
+      "last_write_time_100ns",
+      "file_attributes_u32",
+      "number_of_links"
+    ],
+    "information_classes": {
+      "FileBasicInfo": 0,
+      "FileIdInfo": 18,
+      "FileStandardInfo": 1
+    },
+    "loaded_image_attestation": false,
+    "max_image_bytes": 33554432,
+    "phases": [
+      "OPENED_BEFORE",
+      "OPENED_AFTER_HASH",
+      "PATH_REOPENED_BEFORE",
+      "PATH_REOPENED_AFTER",
+      "OPENED_FINAL"
+    ],
+    "raw_only_fields": [
+      "last_access_time_100ns",
+      "allocation_size_bytes",
+      "structure_padding"
+    ],
+    "returned_length_available": false,
+    "same_path_reopened_handle_phases": [
+      2,
+      3
+    ],
+    "same_retained_handle_phases": [
+      0,
+      1,
+      4
+    ],
+    "source": "GetFileInformationByHandleEx",
+    "structure_capacity_bytes": {
+      "0": 40,
+      "1": 24,
+      "18": 24
+    },
+    "timestamp_unit": "100ns since 1601-01-01 UTC",
+    "version": "C04_WINDOWS_FILE_IDENTITY_V1"
+  },
+  "event": "workflow_dispatch",
+  "handle_ownership": "Python file owns borrowed msvcrt handle; no separate CloseHandle",
+  "journal": {
+    "create_new_only": true,
+    "encoding": "canonical UTF-8 JSON plus one LF",
+    "maximum_record_bytes": 65536,
+    "maximum_records": 8192,
+    "previous_sha256": "previous complete record bytes or null",
+    "sequence": "strict increasing"
+  },
+  "native_error": "BOOL false captures immediate GetLastError; BOOL success has error null; no returned-length claim",
+  "native_receipts": [
+    "FILE_API_ABI",
+    "FILE_NATIVE_QUERY",
+    "FILE_DESCRIPTOR_HANDLE",
+    "FILE_IDENTITY_SNAPSHOT",
+    "CANONICAL_FILE_COMPARISON",
+    "FILE_CLOSE_RESULT",
+    "STAGE_A_ROOT_IMAGE_PASS"
+  ],
+  "normal_deadline_seconds": 10,
+  "origin": "UNPROVEN pending independent raw chain review, never inferred from parent/hash/path alone",
+  "owner_consent_issued": false,
+  "preauth_receipt": {
+    "authority": "NONE",
+    "fixed_stages": [
+      "OIDC_TOKEN",
+      "RUN_RECORD",
+      "PR84_BASE_REF",
+      "CURRENT_TREE",
+      "PR84_TREE"
+    ],
+    "forbidden": [
+      "token",
+      "headers",
+      "JWT",
+      "signature",
+      "full_URL",
+      "query",
+      "environment",
+      "response_body",
+      "exception_text"
+    ],
+    "native_on_auth_failure": false,
+    "requests_max": 5
+  },
+  "roles": [
+    "qualification",
+    "reproduction"
+  ],
+  "root_identity_scope": "retained process identity and same-disk canonical observations; loaded image attestation NOT_PROVEN",
+  "run_attempt": 1,
+  "scope": "one Normal newly owned Job per role; Stage A before unknown member process access",
+  "version": "PF002_C04_CANONICAL_EVIDENCE_V1"
+}
