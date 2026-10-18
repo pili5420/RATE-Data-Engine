@@ -7,8 +7,24 @@ from pathlib import Path
 import unittest
 import personal_model as m
 import synthetic_fixtures as f
+from offline_paths import approved_output
 
 class PersonalTests(unittest.TestCase):
+    def test_output_traversal_rejected_before_any_creation(self):
+        out=ENGINEERING_OUTPUT_ROOT/'never-created-by-validation'
+        bad=str(ENGINEERING_OUTPUT_ROOT)+'\\..\\PF-PERSONAL-UNAUTHORIZED'
+        for raw in [bad,str(ENGINEERING_OUTPUT_ROOT)+'/../PF-PERSONAL-UNAUTHORIZED',str(out)+'/./child']:
+            with self.assertRaisesRegex(ValueError,'CANONICAL_ABSOLUTE'):approved_output(raw)
+        self.assertFalse(out.exists())
+    def test_output_requires_direct_approved_root_and_absolute_fresh_path(self):
+        with self.assertRaises(ValueError):approved_output('relative-evidence')
+        with self.assertRaises(ValueError):approved_output(str(ENGINEERING_OUTPUT_ROOT))
+        with self.assertRaises(ValueError):approved_output(r'D:\Codex\unapproved\RATE-PF-PERSONAL-001-Evidence-20300101-000000\child')
+    def test_output_policy_does_not_create_accepted_candidate(self):
+        path=ENGINEERING_OUTPUT_ROOT/'fresh-validation-only'
+        # Hosted CI uses the caller's exact approved test root, not fabricated original-host context.
+        self.assertEqual(approved_output(str(path),str(ENGINEERING_OUTPUT_ROOT)),path)
+        self.assertFalse(path.exists())
     def reject(self,e,code=None):
         with self.assertRaises(m.Refused) as got:f.assess(e)
         if code:self.assertIn(code,str(got.exception))
@@ -230,4 +246,3 @@ class PersonalTests(unittest.TestCase):
     def test_functions_do_not_mutate_inputs(self):
         e=f.evidence();before=copy.deepcopy(e);f.assess(e);self.assertEqual(e,before)
         j=f.journal();before=copy.deepcopy(j);m.model_transition(j,'OWNER_APPROVES');self.assertEqual(j,before)
-

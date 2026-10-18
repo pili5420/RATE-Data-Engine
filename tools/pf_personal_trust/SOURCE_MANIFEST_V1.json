@@ -29,8 +29,8 @@
       "sha256": "4930e22b5a214a49631952b63e1b96ecf583096cca02a290b2e6a724a2bd3f94"
     },
     "README.txt": {
-      "bytes": 4437,
-      "sha256": "0844be4930eb4263a32a178667b885b05ae0eb366fcad11eca619c9f72fd0c48"
+      "bytes": 4436,
+      "sha256": "2dd72adfd09454d2b71b0241fa1c3e91093c08dc4effffea5af9518bfd3341ad"
     },
     "READ_SCOPE_V1.json": {
       "bytes": 3019,
@@ -48,21 +48,25 @@
       "bytes": 2277,
       "sha256": "642e0f53fe43e6d7b9b5801fb85308e515b706a5effaf68372edc91f9ef213ba"
     },
+    "offline_paths.py": {
+      "bytes": 1699,
+      "sha256": "1fa94f6be16cbc8f6d9c36f13b0d46a04c615bb676a57660aae808cd2c1d4e1a"
+    },
     "personal_model.py": {
-      "bytes": 17517,
-      "sha256": "3dc05082c401deec27e8da809a4382c5b8abc69d8bd24c165292690d7fba9fd7"
+      "bytes": 17516,
+      "sha256": "f28c9e71578fe98800e66257e7150e11a565e7e6367775760ca992a45dd72d06"
     },
     "run_offline_tests.py": {
-      "bytes": 4532,
-      "sha256": "82de06b000a3a6492fe94fb5da416e030d2ff396add45ce170fb1799966fee05"
+      "bytes": 4266,
+      "sha256": "3068761d4484e3ab08f089a7cbb613149e85347020fcf798cc08d1ceafe6a1b9"
     },
     "synthetic_fixtures.py": {
-      "bytes": 3020,
-      "sha256": "0253a7f97d36e09dc6a45aaa8472e5f1dd41a1c6913efd033971e70b55426595"
+      "bytes": 3019,
+      "sha256": "9ad484ff3bf65cf88cf30916ceabb90e2e5b273e3d168168d58c459e87c615b7"
     },
     "test_personal_model.py": {
-      "bytes": 17291,
-      "sha256": "bb34940093817aba0fe7b0ff45312eeccea7a9f26376da5c48540ed25c215172"
+      "bytes": 18521,
+      "sha256": "484bb3456509ea62af6cb5848474bb2b77a18015ce26e8fddc788229b1660a54"
     }
   },
   "profile": "OFFLINE_SOURCE_DIRECTORY_ONLY_NOT_RUNTIME_ROOT_SECURITY",

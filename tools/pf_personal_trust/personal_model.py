@@ -285,4 +285,3 @@ def model_transition(journal, event):
     row={**core,'entry_sha256':digest({'attempt':journal['attempt'],'nonce':journal['nonce'],**core})}
     return {'journal':{**journal,'events':journal['events']+[row]},'state':transitions[state,event],
             'real_execution_authorized':False,'durability':'NOT_IMPLEMENTED_MODEL_ONLY'}
-

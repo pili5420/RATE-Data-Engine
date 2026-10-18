@@ -44,4 +44,3 @@ def evidence():
 def wire(e):return m.canonical(e)+b'\n'
 def assess(e):return m.assess(wire(e),ctx(),TOOL,NOW)
 def journal():return {'realm':m.REALM,'attempt':'SYNTHETIC-attempt-1','nonce':'b'*64,'events':[]}
-

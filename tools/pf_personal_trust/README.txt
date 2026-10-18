@@ -61,4 +61,3 @@ trust-model change. No original target data belongs in Git or Actions artifacts.
 CR acceptance is not live read consent. Follow OWNER_CONSENT_CONTRACT_V1.json
 and obtain NEW separate scoped authority plus explicit Owner consent.
 Never reuse old halted authority. No Merge/Deploy/Activation/Pagefile or auto-next.
-
