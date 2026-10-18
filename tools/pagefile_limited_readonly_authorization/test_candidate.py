@@ -84,8 +84,35 @@ class CandidateTests(unittest.TestCase):
  def test_read_scope_document_matches_code(self):
   self.assertEqual(json.loads((Path(c.__file__).parent/'READ_SCOPE_V1.json').read_bytes()),c.PLAN)
  def test_closed_bundle_exact_source_integrity(self):
+  # Fixture must be physically closed, not the complete inherited Git tree.
   from tools.pagefile_limited_readonly_authorization.verify_bundle import verify
-  self.assertEqual(verify(Path(c.__file__).resolve().parents[2])['status'],'PASS_CLOSED_OFFLINE_BUNDLE_INTEGRITY')
+  self.assertEqual(verify(self.closed_bundle_fixture())['status'],'PASS_CLOSED_OFFLINE_BUNDLE_INTEGRITY')
+ def closed_bundle_fixture(self):
+  root=ENGINEERING_OUTPUT_ROOT/'CLOSED_BUNDLE_UNIT_FIXTURE'
+  if not root.exists():
+   repo=Path(c.__file__).resolve().parents[2];source=Path(c.__file__).parent
+   manifest=json.loads((source/'BUNDLE_MANIFEST_V1.json').read_bytes())
+   for name in [*manifest['files'],'tools/pagefile_limited_readonly_authorization/BUNDLE_MANIFEST_V1.json']:
+    dest=root/name;dest.parent.mkdir(parents=True,exist_ok=True);dest.write_bytes((repo/name).read_bytes())
+  return root
+ def test_closed_bundle_root_extra_rejected(self):
+  from tools.pagefile_limited_readonly_authorization.verify_bundle import verify
+  root=self.closed_bundle_fixture();p=root/'extra.txt';p.write_text('unlisted',encoding='utf-8')
+  try:
+   with self.assertRaises(ValueError):verify(root)
+  finally:p.unlink()
+ def test_closed_bundle_dependency_extra_rejected(self):
+  from tools.pagefile_limited_readonly_authorization.verify_bundle import verify
+  root=self.closed_bundle_fixture();p=root/'tools/pagefile_non_gui_evidence/extra.py';p.write_text('# unlisted',encoding='utf-8')
+  try:
+   with self.assertRaises(ValueError):verify(root)
+  finally:p.unlink()
+ def test_closed_bundle_namespace_init_rejected(self):
+  from tools.pagefile_limited_readonly_authorization.verify_bundle import verify
+  root=self.closed_bundle_fixture();p=root/'tools/__init__.py';p.write_text('# marker-only; never imported',encoding='utf-8')
+  try:
+   with self.assertRaises(ValueError):verify(root)
+  finally:p.unlink()
  def test_safety_document_matches_code(self):
   self.assertEqual(json.loads((Path(c.__file__).parent/'EXECUTION_SAFETY_CONTRACT_V1.json').read_bytes()),c.offline_safety_contract())
  def test_candidate_schema_scope_identity(self):

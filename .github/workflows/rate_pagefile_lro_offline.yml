@@ -34,7 +34,7 @@ jobs:
           lfs: false
       - name: Pure offline synthetic and inherited regression; no collector
         shell: pwsh
-        run: python -I -B -S tools/pagefile_limited_readonly_authorization/run_offline_tests.py --output "$env:RUNNER_TEMP/PF-LRO-offline-tests"
+        run: python -I -B -S tools/pagefile_limited_readonly_authorization/run_offline_tests.py --reference-tree --output "$env:RUNNER_TEMP/PF-LRO-offline-tests"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
