@@ -125,20 +125,20 @@
       "sha256": "14914dc6e29c0562191b8fbacea45c38f505d4eaacaf785bb6d9b38f49a175e2"
     },
     "tools/pagefile_limited_readonly_authorization/run_offline_tests.py": {
-      "bytes": 5204,
-      "sha256": "13e36c90436bacbb71d9bab82ae517d23a74eb74b826089a009ee6d9d21794ee"
+      "bytes": 6160,
+      "sha256": "bb764514e25239b7feaf059e573105d4866ff82b56cdedca1ad3a98e0f419130"
     },
     "tools/pagefile_limited_readonly_authorization/synthetic_fixtures.py": {
       "bytes": 984,
       "sha256": "f2630f9a839a203b27f9edc3fe749689562b5443be0fc05fd34f24f703535dc2"
     },
     "tools/pagefile_limited_readonly_authorization/test_candidate.py": {
-      "bytes": 14550,
-      "sha256": "3d2668f40f9f7d14e211db18c9a5eed1cc449901e392065c8865b351d997b2f1"
+      "bytes": 15188,
+      "sha256": "d5d7a0bd6a5615a0e7964583d01d20f11a12216a863b1d1d7234dc0530d93f2a"
     },
     "tools/pagefile_limited_readonly_authorization/verify_bundle.py": {
-      "bytes": 4893,
-      "sha256": "0d03762cbd4dfe8db0e00d6bcb60e686f4e8bd431170b41511bc45b19a54fc73"
+      "bytes": 5243,
+      "sha256": "998915083647af88589c9205e521b612b08f0dbbb14430885846f7ab5297e311"
     },
     "tools/pagefile_non_gui_evidence/EVIDENCE_DECISION_CONTRACT_V1.json": {
       "bytes": 3840,

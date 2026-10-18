@@ -121,6 +121,14 @@ class CandidateTests(unittest.TestCase):
   from tools.pagefile_limited_readonly_authorization.verify_bundle import check_package_siblings
   for suffix in ['py','pyc','pyd','cp312-win_amd64.pyd','so']:
    with self.assertRaises(ValueError):check_package_siblings(['pagefile_limited_readonly_authorization.'+suffix])
+ def test_reference_selected_root_shadow_rejected(self):
+  from tools.pagefile_limited_readonly_authorization.verify_bundle import check_root_import_shadows
+  for stem in ['evidence','fixtures','test_evidence','evaluate_runner']:
+   with self.assertRaises(ValueError):check_root_import_shadows([stem+'.py'])
+ def test_reference_stdlib_root_shadow_rejected(self):
+  from tools.pagefile_limited_readonly_authorization.verify_bundle import check_root_import_shadows
+  for stem in ['base64','datetime','binascii','hashlib','json','re','ast','unittest','pathlib']:
+   with self.assertRaises(ValueError):check_root_import_shadows([stem+'.py'])
  def test_safety_document_matches_code(self):
   self.assertEqual(json.loads((Path(c.__file__).parent/'EXECUTION_SAFETY_CONTRACT_V1.json').read_bytes()),c.offline_safety_contract())
  def test_candidate_schema_scope_identity(self):

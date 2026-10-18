@@ -18,10 +18,12 @@ if any(p.name.startswith('tools.') for p in repo.iterdir()):raise SystemExit('PR
 for stem in ('pagefile_non_gui_evidence','pagefile_limited_readonly_authorization'):
  if any(p.name.startswith(stem+'.') for p in (repo/'tools').iterdir()):raise SystemExit('PREIMPORT_PACKAGE_SIBLING_SHADOW')
 if any(p.suffix.lower() in ('.pyd','.so','.dll','.pyc') for p in source.iterdir()):raise SystemExit('PREIMPORT_NATIVE_OR_COMPILED_INJECTION')
-sys.path.insert(0,str(source))
+# Preserve isolated interpreter/stdlib precedence; no repository path prepends.
+sys.path.append(str(source))
 from verify_bundle import verify,verify_reference_tree
+if Path(sys.modules['verify_bundle'].__file__).resolve()!=source/'verify_bundle.py':raise SystemExit('UNAPPROVED_VERIFIER_MODULE_ORIGIN')
 bundle_result=(verify_reference_tree if a.reference_tree else verify)(repo)
-sys.path[:0]=[str(repo),str(prior)]
+sys.path.extend([str(prior),str(repo)])
 files=[p for p in source.iterdir() if p.is_file()]+[prior/n for n in ['evidence.py','fixtures.py','test_evidence.py','evaluate_runner.py']]
 manifest={p.relative_to(repo).as_posix():dict(sha256=hashlib.sha256(p.read_bytes()).hexdigest(),bytes=p.stat().st_size) for p in sorted(files)}
 (out/'SOURCE_MANIFEST.json').write_text(json.dumps(manifest,sort_keys=True,indent=2)+'\n',encoding='utf-8')
@@ -41,6 +43,13 @@ stream=io.StringIO()
 try:
  import test_evidence
  from tools.pagefile_limited_readonly_authorization import test_candidate
+ expected_origins={'test_evidence':prior/'test_evidence.py','evidence':prior/'evidence.py','fixtures':prior/'fixtures.py','evaluate_runner':prior/'evaluate_runner.py',
+  'tools.pagefile_limited_readonly_authorization.candidate':source/'candidate.py',
+  'tools.pagefile_limited_readonly_authorization.test_candidate':source/'test_candidate.py',
+  'tools.pagefile_limited_readonly_authorization.synthetic_fixtures':source/'synthetic_fixtures.py',
+  'tools.pagefile_non_gui_evidence.evidence':prior/'evidence.py','tools.pagefile_non_gui_evidence.fixtures':prior/'fixtures.py'}
+ for name,path in expected_origins.items():
+  if Path(sys.modules[name].__file__).resolve()!=path:raise RuntimeError('UNAPPROVED_REPOSITORY_MODULE_ORIGIN:'+name)
  test_candidate.ENGINEERING_OUTPUT_ROOT=out
  suites=[unittest.defaultTestLoader.loadTestsFromModule(x) for x in [test_evidence,test_candidate]]
  counts=[x.countTestCases() for x in suites]
