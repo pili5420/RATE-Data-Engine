@@ -1,0 +1,83 @@
+name: RATE Pagefile non-GUI read-only feasibility
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - tools/pagefile_non_gui_evidence/**
+      - .github/workflows/rate_pagefile_nongui_readonly.yml
+
+permissions:
+  contents: read
+
+env:
+  GIT_CONFIG_COUNT: '1'
+  GIT_CONFIG_KEY_0: core.autocrlf
+  GIT_CONFIG_VALUE_0: 'false'
+
+jobs:
+  offline-regression:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'codex/pagefile-nongui-readonly-evidence-v1' &&
+      github.event.pull_request.base.sha == 'fbdfbfcf0a003cd6de49911bc0a784275a32031c'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          submodules: false
+          lfs: false
+      - name: Offline regression, no OS query
+        run: python3 -I -B -S tools/pagefile_non_gui_evidence/run_tests.py --output "$RUNNER_TEMP/pagefile-offline-tests"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: pagefile-offline-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pagefile-offline-tests
+          if-no-files-found: error
+          overwrite: false
+
+  hosted-readonly-acquisition:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'codex/pagefile-nongui-readonly-evidence-v1' &&
+      github.event.pull_request.base.sha == 'fbdfbfcf0a003cd6de49911bc0a784275a32031c'
+    runs-on: windows-2022
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          submodules: false
+          lfs: false
+      - name: Offline regression, no OS query
+        shell: pwsh
+        run: python -I -B -S tools/pagefile_non_gui_evidence/run_tests.py --output "$env:RUNNER_TEMP/pagefile-offline-tests"
+      - name: Parse fixed collector and reject injected writes/remote scopes
+        shell: pwsh
+        run: ./tools/pagefile_non_gui_evidence/test_collector_boundary.ps1 | Out-File -LiteralPath "$env:RUNNER_TEMP/PAGEFILE_STATIC_BOUNDARY.json" -Encoding utf8
+      - name: Runner local read-only sources, never original target host
+        shell: pwsh
+        env:
+          RATE_NONGUI_PROFILE: READ_ONLY_RUNNER_PROFILE_V1
+          RATE_NONGUI_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: ./tools/pagefile_non_gui_evidence/runner_collect.ps1
+      - name: Preserve successful or partial runner-only evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pagefile-runner-only-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/pagefile-offline-tests
+            ${{ runner.temp }}/PAGEFILE_STATIC_BOUNDARY.json
+            ${{ runner.temp }}/rate-pagefile-nongui-${{ github.run_id }}-${{ github.run_attempt }}
+            ${{ runner.temp }}/rate-pagefile-nongui-${{ github.run_id }}-${{ github.run_attempt }}.intent
+          if-no-files-found: error
+          overwrite: false
