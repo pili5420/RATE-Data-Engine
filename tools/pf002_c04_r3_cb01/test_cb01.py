@@ -8,7 +8,7 @@ EXE=r'C:\fixed\python.exe';CMD='C:\\fixed\\python.exe -I -B -S C:\\fixed\\normal
 def account():return dict(zip(('TotalUserTime','TotalKernelTime','ThisPeriodTotalUserTime','ThisPeriodTotalKernelTime','TotalPageFaultCount','TotalProcesses','ActiveProcesses','TotalTerminatedProcesses'),[0]*8))
 def fake_job(phase=states.NO_ROOT):
  o=object.__new__(stage_a.StageAJob);o.job=99;o.job_name='SYNTHETIC_NEW_OWNED_JOB';o.root_phase=phase;o.root_creation_outcome='NOT_ATTEMPTED' if phase==states.NO_ROOT else 'RETURNED_OWNED_HANDLE';o.root_pre_dispatch_receipt=None;o.handles=[];o.controls={};o.logs=[];o.pending_fds=set();o.io_tasks=[];o.proof='SYNTHETIC_NOT_A_TOKEN';o.unassigned_root_cleanup=None;o.events=[];o.calls=[]
- if phase!=states.NO_ROOT:o.hp=7;o.pid=77;o.handles=[7]
+ if phase!=states.NO_ROOT:o.hp=7;o.pid=77;o.handles=[7];o.root_thread_handle=8
  o.emit=lambda e,d:o.events.append({'event':e,'data':copy.deepcopy(d)})
  o.c=types.SimpleNamespace(set_last_error=lambda n:None,get_last_error=lambda:5,byref=lambda x:x);o.w=types.SimpleNamespace(DWORD=lambda:types.SimpleNamespace(value=0))
  def api(name,result):
@@ -225,6 +225,47 @@ class Tests(unittest.TestCase):
    if k==1:v['TotalProcesses']=1
    return v
   o.query=q;v,c,e=closed(o);self.assertIsNone(v);self.assertIn('CLEANUP_FINALIZATION_UNKNOWN',e)
+ def test_finalizer_empty_status_with_assigned_phase_rejected(self):
+  o=fake_job();row=o.cleanup();c=o.close();row['phase']=states.ASSIGNED
+  with self.assertRaises(runner_proof.Refused):states.finalize(row,c)
+ def test_finalizer_empty_status_with_unknown_basis_rejected(self):
+  o=fake_job();row=o.cleanup();c=o.close();row['no_root_basis']='UNKNOWN'
+  with self.assertRaises(runner_proof.Refused):states.finalize(row,c)
+ def test_finalizer_no_root_with_root_thread_resource_rejected(self):
+  o=fake_job();row=o.cleanup();c=o.close();c['resources'].append({'kind':'root_thread','handle':8,'closed':True,'raw_return':1,'win32_error':None})
+  with self.assertRaises(runner_proof.Refused):states.finalize(row,c)
+ def test_phase_rejection_still_closes_owned_returned_thread_without_termination(self):
+  o=fake_job(states.SUSPENDED);o.root_phase='CONTRADICTORY'
+  with self.assertRaises(job.ContainmentError):o.assign_and_resume(7,8,77,88,6)
+  self.assertEqual(o.calls,[['CloseHandle',8]]);self.assertTrue(o.thread_close['closed']);self.assertIsNone(o.root_thread_handle)
+ def test_pending_returned_root_thread_closed_once_before_root_finalization(self):
+  o=fake_job(states.SUSPENDED);v,c,e=closed(o);self.assertEqual(e,[]);self.assertEqual(sum(x==['CloseHandle',8] for x in o.calls),1);self.assertEqual(v['root_thread_handle'],8)
+ def test_missing_root_thread_close_proof_cannot_finalize(self):
+  o=fake_job(states.RESUMED);row=o.cleanup();c=o.close();c['resources']=[r for r in c['resources'] if r['kind']!='root_thread']
+  with self.assertRaises(runner_proof.Refused):states.finalize(row,c)
+ def test_unregistered_thread_argument_never_closed(self):
+  o=fake_job(states.SUSPENDED);o.root_thread_handle=None
+  with self.assertRaises(job.ContainmentError):o.assign_and_resume(7,999,77,88,6)
+  self.assertEqual(o.calls,[])
+ def test_mismatched_thread_argument_closes_only_registered_owned_thread(self):
+  o=fake_job(states.SUSPENDED)
+  with self.assertRaises(job.ContainmentError):o.assign_and_resume(7,999,77,88,6)
+  self.assertEqual(o.calls,[['CloseHandle',8]]);self.assertFalse(any(999 in c for c in o.calls))
+ def test_mismatched_process_argument_never_terminated(self):
+  o=fake_job(states.SUSPENDED)
+  with self.assertRaises(job.ContainmentError):o.assign_and_resume(999,8,77,88,6)
+  self.assertEqual(o.calls,[['CloseHandle',8]])
+ def test_schema_no_root_enum_and_receipt_requirement_match_evidence(self):
+  s=json.loads((A/'EVIDENCE_SCHEMA_CB01_V2.json').read_bytes());self.assertEqual(set(s['no_root_basis']),{'NOT_ATTEMPTED','AUDIT_REJECTED_BEFORE_DISPATCH'});self.assertIn('zero_prior_accepted_creates',s['audit_rejected_basis_requires'])
+  o=fake_job();self.assertIn(o.cleanup()['no_root_basis'],s['no_root_basis'])
+ def test_finalizer_rejected_basis_without_receipt_is_unknown(self):
+  o=fake_job();row=o.cleanup();c=o.close();row['no_root_basis']='AUDIT_REJECTED_BEFORE_DISPATCH'
+  with self.assertRaises(runner_proof.Refused):states.finalize(row,c)
+ def test_boolean_root_handle_cannot_alias_numeric_closed_handle(self):
+  o=fake_job(states.RESUMED);row=o.cleanup();c=o.close();row['root_handle']=True
+  for resource in c['resources']:
+   if resource['kind']=='process':resource['handle']=1
+  with self.assertRaises(runner_proof.Refused):states.finalize(row,c)
 
 def bad_field(index,value):
  def test(self):

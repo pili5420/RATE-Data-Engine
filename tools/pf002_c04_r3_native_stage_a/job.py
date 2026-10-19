@@ -26,7 +26,7 @@ class WindowsJob:
   from ctypes import wintypes as w
   import _winapi
   self.c,self.w,self.api=ctypes,w,_winapi;self.handles=[];self.job=None
-  self.root_phase=states.NO_ROOT;self.root_creation_outcome='NOT_ATTEMPTED';self.root_pre_dispatch_receipt=None
+  self.root_phase=states.NO_ROOT;self.root_creation_outcome='NOT_ATTEMPTED';self.root_pre_dispatch_receipt=None;self.root_thread_handle=None
   class BASIC(ctypes.Structure):
    _fields_=[('PerProcessUserTimeLimit',ctypes.c_longlong),('PerJobUserTimeLimit',ctypes.c_longlong),('LimitFlags',w.DWORD),('MinimumWorkingSetSize',ctypes.c_size_t),('MaximumWorkingSetSize',ctypes.c_size_t),('ActiveProcessLimit',w.DWORD),('Affinity',ctypes.c_size_t),('PriorityClass',w.DWORD),('SchedulingClass',w.DWORD)]
   class IO(ctypes.Structure):
@@ -126,16 +126,19 @@ class WindowsJob:
     known_no_dispatch_rejection(exc.receipt)
     self.root_phase=states.NO_ROOT;self.root_creation_outcome='AUDIT_REJECTED_BEFORE_DISPATCH';self.root_pre_dispatch_receipt=exc.receipt
    raise
-  self.hp=hp;self.pid=pid;self.handles=[hp]
+  self.hp=hp;self.pid=pid;self.handles=[hp];self.root_thread_handle=ht
   self.root_phase=states.SUSPENDED;self.root_creation_outcome='RETURNED_OWNED_HANDLE'
   return hp,ht,pid,tid
  def owned_pipe(self):
   pair=os.pipe();self.pending_fds.update(pair);return pair
  def assign_and_resume(self,hp,ht,pid,tid,inherited_count):
   """Own both returned handles before any fallible evidence publishing."""
-  assigned=False
-  if self.root_phase!=states.SUSPENDED:raise ContainmentError('CB01_SUSPENDED_STATE_REQUIRED')
+  assigned=None;owned_thread=getattr(self,'root_thread_handle',None)
   try:
+   if type(owned_thread) is not int or owned_thread<=0 or owned_thread in (self.job,getattr(self,'hp',None)):raise ContainmentError('CB01_OWNED_ROOT_THREAD_REGISTRY_UNKNOWN')
+   if type(ht) is not int or ht!=owned_thread or type(hp) is not int or hp!=getattr(self,'hp',None) or self.handles!=[hp] or type(pid) is not int or pid!=getattr(self,'pid',None) or getattr(self,'root_creation_outcome',None)!='RETURNED_OWNED_HANDLE':raise ContainmentError('CB01_RETURNED_HANDLE_ARGUMENT_MISMATCH')
+   if self.root_phase!=states.SUSPENDED:raise ContainmentError('CB01_SUSPENDED_STATE_REQUIRED')
+   assigned=False
    self.emit('JOB_API',{'api':'CreateProcess','ok':True,'win32_error':None,'pid':pid,'tid':tid,'process_handle':int(hp),'thread_handle':int(ht),'creation_flags':0x4|0x08000000|0x80000,'explicit_inherited_handle_count':inherited_count,'job_handle_not_inherited':True})
    assigned=None;self.root_phase='ASSIGN_OUTCOME_UNKNOWN'
    raw=self.k.AssignProcessToJobObject(self.job,hp);error=None if raw else self.c.get_last_error();assigned=bool(raw);self.root_phase=states.ASSIGNED if assigned else states.SUSPENDED
@@ -162,8 +165,10 @@ class WindowsJob:
      else:row['status']='KNOWN_ROOT_TERMINAL'
     elif assigned is None:self.unassigned_root_cleanup={'status':'UNKNOWN','assigned':None,'not_containment_qualification':True}
    finally:
-    raw=self.k.CloseHandle(ht);error=None if raw else self.c.get_last_error();self.thread_close={'handle':int(ht),'raw_return':int(raw),'closed':bool(raw),'win32_error':error}
-    if not raw:raise ContainmentError('THREAD_HANDLE_CLOSE_FAILED',error)
+    if type(owned_thread) is int and owned_thread>0 and owned_thread not in (self.job,getattr(self,'hp',None)):
+     raw=self.k.CloseHandle(owned_thread);error=None if raw else self.c.get_last_error();self.thread_close={'handle':owned_thread,'raw_return':int(raw),'closed':bool(raw),'win32_error':error}
+     if raw and getattr(self,'root_thread_handle',None)==owned_thread:self.root_thread_handle=None
+     if not raw:raise ContainmentError('THREAD_HANDLE_CLOSE_FAILED',error)
  def start_io(self,fd,mode,operation,name):
   """Transfer FD ownership explicitly; unfinished threads make close UNKNOWN."""
   completed=queue.Queue();row={'name':name,'fd':fd,'thread':None,'started':False,'closed':False};self.io_tasks.append(row);self.pending_fds.discard(fd)
@@ -232,6 +237,13 @@ class WindowsJob:
   self.resource_close_attempted=True
   rows=[]
   if hasattr(self,'thread_close'):rows.append({'kind':'root_thread',**self.thread_close})
+  elif getattr(self,'root_thread_handle',None) is not None:
+   h=self.root_thread_handle;raw=None;error=None
+   try:raw=self.k.CloseHandle(h);ok=bool(raw);error=None if ok else self.c.get_last_error()
+   except BaseException:ok=False
+   self.thread_close={'handle':int(h),'raw_return':int(raw) if raw is not None else None,'closed':ok,'win32_error':error};rows.append({'kind':'root_thread',**self.thread_close})
+   if ok:self.root_thread_handle=None
+  if getattr(self,'root_thread_handle',None) is not None:rows.append({'kind':'unresolved_root_thread','closed':False,'win32_error':None})
   if hasattr(self,'release_close'):rows.append(self.release_close.copy())
   for task in getattr(self,'io_tasks',[]):
    thread=task['thread']

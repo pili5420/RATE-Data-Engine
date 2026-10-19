@@ -24,6 +24,11 @@ Problem and resulting behavior
    handle once. Assigned roots use only the owned Job and retained known handle.
    Neither successful TerminateJobObject nor CloseHandle proves containment.
    Unknown assignment/resume outcomes are not silently reclassified.
+   A returned thread handle is retained immediately. State/argument rejection is
+   inside ownership protection; only the registered owned thread may be closed,
+   never an arbitrary argument handle. Failed closes are recorded, not retried.
+   Finalization requires exact phase/basis, matching process/thread/Job close
+   evidence, and rejects root-derived resources in a NO_ROOT observation.
 
 Source semantics and proof boundaries
 The frozen v3.12.10 _winapi.c declares command_line as PyObject*, then supplies it

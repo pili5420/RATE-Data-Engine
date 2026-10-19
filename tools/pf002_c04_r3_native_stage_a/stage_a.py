@@ -77,6 +77,7 @@ class StageAJob(WindowsJob):
   self.end=time.monotonic()+10
   if phase==states.NO_ROOT:
    model.need('hp' not in vars(self) and 'pid' not in vars(self) and self.handles==[],'CB01_NO_ROOT_STATE_CONTRADICTION')
+   model.need(getattr(self,'root_thread_handle',None) is None and 'thread_close' not in vars(self),'CB01_NO_ROOT_THREAD_CONTRADICTION')
    outcome=getattr(self,'root_creation_outcome',None)
    model.need(outcome in ('NOT_ATTEMPTED','AUDIT_REJECTED_BEFORE_DISPATCH'),'CB01_NO_ROOT_DISPATCH_UNPROVEN')
    if outcome=='AUDIT_REJECTED_BEFORE_DISPATCH':
@@ -85,7 +86,7 @@ class StageAJob(WindowsJob):
     known_no_dispatch_rejection(receipt)
    acct=self.query(1);ids=self.query(3);states.empty_job(acct,ids)
    model.need(self.job==handle and self.job_name==name and self.root_phase==phase,'CB01_JOB_IDENTITY_CHANGED')
-   row={'status':'EMPTY_JOB_OBSERVED_PENDING_CLOSE','phase':phase,'job_handle':handle,'job_name':name,'root_handle':None,'accounting':acct,'ids':ids,'no_root_basis':outcome,'containment_qualified':False,'atomic_snapshot':False}
+   row={'status':'EMPTY_JOB_OBSERVED_PENDING_CLOSE','phase':phase,'job_handle':handle,'job_name':name,'root_handle':None,'accounting':acct,'ids':ids,'no_root_basis':outcome,'audit_rejection':self.root_pre_dispatch_receipt,'containment_qualified':False,'atomic_snapshot':False}
    self.emit('OWN_JOB_CLEANUP_OBSERVATION',row);return row
   model.need(phase in states.ROOT_PHASES and type(getattr(self,'hp',None)) is int and self.hp>0 and self.handles==[self.hp] and type(getattr(self,'pid',None)) is int and 0<self.pid<=0xffffffff,'CB01_ROOT_STATE_OR_HANDLE_UNKNOWN')
   model.need(self.root_creation_outcome=='RETURNED_OWNED_HANDLE','CB01_ROOT_CREATION_EVIDENCE_REQUIRED')
@@ -104,7 +105,8 @@ class StageAJob(WindowsJob):
   acct=self.query(1);ids=self.query(3);self.emit('OWN_JOB_CLEANUP_OBSERVATION',{'accounting':acct,'ids':ids,'root_handle':int(self.hp),'root_wait_result':0,'root_exit_code':code.value,'cleanup_not_containment_PASS':True})
   contract.known_domain(acct,ids,self.pid,False)
   model.need(self.job==handle and self.job_name==name and self.root_phase==phase,'CB01_JOB_IDENTITY_CHANGED')
-  return {'status':'KNOWN_ROOT_AND_JOB_TERMINAL_OBSERVED','phase':phase,'job_name':name,'job_handle':handle,'root_handle':self.hp,'root_pid':self.pid,'accounting':acct,'ids':ids,'root_wait_result':0,'root_exit_code':code.value,'containment_qualified':False}
+  thread=getattr(self,'thread_close',{}).get('handle',getattr(self,'root_thread_handle',None))
+  return {'status':'KNOWN_ROOT_AND_JOB_TERMINAL_OBSERVED','phase':phase,'job_name':name,'job_handle':handle,'root_handle':self.hp,'root_thread_handle':thread,'root_pid':self.pid,'accounting':acct,'ids':ids,'root_wait_result':0,'root_exit_code':code.value,'containment_qualified':False,'atomic_snapshot':False}
  def complete_cleanup(self,observed,closed):
   model.need(observed['phase']==self.root_phase,'CB01_CLEANUP_PHASE_CHANGED')
   row=states.finalize(observed,closed);self.root_phase=row['final_phase'];return row
