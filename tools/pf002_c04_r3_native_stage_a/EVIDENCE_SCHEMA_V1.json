@@ -1,0 +1,21 @@
+{
+  "version": "PF002_C04_R3_STAGE_A_EVIDENCE_V1",
+  "scope": "HOSTED_WINDOWS_2022_SINGLE_NORMAL_ROOT_STAGE_A_ONLY",
+  "source_schema": "PF002_C04_R3_SOURCE_V1",
+  "canonical_file_schema": "C04_WINDOWS_FILE_IDENTITY_V1",
+  "native_file_information_classes": [0, 1, 18],
+  "canonical_fields": ["volume_serial_u64", "file_id_128_le", "file_size_bytes", "creation_time_100ns", "change_time_100ns", "last_write_time_100ns", "file_attributes_u32", "number_of_links"],
+  "journal": {"max_events": 1024, "max_event_bytes": 65536, "attempt": 1, "strict_sequence_and_sha256_chain": true, "clock_integer_nonnegative_nondecreasing": true, "equal_clock_readings_permitted": true},
+  "requires": ["fresh_R3_signed_OIDC_signature_and_claims", "five_authenticated_fixed_GETs", "exact_748_file_base_and_closed_additions", "one_exclusive_intent", "preauth_timer_quiescence", "one_new_owned_Job", "one_fixed_suspended_assigned_before_resume_Root", "canonical_ready_nonce_and_credential_absence", "held_Root_before_after_and_original_C04_raw_native_file_evidence", "one_release_and_complete_receipt", "normal_exit0", "bounded_known_owned_cleanup", "empty_terminal_Job_accounting", "resource_close", "complete_final_result_and_hash", "external_official_job_and_process_exit0"],
+  "unexpected_members": "HALT_NO_INSPECTION_NO_ALLOWLIST",
+  "StageB_executed": false,
+  "OriginalHostExecution": "NOT_AUTHORIZED",
+  "OwnerConsent": "NOT_ISSUED",
+  "RS02": "BLOCKED",
+  "loaded_image_attestation": false,
+  "atomic_snapshot": false,
+  "NoRetry": true,
+  "NoResume": true,
+  "NoFallback": true,
+  "NoAutoNext": true
+}
