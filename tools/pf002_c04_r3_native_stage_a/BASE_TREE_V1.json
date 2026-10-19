@@ -1,0 +1,4493 @@
+{
+  "files": {
+    ".github/workflows/fugle_smoke_test.yml": {
+      "mode": "100644",
+      "sha": "bc3a0f06d448de670f0a1f59fd4261d1b407ae4b",
+      "size": 960,
+      "type": "blob"
+    },
+    ".github/workflows/rate_1930_shadow_closure.yml": {
+      "mode": "100644",
+      "sha": "99088616ad631842b6f0a2d2f33fc2b760e53193",
+      "size": 1952,
+      "type": "blob"
+    },
+    ".github/workflows/rate_atomic_publication_ci.yml": {
+      "mode": "100644",
+      "sha": "c3651071b8da1cc4e0c6cd254d58f60a888e9027",
+      "size": 1759,
+      "type": "blob"
+    },
+    ".github/workflows/rate_baseline_scheduler_closure_ci.yml": {
+      "mode": "100644",
+      "sha": "1f2f1d973ddf0acdc5aa505cc1060044aec01430",
+      "size": 993,
+      "type": "blob"
+    },
+    ".github/workflows/rate_cer070_evidence_purity.yml": {
+      "mode": "100644",
+      "sha": "c4c2a5a11884ce2b7433b5dc8e85c9d8969ebbcb",
+      "size": 5106,
+      "type": "blob"
+    },
+    ".github/workflows/rate_cer071_stage_validation.yml": {
+      "mode": "100644",
+      "sha": "ddcc5eec407072d3174406e5a3f24e57a7ae69bb",
+      "size": 4233,
+      "type": "blob"
+    },
+    ".github/workflows/rate_cer072_validation.yml": {
+      "mode": "100644",
+      "sha": "9fdac9b3509fd773ca5295fcc1a146720b915801",
+      "size": 12160,
+      "type": "blob"
+    },
+    ".github/workflows/rate_cer073_final_source_bundle_closure.yml": {
+      "mode": "100644",
+      "sha": "5d61583955f9e620e2186fe66f95e4968c2d0cb2",
+      "size": 12187,
+      "type": "blob"
+    },
+    ".github/workflows/rate_cer073_fundamental_bootstrap.yml": {
+      "mode": "100644",
+      "sha": "e0464512ae0b4461f6b65568fd55da90596223f6",
+      "size": 2208,
+      "type": "blob"
+    },
+    ".github/workflows/rate_cer073_fundamental_contract_probe.yml": {
+      "mode": "100644",
+      "sha": "5ce438b688a7d4195107d768d768d3cd4e52e5cf",
+      "size": 2548,
+      "type": "blob"
+    },
+    ".github/workflows/rate_cer073_representation_discovery.yml": {
+      "mode": "100644",
+      "sha": "004a7afb1ed9a15261a7b179e1fcb9ee4a602885",
+      "size": 1617,
+      "type": "blob"
+    },
+    ".github/workflows/rate_cer073_source_completeness.yml": {
+      "mode": "100644",
+      "sha": "c507813e278f50b9184cf5465156d9abe580d9ed",
+      "size": 13754,
+      "type": "blob"
+    },
+    ".github/workflows/rate_cer074_first_production_acceptance.yml": {
+      "mode": "100644",
+      "sha": "3ec66971cf631ac1fbf382ee2d2bdc3bd24247b3",
+      "size": 7457,
+      "type": "blob"
+    },
+    ".github/workflows/rate_cer076_0930_incremental_acceptance.yml": {
+      "mode": "100644",
+      "sha": "fa1c57daa0e0276ad50052c79b895b06b9a0ef96",
+      "size": 8911,
+      "type": "blob"
+    },
+    ".github/workflows/rate_cer077_1200_incremental_acceptance.yml": {
+      "mode": "100644",
+      "sha": "16fe26a4f639b199057e8813f391b27f1559c575",
+      "size": 10533,
+      "type": "blob"
+    },
+    ".github/workflows/rate_cer078_1930_evening_acceptance.yml": {
+      "mode": "100644",
+      "sha": "699981a9aebedd85dd8d95a710791c31232b3e92",
+      "size": 12193,
+      "type": "blob"
+    },
+    ".github/workflows/rate_cer078_native_qualification_ci.yml": {
+      "mode": "100644",
+      "sha": "e5c2a0e5b72f88f569513183ec4f8f5c967aed83",
+      "size": 1755,
+      "type": "blob"
+    },
+    ".github/workflows/rate_cer079_full_day_chain_acceptance.yml": {
+      "mode": "100644",
+      "sha": "5b6ed7f42d15982dcd352b8a4ba287bdbcb59824",
+      "size": 12076,
+      "type": "blob"
+    },
+    ".github/workflows/rate_cer080_multi_day_continuity_acceptance.yml": {
+      "mode": "100644",
+      "sha": "42bd18ebebff42266d9d9790a4d766a6b8afed98",
+      "size": 11710,
+      "type": "blob"
+    },
+    ".github/workflows/rate_cer081_unattended_multi_day_soak.yml": {
+      "mode": "100644",
+      "sha": "7a47bb4553751a7df01b44cf1e8d2ab6198fd0fd",
+      "size": 18126,
+      "type": "blob"
+    },
+    ".github/workflows/rate_eps_b1_research_ci.yml": {
+      "mode": "100644",
+      "sha": "d1194b2c975a429045bb1596b0a546dc05d6e32f",
+      "size": 3266,
+      "type": "blob"
+    },
+    ".github/workflows/rate_eps_duration_fact_layer_ci.yml": {
+      "mode": "100644",
+      "sha": "320f1ff82065470a8f7916007c3d9e3a9921d017",
+      "size": 1434,
+      "type": "blob"
+    },
+    ".github/workflows/rate_eps_postmerge_integration_ci.yml": {
+      "mode": "100644",
+      "sha": "ae725f6d2de5c796073f47d742f37312c2c03973",
+      "size": 2100,
+      "type": "blob"
+    },
+    ".github/workflows/rate_exact_main_material_promotion_ci.yml": {
+      "mode": "100644",
+      "sha": "4f1dc145806405e9663adf2932b44588b767168e",
+      "size": 1845,
+      "type": "blob"
+    },
+    ".github/workflows/rate_finmind_formal_qualification_ci.yml": {
+      "mode": "100644",
+      "sha": "2604e275109e55395a732e995a144c4ba2965376",
+      "size": 1825,
+      "type": "blob"
+    },
+    ".github/workflows/rate_first_refresh_readiness_ci.yml": {
+      "mode": "100644",
+      "sha": "ad19cfde8b567ce15539dc6ca8b0ed5df0ecd00d",
+      "size": 2139,
+      "type": "blob"
+    },
+    ".github/workflows/rate_formal_eps_qualification_ci.yml": {
+      "mode": "100644",
+      "sha": "9352b7f0107a95de008cf104b86f3b5f7b2d44d9",
+      "size": 1782,
+      "type": "blob"
+    },
+    ".github/workflows/rate_full_market_component_evidence_ci.yml": {
+      "mode": "100644",
+      "sha": "b7152e30e11c496d5cab3cec5aeb57f587623833",
+      "size": 2339,
+      "type": "blob"
+    },
+    ".github/workflows/rate_full_market_history_bootstrap.yml": {
+      "mode": "100644",
+      "sha": "d1d45941fabc4ea1e7c7e27b7d2f0e3295805d54",
+      "size": 5461,
+      "type": "blob"
+    },
+    ".github/workflows/rate_full_market_history_ci.yml": {
+      "mode": "100644",
+      "sha": "0cc394f5d1a46b373657a67c6a672c08783d4ffa",
+      "size": 2534,
+      "type": "blob"
+    },
+    ".github/workflows/rate_fundamental_eligibility_ci.yml": {
+      "mode": "100644",
+      "sha": "251dab12e6d751b8ff5004bf68106a9d0e55a190",
+      "size": 1742,
+      "type": "blob"
+    },
+    ".github/workflows/rate_fundamental_first_refresh_execution_ci.yml": {
+      "mode": "100644",
+      "sha": "b342472a1639d9ef72bcd1474aa4b91d0894da31",
+      "size": 2450,
+      "type": "blob"
+    },
+    ".github/workflows/rate_fundamental_ranking_consumer_ci.yml": {
+      "mode": "100644",
+      "sha": "1d49534f5eeef386762abc8f8a0a9a31c2983050",
+      "size": 2377,
+      "type": "blob"
+    },
+    ".github/workflows/rate_historical_acceptance_restoration_ci.yml": {
+      "mode": "100644",
+      "sha": "a772ce59ba43b93f2875b9af300891d63baa366e",
+      "size": 5402,
+      "type": "blob"
+    },
+    ".github/workflows/rate_historical_replay_portability_ci.yml": {
+      "mode": "100644",
+      "sha": "8860c7e2dee33330bd17d2591f38c4a7a7d6b45a",
+      "size": 1928,
+      "type": "blob"
+    },
+    ".github/workflows/rate_history_acquisition_wiring_ci.yml": {
+      "mode": "100644",
+      "sha": "5ea220e28afa18a293fd23d77730d53cfa91e87f",
+      "size": 2603,
+      "type": "blob"
+    },
+    ".github/workflows/rate_history_chunked_acquisition_ci.yml": {
+      "mode": "100644",
+      "sha": "b8cba8ed61da5d00d84c6853bdc845d7454fab8e",
+      "size": 2472,
+      "type": "blob"
+    },
+    ".github/workflows/rate_history_materialization_validation.yml": {
+      "mode": "100644",
+      "sha": "fc8bd24c6fd193ba06dc4966fbfa3fccf9a101ab",
+      "size": 1345,
+      "type": "blob"
+    },
+    ".github/workflows/rate_official_revenue_expansion_ci.yml": {
+      "mode": "100644",
+      "sha": "97a9cf4252ea6cc0f87154b675721a36a1edaf90",
+      "size": 2247,
+      "type": "blob"
+    },
+    ".github/workflows/rate_ois_hr001_historical_revision_recovery.yml": {
+      "mode": "100644",
+      "sha": "c093aac19ff626fd45d4752fb34d8d1e847e201a",
+      "size": 1280,
+      "type": "blob"
+    },
+    ".github/workflows/rate_pf002_c01_containment.yml": {
+      "mode": "100644",
+      "sha": "6d59096b7f0a295c828343a1df9cafae06b0a597",
+      "size": 3052,
+      "type": "blob"
+    },
+    ".github/workflows/rate_pf002_c02_provenance.yml": {
+      "mode": "100644",
+      "sha": "1e6831fff91a9d2038fa84075b39dddb34b7b227",
+      "size": 3258,
+      "type": "blob"
+    },
+    ".github/workflows/rate_pf002_c03_evidence.yml": {
+      "mode": "100644",
+      "sha": "b2c966192767fbd903890ff71aeadf9a1f661f41",
+      "size": 3430,
+      "type": "blob"
+    },
+    ".github/workflows/rate_pf002_c04_r1_contract.yml": {
+      "mode": "100644",
+      "sha": "b2449240e4d308fe80752c147153994103c4cc56",
+      "size": 4160,
+      "type": "blob"
+    },
+    ".github/workflows/rate_pf002_c04_r2_preauth.yml": {
+      "mode": "100644",
+      "sha": "35ac8af75723bab3917f36fc5367d0029f7565bd",
+      "size": 4342,
+      "type": "blob"
+    },
+    ".github/workflows/rate_pf002_c04_semantic.yml": {
+      "mode": "100644",
+      "sha": "61a3d767dab05c6d15b607c9963f2002cc3b0647",
+      "size": 3826,
+      "type": "blob"
+    },
+    ".github/workflows/rate_pf_personal_collector.yml": {
+      "mode": "100644",
+      "sha": "6355ec91e4df20254c08f434369758f5641f344b",
+      "size": 2974,
+      "type": "blob"
+    },
+    ".github/workflows/rate_pf_personal_offline.yml": {
+      "mode": "100644",
+      "sha": "d64e58b7b25d29c0d7848028410664561a2919a5",
+      "size": 1661,
+      "type": "blob"
+    },
+    ".github/workflows/rate_phase_a2_validation.yml": {
+      "mode": "100644",
+      "sha": "814d0087b869ae142e0df8402c3a9c55f4000bcb",
+      "size": 18858,
+      "type": "blob"
+    },
+    ".github/workflows/rate_phase_b_validation.yml": {
+      "mode": "100644",
+      "sha": "325f90918ec8b8eddf9d1f43465f9bd67bb3fec2",
+      "size": 1043,
+      "type": "blob"
+    },
+    ".github/workflows/rate_pr14_pre_merge_ci.yml": {
+      "mode": "100644",
+      "sha": "4d0cffe82e5aeaf8ae53e7dd4de738abefdd413a",
+      "size": 1339,
+      "type": "blob"
+    },
+    ".github/workflows/rate_production_0730_scheduler.yml": {
+      "mode": "100644",
+      "sha": "0ba65a9418cd0beffe780d07a41c1edb1704932b",
+      "size": 8690,
+      "type": "blob"
+    },
+    ".github/workflows/rate_production_0930_scheduler.yml": {
+      "mode": "100644",
+      "sha": "aca8e72e802a23d10e0eaee8633358f480dc6086",
+      "size": 7821,
+      "type": "blob"
+    },
+    ".github/workflows/rate_production_1200_scheduler.yml": {
+      "mode": "100644",
+      "sha": "93677767ace0fdc9f0b68e6a4be3a023b3f66cab",
+      "size": 7885,
+      "type": "blob"
+    },
+    ".github/workflows/rate_production_1930_scheduler.yml": {
+      "mode": "100644",
+      "sha": "4c55e231bb77d76b21e4b9039fad676d32d3d081",
+      "size": 8960,
+      "type": "blob"
+    },
+    ".github/workflows/rate_production_rebaseline_bootstrap.yml": {
+      "mode": "100644",
+      "sha": "4e3ab3169e0f2c0603c7c0f735c8315bbfe6cad8",
+      "size": 10228,
+      "type": "blob"
+    },
+    ".github/workflows/rate_production_recovery_bootstrap.yml": {
+      "mode": "100644",
+      "sha": "3d146c9cf506b6d1e3c50d3c202662ef29fc96a8",
+      "size": 3897,
+      "type": "blob"
+    },
+    ".github/workflows/rate_production_source_acquisition.yml": {
+      "mode": "100644",
+      "sha": "75d0a524d98674af536ee360471cda89af827eef",
+      "size": 6516,
+      "type": "blob"
+    },
+    ".github/workflows/rate_prospective_acquisition_recovery_ci.yml": {
+      "mode": "100644",
+      "sha": "5c017e1ed5d995849d46731686554388c81e08a2",
+      "size": 1808,
+      "type": "blob"
+    },
+    ".github/workflows/rate_prospective_provider_acceptance_ci.yml": {
+      "mode": "100644",
+      "sha": "377a3d50ac1e8e3d03c177f0b756e098f48e2852",
+      "size": 1793,
+      "type": "blob"
+    },
+    ".github/workflows/rate_prospective_provider_activation_ci.yml": {
+      "mode": "100644",
+      "sha": "3501b2ae43a698b0a27e04d886819f92c7fcc8d4",
+      "size": 1771,
+      "type": "blob"
+    },
+    ".github/workflows/rate_provider_calendar_eps_ci.yml": {
+      "mode": "100644",
+      "sha": "5d908b20d703c175c621a8c71bfd0a6337676b28",
+      "size": 1727,
+      "type": "blob"
+    },
+    ".github/workflows/rate_provider_eps_candidate_ci.yml": {
+      "mode": "100644",
+      "sha": "63977e2b362bd71c13fc6b5332f9dff42dd5e14b",
+      "size": 1835,
+      "type": "blob"
+    },
+    ".github/workflows/rate_provider_eps_coverage_ci.yml": {
+      "mode": "100644",
+      "sha": "dcc5f21305bb0d910a3f48a3a2d372d2a8687198",
+      "size": 2706,
+      "type": "blob"
+    },
+    ".github/workflows/rate_provider_financial_features_ci.yml": {
+      "mode": "100644",
+      "sha": "09b76f5e303ac5742d51a3047cd44a82cb7982c8",
+      "size": 2441,
+      "type": "blob"
+    },
+    ".github/workflows/rate_provider_fundamental_shadow_ci.yml": {
+      "mode": "100644",
+      "sha": "c8c883c3aed27228e46f90a6e4538593d8b06c9c",
+      "size": 2161,
+      "type": "blob"
+    },
+    ".github/workflows/rate_provider_shadow_forward_ci.yml": {
+      "mode": "100644",
+      "sha": "a7d8f175e388f1ad52ada76cc7ce205d065eb33f",
+      "size": 2138,
+      "type": "blob"
+    },
+    ".github/workflows/rate_provider_warmup_readiness_ci.yml": {
+      "mode": "100644",
+      "sha": "50302c0aa745ac29a4cd3f513fe3f50d7ca7a8b8",
+      "size": 2188,
+      "type": "blob"
+    },
+    ".github/workflows/rate_public_official_partial_valid_ci.yml": {
+      "mode": "100644",
+      "sha": "8e6c939827b1e958866f8b76e1b38656ba3cb892",
+      "size": 4888,
+      "type": "blob"
+    },
+    ".github/workflows/rate_rebaseline_activation_closure_ci.yml": {
+      "mode": "100644",
+      "sha": "6e787140bccfa4d2d65b2231253eb2e430f8bb8e",
+      "size": 2164,
+      "type": "blob"
+    },
+    ".github/workflows/rate_rebaseline_authorization_v2_pr_ci.yml": {
+      "mode": "100644",
+      "sha": "f3743d925f4d7db6aa29e35cd0496989c50a93cc",
+      "size": 1098,
+      "type": "blob"
+    },
+    ".github/workflows/rate_session_discovery_execution_ci.yml": {
+      "mode": "100644",
+      "sha": "69a7dc1cb21c4477a0b1e724856c5c5ec40ce754",
+      "size": 2702,
+      "type": "blob"
+    },
+    ".github/workflows/rate_tpex_date_binding_pr_ci.yml": {
+      "mode": "100644",
+      "sha": "e62f78567b684f43f538e9bdb27caa8ed6782561",
+      "size": 1534,
+      "type": "blob"
+    },
+    ".github/workflows/rate_tpex_transport_pr_ci.yml": {
+      "mode": "100644",
+      "sha": "9dfafcf6e3a5a1659764968442af5cbbaa21aa64",
+      "size": 1439,
+      "type": "blob"
+    },
+    ".github/workflows/rate_warmup_missingness_ci.yml": {
+      "mode": "100644",
+      "sha": "673a6f2181777c9d3de989c929e148ce92518096",
+      "size": 2127,
+      "type": "blob"
+    },
+    ".github/workflows/twse_t86_smoke_test.yml": {
+      "mode": "100644",
+      "sha": "27006ffd8d02b23c1137dfb14653398a7640bccd",
+      "size": 801,
+      "type": "blob"
+    },
+    "README.md": {
+      "mode": "100644",
+      "sha": "df20939426f7ed8eed1a2b80b60559095d6298f9",
+      "size": 19,
+      "type": "blob"
+    },
+    "artifacts/PHASE_B_QUERY_UNIVERSE.json": {
+      "mode": "100644",
+      "sha": "1c23cc06bbc74b645b4708e53e32300dbd3c25fa",
+      "size": 598,
+      "type": "blob"
+    },
+    "artifacts/RATE_0730_DECISION_STATE.json": {
+      "mode": "100644",
+      "sha": "6e6cc467589c187735c8724f025e9180ddca7ea5",
+      "size": 2245,
+      "type": "blob"
+    },
+    "artifacts/RATE_CER_20260915_009_ENGINEERING_VALIDATION.json": {
+      "mode": "100644",
+      "sha": "009104690d399016c247b61efbf5c85357d1621f",
+      "size": 518,
+      "type": "blob"
+    },
+    "artifacts/RATE_PHASE_A2_PRODUCTION_EVIDENCE.json": {
+      "mode": "100644",
+      "sha": "da896ba05ff030b672dd15710f3652564b9e06c2",
+      "size": 808,
+      "type": "blob"
+    },
+    "artifacts/RATE_PHASE_B_INTRADAY_VALIDATION_V1.json": {
+      "mode": "100644",
+      "sha": "47f72028c279be66119d13f873c1c09a62e3e0af",
+      "size": 418,
+      "type": "blob"
+    },
+    "artifacts/RATE_PHASE_B_SMOKE_TEST_EVIDENCE.json": {
+      "mode": "100644",
+      "sha": "c81ab56ab3b6e50971908b6f95a0d50762e70732",
+      "size": 549,
+      "type": "blob"
+    },
+    "artifacts/RATE_PRODUCTION_DATA_LAYER_RUN_V1.json": {
+      "mode": "100644",
+      "sha": "d83d59d5adbe1c42762bdd461ffdd9dd57c8fce1",
+      "size": 2424,
+      "type": "blob"
+    },
+    "artifacts/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json": {
+      "mode": "100644",
+      "sha": "01f10fc853e95321a93c592ab2eed26814be1a4d",
+      "size": 1055,
+      "type": "blob"
+    },
+    "artifacts/RATE_PRODUCTION_STATE_LATEST.json": {
+      "mode": "100644",
+      "sha": "6ec3a91ccd941ba18248e06d8a64b724c4dce1a7",
+      "size": 1441,
+      "type": "blob"
+    },
+    "artifacts/RATE_PRODUCTION_VALIDATION_EVIDENCE_V1.json": {
+      "mode": "100644",
+      "sha": "a17a638cb52e0eee629efb3b7305fa42d0af946f",
+      "size": 5364,
+      "type": "blob"
+    },
+    "artifacts/RATE_REPOSITORY_AUDIT_V1.json": {
+      "mode": "100644",
+      "sha": "3dd3ed64494f1a202ffc5fb81a35085cec5c4411",
+      "size": 2105,
+      "type": "blob"
+    },
+    "artifacts/RATE_SOURCE_BUNDLE_PROVISIONING_V1.json": {
+      "mode": "100644",
+      "sha": "d7152aa2a548ded2d092f62406ec8cef98917bb1",
+      "size": 1968,
+      "type": "blob"
+    },
+    "artifacts/RATE_T86_RETRIEVAL_SMOKE_TEST_EVIDENCE.json": {
+      "mode": "100644",
+      "sha": "5b77f79461923edf98e653d020fc78ff496460f7",
+      "size": 474,
+      "type": "blob"
+    },
+    "artifacts/RATE_T86_USER_DIRECTED_OPERATION_POLICY_V1.json": {
+      "mode": "100644",
+      "sha": "75b6c22ed3ef07fc5309f477a5d46552d01b7974",
+      "size": 2278,
+      "type": "blob"
+    },
+    "artifacts/RATE_THIN_WORK_PRODUCTION_BUNDLE_MANIFEST_LATEST.json": {
+      "mode": "100644",
+      "sha": "bc82bac7ecd7fcbb7b8f3aee653c8c250046f2a2",
+      "size": 910,
+      "type": "blob"
+    },
+    "artifacts/RATE_TPEX_BENCHMARK_HISTORY_EVIDENCE.json": {
+      "mode": "100644",
+      "sha": "825a1b2f679343e01489872df2d1bdde0629f043",
+      "size": 1368,
+      "type": "blob"
+    },
+    "artifacts/RATE_TPEX_INDEX_ALIGNMENT_EVIDENCE.json": {
+      "mode": "100644",
+      "sha": "a982cd2617e0417c51e90c055c7313a77db9d2e1",
+      "size": 4783,
+      "type": "blob"
+    },
+    "artifacts/RATE_TWSE_T86_AUTHORIZATION_EVIDENCE.json": {
+      "mode": "100644",
+      "sha": "ed570d18459f1cd571709926cca04c652fee263b",
+      "size": 5041,
+      "type": "blob"
+    },
+    "artifacts/SOURCE_AUTHORIZATION_MATRIX_V1.json": {
+      "mode": "100644",
+      "sha": "c26b7bf372052d5025118dcda4448e0d705beca1",
+      "size": 15376,
+      "type": "blob"
+    },
+    "artifacts/historical-acceptance-restoration/PROVENANCE_MANIFEST.json": {
+      "mode": "100644",
+      "sha": "d5b7f886bd1fb86c9582ba3b6ccdfe5a0fd13496",
+      "size": 5741,
+      "type": "blob"
+    },
+    "artifacts/phase_a2_fixture_snapshot.json": {
+      "mode": "100644",
+      "sha": "fa863f69c7500bb8a5bc63e34e0e1a36ac39305e",
+      "size": 1116,
+      "type": "blob"
+    },
+    "artifacts/production_source_acquisition/RATE_PRODUCTION_FEATURE_INPUT_CONTRACT.json": {
+      "mode": "100644",
+      "sha": "8ffe2dfc5888428405cbd85c809d3c0d7065bf5d",
+      "size": 3936,
+      "type": "blob"
+    },
+    "artifacts/production_source_acquisition/RATE_PRODUCTION_OFFICIAL_SOURCE_ACQUISITION_EVIDENCE.json": {
+      "mode": "100644",
+      "sha": "39a4739c20c5da586a760eaa155ee4d5db04a832",
+      "size": 599992,
+      "type": "blob"
+    },
+    "artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_BUNDLE.json": {
+      "mode": "100644",
+      "sha": "f1b9e9797d75b90a2902a7f46336982b94b28ac6",
+      "size": 717086,
+      "type": "blob"
+    },
+    "artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST_UPDATE_EVIDENCE.json": {
+      "mode": "100644",
+      "sha": "ffd978037b8ad042c937b75c6500ff5622374bae",
+      "size": 2813,
+      "type": "blob"
+    },
+    "artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_FRESHNESS_MATRIX.json": {
+      "mode": "100644",
+      "sha": "862776d3b78a6d0e0492b626bd32584d2893bfb0",
+      "size": 4335,
+      "type": "blob"
+    },
+    "artifacts/production_source_acquisition/RATE_PRODUCTION_SOURCE_REQUIREMENT_MATRIX.json": {
+      "mode": "100644",
+      "sha": "ce9c4613011da1e2a3465998dfaa5c7e22d732fd",
+      "size": 5740,
+      "type": "blob"
+    },
+    "artifacts/production_source_acquisition/RATE_PRODUCTION_UNIVERSE_BINDING.json": {
+      "mode": "100644",
+      "sha": "c29d088d4c9a1d3891c2ae6d2f2fb770267ddd63",
+      "size": 218809,
+      "type": "blob"
+    },
+    "artifacts/production_source_snapshots/2026-10-02/1930/rate-source-snapshot-3bbe73c100b02f32a57d6443/RATE_PRODUCTION_SOURCE_BUNDLE.json": {
+      "mode": "100644",
+      "sha": "ef335f698d74bcf1566d29e714da9201300b79a0",
+      "size": 710833,
+      "type": "blob"
+    },
+    "artifacts/production_source_snapshots/2026-10-02/1930/rate-source-snapshot-3bbe73c100b02f32a57d6443/RATE_PRODUCTION_SOURCE_BUNDLE_SNAPSHOT.json": {
+      "mode": "100644",
+      "sha": "7428a1377b86045c939f5f1dd25e4cd0a0e07496",
+      "size": 786191,
+      "type": "blob"
+    },
+    "artifacts/production_source_snapshots/2026-10-02/1930/rate-source-snapshot-3bbe73c100b02f32a57d6443/RATE_THIN_WORK_PRODUCTION_BUNDLE_MANIFEST_V1.json": {
+      "mode": "100644",
+      "sha": "f17ad01081bfcb805d2636894fec08a39e0fca4a",
+      "size": 1651,
+      "type": "blob"
+    },
+    "artifacts/production_source_snapshots/2026-10-02/1930/rate-source-snapshot-a8d2427c8aab195c3af1debf/RATE_PRODUCTION_SOURCE_BUNDLE.json": {
+      "mode": "100644",
+      "sha": "6233ae521ebd73017165db922f566aa24891e0ec",
+      "size": 680579,
+      "type": "blob"
+    },
+    "artifacts/production_source_snapshots/2026-10-02/1930/rate-source-snapshot-a8d2427c8aab195c3af1debf/RATE_PRODUCTION_SOURCE_BUNDLE_SNAPSHOT.json": {
+      "mode": "100644",
+      "sha": "387b416d600ebc9e7b941e1bc500fe3a15630270",
+      "size": 754122,
+      "type": "blob"
+    },
+    "artifacts/production_source_snapshots/2026-10-02/1930/rate-source-snapshot-a8d2427c8aab195c3af1debf/RATE_THIN_WORK_PRODUCTION_BUNDLE_MANIFEST_V1.json": {
+      "mode": "100644",
+      "sha": "f60165945c30ce36f840a1f3d131b41235615056",
+      "size": 1650,
+      "type": "blob"
+    },
+    "artifacts/production_state/live/2026-10-02/1930/RATE_PRODUCTION_DECISION_STATE.json": {
+      "mode": "100644",
+      "sha": "274f1de5abc638e3a8cf211b9c66379f44e142f2",
+      "size": 8699,
+      "type": "blob"
+    },
+    "artifacts/production_state/live/2026-10-02/1930/RATE_PRODUCTION_PERSIST_RESULT_EVIDENCE.json": {
+      "mode": "100644",
+      "sha": "22cc09426f947678bc718b89b1870b257b0ac42f",
+      "size": 928,
+      "type": "blob"
+    },
+    "artifacts/production_state/live/2026-10-02/1930/RATE_PRODUCTION_REBASELINE_AUTHORIZATION_CONSUMPTION_EVIDENCE.json": {
+      "mode": "100644",
+      "sha": "69d52cbaabfdb35170a2aab2bc4939848da5fd1e",
+      "size": 944,
+      "type": "blob"
+    },
+    "artifacts/production_state/live/2026-10-02/1930/RATE_PRODUCTION_REBASELINE_BOOTSTRAP_EVIDENCE.json": {
+      "mode": "100644",
+      "sha": "e6eb2134cef5c6f3003f6c2cef5054a3f388b215",
+      "size": 651,
+      "type": "blob"
+    },
+    "artifacts/production_state/live/2026-10-02/1930/RATE_PRODUCTION_STATE_MANIFEST.json": {
+      "mode": "100644",
+      "sha": "8a6a48fc265ada675489d4855b698d42ffb99df4",
+      "size": 1693,
+      "type": "blob"
+    },
+    "artifacts/rebaseline_material/rate-rebaseline-20261002-1930-cc-approved-v1/CONTROL_CENTER_REBASELINE_AI_OPENING_STATE.json": {
+      "mode": "100644",
+      "sha": "1e4a6df0422acf0a5a12e15354e12cd74614ec07",
+      "size": 441,
+      "type": "blob"
+    },
+    "artifacts/rebaseline_material/rate-rebaseline-20261002-1930-cc-approved-v1/CONTROL_CENTER_REBASELINE_ROY_OPENING_STATE.json": {
+      "mode": "100644",
+      "sha": "a374b53055b6e7882b111505a255321462306841",
+      "size": 2259,
+      "type": "blob"
+    },
+    "artifacts/rebaseline_material/rate-rebaseline-20261002-1930-cc-approved-v1/RATE_LEDGER_REBASELINE_BOUNDARY.json": {
+      "mode": "100644",
+      "sha": "90677c5fee133b84a448453fa63fbbf9571e2869",
+      "size": 760,
+      "type": "blob"
+    },
+    "artifacts/rebaseline_material/rate-rebaseline-20261002-1930-cc-approved-v1/RATE_PRODUCTION_REBASELINE_DECISION_STATE.json": {
+      "mode": "100644",
+      "sha": "e5697e47c89454b01042adc637c75966c97465c9",
+      "size": 7535,
+      "type": "blob"
+    },
+    "artifacts/rebaseline_material/rate-rebaseline-20261002-1930-cc-approved-v1/RATE_PRODUCTION_REBASELINE_MANIFEST.json": {
+      "mode": "100644",
+      "sha": "072050df54ed78831b22aa959c4dc7f3c0fe80d7",
+      "size": 1034,
+      "type": "blob"
+    },
+    "artifacts/rebaseline_material/rate-rebaseline-20261002-1930-cc-approved-v1/RATE_PRODUCTION_REBASELINE_MATERIAL_DRY_RUN_EVIDENCE.json": {
+      "mode": "100644",
+      "sha": "a707ec4bdde37120e784c828548f35cfef4142f9",
+      "size": 941,
+      "type": "blob"
+    },
+    "artifacts/rebaseline_material/rate-rebaseline-20261002-1930-cc-approved-v1/RATE_PRODUCTION_SOURCE_BUNDLE.json": {
+      "mode": "100644",
+      "sha": "b27a14f4d1b1e52d5475aa83bf36b344eb206d83",
+      "size": 748240,
+      "type": "blob"
+    },
+    "artifacts/remote-36281974051/RATE_CER073_FINAL_SOURCE_BUNDLE/RATE_CER073_FINAL_SOURCE_BUNDLE.json": {
+      "mode": "100644",
+      "sha": "b06649c695f3fefa1077c3849b6e99d4f3e45b9d",
+      "size": 50928505,
+      "type": "blob"
+    },
+    "artifacts/remote-36283374552/RATE_CER074_PERSISTED_DECISION_STATE_EVIDENCE/RATE_CER074_PERSISTED_DECISION_STATE_EVIDENCE.json": {
+      "mode": "100644",
+      "sha": "bc96a96026fb73411ce08100ec12bfdfd8d2c6f7",
+      "size": 8528,
+      "type": "blob"
+    },
+    "artifacts/remote-36303940988/RATE_CER075_PERSIST_RESULT_EVIDENCE/RATE_CER075_PERSIST_RESULT_EVIDENCE.json": {
+      "mode": "100644",
+      "sha": "ab07b85a2004708ca9ec146dedf38ceb5c8af2a8",
+      "size": 2026,
+      "type": "blob"
+    },
+    "artifacts/remote-36304601795/RATE_CER076_PERSIST_RESULT_EVIDENCE/RATE_CER076_PERSIST_RESULT_EVIDENCE.json": {
+      "mode": "100644",
+      "sha": "4300ae3b0c6e05f1c3964fc8ce4c28d3603c706d",
+      "size": 2115,
+      "type": "blob"
+    },
+    "artifacts/remote-36305190527/RATE_CER077_PERSIST_RESULT_EVIDENCE/RATE_CER077_PERSIST_RESULT_EVIDENCE.json": {
+      "mode": "100644",
+      "sha": "cf89dfb5d4aff11b21b90a360e6a00acc6075c65",
+      "size": 2115,
+      "type": "blob"
+    },
+    "config/RATE_EXTERNAL_PRODUCTION_DEPENDENCIES.json": {
+      "mode": "100644",
+      "sha": "c7c38f15b9d0d297603282881328f9acd9e1804b",
+      "size": 1284,
+      "type": "blob"
+    },
+    "config/RATE_FOUR_CADENCE_REPORT_SOAK_V1.json": {
+      "mode": "100644",
+      "sha": "148ef074405ef0c1a367c0e027e781b6a11ada10",
+      "size": 693,
+      "type": "blob"
+    },
+    "config/RATE_FULL_MARKET_HISTORY_BOOTSTRAP_V1.json": {
+      "mode": "100644",
+      "sha": "74c0ed12f41ff21430d7aad331e223174801382a",
+      "size": 1003,
+      "type": "blob"
+    },
+    "config/RATE_FULL_MARKET_ROTATION_CONTRACT_V1.json": {
+      "mode": "100644",
+      "sha": "ecb95a02f018067e35e7364830566c7d61a0ded7",
+      "size": 1532,
+      "type": "blob"
+    },
+    "config/RATE_PHASE2_CHANGE_REQUEST_V1.json": {
+      "mode": "100644",
+      "sha": "751a3dec07650bb8a783ff2a093c05c583102b07",
+      "size": 1209,
+      "type": "blob"
+    },
+    "config/RATE_PRODUCTION_OFFICIAL_SOURCE_REGISTRY_V1.json": {
+      "mode": "100644",
+      "sha": "113d11f0794436e03d32cf0c2ed636a4e6710e91",
+      "size": 6677,
+      "type": "blob"
+    },
+    "config/RATE_PRODUCTION_SOURCE_BUNDLE_SCHEMA_V1.json": {
+      "mode": "100644",
+      "sha": "14933a22b10bb9633fada9b80abd7c5599919973",
+      "size": 864,
+      "type": "blob"
+    },
+    "config/RATE_PRODUCTION_SOURCE_CADENCE_APPLICABILITY.json": {
+      "mode": "100644",
+      "sha": "2178d83e07a7ce8729bdaba7642146b44e85200c",
+      "size": 1199,
+      "type": "blob"
+    },
+    "config/RATE_PRODUCTION_UNIVERSE_CONTRACT_V1.json": {
+      "mode": "100644",
+      "sha": "33b954b5a6f392508d8d3973d390cf76a4f6e472",
+      "size": 1011,
+      "type": "blob"
+    },
+    "config/RATE_PUBLIC_INTRADAY_REFERENCE_GOVERNANCE_V1.json": {
+      "mode": "100644",
+      "sha": "36a4fe88f7baee32d3558a3b47f7c6e79dda590d",
+      "size": 3622,
+      "type": "blob"
+    },
+    "config/RATE_PUBLIC_OFFICIAL_PARTIAL_VALID_RUNTIME_V1.json": {
+      "mode": "100644",
+      "sha": "fe9afecda3027f6f57ff18a824286f7ecf208ed9",
+      "size": 1280,
+      "type": "blob"
+    },
+    "config/SOURCE_REGISTRY.json": {
+      "mode": "100644",
+      "sha": "4c0224ec8b78df3b0ae4c4a7c525330aef5acb0d",
+      "size": 5637,
+      "type": "blob"
+    },
+    "config/staging/RATE_STAGING_LIVE_UNIVERSE_V1.json": {
+      "mode": "100644",
+      "sha": "b50f621a802a8b7adebd32ae6ed5199b7cad2c60",
+      "size": 12611,
+      "type": "blob"
+    },
+    "config/staging/RATE_STAGING_UNIVERSE_APPROVAL_V1.json": {
+      "mode": "100644",
+      "sha": "d5e3a800696803552a496db86e1cf6ab4a4d40e8",
+      "size": 2128,
+      "type": "blob"
+    },
+    "control/rebaseline_authorizations/CC-RATE-REBASELINE-20261002-1930-V1/RATE_PRODUCTION_REBASELINE_AUTHORIZATION_MANIFEST.json": {
+      "mode": "100644",
+      "sha": "14d5b1c0578f374bebc202ee69151a9928ab87a3",
+      "size": 1750,
+      "type": "blob"
+    },
+    "control/rebaseline_authorizations/CC-RATE-REBASELINE-20261002-1930-V2/RATE_PRODUCTION_REBASELINE_AUTHORIZATION_MANIFEST.json": {
+      "mode": "100644",
+      "sha": "b7d7428fb2fba8f290b266e337fb6acaefa3474e",
+      "size": 2907,
+      "type": "blob"
+    },
+    "control/rebaseline_authorizations/CC-RATE-REBASELINE-20261002-1930-V3/RATE_PRODUCTION_REBASELINE_AUTHORIZATION_MANIFEST.json": {
+      "mode": "100644",
+      "sha": "37ce96afe03fcdd38920a2179c7d738b63b20590",
+      "size": 2906,
+      "type": "blob"
+    },
+    "control/rebaseline_inputs/RATE_REBASELINE_ROY_OPENING_STATE_V1.json": {
+      "mode": "100644",
+      "sha": "28fd1eb9b163821d3904c11e4bda882503905f24",
+      "size": 2168,
+      "type": "blob"
+    },
+    "control_center/production_control/v1/01_RATE_PRODUCTION_LOGIC_SPEC_V1.1.md": {
+      "mode": "100644",
+      "sha": "223a91138243b389e56c54a9903309d3ef98f8a9",
+      "size": 2783,
+      "type": "blob"
+    },
+    "control_center/production_control/v1/02_RATE_DATA_CONTRACT_V1.0.md": {
+      "mode": "100644",
+      "sha": "37f966ece22da03291064433294ce1212f2171e3",
+      "size": 3172,
+      "type": "blob"
+    },
+    "control_center/production_control/v1/03_RATE-CER-20260914-002.md": {
+      "mode": "100644",
+      "sha": "5e31a872c6ff221c1e8df9c6a1909615677735c1",
+      "size": 1797,
+      "type": "blob"
+    },
+    "control_center/production_control/v1/04_GOLDEN_TEST_FIXTURES_V1.0.md": {
+      "mode": "100644",
+      "sha": "47bfaafbd1bb067aa40323524cabe4a687ef9725",
+      "size": 2663,
+      "type": "blob"
+    },
+    "control_center/production_control/v1/05_PRODUCTION_ACCEPTANCE_CRITERIA_V1.0.md": {
+      "mode": "100644",
+      "sha": "e91a3cdcdef714a0321c07a4e20c6b51e752d33b",
+      "size": 1852,
+      "type": "blob"
+    },
+    "control_center/production_control/v1/06_RATE-SPEC-20260914-003.md": {
+      "mode": "100644",
+      "sha": "f21bbd15bfb278a251b67e647e99c9a32e7509f6",
+      "size": 2816,
+      "type": "blob"
+    },
+    "control_center/production_control/v1/07_RATE_PRODUCTION_DATA_SOURCE_SPEC_V1.0.md": {
+      "mode": "100644",
+      "sha": "145d8d325d3c6dd3b97b2e33fcfe7015d97f5147",
+      "size": 5507,
+      "type": "blob"
+    },
+    "control_center/production_control/v1/08_RATE-CER-20260915-004.md": {
+      "mode": "100644",
+      "sha": "3ee84b58ee4c41983314faa2fa07fe13b3fdf72b",
+      "size": 1881,
+      "type": "blob"
+    },
+    "control_center/production_control/v1/09_RATE-SPEC-20260919-004.md": {
+      "mode": "100644",
+      "sha": "84cd372bb726f63c62678a4326bfaf8cd9913020",
+      "size": 2619,
+      "type": "blob"
+    },
+    "control_center/production_control/v1/MANIFEST.json": {
+      "mode": "100644",
+      "sha": "e26552551cf68115566f7c78c5d1a787981f5369",
+      "size": 983,
+      "type": "blob"
+    },
+    "data/raw_landing/20260914T162223Z/manifest.json": {
+      "mode": "100644",
+      "sha": "66cfb31e38218397992481df30ef9678b60f9f78",
+      "size": 3480,
+      "type": "blob"
+    },
+    "data/raw_landing/20260914T162223Z/tpex_daily.json": {
+      "mode": "100644",
+      "sha": "799a705bcb7d2cc20572db395c9d068d47a2902c",
+      "size": 4800860,
+      "type": "blob"
+    },
+    "data/raw_landing/20260914T162223Z/tpex_institutional.json": {
+      "mode": "100644",
+      "sha": "9b2e85dbe7320a12a64934e695986d695bf5587d",
+      "size": 4916,
+      "type": "blob"
+    },
+    "data/raw_landing/20260914T162223Z/tpex_qfii.json": {
+      "mode": "100644",
+      "sha": "ca0b319759d6b054e6933b9b34a89b939df99199",
+      "size": 219026,
+      "type": "blob"
+    },
+    "data/raw_landing/20260914T162223Z/tpex_quotes.json": {
+      "mode": "100644",
+      "sha": "5015b1c60f1cdd821fc66d0ee09ea7ea82f77a3d",
+      "size": 388459,
+      "type": "blob"
+    },
+    "data/raw_landing/20260914T162223Z/twse_benchmark.json": {
+      "mode": "100644",
+      "sha": "c338ed53cc1f44e8862226a2954e152fbe01de03",
+      "size": 51091,
+      "type": "blob"
+    },
+    "data/raw_landing/20260914T162223Z/twse_daily.json": {
+      "mode": "100644",
+      "sha": "aabcbeaa1861837c2abee887d516f974ed299c87",
+      "size": 348353,
+      "type": "blob"
+    },
+    "data/staging/history_bootstrap/RATE_TPEX_BENCHMARK_HISTORY_CHECKPOINT_V1.json": {
+      "mode": "100644",
+      "sha": "0cb436819456fca951d0475f1511a39d9586cb0b",
+      "size": 92268,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/benchmark/TAIEX.json": {
+      "mode": "100644",
+      "sha": "0200615d34d5658635803269425a99fb89d9be33",
+      "size": 38683,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/benchmark/TPEX.json": {
+      "mode": "100644",
+      "sha": "3730ac8b8fff42e8a7e1d8323dabbb3ce5c3930a",
+      "size": 54432,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/2313.json": {
+      "mode": "100644",
+      "sha": "baa156437d22eae25abaf34d22de70ac50c3577b",
+      "size": 49638,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/2317.json": {
+      "mode": "100644",
+      "sha": "eea700f2b575b3a71014962e7e2c81d526fd23ab",
+      "size": 49641,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/2330.json": {
+      "mode": "100644",
+      "sha": "11ced6d6e454312d1d3e852088731df94481bd54",
+      "size": 50442,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/2337.json": {
+      "mode": "100644",
+      "sha": "e2c7a58429b8d8cf82545ec99817e28edf9d902a",
+      "size": 49551,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/2344.json": {
+      "mode": "100644",
+      "sha": "b1a6bc73c715a75ea63da1427ed85a1e81102685",
+      "size": 49676,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/2345.json": {
+      "mode": "100644",
+      "sha": "60561bed54652e7b8150cfba9f1e9ad8ebc06267",
+      "size": 50090,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/2356.json": {
+      "mode": "100644",
+      "sha": "e2d3a2bf48040522b4077696b34a36b5c1ac9fcd",
+      "size": 48858,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/2368.json": {
+      "mode": "100644",
+      "sha": "26b919c6ab8aaef681c5530f594430320d159a15",
+      "size": 49796,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/2376.json": {
+      "mode": "100644",
+      "sha": "73383d297dc2e03501a12eb6bceeb1101b721d1a",
+      "size": 49355,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/2383.json": {
+      "mode": "100644",
+      "sha": "22d47dc15563d82fdd2fbcc30ef93181504218b6",
+      "size": 50142,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/2408.json": {
+      "mode": "100644",
+      "sha": "bf4cbfe4fb40ca86c00a8dc26fd29eb743ef6527",
+      "size": 49751,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/2449.json": {
+      "mode": "100644",
+      "sha": "c9512be75dd475a247f6c9b772b4a18a7bbcfd6c",
+      "size": 49546,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/3014.json": {
+      "mode": "100644",
+      "sha": "7fd1ad2e7180f66e99236b642c5c3ed3a461be4a",
+      "size": 49024,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/3017.json": {
+      "mode": "100644",
+      "sha": "50f73eef48e45ef3b7f86d2dbad9fe080d66fbc5",
+      "size": 50151,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/3034.json": {
+      "mode": "100644",
+      "sha": "0db855281e605c66a2233cb90cc15c3d81caebd1",
+      "size": 49320,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/3035.json": {
+      "mode": "100644",
+      "sha": "c0b3e121b8b328c9995655c36419e576bb57cbd2",
+      "size": 49261,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/3036.json": {
+      "mode": "100644",
+      "sha": "7330415e60f8e36e75307fe075be1943d7fa983c",
+      "size": 49368,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/3037.json": {
+      "mode": "100644",
+      "sha": "b76e77e1dce0cf0e6d067c396e938f2983f5cecd",
+      "size": 49743,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/3081.json": {
+      "mode": "100644",
+      "sha": "5b5131d06c0d9e97687cf5d30292dcd3f2ba60bf",
+      "size": 50118,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/3227.json": {
+      "mode": "100644",
+      "sha": "c6e780d2641d4002c97e7bd28171399f9b04c32c",
+      "size": 49261,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/3231.json": {
+      "mode": "100644",
+      "sha": "9e2455f5fad13194ca459dd8f8f65c0334a30399",
+      "size": 49563,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/3413.json": {
+      "mode": "100644",
+      "sha": "5498ac3e3e1bc5d4cad6c4f7865367c3d3d413bd",
+      "size": 49133,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/3443.json": {
+      "mode": "100644",
+      "sha": "f4d3ffb180cb8b2f79ae262febe0b7962810929c",
+      "size": 50104,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/3661.json": {
+      "mode": "100644",
+      "sha": "a694ac5e59ebfad5fa65df3afa19e23a2982fbac",
+      "size": 50089,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/5388.json": {
+      "mode": "100644",
+      "sha": "a8739eee3230057c435ba5950efd65a74bbfc979",
+      "size": 48441,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/6187.json": {
+      "mode": "100644",
+      "sha": "f98722a14cb9676f696eddfabe8a8ffe6f5ec99a",
+      "size": 49885,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/6274.json": {
+      "mode": "100644",
+      "sha": "be2685012dcd712f36b62d43d58544e9f915e3ae",
+      "size": 50016,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/6442.json": {
+      "mode": "100644",
+      "sha": "1515b4faa5e88cca1c8231c8df18ab48e46d094c",
+      "size": 50036,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/6510.json": {
+      "mode": "100644",
+      "sha": "e5d8eb2c498ee3e99f1f426ffb3047ddf521a4c9",
+      "size": 50063,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily/6669.json": {
+      "mode": "100644",
+      "sha": "e24422d9bb8f6566834fe379798a5c8577ecd12f",
+      "size": 50111,
+      "type": "blob"
+    },
+    "data/staging/step5a_history/market_daily_date_bound/2026-10-02.json": {
+      "mode": "100644",
+      "sha": "96da89d83d5f445b3eb2aee5f39451c4a51a2837",
+      "size": 18694,
+      "type": "blob"
+    },
+    "docs/CER073_REPRESENTATION_DISCOVERY.md": {
+      "mode": "100644",
+      "sha": "a25c482cdc34b720bb57639b99bd213ce4e22ccb",
+      "size": 4339,
+      "type": "blob"
+    },
+    "docs/DECISION_INPUT_COVERAGE_MATRIX_V1.json": {
+      "mode": "100644",
+      "sha": "485d63317cb70112832621b1aeb57d72886154e6",
+      "size": 1483,
+      "type": "blob"
+    },
+    "docs/FUGLE_PHASE_B_AUTHORIZATION_EVIDENCE.md": {
+      "mode": "100644",
+      "sha": "4cc19011403e4333ed07f0cda36e1917f272eaaf",
+      "size": 980,
+      "type": "blob"
+    },
+    "docs/RATE_ATOMIC_PUBLICATION_OWNER_V1.md": {
+      "mode": "100644",
+      "sha": "b2c7565a392b65d23d03296222381d954ab34081",
+      "size": 2719,
+      "type": "blob"
+    },
+    "docs/RATE_CER078_NATIVE_QUALIFICATION_V1.md": {
+      "mode": "100644",
+      "sha": "45621308ad2621de4ae07eeeab5b014064fe25df",
+      "size": 4065,
+      "type": "blob"
+    },
+    "docs/RATE_CI_APPLICABILITY_GOVERNANCE_V1.md": {
+      "mode": "100644",
+      "sha": "951f179c5a636665158d8bc966ed7b2f7b3fdd06",
+      "size": 1381,
+      "type": "blob"
+    },
+    "docs/RATE_DISCOVERY_TPEX_BENCHMARK_SCHEMA_DEFECT_001.md": {
+      "mode": "100644",
+      "sha": "c17ffec3318a80b2e8b6d73d3b1df91e764dc87e",
+      "size": 3457,
+      "type": "blob"
+    },
+    "docs/RATE_DISCOVERY_TWSE_BINDING_DEFECT_001.md": {
+      "mode": "100644",
+      "sha": "8cd57473998ba6c104eef229e7215e51d7f6cdf0",
+      "size": 4419,
+      "type": "blob"
+    },
+    "docs/RATE_DISPATCH_METADATA_HANDOFF.md": {
+      "mode": "100644",
+      "sha": "3ff066e3ff937ae474433209ddc2da943dae3436",
+      "size": 3941,
+      "type": "blob"
+    },
+    "docs/RATE_EPS_B1_RESEARCH_CONTRACT_V1.json": {
+      "mode": "100644",
+      "sha": "787149edc0475c1c1450e155c908111124243353",
+      "size": 3209,
+      "type": "blob"
+    },
+    "docs/RATE_EPS_B1_RESEARCH_VIEW.md": {
+      "mode": "100644",
+      "sha": "4f8cfeaab4bcabdf1c7074db286a631564117adb",
+      "size": 9255,
+      "type": "blob"
+    },
+    "docs/RATE_EPS_DURATION_FACT_LAYER.md": {
+      "mode": "100644",
+      "sha": "6a6ff129ad967827b0cf0d7e906373c24785f372",
+      "size": 10406,
+      "type": "blob"
+    },
+    "docs/RATE_EPS_DURATION_KNOWLEDGE_TIME_CANDIDATE_V1.json": {
+      "mode": "100644",
+      "sha": "22f6ef0cdbaa59c62094567fde9f3e0005c04d6f",
+      "size": 3765,
+      "type": "blob"
+    },
+    "docs/RATE_FINMIND_FORMAL_EPS_QUALIFICATION.md": {
+      "mode": "100644",
+      "sha": "3cf9858bb321c28357b2d1701be8626415543ecd",
+      "size": 3639,
+      "type": "blob"
+    },
+    "docs/RATE_FIRST_REFRESH_READINESS_V1.md": {
+      "mode": "100644",
+      "sha": "784e2bc06b4f5037896384facc99f6b3e4577c3c",
+      "size": 5813,
+      "type": "blob"
+    },
+    "docs/RATE_FORMAL_EPS_QUALIFICATION.md": {
+      "mode": "100644",
+      "sha": "509b66c6ad9231e416cd7e07e54bd9a1d800fd9a",
+      "size": 4621,
+      "type": "blob"
+    },
+    "docs/RATE_FOUR_CADENCE_REPORT_SOAK_V1.md": {
+      "mode": "100644",
+      "sha": "4b0a63fb0944a75c9fdea90b34d4d3d09dc425a8",
+      "size": 4235,
+      "type": "blob"
+    },
+    "docs/RATE_FULL_MARKET_COMPONENT_EVIDENCE_V1.md": {
+      "mode": "100644",
+      "sha": "2d5e1179de92b762c5c2dd12ee977c8d030eb9e3",
+      "size": 9611,
+      "type": "blob"
+    },
+    "docs/RATE_FULL_MARKET_HISTORY_BOOTSTRAP.md": {
+      "mode": "100644",
+      "sha": "8e54f19d6f6f93a7f8fc078eea4666f46a0cd787",
+      "size": 13390,
+      "type": "blob"
+    },
+    "docs/RATE_FULL_MARKET_WARMUP_MISSINGNESS_V1.md": {
+      "mode": "100644",
+      "sha": "2539de8bb42ccbbbc29ac486f99412509059c725",
+      "size": 5683,
+      "type": "blob"
+    },
+    "docs/RATE_FUNDAMENTAL_ELIGIBILITY_SUBGATE_V1.md": {
+      "mode": "100644",
+      "sha": "60caec261baa54390dd53cec06d8cd7e8eb25de7",
+      "size": 5312,
+      "type": "blob"
+    },
+    "docs/RATE_FUNDAMENTAL_FIRST_REFRESH_EXECUTION_V1.md": {
+      "mode": "100644",
+      "sha": "46ace4cea2b11f1e310b1b62f57ab87205704bd7",
+      "size": 8495,
+      "type": "blob"
+    },
+    "docs/RATE_FUNDAMENTAL_RANKING_CONSUMER_V1.md": {
+      "mode": "100644",
+      "sha": "04de597927e10dc31fa21ac7b741265344d49959",
+      "size": 5472,
+      "type": "blob"
+    },
+    "docs/RATE_HISTORICAL_REPLAY_PORTABILITY_V1.md": {
+      "mode": "100644",
+      "sha": "2b3d0c8944feda7d8fba42787b4818f29dde422e",
+      "size": 1923,
+      "type": "blob"
+    },
+    "docs/RATE_HISTORY_ACQUISITION_WIRING_V1.md": {
+      "mode": "100644",
+      "sha": "d18fa494641c93f5359737cc48a6598c3c7fd163",
+      "size": 10397,
+      "type": "blob"
+    },
+    "docs/RATE_HISTORY_STOCK_CHUNKED_ACQUISITION_V1.md": {
+      "mode": "100644",
+      "sha": "d4698536f3af148305fc5eaf2897a2808a213d46",
+      "size": 7066,
+      "type": "blob"
+    },
+    "docs/RATE_MH_TWSE_TITLE_IDENTITY_FIX_V1.md": {
+      "mode": "100644",
+      "sha": "ca6180c51e74856a9560797bcd73f7a2d4a495dd",
+      "size": 3596,
+      "type": "blob"
+    },
+    "docs/RATE_OFFICIAL_REVENUE_EXPANSION_V1.md": {
+      "mode": "100644",
+      "sha": "a7734e06b91cca26d666cd5b5cb937330420a213",
+      "size": 5446,
+      "type": "blob"
+    },
+    "docs/RATE_PR24_COMPATIBILITY_PHASE_A.md": {
+      "mode": "100644",
+      "sha": "db985434d5fc457024490a7ceb2c9cfc7e1db9ae",
+      "size": 3394,
+      "type": "blob"
+    },
+    "docs/RATE_PRODUCTION_SOURCE_BUNDLE.md": {
+      "mode": "100644",
+      "sha": "5c293c86c9280a9e0d23abe40dc65db070997309",
+      "size": 1309,
+      "type": "blob"
+    },
+    "docs/RATE_PROSPECTIVE_FUNDAMENTAL_PROVIDER_V1.md": {
+      "mode": "100644",
+      "sha": "2bee128b7c54a4dc8833e4141ae8ff990984f3db",
+      "size": 5109,
+      "type": "blob"
+    },
+    "docs/RATE_PROSPECTIVE_KNOWN_FAILURE_RECOVERY_V1.md": {
+      "mode": "100644",
+      "sha": "beb7c87e2f40f5c9c4c7299e3d10c63093d69003",
+      "size": 2214,
+      "type": "blob"
+    },
+    "docs/RATE_PROSPECTIVE_PROVIDER_ACTIVATION_V1.md": {
+      "mode": "100644",
+      "sha": "9fdf25b1c1a88f5548c3c3e428603c9fd968580c",
+      "size": 5393,
+      "type": "blob"
+    },
+    "docs/RATE_PROVIDER_CALENDAR_QUARTER_EPS_V1.md": {
+      "mode": "100644",
+      "sha": "3558c1a7b77fb1519266334f089f0adecc2fbe65",
+      "size": 2889,
+      "type": "blob"
+    },
+    "docs/RATE_PROVIDER_EPS_CANDIDATE.md": {
+      "mode": "100644",
+      "sha": "8d024380769ad897b81d50be8f94c3ea3ce92aeb",
+      "size": 4803,
+      "type": "blob"
+    },
+    "docs/RATE_PROVIDER_EPS_COVERAGE.md": {
+      "mode": "100644",
+      "sha": "87aaad0dfb72ec9d2d496524b3f338023dba839b",
+      "size": 8831,
+      "type": "blob"
+    },
+    "docs/RATE_PROVIDER_FINANCIAL_FEATURES_V1.md": {
+      "mode": "100644",
+      "sha": "9a530ff99eb668c90e487f96b28750b9ecfbb5fd",
+      "size": 6470,
+      "type": "blob"
+    },
+    "docs/RATE_PROVIDER_FUNDAMENTAL_SHADOW_V1.md": {
+      "mode": "100644",
+      "sha": "721d255d0ff44617306f06801cb4e7c1f597da8a",
+      "size": 4871,
+      "type": "blob"
+    },
+    "docs/RATE_PROVIDER_SHADOW_FORWARD_VALIDATION_V1.md": {
+      "mode": "100644",
+      "sha": "384efb1ca80a1f5e1c6b1fd2d7bdf5d56e254432",
+      "size": 7756,
+      "type": "blob"
+    },
+    "docs/RATE_PROVIDER_WARMUP_READINESS_V1.md": {
+      "mode": "100644",
+      "sha": "c8bb013e1ea581d4ecf5dd50e4eccd6b9af9c173",
+      "size": 5709,
+      "type": "blob"
+    },
+    "docs/RATE_PUBLIC_INTRADAY_REFERENCE_GOVERNANCE_V1.md": {
+      "mode": "100644",
+      "sha": "361b530f0e788ae6380b1fe4c906c43eecb335f3",
+      "size": 3240,
+      "type": "blob"
+    },
+    "docs/RATE_PUBLIC_OFFICIAL_PARTIAL_VALID_RUNTIME_V1.md": {
+      "mode": "100644",
+      "sha": "ef1441990d4f6bcfd94dda7d13fd9b79f00f5329",
+      "size": 6555,
+      "type": "blob"
+    },
+    "docs/RATE_SESSION_DISCOVERY_EXECUTION_V1.md": {
+      "mode": "100644",
+      "sha": "3cc7f30c7e459df826a7d1e87ebf511cd1fbdc52",
+      "size": 7530,
+      "type": "blob"
+    },
+    "docs/RATE_THIN_WORK_SHADOW_MANIFEST_V1.md": {
+      "mode": "100644",
+      "sha": "a07bd039b9e5506fa3672f33ceaa74b7393bb4ec",
+      "size": 1364,
+      "type": "blob"
+    },
+    "docs/TDCC_HISTORICAL_QUERY_CONTRACT_CER072.md": {
+      "mode": "100644",
+      "sha": "1c59e72c2182e2c8d4480ae24167615affeff8a3",
+      "size": 1678,
+      "type": "blob"
+    },
+    "docs/contracts/RATE_ATOMIC_PUBLICATION_OWNER_V1.json": {
+      "mode": "100644",
+      "sha": "85f26bb244dfc473739fe066a6b4780edfaf065c",
+      "size": 1043,
+      "type": "blob"
+    },
+    "docs/contracts/RATE_CER078_NATIVE_QUALIFICATION_V1.json": {
+      "mode": "100644",
+      "sha": "19af70ee6e8a3e7f0252de870ac2dd976ffda87b",
+      "size": 1012,
+      "type": "blob"
+    },
+    "docs/contracts/RATE_FINMIND_FORMAL_EPS_QUALIFICATION_V1.json": {
+      "mode": "100644",
+      "sha": "41a30c018c1e3afb91e9632a30bca60a3677506b",
+      "size": 1298,
+      "type": "blob"
+    },
+    "docs/contracts/RATE_FIRST_REFRESH_READINESS_V1.json": {
+      "mode": "100644",
+      "sha": "c27848b1baa163f1719d4143d4b7dbffd67b6a89",
+      "size": 2217,
+      "type": "blob"
+    },
+    "docs/contracts/RATE_FORMAL_EPS_PERIOD_QUALIFICATION_V1.json": {
+      "mode": "100644",
+      "sha": "4a45b993ad68ab9c6f2c23967f3dea0f294b8b20",
+      "size": 1298,
+      "type": "blob"
+    },
+    "docs/contracts/RATE_FULL_MARKET_COMPONENT_EVIDENCE_V1.json": {
+      "mode": "100644",
+      "sha": "a03bef172bfa2dd73074908c7c947a7f40a8ff14",
+      "size": 2726,
+      "type": "blob"
+    },
+    "docs/contracts/RATE_FULL_MARKET_WARMUP_MISSINGNESS_V1.json": {
+      "mode": "100644",
+      "sha": "a1cbb96936484e5444892760ff5ee6589b560a09",
+      "size": 3677,
+      "type": "blob"
+    },
+    "docs/contracts/RATE_FUNDAMENTAL_ELIGIBILITY_SUBGATE_V1.json": {
+      "mode": "100644",
+      "sha": "e5388234b268b7508deee5154d4da08bf745013b",
+      "size": 4980,
+      "type": "blob"
+    },
+    "docs/contracts/RATE_FUNDAMENTAL_FIRST_REFRESH_EXECUTION_V1.json": {
+      "mode": "100644",
+      "sha": "f0b165c995e036c9389e75c503349489b7fa4ce2",
+      "size": 3696,
+      "type": "blob"
+    },
+    "docs/contracts/RATE_FUNDAMENTAL_RANKING_CONSUMER_V1.json": {
+      "mode": "100644",
+      "sha": "787542de806f7331bf5aadc6bdac23e49c74fa33",
+      "size": 3742,
+      "type": "blob"
+    },
+    "docs/contracts/RATE_HISTORICAL_REPLAY_PORTABILITY_V1.json": {
+      "mode": "100644",
+      "sha": "507cc2e2255d86741b8e1325a947d5321b4307d9",
+      "size": 902,
+      "type": "blob"
+    },
+    "docs/contracts/RATE_HISTORY_ACQUISITION_WIRING_V1.json": {
+      "mode": "100644",
+      "sha": "2a948320e1a5ae1d292c339865ad184cb97400f0",
+      "size": 3275,
+      "type": "blob"
+    },
+    "docs/contracts/RATE_HISTORY_STOCK_CHUNKED_ACQUISITION_V1.json": {
+      "mode": "100644",
+      "sha": "87fcac7e0da83610e0808c9f34cecc0ae237e8ee",
+      "size": 4784,
+      "type": "blob"
+    },
+    "docs/contracts/RATE_PROSPECTIVE_FUNDAMENTAL_PROVIDER_V1.json": {
+      "mode": "100644",
+      "sha": "de92f71e47ce14450301e627e1affcd202832615",
+      "size": 1659,
+      "type": "blob"
+    },
+    "docs/contracts/RATE_PROSPECTIVE_KNOWN_FAILURE_RECOVERY_V1.json": {
+      "mode": "100644",
+      "sha": "4b80367acc6d53fcfa0dcc9fc96976dd8bc1fe09",
+      "size": 925,
+      "type": "blob"
+    },
+    "docs/contracts/RATE_PROSPECTIVE_PROVIDER_ACTIVATION_V1.json": {
+      "mode": "100644",
+      "sha": "88f9c967f0430d4325d5e57cbe140f5fb5e60928",
+      "size": 1055,
+      "type": "blob"
+    },
+    "docs/contracts/RATE_PROVIDER_CALENDAR_QUARTER_EPS_V1.json": {
+      "mode": "100644",
+      "sha": "7a579432c4104f39b2f2dc5e70c8102b89fb1d2a",
+      "size": 2491,
+      "type": "blob"
+    },
+    "docs/contracts/RATE_PROVIDER_FINANCIAL_FEATURES_V1.json": {
+      "mode": "100644",
+      "sha": "35797397d940540702690397d620555a292ba38a",
+      "size": 1984,
+      "type": "blob"
+    },
+    "docs/contracts/RATE_PROVIDER_FUNDAMENTAL_SHADOW_V1.json": {
+      "mode": "100644",
+      "sha": "4b8d6ba936914e3f5d6f22559032e8bf63fa2839",
+      "size": 1874,
+      "type": "blob"
+    },
+    "docs/contracts/RATE_PROVIDER_SHADOW_FORWARD_VALIDATION_V1.json": {
+      "mode": "100644",
+      "sha": "ec435cd0957f60a69d7f93a89f04f1cbdcda69ba",
+      "size": 1993,
+      "type": "blob"
+    },
+    "docs/contracts/RATE_PROVIDER_WARMUP_READINESS_V1.json": {
+      "mode": "100644",
+      "sha": "ede8723627c4bacdb94a119b877c99a2b24946d8",
+      "size": 1258,
+      "type": "blob"
+    },
+    "docs/contracts/RATE_SESSION_DISCOVERY_EXECUTION_V1.json": {
+      "mode": "100644",
+      "sha": "14148b1afc98c14e6c5f45ddca6e7bb4c863e4fb",
+      "size": 2146,
+      "type": "blob"
+    },
+    "evidence/rate-recovery-compatibility/RATE_RECOVERY_COMPATIBILITY_EVIDENCE_V1.json": {
+      "mode": "100644",
+      "sha": "ce7d42f42100200c326cd86cb9fb65abb4323f07",
+      "size": 2598,
+      "type": "blob"
+    },
+    "evidence/rate-recovery-compatibility/RATE_RECOVERY_COMPATIBILITY_EVIDENCE_V2.json": {
+      "mode": "100644",
+      "sha": "1a7262e553cbb7c8a9930df2add140e43345013f",
+      "size": 4040,
+      "type": "blob"
+    },
+    "evidence/rate-run-37271408633/RATE_RUN_37271408633_FAILURE_EVIDENCE.json": {
+      "mode": "100644",
+      "sha": "898aecc818d4ac1a29f977d6d9964e7eea45caa5",
+      "size": 3816,
+      "type": "blob"
+    },
+    "evidence/tpex-date-binding-001/RATE_TPEX_DATE_BINDING_INCIDENT_EVIDENCE.json": {
+      "mode": "100644",
+      "sha": "c4d4f75fadd4a8b63d35593d5fbc9af180ca9dd6",
+      "size": 3205,
+      "type": "blob"
+    },
+    "evidence/tpex-transport-001/RATE_TPEX_TRANSPORT_INCIDENT_EVIDENCE.json": {
+      "mode": "100644",
+      "sha": "f1964c1d64ece9f75b354b233e2beca5444ccd36",
+      "size": 6254,
+      "type": "blob"
+    },
+    "scripts/align_tpex_index_history.py": {
+      "mode": "100644",
+      "sha": "d782fb290e2b5e1520f13c7e9aa8b9e09c622fee",
+      "size": 3715,
+      "type": "blob"
+    },
+    "scripts/align_twse_taiex_history.py": {
+      "mode": "100644",
+      "sha": "35f756d4c9ade27d1b8c6bbb74bc769b589e94a7",
+      "size": 3879,
+      "type": "blob"
+    },
+    "scripts/bootstrap_cache.py": {
+      "mode": "100644",
+      "sha": "278a788c84e9331c6803dc0884096bdde93cd99c",
+      "size": 1251,
+      "type": "blob"
+    },
+    "scripts/bootstrap_cer073_fundamentals.py": {
+      "mode": "100644",
+      "sha": "b86466d69d1a83fb4deaab39e1009f5a3ec4f827",
+      "size": 33046,
+      "type": "blob"
+    },
+    "scripts/bootstrap_full_market_history.py": {
+      "mode": "100644",
+      "sha": "854d597e346ec9a906ab29a386256d7d96247264",
+      "size": 12117,
+      "type": "blob"
+    },
+    "scripts/bootstrap_live_history.py": {
+      "mode": "100644",
+      "sha": "d093c8c7d98460959736cc35bc6d1b464fc3fe3b",
+      "size": 16957,
+      "type": "blob"
+    },
+    "scripts/bootstrap_production_rebaseline_state.py": {
+      "mode": "100644",
+      "sha": "1d03d2ae3bdaa4d6bf358e455c76349d0badc3a0",
+      "size": 44073,
+      "type": "blob"
+    },
+    "scripts/bootstrap_production_recovery_state.py": {
+      "mode": "100644",
+      "sha": "9f121b8a4ffa05209e1b0eb23e2f5a466491b0d9",
+      "size": 15357,
+      "type": "blob"
+    },
+    "scripts/bootstrap_taiex_history.py": {
+      "mode": "100644",
+      "sha": "d37705d5965b8b6aefef803ef72ae21c44b6b99c",
+      "size": 6726,
+      "type": "blob"
+    },
+    "scripts/bootstrap_tpex_history.py": {
+      "mode": "100644",
+      "sha": "5a56cb020294742e01bf7cca5b393926313be78b",
+      "size": 7762,
+      "type": "blob"
+    },
+    "scripts/bootstrap_tpex_index.py": {
+      "mode": "100644",
+      "sha": "1e1adc0626970fe52d27bdaeafb4e54ed7268819",
+      "size": 10308,
+      "type": "blob"
+    },
+    "scripts/build_eps_b1_research_view.py": {
+      "mode": "100644",
+      "sha": "a702a077d6508bcda6a1e0c644ab7ecb3f3e6e5d",
+      "size": 1133,
+      "type": "blob"
+    },
+    "scripts/build_full_market_component_evidence.py": {
+      "mode": "100644",
+      "sha": "ec9b660f92a60f3eae550c9117c10d2962ca31a3",
+      "size": 4801,
+      "type": "blob"
+    },
+    "scripts/build_fundamental_eligibility.py": {
+      "mode": "100644",
+      "sha": "8e86f5a4487a3ffe7344b5d67adfeb3754626148",
+      "size": 2136,
+      "type": "blob"
+    },
+    "scripts/build_historical_state_manifest.py": {
+      "mode": "100644",
+      "sha": "1fc86d6bae11e5789cf12436fd8ad78877f53587",
+      "size": 9618,
+      "type": "blob"
+    },
+    "scripts/build_live_source_bundle.py": {
+      "mode": "100644",
+      "sha": "c5aabd2b58a9c6c0cf3fb03c1ba0bb9a0292c6d0",
+      "size": 68103,
+      "type": "blob"
+    },
+    "scripts/build_phase2_production_source.py": {
+      "mode": "100644",
+      "sha": "cab10a4653ad09b4eef6ce211498354046b5f155",
+      "size": 3007,
+      "type": "blob"
+    },
+    "scripts/build_phase_b_query_universe.py": {
+      "mode": "100644",
+      "sha": "f472c9ff7c8b28a08cad3acd7a6cfeb06d2f4170",
+      "size": 1728,
+      "type": "blob"
+    },
+    "scripts/build_production_rebaseline_material.py": {
+      "mode": "100644",
+      "sha": "a408ca2a22db48039b20325af024ffe5f36ae6e6",
+      "size": 11258,
+      "type": "blob"
+    },
+    "scripts/build_production_source_bundle_from_official.py": {
+      "mode": "100644",
+      "sha": "1080ce66592c79e4d6feb2d27bbde9ffcf201bc3",
+      "size": 103730,
+      "type": "blob"
+    },
+    "scripts/build_provider_eps_candidate.py": {
+      "mode": "100644",
+      "sha": "ffa1e7d5c2233eb931fe3245a4c05ea35e2fe545",
+      "size": 3469,
+      "type": "blob"
+    },
+    "scripts/build_provider_financial_features.py": {
+      "mode": "100644",
+      "sha": "dc25c36b2608487776846ca61450d75d19cd056b",
+      "size": 3012,
+      "type": "blob"
+    },
+    "scripts/build_provider_fundamental_shadow.py": {
+      "mode": "100644",
+      "sha": "4137bc06f4aa40de3eced9be1cf1e429e3ba77ee",
+      "size": 3077,
+      "type": "blob"
+    },
+    "scripts/build_thin_work_shadow_manifest.py": {
+      "mode": "100644",
+      "sha": "8a032fd8b17b652af59648381bfab6bfffffe00d",
+      "size": 1874,
+      "type": "blob"
+    },
+    "scripts/build_warmup_missingness.py": {
+      "mode": "100644",
+      "sha": "8012ec9f6384d3c7d72e0d0601186ea863d7d7e7",
+      "size": 3304,
+      "type": "blob"
+    },
+    "scripts/close_cer073_final_source_bundle.py": {
+      "mode": "100644",
+      "sha": "ef8d71c5f23f59829140b2b7e5c8d7458b30ed48",
+      "size": 16234,
+      "type": "blob"
+    },
+    "scripts/discover_fundamental_representations.py": {
+      "mode": "100644",
+      "sha": "2cfecd553d4ee9023d57737658977421071d4897",
+      "size": 28047,
+      "type": "blob"
+    },
+    "scripts/eps_b1_formal_fixture.py": {
+      "mode": "100644",
+      "sha": "802d99fa0f062d5f91ce290d5d7dd8b2a073031a",
+      "size": 3643,
+      "type": "blob"
+    },
+    "scripts/expand_official_revenue.py": {
+      "mode": "100644",
+      "sha": "34743d526da40d4953fe361b5890a35897647381",
+      "size": 4780,
+      "type": "blob"
+    },
+    "scripts/handoff_provider_eps_coverage.py": {
+      "mode": "100644",
+      "sha": "ca08d0a84ca5631b4495f60f54afc0e59dc033dd",
+      "size": 3891,
+      "type": "blob"
+    },
+    "scripts/ingest_official_sources.py": {
+      "mode": "100644",
+      "sha": "85fc4e86207aa6b64c0f7da536e9d4aaee9d733e",
+      "size": 2307,
+      "type": "blob"
+    },
+    "scripts/ingest_production_bundle.py": {
+      "mode": "100644",
+      "sha": "5fb9c33d2e2a85b9efeee5d1bfbd96c4a59dbdfb",
+      "size": 1029,
+      "type": "blob"
+    },
+    "scripts/materialize_production_history_store.py": {
+      "mode": "100644",
+      "sha": "da11f4db1c21529ddb6bc4b1c5c3530c00075036",
+      "size": 17607,
+      "type": "blob"
+    },
+    "scripts/materialize_tpex_history.py": {
+      "mode": "100644",
+      "sha": "60273d32b3984750863cd54f382ee7e022cc7c97",
+      "size": 4384,
+      "type": "blob"
+    },
+    "scripts/materialize_twse_history.py": {
+      "mode": "100644",
+      "sha": "2e1d7bfba7a8a49444b278f040c1d5e40fde187f",
+      "size": 8214,
+      "type": "blob"
+    },
+    "scripts/package_eps_duration_proof.py": {
+      "mode": "100644",
+      "sha": "2efa7b8736b3c934ad3d2032a6435137801396b6",
+      "size": 2180,
+      "type": "blob"
+    },
+    "scripts/probe_fundamental_contracts.py": {
+      "mode": "100644",
+      "sha": "0be3df1623816ddbfdf8887233d80e97cb7d1ec2",
+      "size": 12327,
+      "type": "blob"
+    },
+    "scripts/probe_official_sources.py": {
+      "mode": "100644",
+      "sha": "cd4e76e1e870753bac5478143e733d8630975df2",
+      "size": 5641,
+      "type": "blob"
+    },
+    "scripts/probe_tpex_individual_history_contract.py": {
+      "mode": "100644",
+      "sha": "8899496f9f16d2b50ec7f31218ce7bb8e859ff51",
+      "size": 2136,
+      "type": "blob"
+    },
+    "scripts/probe_twse_history_transport.py": {
+      "mode": "100644",
+      "sha": "9371c8cc5ffa1e68887a3cc758b724823e7c199f",
+      "size": 4796,
+      "type": "blob"
+    },
+    "scripts/provider_warmup_readiness.py": {
+      "mode": "100644",
+      "sha": "ca20d982a34de73e958a3d4440d83f1eb2f89a46",
+      "size": 13337,
+      "type": "blob"
+    },
+    "scripts/publish_production_source_bundle_latest.py": {
+      "mode": "100644",
+      "sha": "764a30e4a394e5e594efd13587f5ed8ae5868d63",
+      "size": 24436,
+      "type": "blob"
+    },
+    "scripts/publish_production_state_latest.py": {
+      "mode": "100644",
+      "sha": "4df1a5541e289490aa6ffcfe16ac8b21ae4854d2",
+      "size": 11194,
+      "type": "blob"
+    },
+    "scripts/qualify_finmind_eps.py": {
+      "mode": "100644",
+      "sha": "fa1eaa4d916c86186e53fbe8d7e3827fa8532101",
+      "size": 2646,
+      "type": "blob"
+    },
+    "scripts/qualify_formal_eps.py": {
+      "mode": "100644",
+      "sha": "8c4253f7e03abde147817bb026c757f997b5a29e",
+      "size": 3097,
+      "type": "blob"
+    },
+    "scripts/read_production_refresh.py": {
+      "mode": "100644",
+      "sha": "8583d848db5d4f9ee8bd3cb45d0c434da28fca35",
+      "size": 650,
+      "type": "blob"
+    },
+    "scripts/recover_provider_eps_coverage.py": {
+      "mode": "100644",
+      "sha": "858c4486118d1feeb33a32cdc218ee01babf2f40",
+      "size": 7095,
+      "type": "blob"
+    },
+    "scripts/replay_eps_duration_proof.py": {
+      "mode": "100644",
+      "sha": "6f1707ccc7770b29e697aac60dcc942605c1d0ca",
+      "size": 3441,
+      "type": "blob"
+    },
+    "scripts/replay_history_chunk_success.py": {
+      "mode": "100644",
+      "sha": "5ebd0de212cba17021fdec3f5400b3a2d5f56dff",
+      "size": 3083,
+      "type": "blob"
+    },
+    "scripts/resolve_production_runtime_context.py": {
+      "mode": "100644",
+      "sha": "3a8a80f1d1c785652f422bdd9f12c3a82bb13a5a",
+      "size": 6443,
+      "type": "blob"
+    },
+    "scripts/resolve_staging_universe.py": {
+      "mode": "100644",
+      "sha": "3c7a3cdaf6bd23c60e24c199a2ca65e7a2707371",
+      "size": 6827,
+      "type": "blob"
+    },
+    "scripts/run_0730_e2e.py": {
+      "mode": "100644",
+      "sha": "9e00677fd6ec42ab158570a3129b6283d0e63aa2",
+      "size": 1509,
+      "type": "blob"
+    },
+    "scripts/run_cer072_acceptance.py": {
+      "mode": "100644",
+      "sha": "c6442fba1c0db6a60fab5ef1990e131d0ae4bab7",
+      "size": 38495,
+      "type": "blob"
+    },
+    "scripts/run_cer074_acceptance.py": {
+      "mode": "100644",
+      "sha": "a4872234ff4cee1e652affad377b27708cd35764",
+      "size": 5871,
+      "type": "blob"
+    },
+    "scripts/run_cer075_scheduler_acceptance.py": {
+      "mode": "100644",
+      "sha": "628d2f7da12bc55595854fdfa07038f6c29b9b4d",
+      "size": 3656,
+      "type": "blob"
+    },
+    "scripts/run_cer076_incremental_0930_acceptance.py": {
+      "mode": "100644",
+      "sha": "4e54ceb9e966ccc4780d574e1aee35830c14b314",
+      "size": 4471,
+      "type": "blob"
+    },
+    "scripts/run_cer077_incremental_1200_acceptance.py": {
+      "mode": "100644",
+      "sha": "32d4d991f4fcb582f411def04ee11ec20a81b043",
+      "size": 4624,
+      "type": "blob"
+    },
+    "scripts/run_cer078_evening_1930_acceptance.py": {
+      "mode": "100644",
+      "sha": "ce460fcaebcb8e45ffb582fe408c9b57c1d4ca70",
+      "size": 4854,
+      "type": "blob"
+    },
+    "scripts/run_cer078_native_diagnostics.py": {
+      "mode": "100644",
+      "sha": "543f566cddea28526f7bc639eb0ae60900a10428",
+      "size": 2838,
+      "type": "blob"
+    },
+    "scripts/run_cer079_full_day_chain_acceptance.py": {
+      "mode": "100644",
+      "sha": "f791a06fb9e7c06bc937352ae98efb5900b1a124",
+      "size": 3849,
+      "type": "blob"
+    },
+    "scripts/run_cer080_multi_day_continuity_acceptance.py": {
+      "mode": "100644",
+      "sha": "6ecb1ed651a43e35023656fa40ce74ba7bf56434",
+      "size": 3581,
+      "type": "blob"
+    },
+    "scripts/run_cer081_unattended_soak_acceptance.py": {
+      "mode": "100644",
+      "sha": "cd796dfd31e3e15b3ea702973b9744edcf937e21",
+      "size": 3559,
+      "type": "blob"
+    },
+    "scripts/run_first_refresh_readiness.py": {
+      "mode": "100644",
+      "sha": "4777ba9a5490d1daba096df2a0d4aed4c8e52baf",
+      "size": 12143,
+      "type": "blob"
+    },
+    "scripts/run_full_market_rotation.py": {
+      "mode": "100644",
+      "sha": "a31c2c91e5eb66906c99eabbe10fe5f02296915a",
+      "size": 2502,
+      "type": "blob"
+    },
+    "scripts/run_fundamental_first_refresh_execution.py": {
+      "mode": "100644",
+      "sha": "117993b2ca447d526c02c299a1941590d5ce11b4",
+      "size": 5452,
+      "type": "blob"
+    },
+    "scripts/run_fundamental_ranking_consumer.py": {
+      "mode": "100644",
+      "sha": "b6a9771b32580a6155a53f1d923783b5f7d617b3",
+      "size": 5393,
+      "type": "blob"
+    },
+    "scripts/run_historical_replay_portability.py": {
+      "mode": "100644",
+      "sha": "b9b9410aa1ddba29fc2ddb633da3cc6b732138bb",
+      "size": 3979,
+      "type": "blob"
+    },
+    "scripts/run_history_acquisition.py": {
+      "mode": "100644",
+      "sha": "6e3e46f8adce97bff5c691e5175332b3692aa49f",
+      "size": 3530,
+      "type": "blob"
+    },
+    "scripts/run_ois_historical_revision_recovery.py": {
+      "mode": "100644",
+      "sha": "ed0a05e7861f2e4028efe605f64e5d70acff4d04",
+      "size": 283,
+      "type": "blob"
+    },
+    "scripts/run_phase2_production.py": {
+      "mode": "100644",
+      "sha": "5d8bb05ee99f1ce0746e6c05337efe5bff4dc64d",
+      "size": 3469,
+      "type": "blob"
+    },
+    "scripts/run_phase_a2.py": {
+      "mode": "100644",
+      "sha": "f4153efe560f30e0d56baadb5e8aea115b5e7d81",
+      "size": 3551,
+      "type": "blob"
+    },
+    "scripts/run_phase_a2_local.py": {
+      "mode": "100644",
+      "sha": "eedb22d1d12df08994f7ef1e51b5192a1e539ecf",
+      "size": 1783,
+      "type": "blob"
+    },
+    "scripts/run_production_data_layer.py": {
+      "mode": "100644",
+      "sha": "a3a291e499e84c015d46b150cd0b343944ff4a87",
+      "size": 730,
+      "type": "blob"
+    },
+    "scripts/run_prospective_acquisition_recovery.py": {
+      "mode": "100644",
+      "sha": "0e24211c235450b6a9776daccd787b31dfe049f7",
+      "size": 2503,
+      "type": "blob"
+    },
+    "scripts/run_prospective_provider_acceptance.py": {
+      "mode": "100644",
+      "sha": "4642876eaf35dae9b20c43fcba64dda49bc44e8d",
+      "size": 15055,
+      "type": "blob"
+    },
+    "scripts/run_prospective_provider_activation.py": {
+      "mode": "100644",
+      "sha": "1d51512aa286e7ea0d7f83a95afb286ebb6cd4ee",
+      "size": 16519,
+      "type": "blob"
+    },
+    "scripts/run_provider_shadow_forward.py": {
+      "mode": "100644",
+      "sha": "0535664a8dfc57ad40d271e57552303f559e0161",
+      "size": 7839,
+      "type": "blob"
+    },
+    "scripts/run_provider_warmup_readiness.py": {
+      "mode": "100644",
+      "sha": "a5981e1cab8564e1f8055f6ad9c1f3cb1c6af3b1",
+      "size": 8636,
+      "type": "blob"
+    },
+    "scripts/run_rate_0730.py": {
+      "mode": "100644",
+      "sha": "18d1dae7de5dcbbcdbb74c8b1d2dca553e6874fd",
+      "size": 5102,
+      "type": "blob"
+    },
+    "scripts/run_report_production_soak_acceptance.py": {
+      "mode": "100644",
+      "sha": "d54d9b024e8f865dcb7c87e1ed6bcd362cd2798b",
+      "size": 1646,
+      "type": "blob"
+    },
+    "scripts/run_session_discovery_execution.py": {
+      "mode": "100644",
+      "sha": "6494405f2d959d0c53b3e5e93d73e314e501eb07",
+      "size": 2692,
+      "type": "blob"
+    },
+    "scripts/run_validation.py": {
+      "mode": "100644",
+      "sha": "74dca09f144594a4af42ef48754c59e3a86b8fbd",
+      "size": 5607,
+      "type": "blob"
+    },
+    "scripts/scan_provider_eps_coverage.py": {
+      "mode": "100644",
+      "sha": "87725df7d3cc0adbe8d84d0082f9c4759bab0b98",
+      "size": 7733,
+      "type": "blob"
+    },
+    "scripts/seed_live_production_state.py": {
+      "mode": "100644",
+      "sha": "16e6047b54725935d18365aeaa5f1e5410ef0d96",
+      "size": 6654,
+      "type": "blob"
+    },
+    "scripts/validate_cer070_purity.py": {
+      "mode": "100644",
+      "sha": "18f468a4db5236ad0ed1b081572ca3619d79f39b",
+      "size": 9912,
+      "type": "blob"
+    },
+    "scripts/validate_cer071_stage.py": {
+      "mode": "100644",
+      "sha": "83e55f2c050fba8e583b34ce815a318f41b151e7",
+      "size": 7127,
+      "type": "blob"
+    },
+    "scripts/validate_phase_b_intraday.py": {
+      "mode": "100644",
+      "sha": "f6010f5a4221502f682dc7d0780eb2618f178be2",
+      "size": 8655,
+      "type": "blob"
+    },
+    "scripts/validate_production_scheduler_safety.py": {
+      "mode": "100644",
+      "sha": "db696c04dd9ec5735387b5396a6d90a500a515b2",
+      "size": 6018,
+      "type": "blob"
+    },
+    "scripts/validate_provider_calendar_eps.py": {
+      "mode": "100644",
+      "sha": "1cf136b3b291592acc6ece72ee59f06f5cb97f40",
+      "size": 2345,
+      "type": "blob"
+    },
+    "scripts/validate_t86_retrieval.py": {
+      "mode": "100644",
+      "sha": "00182ba13dc574862ae83e5056fe7365162ff222",
+      "size": 4806,
+      "type": "blob"
+    },
+    "scripts/verify_atomic_publication.py": {
+      "mode": "100644",
+      "sha": "1fecc93209722a1f297f7c33b776d63902fa2111",
+      "size": 4807,
+      "type": "blob"
+    },
+    "scripts/verify_cer078_native_qualification.py": {
+      "mode": "100644",
+      "sha": "db89c56cde81ab96eeebe7a1e69faefb0927cfa2",
+      "size": 4923,
+      "type": "blob"
+    },
+    "scripts/verify_ci_applicability.py": {
+      "mode": "100644",
+      "sha": "fb3b5fc8c79a560cc8a1e99a5f1ea024f6f4dadb",
+      "size": 7122,
+      "type": "blob"
+    },
+    "scripts/verify_discovery_tpex_benchmark_schema.py": {
+      "mode": "100644",
+      "sha": "77e40285309c75a5cb75ed892c492c63e9610cdc",
+      "size": 5823,
+      "type": "blob"
+    },
+    "scripts/verify_discovery_twse_binding_fix.py": {
+      "mode": "100644",
+      "sha": "33eb3e05fa9caea784ab3f1a05b3ed9ea200a417",
+      "size": 5161,
+      "type": "blob"
+    },
+    "scripts/verify_eps_b1_noninterference.py": {
+      "mode": "100644",
+      "sha": "306c8815a7c111bded3fc7aa28120995a26f3482",
+      "size": 8451,
+      "type": "blob"
+    },
+    "scripts/verify_eps_duration_isolation.py": {
+      "mode": "100644",
+      "sha": "2851db5879bea64f49fcd10398e41fdc7bb064f2",
+      "size": 3506,
+      "type": "blob"
+    },
+    "scripts/verify_finmind_formal_qualification.py": {
+      "mode": "100644",
+      "sha": "d940e2e3b0fc650c1552d6f17d14090109cc2631",
+      "size": 5496,
+      "type": "blob"
+    },
+    "scripts/verify_first_refresh_readiness.py": {
+      "mode": "100644",
+      "sha": "b8cb05fae6ace9c6f4d1196a479c9b55bc297a17",
+      "size": 5226,
+      "type": "blob"
+    },
+    "scripts/verify_formal_eps_qualification.py": {
+      "mode": "100644",
+      "sha": "b9fafea762244fb6b1bed8ac6a79b076fac6a53b",
+      "size": 4634,
+      "type": "blob"
+    },
+    "scripts/verify_full_market_component_evidence.py": {
+      "mode": "100644",
+      "sha": "74ffed3883df4e4bda638f7c1141b29a3924cf1e",
+      "size": 4891,
+      "type": "blob"
+    },
+    "scripts/verify_fundamental_eligibility.py": {
+      "mode": "100644",
+      "sha": "743292410e01d0eeef8f5cdad2970536f7b69be6",
+      "size": 8119,
+      "type": "blob"
+    },
+    "scripts/verify_fundamental_first_refresh_execution.py": {
+      "mode": "100644",
+      "sha": "9a02b44c24d17a45e6e4e350715076c20821ea38",
+      "size": 8008,
+      "type": "blob"
+    },
+    "scripts/verify_fundamental_ranking_consumer.py": {
+      "mode": "100644",
+      "sha": "2a213620148f7b790bc6c25b2f87a448033e6ec8",
+      "size": 5774,
+      "type": "blob"
+    },
+    "scripts/verify_historical_replay_portability.py": {
+      "mode": "100644",
+      "sha": "2180e43e5698eed065ee421cc0ea91f8a1acf666",
+      "size": 4827,
+      "type": "blob"
+    },
+    "scripts/verify_history_acquisition_wiring.py": {
+      "mode": "100644",
+      "sha": "5b51db759990facff135aa5e69499ceeb7aeb864",
+      "size": 7652,
+      "type": "blob"
+    },
+    "scripts/verify_history_chunked_acquisition.py": {
+      "mode": "100644",
+      "sha": "382f33e5e9f180b4af6e0f9590a723ade23e27d6",
+      "size": 5372,
+      "type": "blob"
+    },
+    "scripts/verify_history_twse_title_identity.py": {
+      "mode": "100644",
+      "sha": "c184784202dcb5298ebe8d8d986385d1a2aa5f3e",
+      "size": 7579,
+      "type": "blob"
+    },
+    "scripts/verify_official_revenue_expansion.py": {
+      "mode": "100644",
+      "sha": "8364cfd043eaf228b5902bf1e953494871287860",
+      "size": 5237,
+      "type": "blob"
+    },
+    "scripts/verify_phase2_compatibility.py": {
+      "mode": "100644",
+      "sha": "9867d8a8ea69e52e7e2ce7828ad74c661c5fd464",
+      "size": 6759,
+      "type": "blob"
+    },
+    "scripts/verify_prospective_acquisition_recovery.py": {
+      "mode": "100644",
+      "sha": "c2cbbb9e072464e78bea802c3c323046cb80df0d",
+      "size": 4787,
+      "type": "blob"
+    },
+    "scripts/verify_prospective_provider_acceptance.py": {
+      "mode": "100644",
+      "sha": "5041897fe3f21001dfecac0dfdf8ddc416ab3a49",
+      "size": 7247,
+      "type": "blob"
+    },
+    "scripts/verify_prospective_provider_activation.py": {
+      "mode": "100644",
+      "sha": "847d321ffc7777a618a225c57593792031fe8c89",
+      "size": 7868,
+      "type": "blob"
+    },
+    "scripts/verify_provider_calendar_eps.py": {
+      "mode": "100644",
+      "sha": "1929e61edec1d21ae843113fd10807e14203deb5",
+      "size": 4617,
+      "type": "blob"
+    },
+    "scripts/verify_provider_eps_candidate.py": {
+      "mode": "100644",
+      "sha": "14490ec34aac323de790847cf479026e4129add5",
+      "size": 8652,
+      "type": "blob"
+    },
+    "scripts/verify_provider_eps_coverage.py": {
+      "mode": "100644",
+      "sha": "b4417623d54705863bd5fb46798a4477ec8e88f6",
+      "size": 4210,
+      "type": "blob"
+    },
+    "scripts/verify_provider_financial_features.py": {
+      "mode": "100644",
+      "sha": "c562ad05858348dc9b369112a5202cf9ad5ffb3a",
+      "size": 5903,
+      "type": "blob"
+    },
+    "scripts/verify_provider_fundamental_shadow.py": {
+      "mode": "100644",
+      "sha": "789669f7d1cf4973f60d951afcefa4a3b9eacdf3",
+      "size": 4400,
+      "type": "blob"
+    },
+    "scripts/verify_provider_shadow_forward.py": {
+      "mode": "100644",
+      "sha": "9cb22c311ad1d26db15691ca720cd53aac38caaa",
+      "size": 4131,
+      "type": "blob"
+    },
+    "scripts/verify_provider_warmup_readiness.py": {
+      "mode": "100644",
+      "sha": "c3cbcc085f648c06d396c369fab1f182143a81e4",
+      "size": 5516,
+      "type": "blob"
+    },
+    "scripts/verify_public_official_partial_valid.py": {
+      "mode": "100644",
+      "sha": "4c66d2e213991a4fcb25f2846ba85db99868b19f",
+      "size": 10532,
+      "type": "blob"
+    },
+    "scripts/verify_rate_1930_shadow_closure.py": {
+      "mode": "100644",
+      "sha": "e732ded3e23b7aa5b6ff0816b8bb4f5b8291adb8",
+      "size": 9478,
+      "type": "blob"
+    },
+    "scripts/verify_rate_eps_postmerge_integration.py": {
+      "mode": "100644",
+      "sha": "3fb31cc4baf87b43f9665b2ed999ad9a49bc577b",
+      "size": 12512,
+      "type": "blob"
+    },
+    "scripts/verify_report_production_soak.py": {
+      "mode": "100644",
+      "sha": "c77cee43484d117e3e09f5bf9d565ca268942324",
+      "size": 8936,
+      "type": "blob"
+    },
+    "scripts/verify_session_discovery_execution.py": {
+      "mode": "100644",
+      "sha": "8d8bd315c55f1da251257cc00d502d0e66651b4c",
+      "size": 4923,
+      "type": "blob"
+    },
+    "scripts/verify_warmup_missingness.py": {
+      "mode": "100644",
+      "sha": "fa9959670a8b3755de008b1631c90c3a3097555f",
+      "size": 8356,
+      "type": "blob"
+    },
+    "scripts/warmup_inventory_acceptance.py": {
+      "mode": "100644",
+      "sha": "65b283708d6c4d5d34fc6a80919d8f985d9fdab9",
+      "size": 13423,
+      "type": "blob"
+    },
+    "src/__init__.py": {
+      "mode": "100644",
+      "sha": "069591e4e81bbc6ceae195ee537645fe943ff373",
+      "size": 42,
+      "type": "blob"
+    },
+    "src/benchmark_history.py": {
+      "mode": "100644",
+      "sha": "8d767c58d06f4624cd09519fcc4486c7472f4b63",
+      "size": 3656,
+      "type": "blob"
+    },
+    "src/cer074_acceptance.py": {
+      "mode": "100644",
+      "sha": "c6849486d84177fdec6f7bf267f58b5cd5003389",
+      "size": 22807,
+      "type": "blob"
+    },
+    "src/cer075_scheduler.py": {
+      "mode": "100644",
+      "sha": "85dafd00c81e41139cfde60aff24c44955a28466",
+      "size": 24163,
+      "type": "blob"
+    },
+    "src/cer076_incremental_0930.py": {
+      "mode": "100644",
+      "sha": "b49fe73c0716aa1971879c934059b9ca8a5968a1",
+      "size": 25476,
+      "type": "blob"
+    },
+    "src/cer077_incremental_1200.py": {
+      "mode": "100644",
+      "sha": "be1902063cb1af65533ea57157a453f339caf8ad",
+      "size": 24883,
+      "type": "blob"
+    },
+    "src/cer078_evening_1930.py": {
+      "mode": "100644",
+      "sha": "a60d736156cc7ae5511c0382f86a7e88aeaa68d7",
+      "size": 36027,
+      "type": "blob"
+    },
+    "src/cer078_native_diagnostics.py": {
+      "mode": "100644",
+      "sha": "3d35faa5a8b631c4b8977398d9e102c1d36ce774",
+      "size": 7654,
+      "type": "blob"
+    },
+    "src/cer079_full_day_chain.py": {
+      "mode": "100644",
+      "sha": "20f7ea468bc7c357b49cf461f305bc49f0510167",
+      "size": 16087,
+      "type": "blob"
+    },
+    "src/cer080_multi_day_continuity.py": {
+      "mode": "100644",
+      "sha": "1527279d7725dad5bc4b383d098ccbd9eb2e86eb",
+      "size": 27246,
+      "type": "blob"
+    },
+    "src/cer081_unattended_soak.py": {
+      "mode": "100644",
+      "sha": "7cd08368ad7faff7dc7974e4b1d2744d1a9b8ea5",
+      "size": 23998,
+      "type": "blob"
+    },
+    "src/data_contract.py": {
+      "mode": "100644",
+      "sha": "a8086436b644daf0bfabdbeb710d93005e4100cd",
+      "size": 1605,
+      "type": "blob"
+    },
+    "src/eps_b1_research.py": {
+      "mode": "100644",
+      "sha": "f011998176459decbc0f5df9d38bf2293f828695",
+      "size": 15879,
+      "type": "blob"
+    },
+    "src/eps_duration_facts/__init__.py": {
+      "mode": "100644",
+      "sha": "2ec48763decdabdabba62d1ba10a40e6004cbcee",
+      "size": 85,
+      "type": "blob"
+    },
+    "src/eps_duration_facts/model.py": {
+      "mode": "100644",
+      "sha": "dc6cf3ad933ef2302a1eba06305f5f32d0420a89",
+      "size": 3201,
+      "type": "blob"
+    },
+    "src/eps_duration_facts/parser.py": {
+      "mode": "100644",
+      "sha": "1e5fa1b29dad0b1a019590ef8a7fa8a35a0781f2",
+      "size": 9161,
+      "type": "blob"
+    },
+    "src/eps_duration_facts/pit.py": {
+      "mode": "100644",
+      "sha": "bd15dc487c8bcdcbf9b5a4e994bcb23bf67f5e65",
+      "size": 5947,
+      "type": "blob"
+    },
+    "src/eps_duration_facts/raw.py": {
+      "mode": "100644",
+      "sha": "2bd819d5675f407e51a21166a911ca7c948da86d",
+      "size": 3852,
+      "type": "blob"
+    },
+    "src/eps_duration_facts/validator.py": {
+      "mode": "100644",
+      "sha": "48fcb3a7066c4518c0052d342bbc7e2d1c54fd93",
+      "size": 848,
+      "type": "blob"
+    },
+    "src/feature_math.py": {
+      "mode": "100644",
+      "sha": "3fc36b51e60bb2eac24b2d9f02ed5e6f030470e0",
+      "size": 383,
+      "type": "blob"
+    },
+    "src/finmind_formal_qualification.py": {
+      "mode": "100644",
+      "sha": "44bdcba5aa5ffbb8ad43d6944aa0ba242a9eeb2a",
+      "size": 12442,
+      "type": "blob"
+    },
+    "src/first_refresh_readiness.py": {
+      "mode": "100644",
+      "sha": "153a76f264b31f34966f098a92ff24366e246050",
+      "size": 16011,
+      "type": "blob"
+    },
+    "src/formal_eps_qualification.py": {
+      "mode": "100644",
+      "sha": "20ba809d45dfa5639bf74fbed95df536d349af68",
+      "size": 6279,
+      "type": "blob"
+    },
+    "src/full_market_catalogue.py": {
+      "mode": "100644",
+      "sha": "5ca54a40c33a0824249cbfa243d171adcf7f7195",
+      "size": 17291,
+      "type": "blob"
+    },
+    "src/full_market_component_evidence.py": {
+      "mode": "100644",
+      "sha": "b1d5a286bf2ec10f4ba577c73ffa63b90fe3b6d6",
+      "size": 33349,
+      "type": "blob"
+    },
+    "src/full_market_history.py": {
+      "mode": "100644",
+      "sha": "d2ffb66ed0768d420bf566d162de6ab3552ad869",
+      "size": 24068,
+      "type": "blob"
+    },
+    "src/full_market_history_acquisition.py": {
+      "mode": "100644",
+      "sha": "34135753b76f9411eaf3561a47e5d6f7e6448327",
+      "size": 9923,
+      "type": "blob"
+    },
+    "src/full_market_materialization.py": {
+      "mode": "100644",
+      "sha": "db0b6878b6d08bcd6187c45d9bed420122cba171",
+      "size": 9903,
+      "type": "blob"
+    },
+    "src/full_market_rotation.py": {
+      "mode": "100644",
+      "sha": "fb3540046701edc60d1c67f652fcca3a50071a8b",
+      "size": 18255,
+      "type": "blob"
+    },
+    "src/full_replay.py": {
+      "mode": "100644",
+      "sha": "e107642e481412080d5d9d32fc94b900542d1342",
+      "size": 7183,
+      "type": "blob"
+    },
+    "src/fundamental.py": {
+      "mode": "100644",
+      "sha": "d4c795c183a43ce7c2ac4d99ce1e65c6186c52b7",
+      "size": 1031,
+      "type": "blob"
+    },
+    "src/fundamental_eligibility.py": {
+      "mode": "100644",
+      "sha": "87bbae5646dc59c95619d4fbf841c4aed363c4d2",
+      "size": 16610,
+      "type": "blob"
+    },
+    "src/fundamental_first_refresh_execution.py": {
+      "mode": "100644",
+      "sha": "163265f49dd1827f412b9e8b8ba6b6b3fbee6b54",
+      "size": 41547,
+      "type": "blob"
+    },
+    "src/fundamental_history.py": {
+      "mode": "100644",
+      "sha": "7858dc88bd068c6046b5fd31b69ed42cfa6516ea",
+      "size": 1167,
+      "type": "blob"
+    },
+    "src/fundamental_ranking_consumer.py": {
+      "mode": "100644",
+      "sha": "01262d748810efb5803107fa22d3a8d96ae11bf7",
+      "size": 25329,
+      "type": "blob"
+    },
+    "src/historical_replay_portability.py": {
+      "mode": "100644",
+      "sha": "6d79ee8b3a86423112876e7aec371eb7e7d33e40",
+      "size": 15178,
+      "type": "blob"
+    },
+    "src/historical_store.py": {
+      "mode": "100644",
+      "sha": "89e7a28fcf819654cb42e375712c1f5fa4f5eb94",
+      "size": 5998,
+      "type": "blob"
+    },
+    "src/history_acquisition_execution.py": {
+      "mode": "100644",
+      "sha": "53b53463880b03fc4fa0df3a8197c57a77b46889",
+      "size": 27144,
+      "type": "blob"
+    },
+    "src/history_acquisition_transport.py": {
+      "mode": "100644",
+      "sha": "ed6dc0b7cefed8005d306af58e6682018e82d279",
+      "size": 1394,
+      "type": "blob"
+    },
+    "src/history_acquisition_validation.py": {
+      "mode": "100644",
+      "sha": "dca90c8013b87082647afd63088e82948608869d",
+      "size": 14919,
+      "type": "blob"
+    },
+    "src/history_chunk_aggregation.py": {
+      "mode": "100644",
+      "sha": "90b07c413ba53495583170c76d4bda80b20c3e5a",
+      "size": 8129,
+      "type": "blob"
+    },
+    "src/history_chunk_planning.py": {
+      "mode": "100644",
+      "sha": "7c8d6a8748f7d3b80601837b4938f2ed3f6db749",
+      "size": 14689,
+      "type": "blob"
+    },
+    "src/institutional_features.py": {
+      "mode": "100644",
+      "sha": "a12500f5a19687d75f7433aa6f8ff4df512cfe6f",
+      "size": 9929,
+      "type": "blob"
+    },
+    "src/institutional_history.py": {
+      "mode": "100644",
+      "sha": "fbbe5a76571c87e420f58dc62edaf5460524bb4b",
+      "size": 29718,
+      "type": "blob"
+    },
+    "src/live_decision_inputs.py": {
+      "mode": "100644",
+      "sha": "41138475ba97f1a80bb6d6aee652213beff86b77",
+      "size": 2188,
+      "type": "blob"
+    },
+    "src/ois_historical_revision.py": {
+      "mode": "100644",
+      "sha": "d4e1bfea1dc69c4e6c3d291228a59b537f3b2cbb",
+      "size": 17221,
+      "type": "blob"
+    },
+    "src/phase2_production.py": {
+      "mode": "100644",
+      "sha": "e6257c88035760a7228999d8bc71264dee7ac285",
+      "size": 29925,
+      "type": "blob"
+    },
+    "src/production_integration.py": {
+      "mode": "100644",
+      "sha": "884779c5148ebd053dd44b2a0ff98640d967499b",
+      "size": 3194,
+      "type": "blob"
+    },
+    "src/production_layer.py": {
+      "mode": "100644",
+      "sha": "62fb53aebadc7729964e02921a3f6bec57900071",
+      "size": 4232,
+      "type": "blob"
+    },
+    "src/production_live_state.py": {
+      "mode": "100644",
+      "sha": "f56b8fdf0f87245afe6b703cb79821737b4c19f3",
+      "size": 21714,
+      "type": "blob"
+    },
+    "src/production_refresh_commit.py": {
+      "mode": "100644",
+      "sha": "4f6885e9c4cac1b484bb64c85e5079bfb7d0e8aa",
+      "size": 10100,
+      "type": "blob"
+    },
+    "src/prospective_acquisition_recovery.py": {
+      "mode": "100644",
+      "sha": "081349aa605c3e1f90beace8552490cc63362745",
+      "size": 16311,
+      "type": "blob"
+    },
+    "src/prospective_fundamental_provider.py": {
+      "mode": "100644",
+      "sha": "c7ea16bcce86ad51e85497dabc3a5fec16fbd6ac",
+      "size": 18928,
+      "type": "blob"
+    },
+    "src/prospective_provider_activation.py": {
+      "mode": "100644",
+      "sha": "f38069714c3a8171749e960184fedb7e115f44cc",
+      "size": 5878,
+      "type": "blob"
+    },
+    "src/provider_calendar_eps_contract.py": {
+      "mode": "100644",
+      "sha": "bfb735a4ac6e8add367d4a2ef03e8d7298b6170d",
+      "size": 4126,
+      "type": "blob"
+    },
+    "src/provider_eps_candidate.py": {
+      "mode": "100644",
+      "sha": "427f44c6ac7b0636a7e4b05dcd14f78e91feed58",
+      "size": 22381,
+      "type": "blob"
+    },
+    "src/provider_eps_coverage.py": {
+      "mode": "100644",
+      "sha": "57ab44d71c4fe26e00bd2744761080d7980461f6",
+      "size": 27729,
+      "type": "blob"
+    },
+    "src/provider_eps_dispatch.py": {
+      "mode": "100644",
+      "sha": "7b9a91c2b815443cc76a892bfc1a5a2f04d03adf",
+      "size": 3872,
+      "type": "blob"
+    },
+    "src/provider_eps_handoff.py": {
+      "mode": "100644",
+      "sha": "2914e2dc3b860fc503a23573a1109258d563c795",
+      "size": 11962,
+      "type": "blob"
+    },
+    "src/provider_eps_metadata.py": {
+      "mode": "100644",
+      "sha": "d6ef9ee6b638194e69a988c1c36eec2d4ab577a9",
+      "size": 5746,
+      "type": "blob"
+    },
+    "src/provider_eps_recovery.py": {
+      "mode": "100644",
+      "sha": "8a3960daeedde57a62790e91e13051c07dee6c5b",
+      "size": 6776,
+      "type": "blob"
+    },
+    "src/provider_financial_feature_inputs.py": {
+      "mode": "100644",
+      "sha": "0e55bee53a18ef6489c9160dcaddf63cb0ebb23c",
+      "size": 8782,
+      "type": "blob"
+    },
+    "src/provider_financial_features.py": {
+      "mode": "100644",
+      "sha": "ee7265582fb92dc6a278a5af2bfe1e3aeec75f66",
+      "size": 16567,
+      "type": "blob"
+    },
+    "src/provider_fundamental_shadow.py": {
+      "mode": "100644",
+      "sha": "c0f9a354fd4b6a97154117c312dee93b23805cb1",
+      "size": 14218,
+      "type": "blob"
+    },
+    "src/provider_fundamental_shadow_inputs.py": {
+      "mode": "100644",
+      "sha": "c4b9602cb18de07d9e345c2ff82a5dd65b362bed",
+      "size": 3031,
+      "type": "blob"
+    },
+    "src/provider_revenue_snapshot.py": {
+      "mode": "100644",
+      "sha": "01051131f5cdda01501044fd434c3345c2e852e2",
+      "size": 22229,
+      "type": "blob"
+    },
+    "src/provider_shadow_forward.py": {
+      "mode": "100644",
+      "sha": "a28ea21c5bb43afbb438e1dcf80a4a6a19d01722",
+      "size": 29240,
+      "type": "blob"
+    },
+    "src/provider_shadow_forward_prices.py": {
+      "mode": "100644",
+      "sha": "d3475c7bdeee306449e4bf70c5c941444ca21179",
+      "size": 8892,
+      "type": "blob"
+    },
+    "src/public_official_partial_valid.py": {
+      "mode": "100644",
+      "sha": "7234a8d457665442364f4e24a19cc9515c349552",
+      "size": 23668,
+      "type": "blob"
+    },
+    "src/rate_logic.py": {
+      "mode": "100644",
+      "sha": "a918037f19c9aa61ffdf86c2dd723d8c90657e3e",
+      "size": 9839,
+      "type": "blob"
+    },
+    "src/report_production_soak.py": {
+      "mode": "100644",
+      "sha": "e1b2b6bbf6d6c8b9b251f7d98cba72635736bf3a",
+      "size": 11888,
+      "type": "blob"
+    },
+    "src/rotation_history.py": {
+      "mode": "100644",
+      "sha": "4911d4d6b50969c5a5daf1b50c7eab99a3b8e075",
+      "size": 4816,
+      "type": "blob"
+    },
+    "src/session_discovery_execution.py": {
+      "mode": "100644",
+      "sha": "ff42be3d2db555ac869ec469d73040519a524d1a",
+      "size": 29704,
+      "type": "blob"
+    },
+    "src/session_discovery_transport.py": {
+      "mode": "100644",
+      "sha": "eae8d4989243820283bc0e5151d488717f6e0e5a",
+      "size": 1198,
+      "type": "blob"
+    },
+    "src/source_bundle.py": {
+      "mode": "100644",
+      "sha": "5b92cdf9dc7e64e7b1cdb735daa85aeb71e494c3",
+      "size": 4914,
+      "type": "blob"
+    },
+    "src/sources/__init__.py": {
+      "mode": "100644",
+      "sha": "e5c0b2a52b8ebd6649a17a0f74a764d86cedf7e5",
+      "size": 92,
+      "type": "blob"
+    },
+    "src/sources/base.py": {
+      "mode": "100644",
+      "sha": "dc7a12b6c5d06be64f4817589ec6d475218e213a",
+      "size": 952,
+      "type": "blob"
+    },
+    "src/sources/fundamental.py": {
+      "mode": "100644",
+      "sha": "b27cfd04708f398c06d1fff8b7deeddb7d865fbf",
+      "size": 2243,
+      "type": "blob"
+    },
+    "src/sources/fundamental_history.py": {
+      "mode": "100644",
+      "sha": "23ae96a07f0f334ce0b0acb4de68b8970210e0d5",
+      "size": 37392,
+      "type": "blob"
+    },
+    "src/sources/mops_raw_evidence.py": {
+      "mode": "100644",
+      "sha": "1fec265fa31922a4c9de3a43cfb90fc1bc57b383",
+      "size": 7502,
+      "type": "blob"
+    },
+    "src/sources/tdcc.py": {
+      "mode": "100644",
+      "sha": "94b5d3496e639d7976e65c917bb5fa0b6e99ee9b",
+      "size": 475,
+      "type": "blob"
+    },
+    "src/sources/tdcc_historical.py": {
+      "mode": "100644",
+      "sha": "9bf1e93e39553a90f854f56ebbd6b5a472c44223",
+      "size": 13063,
+      "type": "blob"
+    },
+    "src/sources/tpex.py": {
+      "mode": "100644",
+      "sha": "dad376d3f5d9d0b2f002316e39fb58f54b133811",
+      "size": 19651,
+      "type": "blob"
+    },
+    "src/sources/tpex_date_binding.py": {
+      "mode": "100644",
+      "sha": "63e0b97dfeb24dd126ef7eca45bd51a699d23b84",
+      "size": 7703,
+      "type": "blob"
+    },
+    "src/sources/tpex_transport.py": {
+      "mode": "100644",
+      "sha": "a7e9fc2f32729553d82b86afd977daaf8bb0a154",
+      "size": 6917,
+      "type": "blob"
+    },
+    "src/sources/trading_status.py": {
+      "mode": "100644",
+      "sha": "564700d235efc1bf4e1c3bf9251bd3a40580fb5c",
+      "size": 2216,
+      "type": "blob"
+    },
+    "src/sources/twse.py": {
+      "mode": "100644",
+      "sha": "4148432b740230db7fc4b13a2e7c8e99ffc4e00c",
+      "size": 30089,
+      "type": "blob"
+    },
+    "src/stage_evidence.py": {
+      "mode": "100644",
+      "sha": "f373e0147e59dde965dc48fdf5f23685df46e0db",
+      "size": 11452,
+      "type": "blob"
+    },
+    "src/stage_history.py": {
+      "mode": "100644",
+      "sha": "b2a40590807b5e2ad7ebb58084bdb44a16fe2d24",
+      "size": 4934,
+      "type": "blob"
+    },
+    "src/state_chain.py": {
+      "mode": "100644",
+      "sha": "94efa0a9b184ca94603ab9cf47f657e00209b335",
+      "size": 2295,
+      "type": "blob"
+    },
+    "src/technical_features.py": {
+      "mode": "100644",
+      "sha": "5a3c71d39069bbc2476e95d14b64dee3b232bbfe",
+      "size": 4428,
+      "type": "blob"
+    },
+    "src/thin_work_manifest.py": {
+      "mode": "100644",
+      "sha": "fd91e1076b36f3196dbb03b3c8eb95e9dae3931b",
+      "size": 9176,
+      "type": "blob"
+    },
+    "src/validation_pipeline.py": {
+      "mode": "100644",
+      "sha": "90220ee4e8bf591cc0cdc3cc5f43d6f6211211a6",
+      "size": 1613,
+      "type": "blob"
+    },
+    "tests/fixtures/eps_duration/official-proof.zip": {
+      "mode": "100644",
+      "sha": "f6c86d109797d0819617e3ec1a7435d6170f79c7",
+      "size": 8509378,
+      "type": "blob"
+    },
+    "tests/fixtures/institutional_rotation_replay_30.json": {
+      "mode": "100644",
+      "sha": "a85f33ee60ac5f48f229ed5698d6a6f32881d08e",
+      "size": 211024,
+      "type": "blob"
+    },
+    "tests/fixtures/phase_a2_production_bundle.json": {
+      "mode": "100644",
+      "sha": "ef4867e5e2a551110b7e5f34b66bd3b57ae35a07",
+      "size": 953,
+      "type": "blob"
+    },
+    "tests/fixtures/provider_eps_candidate/engineering_spec.json": {
+      "mode": "100644",
+      "sha": "bf4f44f104e8922a8d6e912ef58aeb4e2cdd2d68",
+      "size": 365,
+      "type": "blob"
+    },
+    "tests/fixtures/technical_replay_30x180.json": {
+      "mode": "100644",
+      "sha": "dc255261e28448ee6c3eba89d5b4a263bdf2dcd2",
+      "size": 968488,
+      "type": "blob"
+    },
+    "tests/provider_eps_cold_start_worker.py": {
+      "mode": "100644",
+      "sha": "e85f8071e1800f47377138d6e70d54bda494e874",
+      "size": 3562,
+      "type": "blob"
+    },
+    "tests/provider_eps_engineering_fixture.py": {
+      "mode": "100644",
+      "sha": "2ceb11acdef535f58f5710e221c8cf5698f2818d",
+      "size": 5207,
+      "type": "blob"
+    },
+    "tests/provider_eps_mock_transport.py": {
+      "mode": "100644",
+      "sha": "7d6bca36e25f59b95236625fa915fecdd163080a",
+      "size": 788,
+      "type": "blob"
+    },
+    "tests/provider_financial_features_fixture.py": {
+      "mode": "100644",
+      "sha": "6b11b0d3aa7d3a43ecf867861887eb9e7dcdff64",
+      "size": 1895,
+      "type": "blob"
+    },
+    "tests/provider_fundamental_shadow_fixture.py": {
+      "mode": "100644",
+      "sha": "140ea77e108ca5e6daa0e815d0c72dfbfc4eca44",
+      "size": 2442,
+      "type": "blob"
+    },
+    "tests/report_soak_support.py": {
+      "mode": "100644",
+      "sha": "6a879d2a610f167c7970868b4f13280ae05d9aa9",
+      "size": 8053,
+      "type": "blob"
+    },
+    "tests/test_atomic_refresh_publication.py": {
+      "mode": "100644",
+      "sha": "cae2bef2c6d9a1839fe72b00c690490addd4bd4b",
+      "size": 12794,
+      "type": "blob"
+    },
+    "tests/test_benchmark_history.py": {
+      "mode": "100644",
+      "sha": "3432ebd794acd5e31b55ca57e37af932aba1237a",
+      "size": 3374,
+      "type": "blob"
+    },
+    "tests/test_cer050_live_assembly.py": {
+      "mode": "100644",
+      "sha": "fa35942e5e2d98b3c45ebdac3d06d5472f68a23f",
+      "size": 2499,
+      "type": "blob"
+    },
+    "tests/test_cer051_fundamental_sources.py": {
+      "mode": "100644",
+      "sha": "aa74801d26962c4984a571a31b1352a970ee1427",
+      "size": 3191,
+      "type": "blob"
+    },
+    "tests/test_cer056_universe.py": {
+      "mode": "100644",
+      "sha": "89fb163f24d90f23f8558ea67783289d130d0892",
+      "size": 4765,
+      "type": "blob"
+    },
+    "tests/test_cer057_tpex.py": {
+      "mode": "100644",
+      "sha": "2672547e995ea091f9a36457440cf1d46af8a762",
+      "size": 8484,
+      "type": "blob"
+    },
+    "tests/test_cer059_transport.py": {
+      "mode": "100644",
+      "sha": "a788fac1bc388e40ac3e0c546f20ab84bb678b1a",
+      "size": 6305,
+      "type": "blob"
+    },
+    "tests/test_cer060_transport.py": {
+      "mode": "100644",
+      "sha": "0fe1d12ba2ca452526d51ccfdcbf71a1a8632728",
+      "size": 4555,
+      "type": "blob"
+    },
+    "tests/test_cer061_bootstrap.py": {
+      "mode": "100644",
+      "sha": "52a585f51300f79407cc4646fc70a2c562c14f7a",
+      "size": 7508,
+      "type": "blob"
+    },
+    "tests/test_cer062_bootstrap.py": {
+      "mode": "100644",
+      "sha": "893c060530f21b23b43fa18a448e4351c8da2ecd",
+      "size": 6365,
+      "type": "blob"
+    },
+    "tests/test_cer064_campaign.py": {
+      "mode": "100644",
+      "sha": "903fc8937b6580f779f435ce04ffb19b3a9986be",
+      "size": 2689,
+      "type": "blob"
+    },
+    "tests/test_cer065_history.py": {
+      "mode": "100644",
+      "sha": "99df8880d8ada75f3c20741b81d458c06ac421c3",
+      "size": 9114,
+      "type": "blob"
+    },
+    "tests/test_cer066_tpex.py": {
+      "mode": "100644",
+      "sha": "ca5e5e1d30dff399eb63bb15fb3908444ae7ff83",
+      "size": 10798,
+      "type": "blob"
+    },
+    "tests/test_cer070_workflow_contract.py": {
+      "mode": "100644",
+      "sha": "94bae544252f8b41ed9a8e682ee361ccd0b904a3",
+      "size": 2804,
+      "type": "blob"
+    },
+    "tests/test_cer072_benchmark_digest.py": {
+      "mode": "100644",
+      "sha": "c7afd3dcd7e1a85208e1d782d97207811d58e15b",
+      "size": 1753,
+      "type": "blob"
+    },
+    "tests/test_cer072_institutional_history.py": {
+      "mode": "100644",
+      "sha": "d6aa6418f16058056fea97d7ecfda4de90eaa788",
+      "size": 22144,
+      "type": "blob"
+    },
+    "tests/test_cer072_tdcc_historical.py": {
+      "mode": "100644",
+      "sha": "21b3da0016b9a88d42118ff034d925f61049618c",
+      "size": 11168,
+      "type": "blob"
+    },
+    "tests/test_cer072_workflow_contract.py": {
+      "mode": "100644",
+      "sha": "f24cf6d59d4571c35010e9ce030eb11ec777a78b",
+      "size": 1421,
+      "type": "blob"
+    },
+    "tests/test_cer073_final_source_bundle_closure.py": {
+      "mode": "100644",
+      "sha": "ad09db6d80e115ceff09bb0d9ede7b99acfe6ec2",
+      "size": 6968,
+      "type": "blob"
+    },
+    "tests/test_cer073_fundamental_history_v2.py": {
+      "mode": "100644",
+      "sha": "acd13ba156febb7b9cb7d6d2f6fdde68f7c1a7c7",
+      "size": 11001,
+      "type": "blob"
+    },
+    "tests/test_cer073_representation_discovery.py": {
+      "mode": "100644",
+      "sha": "36b555690a99faeb59d7cb0b2ac30b06c1814b0b",
+      "size": 6256,
+      "type": "blob"
+    },
+    "tests/test_cer073_source_wiring.py": {
+      "mode": "100644",
+      "sha": "2d0287466ea7a14ae340bb9269e924ba03974c12",
+      "size": 6866,
+      "type": "blob"
+    },
+    "tests/test_cer074_acceptance.py": {
+      "mode": "100644",
+      "sha": "38d5db76d4acc40713c83ce258540cc73be0d8f5",
+      "size": 8440,
+      "type": "blob"
+    },
+    "tests/test_cer075_scheduler.py": {
+      "mode": "100644",
+      "sha": "aaa31b26ac628c8acbaa050f7cd8daafd96703aa",
+      "size": 5886,
+      "type": "blob"
+    },
+    "tests/test_cer076_incremental_0930.py": {
+      "mode": "100644",
+      "sha": "b3708aeef5d5baa527caa67889b5f2dbb8f53483",
+      "size": 7290,
+      "type": "blob"
+    },
+    "tests/test_cer077_incremental_1200.py": {
+      "mode": "100644",
+      "sha": "732c83a3a1bbe7479e5a9e44f0728404233de809",
+      "size": 6364,
+      "type": "blob"
+    },
+    "tests/test_cer078_evening_1930.py": {
+      "mode": "100644",
+      "sha": "10587730c3ed338d366c750ad589b7fdca6c26c5",
+      "size": 5927,
+      "type": "blob"
+    },
+    "tests/test_cer078_native_diagnostics.py": {
+      "mode": "100644",
+      "sha": "651cba8ae34d4018189ddb7c5c1a8c07796d7dfd",
+      "size": 7742,
+      "type": "blob"
+    },
+    "tests/test_cer079_full_day_chain.py": {
+      "mode": "100644",
+      "sha": "576cdab23e8ce7e2c6807913f630d8ae39686051",
+      "size": 4563,
+      "type": "blob"
+    },
+    "tests/test_cer080_multi_day_continuity.py": {
+      "mode": "100644",
+      "sha": "ae1e40a6f86d5c3f63beb10ec8d269a2f110268c",
+      "size": 4142,
+      "type": "blob"
+    },
+    "tests/test_cer081_scheduler_lock_validation.py": {
+      "mode": "100644",
+      "sha": "5ec62df285d183714171000c607b07be65b299f8",
+      "size": 2112,
+      "type": "blob"
+    },
+    "tests/test_cer081_unattended_soak.py": {
+      "mode": "100644",
+      "sha": "bafc197f9f37d2fc16c116d10c15adf89a2b6493",
+      "size": 4135,
+      "type": "blob"
+    },
+    "tests/test_ci_applicability.py": {
+      "mode": "100644",
+      "sha": "0183faac33e466ab04dd171abe02455d19c9f443",
+      "size": 2726,
+      "type": "blob"
+    },
+    "tests/test_decision_record_wiring.py": {
+      "mode": "100644",
+      "sha": "3702c6dd6229f11e8ac8a005f672d9912410a541",
+      "size": 3535,
+      "type": "blob"
+    },
+    "tests/test_discovery_tpex_benchmark_schema.py": {
+      "mode": "100644",
+      "sha": "5a1ca51a82f30cc5c6bec3b19ebd0da2c24e0541",
+      "size": 9286,
+      "type": "blob"
+    },
+    "tests/test_discovery_twse_binding_fix.py": {
+      "mode": "100644",
+      "sha": "78a9d36aa14019f951493195d38cc200442e1f0d",
+      "size": 10453,
+      "type": "blob"
+    },
+    "tests/test_eps_b1_research.py": {
+      "mode": "100644",
+      "sha": "c9bc3827f1e09ca9ed410b2cea0f0f1bc3a29916",
+      "size": 11183,
+      "type": "blob"
+    },
+    "tests/test_eps_duration_facts.py": {
+      "mode": "100644",
+      "sha": "4f7725848f8ba6f391af45884e5174e6f2cae8f8",
+      "size": 20692,
+      "type": "blob"
+    },
+    "tests/test_exact_main_material_promotion.py": {
+      "mode": "100644",
+      "sha": "89ee3f083de05d5e8555e4d69f0445f48d6aa8d8",
+      "size": 12941,
+      "type": "blob"
+    },
+    "tests/test_finmind_formal_qualification.py": {
+      "mode": "100644",
+      "sha": "642a703c2dd0fd227dfb42dee33811b7e81d688f",
+      "size": 13771,
+      "type": "blob"
+    },
+    "tests/test_first_refresh_readiness.py": {
+      "mode": "100644",
+      "sha": "6c39b28336eec4094d5a2e3c293de56292225dd7",
+      "size": 23708,
+      "type": "blob"
+    },
+    "tests/test_formal_eps_qualification.py": {
+      "mode": "100644",
+      "sha": "996b01f07763b55fb3bf1c8d49a554db5ab9127d",
+      "size": 16088,
+      "type": "blob"
+    },
+    "tests/test_full_market_component_evidence.py": {
+      "mode": "100644",
+      "sha": "2500f73bfdf4fcf85a9b63d1084f56c7f8d66368",
+      "size": 22865,
+      "type": "blob"
+    },
+    "tests/test_full_market_history.py": {
+      "mode": "100644",
+      "sha": "6cc41b120a89f9cab9f1fc61a8881501a6baf0ae",
+      "size": 17068,
+      "type": "blob"
+    },
+    "tests/test_full_market_history_acquisition.py": {
+      "mode": "100644",
+      "sha": "929be7895c019effc2cbd5b9b2b7ebed4bd3d145",
+      "size": 14442,
+      "type": "blob"
+    },
+    "tests/test_full_market_history_catalogue_transport.py": {
+      "mode": "100644",
+      "sha": "13796934bd3dfc9db1024cf5d139478b97e76029",
+      "size": 18437,
+      "type": "blob"
+    },
+    "tests/test_full_market_history_storage.py": {
+      "mode": "100644",
+      "sha": "37c51432e1f9a9b103b7c02bd728c013cfb61912",
+      "size": 8333,
+      "type": "blob"
+    },
+    "tests/test_full_market_history_yoy_semantics.py": {
+      "mode": "100644",
+      "sha": "464c4b15d4048971ddcae92696e6c7adb2e4e6ed",
+      "size": 25808,
+      "type": "blob"
+    },
+    "tests/test_full_market_materialization.py": {
+      "mode": "100644",
+      "sha": "bb71459ab0a12afb4dfb274204838d42669d8677",
+      "size": 6961,
+      "type": "blob"
+    },
+    "tests/test_full_market_rotation.py": {
+      "mode": "100644",
+      "sha": "b840e6b1f0ad0fedddfffdf67946b7c570b524ca",
+      "size": 21841,
+      "type": "blob"
+    },
+    "tests/test_full_rate_replay.py": {
+      "mode": "100644",
+      "sha": "257935bf6b7ceb7629b31899160bfc6efebf4eb3",
+      "size": 3981,
+      "type": "blob"
+    },
+    "tests/test_fundamental.py": {
+      "mode": "100644",
+      "sha": "72292b26dda79545a25c7cb982a47ad39d1fbf6e",
+      "size": 501,
+      "type": "blob"
+    },
+    "tests/test_fundamental_eligibility.py": {
+      "mode": "100644",
+      "sha": "1584fc8ce8017497cc7734e0bf8a53e8af0cb1d8",
+      "size": 28294,
+      "type": "blob"
+    },
+    "tests/test_fundamental_first_refresh_execution.py": {
+      "mode": "100644",
+      "sha": "dd83feb4986a8d06de15536ac3dfb643b76f8fc9",
+      "size": 40421,
+      "type": "blob"
+    },
+    "tests/test_fundamental_ranking_consumer.py": {
+      "mode": "100644",
+      "sha": "3ce13391d830a32d7742c2cab508cc5b8ec41bea",
+      "size": 32316,
+      "type": "blob"
+    },
+    "tests/test_historical_replay_portability.py": {
+      "mode": "100644",
+      "sha": "455a204d907a3653145f03295c57b0195ccbf1ee",
+      "size": 13915,
+      "type": "blob"
+    },
+    "tests/test_historical_store.py": {
+      "mode": "100644",
+      "sha": "92f55d6fbff5716ee9c6a38ba8abb239d1ab5f87",
+      "size": 3939,
+      "type": "blob"
+    },
+    "tests/test_history_acquisition_wiring.py": {
+      "mode": "100644",
+      "sha": "be16dd71641143ed276b2789d66fc5201f0c0594",
+      "size": 27985,
+      "type": "blob"
+    },
+    "tests/test_history_chunk_cold_replay.py": {
+      "mode": "100644",
+      "sha": "6c15ff7e4f46fd208cefda3aff5a34fabf188cb0",
+      "size": 9874,
+      "type": "blob"
+    },
+    "tests/test_history_chunked_acquisition.py": {
+      "mode": "100644",
+      "sha": "be9162733b04da26c62f68338c64cb961a806ed2",
+      "size": 30885,
+      "type": "blob"
+    },
+    "tests/test_history_twse_title_identity.py": {
+      "mode": "100644",
+      "sha": "3a5b7f1fd6f0a16abb6189a3b8d0b0ac31455239",
+      "size": 11326,
+      "type": "blob"
+    },
+    "tests/test_institutional_rotation_features.py": {
+      "mode": "100644",
+      "sha": "ccbda72a222ab78deb4169f7b0d2cc7d3c538063",
+      "size": 7056,
+      "type": "blob"
+    },
+    "tests/test_live_decision_inputs.py": {
+      "mode": "100644",
+      "sha": "1147d7e66facf6b85ae5e726ee30855cb9b21e1c",
+      "size": 320,
+      "type": "blob"
+    },
+    "tests/test_live_runtime_closure.py": {
+      "mode": "100644",
+      "sha": "6dd00a6bc2b8efea9ad413d5f4151afe2fc21d32",
+      "size": 5360,
+      "type": "blob"
+    },
+    "tests/test_logic.py": {
+      "mode": "100644",
+      "sha": "1cf5fe1f4899cd4d2fda7715fb09f8e9f14be66a",
+      "size": 3278,
+      "type": "blob"
+    },
+    "tests/test_ois_historical_revision_recovery.py": {
+      "mode": "100644",
+      "sha": "188312b8a5ade823388453cbf525bb1d549dc2de",
+      "size": 3792,
+      "type": "blob"
+    },
+    "tests/test_partial_to_evening_acceptance.py": {
+      "mode": "100644",
+      "sha": "003da2d406605ef972345509c2579e0d0b350cb9",
+      "size": 12161,
+      "type": "blob"
+    },
+    "tests/test_phase2_compatibility.py": {
+      "mode": "100644",
+      "sha": "2445164385cf1828f41482a1c3aa99141856a3d7",
+      "size": 13350,
+      "type": "blob"
+    },
+    "tests/test_phase2_production.py": {
+      "mode": "100644",
+      "sha": "75de34f58fab6e2d9e9304e204f2a0f11c624214",
+      "size": 21062,
+      "type": "blob"
+    },
+    "tests/test_phase_a2_semantic.py": {
+      "mode": "100644",
+      "sha": "36b3c6d4fcc9b777bdf75d02b5580ae3ca97caf1",
+      "size": 428,
+      "type": "blob"
+    },
+    "tests/test_production_integration.py": {
+      "mode": "100644",
+      "sha": "5f0fb3e3d94b5386ff2f789ec5acd405c0be543a",
+      "size": 875,
+      "type": "blob"
+    },
+    "tests/test_production_layer.py": {
+      "mode": "100644",
+      "sha": "f5c8c08380c107d40f3dda168cc790a562dff0d4",
+      "size": 696,
+      "type": "blob"
+    },
+    "tests/test_production_scheduler_change_control.py": {
+      "mode": "100644",
+      "sha": "b1d936a38bb51c1286dbace5e4d15e89a11c645e",
+      "size": 22677,
+      "type": "blob"
+    },
+    "tests/test_production_source_latest_publisher.py": {
+      "mode": "100644",
+      "sha": "688a06617f3c50308c10c8c0f297f0d0fbc7f8c1",
+      "size": 12826,
+      "type": "blob"
+    },
+    "tests/test_prospective_acquisition_recovery.py": {
+      "mode": "100644",
+      "sha": "6db8ecebb9dc7104cc74c7389d31f7cc955a6288",
+      "size": 12196,
+      "type": "blob"
+    },
+    "tests/test_prospective_fundamental_provider.py": {
+      "mode": "100644",
+      "sha": "fc63554ae8bbe28a53ee46aa33b4848de921b895",
+      "size": 19819,
+      "type": "blob"
+    },
+    "tests/test_prospective_provider_activation.py": {
+      "mode": "100644",
+      "sha": "58fee69bea546fb9cdb124e6b18493a3bff66ac2",
+      "size": 24017,
+      "type": "blob"
+    },
+    "tests/test_provider_calendar_eps_contract.py": {
+      "mode": "100644",
+      "sha": "bcdbda2fad23fd4e06bb1c19d05882b3646c22b1",
+      "size": 11098,
+      "type": "blob"
+    },
+    "tests/test_provider_eps_candidate.py": {
+      "mode": "100644",
+      "sha": "ce2bdfc638f9f085df68a8d6a9639c5766614588",
+      "size": 10425,
+      "type": "blob"
+    },
+    "tests/test_provider_eps_coverage.py": {
+      "mode": "100644",
+      "sha": "65a25599e6ff6e2e03d9a7e612460df6eb76916e",
+      "size": 15645,
+      "type": "blob"
+    },
+    "tests/test_provider_eps_metadata.py": {
+      "mode": "100644",
+      "sha": "4dd8a32a0b51c7a15a3094d5134cc61333fe45d1",
+      "size": 13166,
+      "type": "blob"
+    },
+    "tests/test_provider_eps_recovery.py": {
+      "mode": "100644",
+      "sha": "752c40f9be35da9dbb0232ac1a4a301d9a8e99e8",
+      "size": 18224,
+      "type": "blob"
+    },
+    "tests/test_provider_eps_wait_semantics.py": {
+      "mode": "100644",
+      "sha": "f26607f064d729ffdce451895166272d747a26d8",
+      "size": 9238,
+      "type": "blob"
+    },
+    "tests/test_provider_financial_features.py": {
+      "mode": "100644",
+      "sha": "5ed6c8210a4ec541daf76e52d151ec543ad6a4d8",
+      "size": 20458,
+      "type": "blob"
+    },
+    "tests/test_provider_fundamental_shadow.py": {
+      "mode": "100644",
+      "sha": "201038b49663b0fc021fdc503fca01e2bb37fb05",
+      "size": 20893,
+      "type": "blob"
+    },
+    "tests/test_provider_revenue_snapshot.py": {
+      "mode": "100644",
+      "sha": "0b1dddcd4e192b99f09b9b7fe648e7192a577ec1",
+      "size": 19780,
+      "type": "blob"
+    },
+    "tests/test_provider_shadow_forward.py": {
+      "mode": "100644",
+      "sha": "fbace7732106c64bae8084431c555f645d7a4a78",
+      "size": 24789,
+      "type": "blob"
+    },
+    "tests/test_provider_warmup_readiness.py": {
+      "mode": "100644",
+      "sha": "1b95d5462e3de0d931ec62b160fd4b7f4382d5c3",
+      "size": 18014,
+      "type": "blob"
+    },
+    "tests/test_public_official_partial_valid.py": {
+      "mode": "100644",
+      "sha": "2c86ed75edb2b646b2a54ed3676b5e8605ff2400",
+      "size": 21720,
+      "type": "blob"
+    },
+    "tests/test_rate_eod_rebaseline_material.py": {
+      "mode": "100644",
+      "sha": "1258b29009760341a999e7a59bc003309661beef",
+      "size": 6294,
+      "type": "blob"
+    },
+    "tests/test_rate_production_history_materialization.py": {
+      "mode": "100644",
+      "sha": "f70fa6d8423bd31f19f83289f96d7246a2d2dfa6",
+      "size": 5588,
+      "type": "blob"
+    },
+    "tests/test_rate_production_source_acquisition.py": {
+      "mode": "100644",
+      "sha": "d016942349bc3056e84a2888d88d2d9f74642f9d",
+      "size": 34606,
+      "type": "blob"
+    },
+    "tests/test_rate_rebaseline_bootstrap.py": {
+      "mode": "100644",
+      "sha": "38cc857921108e806caa2abf8a10567b709799d7",
+      "size": 39666,
+      "type": "blob"
+    },
+    "tests/test_rate_soak_005.py": {
+      "mode": "100644",
+      "sha": "5d92c8ea0af8ce8781174f8d04b874c1d59005a6",
+      "size": 50779,
+      "type": "blob"
+    },
+    "tests/test_rebaseline_activation_closure.py": {
+      "mode": "100644",
+      "sha": "ff7772fd63369aa825308a3676ae64b73e68cc17",
+      "size": 9995,
+      "type": "blob"
+    },
+    "tests/test_rebaseline_authorization_v2.py": {
+      "mode": "100644",
+      "sha": "0c1dc1bd7eef00b35073fa2ad457d60e605bbef9",
+      "size": 12375,
+      "type": "blob"
+    },
+    "tests/test_rebaseline_shallow_checkout.py": {
+      "mode": "100644",
+      "sha": "a72ba0754fdeaf9000dc0ad62a4235f32a5fa4ab",
+      "size": 6112,
+      "type": "blob"
+    },
+    "tests/test_report_production_soak.py": {
+      "mode": "100644",
+      "sha": "b6cf8a679c071bb880c9228a74f7cfa6ef1362d0",
+      "size": 19267,
+      "type": "blob"
+    },
+    "tests/test_rotation_history.py": {
+      "mode": "100644",
+      "sha": "d953799b18e49f3f18ed95b60c11a2ba6948035e",
+      "size": 2940,
+      "type": "blob"
+    },
+    "tests/test_session_discovery_execution.py": {
+      "mode": "100644",
+      "sha": "b3e1d8da052fda7e37cbcd8537dc212fa3d7f366",
+      "size": 29659,
+      "type": "blob"
+    },
+    "tests/test_source_bundle.py": {
+      "mode": "100644",
+      "sha": "02517f9ce85d2c8bced421e92e0c876c9dc66411",
+      "size": 998,
+      "type": "blob"
+    },
+    "tests/test_spec_formulas.py": {
+      "mode": "100644",
+      "sha": "c61b314f0ea2397d40bd27b3279b485da7de2782",
+      "size": 593,
+      "type": "blob"
+    },
+    "tests/test_stage_bootstrap_state.py": {
+      "mode": "100644",
+      "sha": "12087adefecdbac28bbc81f895c5e1adfe87013b",
+      "size": 1753,
+      "type": "blob"
+    },
+    "tests/test_stage_evidence.py": {
+      "mode": "100644",
+      "sha": "72723373ed37df4809f79f0ed272d4fc54107095",
+      "size": 9406,
+      "type": "blob"
+    },
+    "tests/test_stage_history.py": {
+      "mode": "100644",
+      "sha": "88741c4acbb969a42752d1cb531e34ab65ba6a8b",
+      "size": 5367,
+      "type": "blob"
+    },
+    "tests/test_state_engine.py": {
+      "mode": "100644",
+      "sha": "f678233a0c387743e0ccb1e0fb52a6534e2e7eca",
+      "size": 2399,
+      "type": "blob"
+    },
+    "tests/test_t86_stage_history_adapter.py": {
+      "mode": "100644",
+      "sha": "a17675de5ce62c8bc01667d110dacb62e5d136ba",
+      "size": 1593,
+      "type": "blob"
+    },
+    "tests/test_technical_features.py": {
+      "mode": "100644",
+      "sha": "0c7e0e013f9e783c92ff86d8174bd90fa4ece608",
+      "size": 1151,
+      "type": "blob"
+    },
+    "tests/test_thin_work_manifest.py": {
+      "mode": "100644",
+      "sha": "114cb36395b40dc34fd6a7d0e2dccb0570045f76",
+      "size": 13420,
+      "type": "blob"
+    },
+    "tests/test_tpex_date_binding.py": {
+      "mode": "100644",
+      "sha": "83c1a73a603e9e17811256731813292449323c17",
+      "size": 18598,
+      "type": "blob"
+    },
+    "tests/test_tpex_transport.py": {
+      "mode": "100644",
+      "sha": "f0938991b49ea965aab803488b9c7b30ab4be5d0",
+      "size": 11320,
+      "type": "blob"
+    },
+    "tests/test_trading_status.py": {
+      "mode": "100644",
+      "sha": "05fc17999b1a62261deb9c9407ce1a033eb4ecd3",
+      "size": 1109,
+      "type": "blob"
+    },
+    "tests/test_user_directed_t86_policy.py": {
+      "mode": "100644",
+      "sha": "f294b832f08b8df83bcd1993c43bc037d74a9186",
+      "size": 2852,
+      "type": "blob"
+    },
+    "tests/test_validation_pipeline.py": {
+      "mode": "100644",
+      "sha": "fff5437bcfffc15f7e949542ae6ac7ca71f0361a",
+      "size": 912,
+      "type": "blob"
+    },
+    "tests/test_warmup_missingness.py": {
+      "mode": "100644",
+      "sha": "31df8a64b1025ba3026bb7cf30b68db4abc60266",
+      "size": 16870,
+      "type": "blob"
+    },
+    "tests/test_warmup_run1_defects.py": {
+      "mode": "100644",
+      "sha": "60328628f4e4b4667ceb15af7ba333be69333455",
+      "size": 9062,
+      "type": "blob"
+    },
+    "tests/test_workflow_compatibility.py": {
+      "mode": "100644",
+      "sha": "9373733d902d3840727c9732d942c31c5c44d417",
+      "size": 871,
+      "type": "blob"
+    },
+    "tools/pf002_c02_job_member_provenance/.gitattributes": {
+      "mode": "100644",
+      "sha": "fcadb2cf97913f58a2523f535336e725c6b59d1f",
+      "size": 14,
+      "type": "blob"
+    },
+    "tools/pf002_c02_job_member_provenance/ENGINEERING_BOUNDARY.md": {
+      "mode": "100644",
+      "sha": "73a5cbdf92d1f5c714677c876e1dfe0ffbc4e2b4",
+      "size": 6038,
+      "type": "blob"
+    },
+    "tools/pf002_c02_job_member_provenance/EVIDENCE_SCHEMA_V1.json": {
+      "mode": "100644",
+      "sha": "38d798f05b12ac3e3816072f9c4bd3dff5182ebf",
+      "size": 1034,
+      "type": "blob"
+    },
+    "tools/pf002_c02_job_member_provenance/GITHUB_OIDC_JWKS_PINNED.json": {
+      "mode": "100644",
+      "sha": "1822cb55ba61c54cbce6773ec3774ca086522fae",
+      "size": 5547,
+      "type": "blob"
+    },
+    "tools/pf002_c02_job_member_provenance/SOURCE_MANIFEST_V1.json": {
+      "mode": "100644",
+      "sha": "54f9aa8485abf65e3ffeb5039ed12964645190dd",
+      "size": 1899,
+      "type": "blob"
+    },
+    "tools/pf002_c02_job_member_provenance/controller.py": {
+      "mode": "100644",
+      "sha": "54909912c3b7ba152d5001bfbdedba5c59c0797c",
+      "size": 11023,
+      "type": "blob"
+    },
+    "tools/pf002_c02_job_member_provenance/job.py": {
+      "mode": "100644",
+      "sha": "b276091b5ca124584c1a5df0babb55bff26842b5",
+      "size": 10345,
+      "type": "blob"
+    },
+    "tools/pf002_c02_job_member_provenance/model.py": {
+      "mode": "100644",
+      "sha": "83fdbe31ce6ac6cd608a97275d2f289f23fb9920",
+      "size": 4514,
+      "type": "blob"
+    },
+    "tools/pf002_c02_job_member_provenance/normal_worker.py": {
+      "mode": "100644",
+      "sha": "e477f3eb605e658efdd9c1291cba71ebdd7ae22a",
+      "size": 2396,
+      "type": "blob"
+    },
+    "tools/pf002_c02_job_member_provenance/probe.py": {
+      "mode": "100644",
+      "sha": "13b5007e5bcbe7c930810d828212005ed9b4d431",
+      "size": 11133,
+      "type": "blob"
+    },
+    "tools/pf002_c02_job_member_provenance/run_tests.py": {
+      "mode": "100644",
+      "sha": "f130d7f94f8bad70cdbc5b2bb8f04e6b77f63101",
+      "size": 3159,
+      "type": "blob"
+    },
+    "tools/pf002_c02_job_member_provenance/runner_proof.py": {
+      "mode": "100644",
+      "sha": "d3b00ad627b840e4b03d9ba7b753ea30b4752862",
+      "size": 3842,
+      "type": "blob"
+    },
+    "tools/pf002_c02_job_member_provenance/source_loader.py": {
+      "mode": "100644",
+      "sha": "0a827a0d545866f9a43f0bcae72e1d788758389a",
+      "size": 1994,
+      "type": "blob"
+    },
+    "tools/pf002_c02_job_member_provenance/test_forensics.py": {
+      "mode": "100644",
+      "sha": "b89499f36913bb1d303dffa815118aa0abe5b824",
+      "size": 12109,
+      "type": "blob"
+    },
+    "tools/pf002_c03_forensic_evidence/.gitattributes": {
+      "mode": "100644",
+      "sha": "fcadb2cf97913f58a2523f535336e725c6b59d1f",
+      "size": 14,
+      "type": "blob"
+    },
+    "tools/pf002_c03_forensic_evidence/ENGINEERING_BOUNDARY.md": {
+      "mode": "100644",
+      "sha": "ed487957fe8c6a20abd1b496a8e680989c7e2b80",
+      "size": 6265,
+      "type": "blob"
+    },
+    "tools/pf002_c03_forensic_evidence/EVIDENCE_SCHEMA_V1.json": {
+      "mode": "100644",
+      "sha": "1ba681f4c9d5eb3160b5e7c31a087401124a6b1d",
+      "size": 1608,
+      "type": "blob"
+    },
+    "tools/pf002_c03_forensic_evidence/GITHUB_OIDC_JWKS_PINNED.json": {
+      "mode": "100644",
+      "sha": "1822cb55ba61c54cbce6773ec3774ca086522fae",
+      "size": 5547,
+      "type": "blob"
+    },
+    "tools/pf002_c03_forensic_evidence/SOURCE_MANIFEST_V1.json": {
+      "mode": "100644",
+      "sha": "6cf914700632e4e33c09f14817773cf1c911898f",
+      "size": 2171,
+      "type": "blob"
+    },
+    "tools/pf002_c03_forensic_evidence/controller.py": {
+      "mode": "100644",
+      "sha": "621996499657b7a6774d3032645356e88b9b58ac",
+      "size": 13399,
+      "type": "blob"
+    },
+    "tools/pf002_c03_forensic_evidence/file_evidence.py": {
+      "mode": "100644",
+      "sha": "7d5abd386f5bf7d9b9e1e9e91cdd2d5cbc21d149",
+      "size": 2345,
+      "type": "blob"
+    },
+    "tools/pf002_c03_forensic_evidence/http_evidence.py": {
+      "mode": "100644",
+      "sha": "dd90a8250d929b4e414a83bbffdb1386a7831fe9",
+      "size": 6209,
+      "type": "blob"
+    },
+    "tools/pf002_c03_forensic_evidence/job.py": {
+      "mode": "100644",
+      "sha": "9c5507af732f778d2db4ba9bd27949be18fd6fd2",
+      "size": 10345,
+      "type": "blob"
+    },
+    "tools/pf002_c03_forensic_evidence/model.py": {
+      "mode": "100644",
+      "sha": "83fdbe31ce6ac6cd608a97275d2f289f23fb9920",
+      "size": 4514,
+      "type": "blob"
+    },
+    "tools/pf002_c03_forensic_evidence/normal_worker.py": {
+      "mode": "100644",
+      "sha": "3c50fbd5cf008a656f005287902a45d29207edcc",
+      "size": 2396,
+      "type": "blob"
+    },
+    "tools/pf002_c03_forensic_evidence/probe.py": {
+      "mode": "100644",
+      "sha": "214ebc5d0f6f09358c63c39c3f021fe40ca44539",
+      "size": 9813,
+      "type": "blob"
+    },
+    "tools/pf002_c03_forensic_evidence/run_tests.py": {
+      "mode": "100644",
+      "sha": "85a18c625ef8fb9b04d1766910d49144e58da09b",
+      "size": 3156,
+      "type": "blob"
+    },
+    "tools/pf002_c03_forensic_evidence/runner_proof.py": {
+      "mode": "100644",
+      "sha": "b6f6328e5063877b9db1ba6d27d7ce6e50fabd45",
+      "size": 3836,
+      "type": "blob"
+    },
+    "tools/pf002_c03_forensic_evidence/source_loader.py": {
+      "mode": "100644",
+      "sha": "528b5b41920a5accacb8aff81127ed2e2f2236d9",
+      "size": 2026,
+      "type": "blob"
+    },
+    "tools/pf002_c03_forensic_evidence/test_evidence.py": {
+      "mode": "100644",
+      "sha": "ce81bc36462ad071a5f5e239c3b6d1313073409c",
+      "size": 19111,
+      "type": "blob"
+    },
+    "tools/pf002_c04_image_identity/.gitattributes": {
+      "mode": "100644",
+      "sha": "fcadb2cf97913f58a2523f535336e725c6b59d1f",
+      "size": 14,
+      "type": "blob"
+    },
+    "tools/pf002_c04_image_identity/ENGINEERING_BOUNDARY.md": {
+      "mode": "100644",
+      "sha": "65ca02045996be5046d1db59ccc723141a10c3f9",
+      "size": 4410,
+      "type": "blob"
+    },
+    "tools/pf002_c04_image_identity/EVIDENCE_SCHEMA_V1.json": {
+      "mode": "100644",
+      "sha": "89229cc7528e8f36e17d2aaa2db353d311b99377",
+      "size": 3075,
+      "type": "blob"
+    },
+    "tools/pf002_c04_image_identity/GITHUB_OIDC_JWKS_PINNED.json": {
+      "mode": "100644",
+      "sha": "1822cb55ba61c54cbce6773ec3774ca086522fae",
+      "size": 5547,
+      "type": "blob"
+    },
+    "tools/pf002_c04_image_identity/SOURCE_MANIFEST_V1.json": {
+      "mode": "100644",
+      "sha": "174f5b3a79967d8360564340141595f251787231",
+      "size": 2311,
+      "type": "blob"
+    },
+    "tools/pf002_c04_image_identity/canonical_file.py": {
+      "mode": "100644",
+      "sha": "d3e9e8c43566c545292492dff38cc098666a2bf4",
+      "size": 9603,
+      "type": "blob"
+    },
+    "tools/pf002_c04_image_identity/controller.py": {
+      "mode": "100644",
+      "sha": "e7feebb844e1bfca86821a78b766d12ee560b5d7",
+      "size": 14159,
+      "type": "blob"
+    },
+    "tools/pf002_c04_image_identity/file_evidence.py": {
+      "mode": "100644",
+      "sha": "eba9b2d2e1defcb1a1b345fb54a64aa93787daaf",
+      "size": 4314,
+      "type": "blob"
+    },
+    "tools/pf002_c04_image_identity/http_evidence.py": {
+      "mode": "100644",
+      "sha": "9fedbcd72c27f4a168490f20395103cac2b30439",
+      "size": 6205,
+      "type": "blob"
+    },
+    "tools/pf002_c04_image_identity/job.py": {
+      "mode": "100644",
+      "sha": "b5d099f0e60448d9852fb44a7fa3de288c7f63cb",
+      "size": 10345,
+      "type": "blob"
+    },
+    "tools/pf002_c04_image_identity/model.py": {
+      "mode": "100644",
+      "sha": "20ac94db1f4b1aad59c0a5ae26ecd77ba2defe40",
+      "size": 5538,
+      "type": "blob"
+    },
+    "tools/pf002_c04_image_identity/normal_worker.py": {
+      "mode": "100644",
+      "sha": "141eb50db13ae13b476a52db7c1a69af3e8c3b96",
+      "size": 2396,
+      "type": "blob"
+    },
+    "tools/pf002_c04_image_identity/probe.py": {
+      "mode": "100644",
+      "sha": "99b20bbeef23398ba3beb339531715206091ccec",
+      "size": 10542,
+      "type": "blob"
+    },
+    "tools/pf002_c04_image_identity/run_tests.py": {
+      "mode": "100644",
+      "sha": "b8d33b12f0811424331f591b6e0545f81a63db3a",
+      "size": 3159,
+      "type": "blob"
+    },
+    "tools/pf002_c04_image_identity/runner_proof.py": {
+      "mode": "100644",
+      "sha": "2a8bff28f5314d427bd7dfed3766c3bfca37f885",
+      "size": 3855,
+      "type": "blob"
+    },
+    "tools/pf002_c04_image_identity/source_loader.py": {
+      "mode": "100644",
+      "sha": "8b08f6eab73d6f6440bf8235a190a3c4ee4c492c",
+      "size": 2043,
+      "type": "blob"
+    },
+    "tools/pf002_c04_image_identity/test_canonical.py": {
+      "mode": "100644",
+      "sha": "4ea6a3d1f72cd146b1810714e242373d26e3a7f4",
+      "size": 21116,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r1_legacy_contract/.gitattributes": {
+      "mode": "100644",
+      "sha": "fcadb2cf97913f58a2523f535336e725c6b59d1f",
+      "size": 14,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r1_legacy_contract/CONTRACT_DELTA_V2.json": {
+      "mode": "100644",
+      "sha": "cdcd1376c83f8c15a247055a1b541571cd216021",
+      "size": 9374,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r1_legacy_contract/ENGINEERING_CR_AND_BOUNDARY.md": {
+      "mode": "100644",
+      "sha": "fa0323ad0b51140b831d50fcb06b8d9399b567d8",
+      "size": 3780,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r1_legacy_contract/EVIDENCE_SCHEMA_V2.json": {
+      "mode": "100644",
+      "sha": "a9b7d789cf2f0d4c15e15031b5f392a0f387647e",
+      "size": 3311,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r1_legacy_contract/GITHUB_OIDC_JWKS_PINNED.json": {
+      "mode": "100644",
+      "sha": "1822cb55ba61c54cbce6773ec3774ca086522fae",
+      "size": 5547,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r1_legacy_contract/SOURCE_MANIFEST_V1.json": {
+      "mode": "100644",
+      "sha": "36c23630a836863c2ef9a1974a08e29c290fc805",
+      "size": 2059,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r1_legacy_contract/controller.py": {
+      "mode": "100644",
+      "sha": "b6636fe61c5d96b802dafb62a29742f953602c0b",
+      "size": 14577,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r1_legacy_contract/http_evidence.py": {
+      "mode": "100644",
+      "sha": "3e6e02829343ddcbf3f5483c5bc26e4c4141ed45",
+      "size": 6214,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r1_legacy_contract/job.py": {
+      "mode": "100644",
+      "sha": "0fd815347c54ec399b55c3bd9ce1d9768fbe12cf",
+      "size": 10354,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r1_legacy_contract/normal_worker.py": {
+      "mode": "100644",
+      "sha": "5ad06cc1717bd8e138bbc6981abd02d82584ba99",
+      "size": 2402,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r1_legacy_contract/offline_contract.py": {
+      "mode": "100644",
+      "sha": "75cdc55ecec41aa45f8a4485bddb5490c8718004",
+      "size": 3975,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r1_legacy_contract/run_tests.py": {
+      "mode": "100644",
+      "sha": "16fde89b62cc7a7d3a6219c37012eef9c1f546ba",
+      "size": 3159,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r1_legacy_contract/runner_proof.py": {
+      "mode": "100644",
+      "sha": "d9202889e76d605c124da25d2e5a0b944f2316db",
+      "size": 3867,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r1_legacy_contract/source_loader.py": {
+      "mode": "100644",
+      "sha": "d4ed32bcd5c7315bbde1edf2682cba6bd00f2e04",
+      "size": 2133,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r1_legacy_contract/test_contract.py": {
+      "mode": "100644",
+      "sha": "7641eb7e078d46e981985994c30837be02594c2a",
+      "size": 12718,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r2_preauth_transport/.gitattributes": {
+      "mode": "100644",
+      "sha": "fcadb2cf97913f58a2523f535336e725c6b59d1f",
+      "size": 14,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r2_preauth_transport/BASE_TREE_V1.json": {
+      "mode": "100644",
+      "sha": "c06eb0736bef0c106d94f3227aa008b97b872573",
+      "size": 136661,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r2_preauth_transport/ENGINEERING_CR_AND_BOUNDARY.md": {
+      "mode": "100644",
+      "sha": "f093041d578a6b16375a4958c4808fe9f46f9a3d",
+      "size": 5666,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r2_preauth_transport/EVIDENCE_SCHEMA_V1.json": {
+      "mode": "100644",
+      "sha": "7684732af2deaa0186f70e5b8a1e8ad07c282ea0",
+      "size": 601,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r2_preauth_transport/GITHUB_OIDC_JWKS_PINNED.json": {
+      "mode": "100644",
+      "sha": "1822cb55ba61c54cbce6773ec3774ca086522fae",
+      "size": 5547,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r2_preauth_transport/SOURCE_MANIFEST_V1.json": {
+      "mode": "100644",
+      "sha": "fad8506c785c54ce74f7394f941d7448eacc0dba",
+      "size": 1589,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r2_preauth_transport/controller.py": {
+      "mode": "100644",
+      "sha": "bab27e40a1229ecca2fbb3f4ba31f46d3a7d204b",
+      "size": 10660,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r2_preauth_transport/run_tests.py": {
+      "mode": "100644",
+      "sha": "dd50cace4d6489f56dd02f6871532d19de388a03",
+      "size": 3100,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r2_preauth_transport/runner_proof.py": {
+      "mode": "100644",
+      "sha": "bb80c1db4988a9772d9fb1e96b3d0fc60e4ea5e2",
+      "size": 3849,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r2_preauth_transport/source_integrity.py": {
+      "mode": "100644",
+      "sha": "a18dc8ad869e09900f3c89e1483396cf29f0bfb0",
+      "size": 3828,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r2_preauth_transport/test_preauth.py": {
+      "mode": "100644",
+      "sha": "ef0cc52289360eba2db6374f9c08d63b63b9c5b2",
+      "size": 27521,
+      "type": "blob"
+    },
+    "tools/pf002_c04_r2_preauth_transport/transport.py": {
+      "mode": "100644",
+      "sha": "5b97f1bfba6686f53e872fd0c6662c1e9cbbd8ad",
+      "size": 8688,
+      "type": "blob"
+    },
+    "tools/pf002_containment_c01/.gitattributes": {
+      "mode": "100644",
+      "sha": "fcadb2cf97913f58a2523f535336e725c6b59d1f",
+      "size": 14,
+      "type": "blob"
+    },
+    "tools/pf002_containment_c01/ENGINEERING_CR.md": {
+      "mode": "100644",
+      "sha": "55e7eebd583e0ac611e7641a81fe78829700cf58",
+      "size": 5665,
+      "type": "blob"
+    },
+    "tools/pf002_containment_c01/EVIDENCE_SCHEMA_V1.json": {
+      "mode": "100644",
+      "sha": "b97ec0a64f1f0efbcda383aa99f8934047f248fd",
+      "size": 1055,
+      "type": "blob"
+    },
+    "tools/pf002_containment_c01/GITHUB_OIDC_JWKS_PINNED.json": {
+      "mode": "100644",
+      "sha": "1822cb55ba61c54cbce6773ec3774ca086522fae",
+      "size": 5547,
+      "type": "blob"
+    },
+    "tools/pf002_containment_c01/SOURCE_MANIFEST_V1.json": {
+      "mode": "100644",
+      "sha": "af454591d603c51671f973433fab49dbaa14a857",
+      "size": 2158,
+      "type": "blob"
+    },
+    "tools/pf002_containment_c01/controller.py": {
+      "mode": "100644",
+      "sha": "47dc260868074e9a612b055cd9f34e5439ad0cfa",
+      "size": 11961,
+      "type": "blob"
+    },
+    "tools/pf002_containment_c01/fault_leaf.py": {
+      "mode": "100644",
+      "sha": "be122d138253590739307edd5d30cbeee0ce104c",
+      "size": 1604,
+      "type": "blob"
+    },
+    "tools/pf002_containment_c01/fault_worker.py": {
+      "mode": "100644",
+      "sha": "dc78fbb0d689fce39df9b4324ad3fc8f795419e7",
+      "size": 2281,
+      "type": "blob"
+    },
+    "tools/pf002_containment_c01/job.py": {
+      "mode": "100644",
+      "sha": "d37b883b5fc809b52fa14a2298174281e7005993",
+      "size": 13653,
+      "type": "blob"
+    },
+    "tools/pf002_containment_c01/run_tests.py": {
+      "mode": "100644",
+      "sha": "3410fc2220064ca00bdf04abc8d40bd88cc60496",
+      "size": 3177,
+      "type": "blob"
+    },
+    "tools/pf002_containment_c01/runner_proof.py": {
+      "mode": "100644",
+      "sha": "e55a071129c69abf64e2b29d5054e9e6274b6147",
+      "size": 3846,
+      "type": "blob"
+    },
+    "tools/pf002_containment_c01/source_loader.py": {
+      "mode": "100644",
+      "sha": "26f41ca995b17e154af31493a4a1a923de282a9e",
+      "size": 1986,
+      "type": "blob"
+    },
+    "tools/pf002_containment_c01/state.py": {
+      "mode": "100644",
+      "sha": "4c54372509385aac940a13c2f061866fc5b44c6c",
+      "size": 5588,
+      "type": "blob"
+    },
+    "tools/pf002_containment_c01/test_evidence.py": {
+      "mode": "100644",
+      "sha": "ef91752b66b05c9522cb2a27902ba0a868722196",
+      "size": 6394,
+      "type": "blob"
+    },
+    "tools/pf002_containment_c01/test_state.py": {
+      "mode": "100644",
+      "sha": "1e605cc0ab2e5d0cdc78bfac4966eda6334e09d1",
+      "size": 10880,
+      "type": "blob"
+    },
+    "tools/pf002_containment_c01/verify_evidence.py": {
+      "mode": "100644",
+      "sha": "cb605edf198db81847a989d64eab5eb10cb2d3d8",
+      "size": 8954,
+      "type": "blob"
+    },
+    "tools/pf_personal_collector/.gitattributes": {
+      "mode": "100644",
+      "sha": "fcadb2cf97913f58a2523f535336e725c6b59d1f",
+      "size": 14,
+      "type": "blob"
+    },
+    "tools/pf_personal_collector/ENGINEERING_CONTRACT_V1.json": {
+      "mode": "100644",
+      "sha": "4b40cd8deefe22c3c29fb56950c8513789ea3153",
+      "size": 5137,
+      "type": "blob"
+    },
+    "tools/pf_personal_collector/EVIDENCE_SCHEMA_V1.json": {
+      "mode": "100644",
+      "sha": "7c11df228f106cd0cc7f758c49195666056a57fa",
+      "size": 1734,
+      "type": "blob"
+    },
+    "tools/pf_personal_collector/FUTURE_OWNER_CONSENT_REQUIREMENTS.json": {
+      "mode": "100644",
+      "sha": "659e708a074ba2655624ac2d2f3dabe6631e35f7",
+      "size": 677,
+      "type": "blob"
+    },
+    "tools/pf_personal_collector/GITHUB_OIDC_JWKS_PINNED.json": {
+      "mode": "100644",
+      "sha": "1822cb55ba61c54cbce6773ec3774ca086522fae",
+      "size": 5547,
+      "type": "blob"
+    },
+    "tools/pf_personal_collector/README.md": {
+      "mode": "100644",
+      "sha": "c2d6ec01b441d9abab6a965c7b1659200c25c607",
+      "size": 4387,
+      "type": "blob"
+    },
+    "tools/pf_personal_collector/RUNTIME_SAFETY_MATRIX_V1.json": {
+      "mode": "100644",
+      "sha": "482e6500ba3d3442082dcb224c545a3117d7c1a7",
+      "size": 1861,
+      "type": "blob"
+    },
+    "tools/pf_personal_collector/SOURCE_MANIFEST_V1.json": {
+      "mode": "100644",
+      "sha": "62451581c57442da8904520faaf9adb4139ba4e6",
+      "size": 3306,
+      "type": "blob"
+    },
+    "tools/pf_personal_collector/descriptor_policy.ps1": {
+      "mode": "100644",
+      "sha": "dfcffa19e3fff5ce17bae81edfd264d799ebea07",
+      "size": 331,
+      "type": "blob"
+    },
+    "tools/pf_personal_collector/evidence_protocol.py": {
+      "mode": "100644",
+      "sha": "4af13d712a584862b6527075f9171a58899a00b8",
+      "size": 13712,
+      "type": "blob"
+    },
+    "tools/pf_personal_collector/fault_leaf.py": {
+      "mode": "100644",
+      "sha": "242f36052ae31118a8269c6e76dd115badb828b9",
+      "size": 1610,
+      "type": "blob"
+    },
+    "tools/pf_personal_collector/fault_worker.py": {
+      "mode": "100644",
+      "sha": "fe37750bb8fd63ec2a56367139c75e20735216ae",
+      "size": 2287,
+      "type": "blob"
+    },
+    "tools/pf_personal_collector/native_worker.ps1": {
+      "mode": "100644",
+      "sha": "bd95b36927453f9d5358d2ae6e46fd15bcb35ee1",
+      "size": 13314,
+      "type": "blob"
+    },
+    "tools/pf_personal_collector/offline_fixtures.py": {
+      "mode": "100644",
+      "sha": "d7d9cc658ebb065b2fb3e7b11d259cb6fb63c55f",
+      "size": 1171,
+      "type": "blob"
+    },
+    "tools/pf_personal_collector/run_offline_tests.py": {
+      "mode": "100644",
+      "sha": "bac870dc2204c2839993e999545fd67c387cc632",
+      "size": 4505,
+      "type": "blob"
+    },
+    "tools/pf_personal_collector/runner_controller.py": {
+      "mode": "100644",
+      "sha": "c38de3c62c5aa2a9441488cb00e2bba521d965b0",
+      "size": 14262,
+      "type": "blob"
+    },
+    "tools/pf_personal_collector/runner_proof.py": {
+      "mode": "100644",
+      "sha": "032dd65257fb8997a6151ea79b121eb6502ed202",
+      "size": 3840,
+      "type": "blob"
+    },
+    "tools/pf_personal_collector/source_loader.py": {
+      "mode": "100644",
+      "sha": "34b74a09df9228507d5fc90050f657e933356cdd",
+      "size": 2023,
+      "type": "blob"
+    },
+    "tools/pf_personal_collector/source_policy.py": {
+      "mode": "100644",
+      "sha": "656c0cebf2e2aadaeb9ecb20341f931bd265bd5a",
+      "size": 1487,
+      "type": "blob"
+    },
+    "tools/pf_personal_collector/test_collector.py": {
+      "mode": "100644",
+      "sha": "029fc6422fbf019679f8925b588e2cefee020bc8",
+      "size": 13724,
+      "type": "blob"
+    },
+    "tools/pf_personal_collector/test_descriptor_policy.ps1": {
+      "mode": "100644",
+      "sha": "c1b8ded6fb6e9feb0c4cd0606c9c05cbd0158c5d",
+      "size": 1070,
+      "type": "blob"
+    },
+    "tools/pf_personal_collector/verify_private_packet.py": {
+      "mode": "100644",
+      "sha": "e64dd74c3292a4829ef3be57d0e03550fcc1973a",
+      "size": 8541,
+      "type": "blob"
+    },
+    "tools/pf_personal_collector/windows_job.py": {
+      "mode": "100644",
+      "sha": "5a2b3dda824d1cc85489c18b0ed54c7ae020aa2f",
+      "size": 8956,
+      "type": "blob"
+    },
+    "tools/pf_personal_trust/.gitattributes": {
+      "mode": "100644",
+      "sha": "fcadb2cf97913f58a2523f535336e725c6b59d1f",
+      "size": 14,
+      "type": "blob"
+    },
+    "tools/pf_personal_trust/ENGINEERING_CR_V1.json": {
+      "mode": "100644",
+      "sha": "f3731e6a1827a1b6c82b585fc7fec55b71399371",
+      "size": 2538,
+      "type": "blob"
+    },
+    "tools/pf_personal_trust/EVIDENCE_SCHEMA_V1.json": {
+      "mode": "100644",
+      "sha": "f046edcdc299da06e4d9085368b632b1d6ee772b",
+      "size": 12209,
+      "type": "blob"
+    },
+    "tools/pf_personal_trust/FUTURE_OWNER_REQUEST_UNISSUED.json": {
+      "mode": "100644",
+      "sha": "1bb5b37fbad2edc41420cf61f0b870310450d5df",
+      "size": 638,
+      "type": "blob"
+    },
+    "tools/pf_personal_trust/LOCAL_EVIDENCE_CONTRACT_V1.json": {
+      "mode": "100644",
+      "sha": "358deaf5e6d99d94dfc4817ddffe7ec8ec5a7dc9",
+      "size": 7768,
+      "type": "blob"
+    },
+    "tools/pf_personal_trust/OWNER_CONSENT_CONTRACT_V1.json": {
+      "mode": "100644",
+      "sha": "2964ae3ae5c59743fb2dabe639ee515d31926666",
+      "size": 2336,
+      "type": "blob"
+    },
+    "tools/pf_personal_trust/PERSONAL_TRUST_MODEL_V1.json": {
+      "mode": "100644",
+      "sha": "e2784e723794acad9b05c1dec0dd399adc8fe39e",
+      "size": 3592,
+      "type": "blob"
+    },
+    "tools/pf_personal_trust/README.txt": {
+      "mode": "100644",
+      "sha": "55476ca19e1ec7581ab4b3353f3911b6eb7ad2ce",
+      "size": 4436,
+      "type": "blob"
+    },
+    "tools/pf_personal_trust/READ_SCOPE_V1.json": {
+      "mode": "100644",
+      "sha": "a302b4e6cce397f7b60405f94f77e2d31085d638",
+      "size": 3019,
+      "type": "blob"
+    },
+    "tools/pf_personal_trust/SAFETY_AND_PRIVACY_V1.json": {
+      "mode": "100644",
+      "sha": "77c99321bb210fa4c4c71c82d4422518fcc7597d",
+      "size": 1856,
+      "type": "blob"
+    },
+    "tools/pf_personal_trust/SOURCE_AUTHORITY_REVIEW_V1.json": {
+      "mode": "100644",
+      "sha": "00fc2c193735210acb80ab4d0cedff24f65ee6f5",
+      "size": 1708,
+      "type": "blob"
+    },
+    "tools/pf_personal_trust/SOURCE_MANIFEST_V1.json": {
+      "mode": "100644",
+      "sha": "931321a0253a521f88368dcd8833508e873457e6",
+      "size": 2578,
+      "type": "blob"
+    },
+    "tools/pf_personal_trust/THREAT_MODEL_V1.json": {
+      "mode": "100644",
+      "sha": "9e5499062aa2a06a508eb1f1b62b7109f55cc7e7",
+      "size": 2277,
+      "type": "blob"
+    },
+    "tools/pf_personal_trust/offline_paths.py": {
+      "mode": "100644",
+      "sha": "fea60e05aed3b3bcfe70bddc2585c2fd4b4628a0",
+      "size": 1699,
+      "type": "blob"
+    },
+    "tools/pf_personal_trust/personal_model.py": {
+      "mode": "100644",
+      "sha": "800cd02d76ac215e85f04cf407cf4e7102ec3c39",
+      "size": 17516,
+      "type": "blob"
+    },
+    "tools/pf_personal_trust/run_offline_tests.py": {
+      "mode": "100644",
+      "sha": "d36fc548f793461b3e121183d16cfe9d23f11c8f",
+      "size": 4266,
+      "type": "blob"
+    },
+    "tools/pf_personal_trust/synthetic_fixtures.py": {
+      "mode": "100644",
+      "sha": "5e044c5cf18eeca68c50e6b6c19b570f4f147601",
+      "size": 3019,
+      "type": "blob"
+    },
+    "tools/pf_personal_trust/test_personal_model.py": {
+      "mode": "100644",
+      "sha": "7d849ed7d85c0c490d0776209a566342bdec6c2a",
+      "size": 18521,
+      "type": "blob"
+    }
+  },
+  "head": "1d32415ed1c3747b2ed7cba4ac19ccdeaaf78848"
+}
