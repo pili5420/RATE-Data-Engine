@@ -266,6 +266,20 @@ class Tests(unittest.TestCase):
   for resource in c['resources']:
    if resource['kind']=='process':resource['handle']=1
   with self.assertRaises(runner_proof.Refused):states.finalize(row,c)
+ def test_thread_close_exception_is_recorded_before_call_and_never_retried(self):
+  o=fake_job(states.SUSPENDED);o.active=lambda:1;o.pids=lambda:[77];calls=[]
+  def close(h):
+   calls.append(h)
+   if h==8:
+    self.assertTrue(o.thread_close['attempted']);self.assertIs(o.thread_close['closed'],False);raise OSError('SYNTHETIC_THREAD_CLOSE_UNKNOWN')
+   return 1
+  o.k.CloseHandle=close
+  with self.assertRaises(job.ContainmentError):o.assign_and_resume(7,8,77,88,6)
+  c=o.close();self.assertEqual(calls.count(8),1);self.assertEqual(c['status'],'UNKNOWN');self.assertEqual(o.thread_close['failure_kind'],'EXCEPTION_UNKNOWN');self.assertIsNone(o.thread_close['raw_return'])
+  o.close();self.assertEqual(calls.count(8),1)
+ def test_pending_thread_registry_bool_and_alias_never_dispatched_as_thread(self):
+  for registry in (99,7,True):
+   o=fake_job(states.SUSPENDED);o.root_thread_handle=registry;c=o.close();self.assertEqual(c['status'],'UNKNOWN');self.assertEqual(o.calls,[['CloseHandle',99],['CloseHandle',7]]);self.assertIs(o.thread_close['attempted'],False)
 
 def bad_field(index,value):
  def test(self):

@@ -166,9 +166,8 @@ class WindowsJob:
     elif assigned is None:self.unassigned_root_cleanup={'status':'UNKNOWN','assigned':None,'not_containment_qualification':True}
    finally:
     if type(owned_thread) is int and owned_thread>0 and owned_thread not in (self.job,getattr(self,'hp',None)):
-     raw=self.k.CloseHandle(owned_thread);error=None if raw else self.c.get_last_error();self.thread_close={'handle':owned_thread,'raw_return':int(raw),'closed':bool(raw),'win32_error':error}
-     if raw and getattr(self,'root_thread_handle',None)==owned_thread:self.root_thread_handle=None
-     if not raw:raise ContainmentError('THREAD_HANDLE_CLOSE_FAILED',error)
+     row=self.close_registered_thread(owned_thread)
+     if row['closed'] is not True:raise ContainmentError('THREAD_HANDLE_CLOSE_FAILED',row['win32_error'])
  def start_io(self,fd,mode,operation,name):
   """Transfer FD ownership explicitly; unfinished threads make close UNKNOWN."""
   completed=queue.Queue();row={'name':name,'fd':fd,'thread':None,'started':False,'closed':False};self.io_tasks.append(row);self.pending_fds.discard(fd)
@@ -232,17 +231,29 @@ class WindowsJob:
   for h in self.handles:
    wait=self.k.WaitForSingleObject(h,max(0,int((end-time.monotonic())*1000)))
    if wait!=0:raise ContainmentError('OWN_HANDLE_NOT_SIGNALED_WITHIN_BOUND',self.c.get_last_error() if wait==0xffffffff else None,wait)
+ def close_registered_thread(self,expected):
+  if hasattr(self,'thread_close'):return self.thread_close
+  h=getattr(self,'root_thread_handle',None)
+  row={'handle':h if type(h) is int else None,'raw_return':None,'closed':False,'win32_error':None,'attempted':False,'failure_kind':'REGISTRY_UNKNOWN'}
+  self.thread_close=row
+  if type(h) is not int or h<=0 or type(expected) is not int or h!=expected or h in (self.job,getattr(self,'hp',None)) or h in getattr(self,'handles',[]):return row
+  # Intent exists before a fallible dispatch: exception/raw0 can never trigger retry.
+  row['attempted']=True;row['failure_kind']='OUTCOME_UNKNOWN'
+  try:
+   raw=self.k.CloseHandle(h);row['raw_return']=raw if type(raw) is int else None
+   row['closed']=type(raw) is int and raw!=0
+   row['win32_error']=None if row['closed'] else self.c.get_last_error()
+   row['failure_kind']=None if row['closed'] else 'RETURNED_FAILURE'
+  except BaseException:row['closed']=False;row['failure_kind']='EXCEPTION_UNKNOWN'
+  if row['closed']:self.root_thread_handle=None
+  return row
  def close(self):
   if getattr(self,'resource_close_attempted',False):return {'status':'UNKNOWN','resources':[],'duplicate_close_refused':True,'not_a_termination_proof':True}
   self.resource_close_attempted=True
   rows=[]
   if hasattr(self,'thread_close'):rows.append({'kind':'root_thread',**self.thread_close})
   elif getattr(self,'root_thread_handle',None) is not None:
-   h=self.root_thread_handle;raw=None;error=None
-   try:raw=self.k.CloseHandle(h);ok=bool(raw);error=None if ok else self.c.get_last_error()
-   except BaseException:ok=False
-   self.thread_close={'handle':int(h),'raw_return':int(raw) if raw is not None else None,'closed':ok,'win32_error':error};rows.append({'kind':'root_thread',**self.thread_close})
-   if ok:self.root_thread_handle=None
+   rows.append({'kind':'root_thread',**self.close_registered_thread(self.root_thread_handle)})
   if getattr(self,'root_thread_handle',None) is not None:rows.append({'kind':'unresolved_root_thread','closed':False,'win32_error':None})
   if hasattr(self,'release_close'):rows.append(self.release_close.copy())
   for task in getattr(self,'io_tasks',[]):

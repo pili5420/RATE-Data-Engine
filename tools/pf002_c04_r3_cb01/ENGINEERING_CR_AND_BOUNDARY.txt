@@ -27,6 +27,8 @@ Problem and resulting behavior
    A returned thread handle is retained immediately. State/argument rejection is
    inside ownership protection; only the registered owned thread may be closed,
    never an arbitrary argument handle. Failed closes are recorded, not retried.
+   Both paths share an intent-before-dispatch close-once function; bool, Job and
+   process-handle aliases are rejected without a thread CloseHandle dispatch.
    Finalization requires exact phase/basis, matching process/thread/Job close
    evidence, and rejects root-derived resources in a NO_ROOT observation.
 
@@ -51,6 +53,8 @@ https://learn.microsoft.com/en-us/windows/win32/api/jobapi2/nf-jobapi2-terminate
 Minimal source changes
 R3 invocation_boundary.py,job.py,stage_a.py,execution.py; source manifest; new
 cleanup_state.py and versioned EVIDENCE_SCHEMA_CB01_V2.json. V1 schema is unchanged.
+New journal/result framing explicitly identifies CB01 V2; old external V3 Native
+verification is not asserted compatible. No new Native artifact is produced here.
 entry.py unconditionally refuses Native execution at this candidate Head.
 The original R3 Native workflow and signed provenance, transport, comparator,
 worker, API allowlist and limits remain unchanged. A new offline-only CI workflow
