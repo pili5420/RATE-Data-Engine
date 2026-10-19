@@ -218,6 +218,7 @@ class IntegrationTests(unittest.TestCase):
   self.assertEqual(obj.close()['status'],'UNKNOWN');self.assertEqual(calls,[('join',1)])
  def test_raw_nonzero_bool_preserved_not_normalized(self):
   obj=object.__new__(stage_a.StageAJob);events=[];obj.job=99;obj.hp=7;obj.pid=77;obj.job_name='SYNTHETIC';obj.emit=lambda e,d:events.append((e,d))
+  obj.root_phase='ROOT_ASSIGNED_RESUMED';obj.handles=[7];obj.root_creation_outcome='RETURNED_OWNED_HANDLE';obj.root_thread_handle=8
   obj.k=types.SimpleNamespace(TerminateJobObject=lambda *a:2,GetExitCodeProcess=lambda *a:2);obj.c=types.SimpleNamespace(set_last_error=lambda n:None,get_last_error=lambda:0,byref=lambda x:x);obj.w=types.SimpleNamespace(DWORD=lambda:types.SimpleNamespace(value=0));obj.confirm_handles=lambda end:None;obj.query=lambda kind:({'ActiveProcesses':0} if kind==1 else {'pids':[],'assigned':0,'listed':0})
   obj.cleanup();self.assertEqual(events[0][1]['raw_return'],2);self.assertIs(events[0][1]['ok'],True);self.assertEqual(events[1][1]['raw_return'],2)
  def test_release_write_failure_still_closes_known_fd(self):
@@ -245,6 +246,8 @@ class IntegrationTests(unittest.TestCase):
 
 def resource_job(fail_event,assigned):
  obj=object.__new__(job.WindowsJob);calls=[];obj.job=99;obj.unassigned_root_cleanup=None;obj.c=types.SimpleNamespace(get_last_error=lambda:5)
+ obj.root_phase='ROOT_CREATED_SUSPENDED_NOT_ASSIGNED'
+ if fail_event is not None:obj.hp=7;obj.pid=77;obj.handles=[7];obj.root_thread_handle=8;obj.root_creation_outcome='RETURNED_OWNED_HANDLE'
  def emit(e,d):
   calls.append('emit:'+d['api'])
   if d['api']==fail_event:raise OSError('SYNTHETIC_EVIDENCE_FAILURE')

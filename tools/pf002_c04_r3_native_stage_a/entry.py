@@ -1,15 +1,6 @@
-"""Fixed Hosted Runner Stage-A entry. No Permit loader, consent or original-host mode."""
-import subprocess,sys
-from pathlib import Path
-S=Path(__file__).resolve().parent;sys.path.insert(0,str(S))
-from invocation_boundary import Boundary
-import execution
+"""CB01 is offline corrective engineering only. No Native execution authority."""
 def main():
- boundary=Boundary(sys.executable,subprocess.list2cmdline([sys.executable,'-I','-B','-S',str(S/'normal_worker.py')]),str(S.parent.parent));boundary.install()
- try:return execution.run(boundary)
- finally:boundary.stop()
+ raise RuntimeError('CB01_OFFLINE_ONLY_NO_NATIVE_EXECUTION_AUTHORIZATION')
 if __name__=='__main__':
- try:code=main()
- except BaseException:code=1
- print('PF002_C04_R3_STAGE_A_PASS' if code==0 else 'PF002_C04_R3_HALTED_NO_SECRET_DETAIL')
- raise SystemExit(code)
+ print('CB01_OFFLINE_ONLY_NATIVE_EXECUTION_NOT_AUTHORIZED')
+ raise SystemExit(1)

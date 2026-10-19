@@ -4,11 +4,13 @@ from pathlib import Path
 import controller as auth,contract,runner_proof as proof,source_integrity as source,transport
 SRC=auth.SRC;ROOT=auth.ROOT
 EVENTS=frozenset(('PREAUTH_HTTP_START','PREAUTH_HTTP_RESULT','PREAUTH_PASS','PREAUTH_HALT','NATIVE_STAGE_A_INTENT','ABI_LAYOUT','FILE_API_ABI','CONSTRUCTOR_RESOURCE_CLOSE','OWN_JOB_CREATED','JOB_API','RAW_JOB_QUERY','ROOT_BIRTH','WORKER_READY','KNOWN_ROOT_JOB_DOMAIN','PROCESS_API','ROOT_LIVENESS','FILE_OPEN_RESULT','FILE_DESCRIPTOR_HANDLE','FILE_NATIVE_QUERY','FILE_IDENTITY_SNAPSHOT','CANONICAL_FILE_COMPARISON','CANONICAL_FILE_HALT','FILE_CLOSE_RESULT','ROOT_IDENTITY','STAGE_A_SUBGATE_OBSERVED','WORKER_RELEASE','ROOT_WAIT','WORKER_COMPLETE','OWN_JOB_CLEANUP_REQUEST','OWN_JOB_CLEANUP_OBSERVATION','CLEANUP_UNKNOWN','OWN_RESOURCE_CLOSE','HALT','RUN_RESULT'))
+EVENTS=EVENTS|frozenset(('AUDIT_CREATEPROCESS','OWN_JOB_CLEANUP_FINAL'))
 class Journal:
  def __init__(self,root,head,rid,role):self.root=root;self.head=head;self.rid=rid;self.role=role;self.sequence=0;self.previous=None;self.jobs_created=0;self.children_created=0
  def emit(self,event,data):
   proof.need(event in EVENTS and self.sequence<1024,'FIXED_STAGE_A_EVENT_BOUND');self.sequence+=1
   row={'sequence':self.sequence,'previous_sha256':self.previous,'source_head':self.head,'run_id':self.rid,'attempt':1,'role':self.role,'event':event,'utc_ns':time.time_ns(),'monotonic_ns':time.monotonic_ns(),'data':data}
+  row['evidence_schema']='PF002_C04_R3_CB01_EVIDENCE_V2'
   raw=auth.canonical(row);proof.need(len(raw)<=65536,'EVENT_BYTES');auth.save(self.root/f'{self.sequence:04d}_{event}.json',row);self.previous=hashlib.sha256(raw).hexdigest()
   if event=='JOB_API' and data['api']=='CreateJobObjectW' and data['ok'] is True and data['already_exists'] is False:self.jobs_created+=1
   if event=='JOB_API' and data['api']=='CreateProcess' and data['ok'] is True:self.children_created+=1
@@ -39,6 +41,14 @@ def cleanup_resources(job,emit):
    try:emit('OWN_RESOURCE_CLOSE',closed)
    except BaseException:errors.append('CLOSE_EVIDENCE_UNKNOWN')
   finally:job.proof=None
+ if cleanup is not None and not errors:
+  try:
+   cleanup=job.complete_cleanup(cleanup,closed);emit('OWN_JOB_CLEANUP_FINAL',cleanup)
+  except BaseException as exc:
+   cleanup=None;errors.append('CLEANUP_FINALIZATION_UNKNOWN')
+   try:emit('CLEANUP_UNKNOWN',{'error_code':safe_error(exc),'win32_error':native_error(exc),'not_containment_PASS':True})
+   except BaseException:errors.append('CLEANUP_EVIDENCE_UNKNOWN')
+ elif cleanup is not None:cleanup=None
  return cleanup,closed,errors
 def run(boundary):
  credentials=transport.Credentials.consume_environment();pre_timer=None;native_timer=None;job=None;token=None
@@ -63,7 +73,7 @@ def run(boundary):
   proof.need(all(name not in os.environ for name in contract.SECRET_KEYS),'CREDENTIAL_ENV_NOT_CLEARED')
   credentials.destroy();credentials=None;t=None
   j.emit('NATIVE_STAGE_A_INTENT',{'source_head':head,'source_manifest_sha256':manifest_sha,'worker_source_sha256':worker_sha,'work_order_sha256':auth.WORK_ORDER_SHA256,'fixed_executable':sys.executable,'child_environment_keys':sorted(env),'credential_variables_absent':True,'scope':'SINGLE_ROOT_CANONICAL_FILE_IDENTITY_ONLY','NoAutoNext':True})
-  boundary.arm();cleanup=None;closed=None;ready=None;complete=None;before=None;after=None;exit_code=None;native_error_code=None
+  boundary.bind_evidence(j.emit);boundary.arm();cleanup=None;closed=None;ready=None;complete=None;before=None;after=None;exit_code=None;native_error_code=None
   try:
    from stage_a import StageAJob
    job=StageAJob(token,env,j.emit,time.monotonic()+10)
@@ -93,7 +103,7 @@ def run(boundary):
   passed=False
   if native_error_code is None:
    contract.stage_pass(authenticated,ready is not None,before is not None,after is not None,complete is not None,exit_code,cleanup is not None,closed is not None and closed['status']=='CLOSED');passed=True
-  result={'version':'PF002_C04_R3_STAGE_A_V1','source_head':head,'run_id':rid,'attempt':1,'role':role,'status':'PASS_STAGE_A_ONLY' if passed else 'HALT_UNKNOWN','native_comparator':'PASS' if passed else 'UNQUALIFIED','root_identity':'PASS' if passed else 'UNQUALIFIED','preauth_completed':authenticated,'worker_ready':ready,'worker_complete':complete,'root_before':before,'root_after':after,'cleanup':cleanup,'resource_close':closed,'error_code':native_error_code,'owned_jobs':1 if job is not None else 0,'native_children':boundary.creations,'StageB_executed':False,'loaded_image_attestation':False,'UnknownMemberOrigin':'UNPROVEN','PF002-C01-OWNERSHIP-001':'OPEN','PF002-CONTAINMENT-001':'OPEN','RS02':'BLOCKED','CompletePF002Runtime':'BLOCKED','OwnerConsent':'NOT_ISSUED','OriginalHostExecution':'NOT_AUTHORIZED','OriginalGUIHALTRootCause':'UNKNOWN','NoAutoNext':True}
+  result={'version':'PF002_C04_R3_CB01_EVIDENCE_V2','source_head':head,'run_id':rid,'attempt':1,'role':role,'status':'PASS_STAGE_A_ONLY' if passed else 'HALT_UNKNOWN','native_comparator':'PASS' if passed else 'UNQUALIFIED','root_identity':'PASS' if passed else 'UNQUALIFIED','preauth_completed':authenticated,'worker_ready':ready,'worker_complete':complete,'root_before':before,'root_after':after,'cleanup':cleanup,'resource_close':closed,'error_code':native_error_code,'owned_jobs':1 if job is not None else 0,'native_children':boundary.creations,'StageB_executed':False,'loaded_image_attestation':False,'UnknownMemberOrigin':'UNPROVEN','PF002-C01-OWNERSHIP-001':'OPEN','PF002-CONTAINMENT-001':'OPEN','RS02':'BLOCKED','CompletePF002Runtime':'BLOCKED','OwnerConsent':'NOT_ISSUED','OriginalHostExecution':'NOT_AUTHORIZED','OriginalGUIHALTRootCause':'UNKNOWN','NoAutoNext':True}
   result['owned_jobs']=j.jobs_created if j.jobs_created else (1 if job is not None else None);result['native_children']=max(j.children_created,int(job is not None and hasattr(job,'hp')));result['native_child_creation_attempts']=boundary.creations;result['unassigned_root_cleanup']=getattr(job,'unassigned_root_cleanup',None)
   j.emit('RUN_RESULT',{'status':result['status'],'process_exit_code':0 if passed else 1,'StageB_executed':False,'RS02':'BLOCKED'});result['journal_head']=j.previous
   auth.save(public/'STAGE_A_RESULT.json',result);auth.save(public/'FINAL_HEAD.json',{'source_head':head,'run_id':rid,'attempt':1,'role':role,'journal_head':j.previous,'process_exit_code':0 if passed else 1,'stage_a_result_sha256':hashlib.sha256((public/'STAGE_A_RESULT.json').read_bytes()).hexdigest(),'owned_jobs':result['owned_jobs'],'native_children':result['native_children'],'StageB_executed':False,'RS02':'BLOCKED','NoAutoNext':True})

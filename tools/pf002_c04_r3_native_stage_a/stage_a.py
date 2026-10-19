@@ -3,6 +3,8 @@ import os,time
 from pathlib import Path
 from job import WindowsJob
 import model,canonical_file,contract
+import cleanup_state as states
+from invocation_boundary import known_no_dispatch_rejection
 from file_evidence import disk_image
 class StageAJob(WindowsJob):
  def __init__(self,token,env,emit,end):
@@ -69,9 +71,42 @@ class StageAJob(WindowsJob):
   else:contract.root_equivalent(self.root_before,row);self.root_after=row
   return row
  def cleanup(self):
-  self.end=time.monotonic()+10;self.c.set_last_error(0);raw=self.k.TerminateJobObject(self.job,126);ok=bool(raw);error=None if ok else self.c.get_last_error()
-  self.emit('OWN_JOB_CLEANUP_REQUEST',{'job_name':self.job_name,'job_handle':int(self.job),'raw_return':int(raw),'ok':ok,'win32_error':error,'requested_exit':126,'cleanup_not_containment_PASS':True});model.need(ok,'OWN_JOB_TERMINATION_FAILED')
+  model.need(not getattr(self,'cleanup_attempted',False),'CB01_CLEANUP_ONCE_NO_RETRY');self.cleanup_attempted=True
+  phase=getattr(self,'root_phase',None);handle=self.job;name=self.job_name
+  model.need(type(handle) is int and handle>0 and type(name) is str and name,'CB01_OWNED_JOB_IDENTITY')
+  self.end=time.monotonic()+10
+  if phase==states.NO_ROOT:
+   model.need('hp' not in vars(self) and 'pid' not in vars(self) and self.handles==[],'CB01_NO_ROOT_STATE_CONTRADICTION')
+   model.need(getattr(self,'root_thread_handle',None) is None and 'thread_close' not in vars(self),'CB01_NO_ROOT_THREAD_CONTRADICTION')
+   outcome=getattr(self,'root_creation_outcome',None)
+   model.need(outcome in ('NOT_ATTEMPTED','AUDIT_REJECTED_BEFORE_DISPATCH'),'CB01_NO_ROOT_DISPATCH_UNPROVEN')
+   if outcome=='AUDIT_REJECTED_BEFORE_DISPATCH':
+    receipt=getattr(self,'root_pre_dispatch_receipt',None)
+    model.need(type(receipt) is dict and receipt.get('audit_event_id')=='_winapi.CreateProcess' and receipt.get('decision')=='REJECT','CB01_NO_ROOT_AUDIT_EVIDENCE_REQUIRED')
+    known_no_dispatch_rejection(receipt)
+   acct=self.query(1);ids=self.query(3);states.empty_job(acct,ids)
+   model.need(self.job==handle and self.job_name==name and self.root_phase==phase,'CB01_JOB_IDENTITY_CHANGED')
+   row={'status':'EMPTY_JOB_OBSERVED_PENDING_CLOSE','phase':phase,'job_handle':handle,'job_name':name,'root_handle':None,'accounting':acct,'ids':ids,'no_root_basis':outcome,'audit_rejection':self.root_pre_dispatch_receipt,'containment_qualified':False,'atomic_snapshot':False}
+   self.emit('OWN_JOB_CLEANUP_OBSERVATION',row);return row
+  model.need(phase in states.ROOT_PHASES and type(getattr(self,'hp',None)) is int and self.hp>0 and self.handles==[self.hp] and type(getattr(self,'pid',None)) is int and 0<self.pid<=0xffffffff,'CB01_ROOT_STATE_OR_HANDLE_UNKNOWN')
+  model.need(self.root_creation_outcome=='RETURNED_OWNED_HANDLE','CB01_ROOT_CREATION_EVIDENCE_REQUIRED')
+  if phase==states.SUSPENDED:
+   row=getattr(self,'unassigned_root_cleanup',None)
+   if row is None:
+    row={'known_root_handle':self.hp,'pid':self.pid,'assigned':False,'resumed':False,'status':'UNKNOWN','not_containment_qualification':True};self.unassigned_root_cleanup=row
+    self.api.TerminateProcess(self.hp,121);wait=self.k.WaitForSingleObject(self.hp,max(0,int((self.end-time.monotonic())*1000)));row['wait_result']=int(wait)
+    model.need(wait==0,'CB01_UNASSIGNED_ROOT_WAIT_UNKNOWN');row['status']='KNOWN_ROOT_TERMINAL'
+   model.need(row.get('status')=='KNOWN_ROOT_TERMINAL' and row.get('known_root_handle')==self.hp and row.get('pid')==self.pid and row.get('assigned') is False and type(row.get('wait_result')) is int and row['wait_result']==0,'CB01_UNASSIGNED_ROOT_EVIDENCE_UNKNOWN')
+  else:
+   self.c.set_last_error(0);raw=self.k.TerminateJobObject(self.job,126);ok=bool(raw);error=None if ok else self.c.get_last_error()
+   self.emit('OWN_JOB_CLEANUP_REQUEST',{'job_name':self.job_name,'job_handle':int(self.job),'raw_return':int(raw),'ok':ok,'win32_error':error,'requested_exit':126,'cleanup_not_containment_PASS':True});model.need(ok,'OWN_JOB_TERMINATION_FAILED')
   self.confirm_handles(self.end);code=self.w.DWORD();self.c.set_last_error(0);ok=self.k.GetExitCodeProcess(self.hp,self.c.byref(code));self.record_api('GetExitCodeProcess',ok,{'handle':int(self.hp),'exit_code':code.value})
+  model.need(type(code.value) is int and code.value!=259,'CB01_ROOT_EXIT_UNKNOWN')
   acct=self.query(1);ids=self.query(3);self.emit('OWN_JOB_CLEANUP_OBSERVATION',{'accounting':acct,'ids':ids,'root_handle':int(self.hp),'root_wait_result':0,'root_exit_code':code.value,'cleanup_not_containment_PASS':True})
   contract.known_domain(acct,ids,self.pid,False)
-  return {'status':'KNOWN_ROOT_AND_JOB_TERMINAL_OBSERVED','accounting':acct,'ids':ids,'root_wait_result':0,'root_exit_code':code.value,'containment_qualified':False}
+  model.need(self.job==handle and self.job_name==name and self.root_phase==phase,'CB01_JOB_IDENTITY_CHANGED')
+  thread=getattr(self,'thread_close',{}).get('handle',getattr(self,'root_thread_handle',None))
+  return {'status':'KNOWN_ROOT_AND_JOB_TERMINAL_OBSERVED','phase':phase,'job_name':name,'job_handle':handle,'root_handle':self.hp,'root_thread_handle':thread,'root_pid':self.pid,'accounting':acct,'ids':ids,'root_wait_result':0,'root_exit_code':code.value,'containment_qualified':False,'atomic_snapshot':False}
+ def complete_cleanup(self,observed,closed):
+  model.need(observed['phase']==self.root_phase,'CB01_CLEANUP_PHASE_CHANGED')
+  row=states.finalize(observed,closed);self.root_phase=row['final_phase'];return row
