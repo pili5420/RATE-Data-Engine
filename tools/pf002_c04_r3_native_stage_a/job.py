@@ -1,6 +1,8 @@
 """Windows hosted-runner process containment. Imported lazily after signed runner proof."""
 import os,subprocess,time,threading,queue,sys,hashlib,json,types,shutil
 from pathlib import Path
+import cleanup_state as states
+from invocation_boundary import AuditRefused,known_no_dispatch_rejection
 class ContainmentError(RuntimeError):
  def __init__(self,code,win32_error=None,raw_wait_result=None):super().__init__(code);self.win32_error=win32_error;self.raw_wait_result=raw_wait_result
 def checked_command(command,env):
@@ -24,6 +26,7 @@ class WindowsJob:
   from ctypes import wintypes as w
   import _winapi
   self.c,self.w,self.api=ctypes,w,_winapi;self.handles=[];self.job=None
+  self.root_phase=states.NO_ROOT;self.root_creation_outcome='NOT_ATTEMPTED';self.root_pre_dispatch_receipt=None
   class BASIC(ctypes.Structure):
    _fields_=[('PerProcessUserTimeLimit',ctypes.c_longlong),('PerJobUserTimeLimit',ctypes.c_longlong),('LimitFlags',w.DWORD),('MinimumWorkingSetSize',ctypes.c_size_t),('MaximumWorkingSetSize',ctypes.c_size_t),('ActiveProcessLimit',w.DWORD),('Affinity',ctypes.c_size_t),('PriorityClass',w.DWORD),('SchedulingClass',w.DWORD)]
   class IO(ctypes.Structure):
@@ -84,8 +87,7 @@ class WindowsJob:
   si.lpAttributeList={'handle_list':[auth_handle,msvcrt.get_osfhandle(release_read),msvcrt.get_osfhandle(ready_write),si.hStdInput,si.hStdOutput,si.hStdError]}
   env={**env,'PF002_AUTH_PIPE':str(auth_handle),'PF002_RELEASE_PIPE':str(msvcrt.get_osfhandle(release_read)),'PF002_READY_PIPE':str(msvcrt.get_osfhandle(ready_write))}
   try:
-   hp,ht,pid,tid=self.api.CreateProcess(str(command[0]),subprocess.list2cmdline([str(x) for x in command]),None,None,True,0x4|0x08000000|0x80000,env,str(cwd),si)
-   self.hp=hp;self.pid=pid;self.handles=[hp]
+   hp,ht,pid,tid=self.create_root(command,cwd,env,si)
    active_before_resume,pids_before_resume=self.assign_and_resume(hp,ht,pid,tid,len(si.lpAttributeList['handle_list']))
    os.close(read_fd);self.pending_fds.discard(read_fd);read_fd=None
    # Bounded proof <=16KiB; child starts reading immediately. No tokens in ENV/argv/files/logs.
@@ -111,25 +113,45 @@ class WindowsJob:
    if write_fd is not None:
     try:os.close(write_fd);self.pending_fds.discard(write_fd)
     except OSError:pass
+ def create_root(self,command,cwd,env,si):
+  # Called only after launch validated fixed command/context and built explicit pipes.
+  if type(command) is not list or not all(type(x) is str for x in command):raise ContainmentError('CB01_FIXED_COMMAND_TYPES')
+  checked_command(command,self.expected_env)
+  if type(cwd) not in (str,type(Path())) or str(cwd)!=str(Path(__file__).resolve().parent.parent.parent):raise ContainmentError('CB01_EXACT_CWD_REQUIRED')
+  if self.root_phase!=states.NO_ROOT or self.root_creation_outcome!='NOT_ATTEMPTED' or self.launch_attempted is not True:raise ContainmentError('CB01_CREATE_ONCE_FROM_NO_ROOT')
+  self.root_phase='CREATE_OUTCOME_UNKNOWN';self.root_creation_outcome='UNKNOWN'
+  try:hp,ht,pid,tid=self.api.CreateProcess(str(command[0]),subprocess.list2cmdline([str(x) for x in command]),None,None,True,0x4|0x08000000|0x80000,env,str(cwd),si)
+  except AuditRefused as exc:
+   if exc.audit_event=='_winapi.CreateProcess' and exc.pre_dispatch is True and exc.recorded is True and exc.receipt['decision']=='REJECT':
+    known_no_dispatch_rejection(exc.receipt)
+    self.root_phase=states.NO_ROOT;self.root_creation_outcome='AUDIT_REJECTED_BEFORE_DISPATCH';self.root_pre_dispatch_receipt=exc.receipt
+   raise
+  self.hp=hp;self.pid=pid;self.handles=[hp]
+  self.root_phase=states.SUSPENDED;self.root_creation_outcome='RETURNED_OWNED_HANDLE'
+  return hp,ht,pid,tid
  def owned_pipe(self):
   pair=os.pipe();self.pending_fds.update(pair);return pair
  def assign_and_resume(self,hp,ht,pid,tid,inherited_count):
   """Own both returned handles before any fallible evidence publishing."""
   assigned=False
+  if self.root_phase!=states.SUSPENDED:raise ContainmentError('CB01_SUSPENDED_STATE_REQUIRED')
   try:
    self.emit('JOB_API',{'api':'CreateProcess','ok':True,'win32_error':None,'pid':pid,'tid':tid,'process_handle':int(hp),'thread_handle':int(ht),'creation_flags':0x4|0x08000000|0x80000,'explicit_inherited_handle_count':inherited_count,'job_handle_not_inherited':True})
-   raw=self.k.AssignProcessToJobObject(self.job,hp);error=None if raw else self.c.get_last_error();assigned=bool(raw)
+   assigned=None;self.root_phase='ASSIGN_OUTCOME_UNKNOWN'
+   raw=self.k.AssignProcessToJobObject(self.job,hp);error=None if raw else self.c.get_last_error();assigned=bool(raw);self.root_phase=states.ASSIGNED if assigned else states.SUSPENDED
    self.emit('JOB_API',{'api':'AssignProcessToJobObject','raw_return':int(raw),'ok':assigned,'win32_error':error,'job_handle':int(self.job),'root_handle':int(hp),'before_resume':True})
    if not assigned:raise ContainmentError('ASSIGN_JOB_BEFORE_RESUME_FAILED',error)
    active=self.active();pids=self.pids()
    if active!=1 or pids!=[pid]:raise ContainmentError('SUSPENDED_ROOT_MEMBERSHIP_UNCONFIRMED')
+   self.root_phase='RESUME_OUTCOME_UNKNOWN'
    resumed=self.k.ResumeThread(ht);error=self.c.get_last_error() if resumed==0xffffffff else None
+   if resumed==1:self.root_phase=states.RESUMED
    self.emit('JOB_API',{'api':'ResumeThread','raw_return':int(resumed),'win32_error':error,'required_previous_suspend_count':1,'thread_handle':int(ht)})
    if resumed!=1:raise ContainmentError('RESUME_FAILED_OR_SUSPEND_COUNT_CONFLICT',error)
    return active,pids
   finally:
    try:
-    if not assigned:
+    if assigned is False:
      row={'known_root_handle':int(hp),'pid':pid,'assigned':False,'resumed':False,'termination_wrapper_success':False,'wait_result':None,'win32_error':None,'not_containment_qualification':True};self.unassigned_root_cleanup=row
      try:
       self.api.TerminateProcess(hp,121);row['termination_wrapper_success']=True
@@ -138,6 +160,7 @@ class WindowsJob:
      except BaseException as exc:
       row['status']='UNKNOWN';row['win32_error']=getattr(exc,'win32_error',getattr(exc,'winerror',row['win32_error']));raise
      else:row['status']='KNOWN_ROOT_TERMINAL'
+    elif assigned is None:self.unassigned_root_cleanup={'status':'UNKNOWN','assigned':None,'not_containment_qualification':True}
    finally:
     raw=self.k.CloseHandle(ht);error=None if raw else self.c.get_last_error();self.thread_close={'handle':int(ht),'raw_return':int(raw),'closed':bool(raw),'win32_error':error}
     if not raw:raise ContainmentError('THREAD_HANDLE_CLOSE_FAILED',error)

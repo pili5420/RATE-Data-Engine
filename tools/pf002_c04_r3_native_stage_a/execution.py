@@ -4,6 +4,7 @@ from pathlib import Path
 import controller as auth,contract,runner_proof as proof,source_integrity as source,transport
 SRC=auth.SRC;ROOT=auth.ROOT
 EVENTS=frozenset(('PREAUTH_HTTP_START','PREAUTH_HTTP_RESULT','PREAUTH_PASS','PREAUTH_HALT','NATIVE_STAGE_A_INTENT','ABI_LAYOUT','FILE_API_ABI','CONSTRUCTOR_RESOURCE_CLOSE','OWN_JOB_CREATED','JOB_API','RAW_JOB_QUERY','ROOT_BIRTH','WORKER_READY','KNOWN_ROOT_JOB_DOMAIN','PROCESS_API','ROOT_LIVENESS','FILE_OPEN_RESULT','FILE_DESCRIPTOR_HANDLE','FILE_NATIVE_QUERY','FILE_IDENTITY_SNAPSHOT','CANONICAL_FILE_COMPARISON','CANONICAL_FILE_HALT','FILE_CLOSE_RESULT','ROOT_IDENTITY','STAGE_A_SUBGATE_OBSERVED','WORKER_RELEASE','ROOT_WAIT','WORKER_COMPLETE','OWN_JOB_CLEANUP_REQUEST','OWN_JOB_CLEANUP_OBSERVATION','CLEANUP_UNKNOWN','OWN_RESOURCE_CLOSE','HALT','RUN_RESULT'))
+EVENTS=EVENTS|frozenset(('AUDIT_CREATEPROCESS','OWN_JOB_CLEANUP_FINAL'))
 class Journal:
  def __init__(self,root,head,rid,role):self.root=root;self.head=head;self.rid=rid;self.role=role;self.sequence=0;self.previous=None;self.jobs_created=0;self.children_created=0
  def emit(self,event,data):
@@ -39,6 +40,14 @@ def cleanup_resources(job,emit):
    try:emit('OWN_RESOURCE_CLOSE',closed)
    except BaseException:errors.append('CLOSE_EVIDENCE_UNKNOWN')
   finally:job.proof=None
+ if cleanup is not None and not errors:
+  try:
+   cleanup=job.complete_cleanup(cleanup,closed);emit('OWN_JOB_CLEANUP_FINAL',cleanup)
+  except BaseException as exc:
+   cleanup=None;errors.append('CLEANUP_FINALIZATION_UNKNOWN')
+   try:emit('CLEANUP_UNKNOWN',{'error_code':safe_error(exc),'win32_error':native_error(exc),'not_containment_PASS':True})
+   except BaseException:errors.append('CLEANUP_EVIDENCE_UNKNOWN')
+ elif cleanup is not None:cleanup=None
  return cleanup,closed,errors
 def run(boundary):
  credentials=transport.Credentials.consume_environment();pre_timer=None;native_timer=None;job=None;token=None
@@ -63,7 +72,7 @@ def run(boundary):
   proof.need(all(name not in os.environ for name in contract.SECRET_KEYS),'CREDENTIAL_ENV_NOT_CLEARED')
   credentials.destroy();credentials=None;t=None
   j.emit('NATIVE_STAGE_A_INTENT',{'source_head':head,'source_manifest_sha256':manifest_sha,'worker_source_sha256':worker_sha,'work_order_sha256':auth.WORK_ORDER_SHA256,'fixed_executable':sys.executable,'child_environment_keys':sorted(env),'credential_variables_absent':True,'scope':'SINGLE_ROOT_CANONICAL_FILE_IDENTITY_ONLY','NoAutoNext':True})
-  boundary.arm();cleanup=None;closed=None;ready=None;complete=None;before=None;after=None;exit_code=None;native_error_code=None
+  boundary.bind_evidence(j.emit);boundary.arm();cleanup=None;closed=None;ready=None;complete=None;before=None;after=None;exit_code=None;native_error_code=None
   try:
    from stage_a import StageAJob
    job=StageAJob(token,env,j.emit,time.monotonic()+10)

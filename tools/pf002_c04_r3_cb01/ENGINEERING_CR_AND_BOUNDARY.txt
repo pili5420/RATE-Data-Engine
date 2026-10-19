@@ -1,0 +1,90 @@
+PF002-C04-R3-CB01: strict Audit evidence and pre-launch cleanup corrective
+
+Authority: human direct work order SCOPED_R3_AUDIT_AND_PRELAUNCH_CLEANUP_CORRECTIVE.
+Base: PR88 ce9aed927262fea6205a4693031979a36ff13d38.
+Stacked dependency: codex/pf002-c04-r3-pf01-byte-exact-stage-a-v1, not main.
+Only this independent CB01 branch changes. Original accepted/failure heads remain fixed.
+
+Problem and resulting behavior
+1. The original audit guard raised ONE_FIXED_NATIVE_ROOT_ONLY without exporting its
+   predicate evidence. The new guard preserves exact builtin-string equality and
+   captures closed, bounded metadata before allowing or refusing the same event.
+   Unapproved observed values are never printed, hashed, serialized or coerced.
+   The current code/tool/manifest hashes bind that receipt; it is not authorization.
+2. The original cleanup unconditionally used self.hp even when CreateProcess had
+   been rejected before returning an owned process handle. New explicit lifecycle
+   states preserve CREATE/ASSIGN/RESUME unknown outcomes. Absence of hp cannot
+   prove absence of a process. Only a not-attempted call or a recorded, validated,
+   first STAGE_A rejection with zero prior accepted creates can support NO_ROOT.
+3. NO_ROOT cleanup queries the same newly owned Job's ACCT/PID list only. Full,
+   strict, consistent zero-process evidence is PENDING_CLOSE. EMPTY confirmation
+   requires successful exact Job CloseHandle and all other resources closed.
+   Unknown members, API/evidence/close failures never become a confirmation.
+4. Suspended, unassigned known roots may be terminated by their retained owned
+   handle once. Assigned roots use only the owned Job and retained known handle.
+   Neither successful TerminateJobObject nor CloseHandle proves containment.
+   Unknown assignment/resume outcomes are not silently reclassified.
+
+Source semantics and proof boundaries
+The frozen v3.12.10 _winapi.c declares command_line as PyObject*, then supplies it
+to the "uuu" audit builder before Unicode command_line_copy conversion.
+sysmodule.c forwards the format to _Py_VaBuildValue_SizeT; modsupport.c case 'u'
+reads a Py_UNICODE* and uses wcslen/PyUnicode_FromWideChar. This is a source-level
+format/type inconsistency. It is not an observation of Run39188105262's tuple,
+its refcount/memory, exact failing predicate, or installed-binary behavior.
+Historical Audit Root Cause remains UNPROVEN. No corrupted value is accepted,
+no C-runtime workaround or alternate launcher is introduced.
+
+Primary sources (raw hashes/lines are in the external evidence package):
+https://raw.githubusercontent.com/python/cpython/v3.12.10/Modules/_winapi.c
+https://raw.githubusercontent.com/python/cpython/v3.12.10/Python/sysmodule.c
+https://raw.githubusercontent.com/python/cpython/v3.12.10/Python/modsupport.c
+https://raw.githubusercontent.com/python/cpython/v3.12.10/Doc/c-api/arg.rst
+https://learn.microsoft.com/en-us/windows/win32/api/jobapi2/nf-jobapi2-queryinformationjobobject
+https://learn.microsoft.com/en-us/windows/win32/api/jobapi2/nf-jobapi2-terminatejobobject
+
+Minimal source changes
+R3 invocation_boundary.py,job.py,stage_a.py,execution.py; source manifest; new
+cleanup_state.py and versioned EVIDENCE_SCHEMA_CB01_V2.json. V1 schema is unchanged.
+entry.py unconditionally refuses Native execution at this candidate Head.
+The original R3 Native workflow and signed provenance, transport, comparator,
+worker, API allowlist and limits remain unchanged. A new offline-only CI workflow
+has contents:read, no dispatch input, id-token, API credentials or Native job.
+
+Regression integrity
+All582 accepted IDs and assertion ASTs are retained. Two synthetic fixture setup
+sites gain explicit phase/owned-handle/creation-outcome fields; assertions and
+expected results are unchanged. They supply evidence the stricter model now needs.
+New CB01 tests use fake providers under a process-wide Native/network/process/
+registry denial hook. Original V1 text is data only; the RED test extracts only
+the frozen cleanup method AST with a fake kernel. The resulting AttributeError
+proves the Python control-flow defect, not the historical raw Windows exception.
+Development logs are preserved separately from final exact-head qualification.
+
+Threat model
+- Wrong command/CWD/type/arity/state/count: terminal audit refusal, no retry.
+- Malicious observed values: builtin type categories only, no repr/str/equality
+  on unknown objects, bounded lengths, hashes only of exact approved values.
+- Receipt tamper/source changes: closed strict receipt plus actual source hashes.
+- Missing handle or wrapper exception: unknown creation outcome, never empty PASS.
+- PID reuse/unknown members: no unknown PID OpenProcess or individual termination.
+- False cleanup PASS: raw accounting plus exact close evidence and full states.
+- Partial evidence/close failure: UNKNOWN; no promotion from observation alone.
+- Publication accidentally triggering Native: CB01 CLI disabled, offline workflow
+  only, full workflow trigger audit and independent pre-publication review.
+
+Residual risks and next authorization
+Sequential reads are not atomic snapshots. Same-process audit is not a general
+sandbox. Mock/control-flow and source analysis cannot attest native ABI, physical
+process absence, disk-loaded-image identity, hard deadlines or RS02 containment.
+No current Native, audit-only, Owner Consent or OriginalHost authorization exists.
+Historical Audit Root Cause must remain UNPROVEN until a separately authorized
+bounded no-root audit-only design captures actual metadata. Such a future design
+must reject unconditionally before OS process creation even if arguments match;
+no such executable harness or permission is delivered or activated here.
+Full Hosted Root qualification is NOT ELIGIBLE. Separate explicit ControlCenter
+authorization, source/provenance qualification and independent preflight are needed.
+
+Always: UnknownMemberOriginUNPROVEN; ownership/containment defectsOPEN;
+RS02/CompleteRuntimeBLOCKED; OwnerConsentNOT_ISSUED; OriginalHostNOT_AUTHORIZED;
+OriginalGUIHALTRootCauseUNKNOWN. No Merge/Deploy/Pagefile/Production/AutoNext.

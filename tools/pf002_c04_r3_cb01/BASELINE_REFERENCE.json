@@ -1,0 +1,16 @@
+{
+  "executable_status": "DATA_ONLY_AST_EXTRACTED_BY_OFFLINE_TESTS_UNDER_NATIVE_DENY_GUARD",
+  "files": {
+    "BASELINE_BOUNDARY_V1.txt": {
+      "base_path": "tools/pf002_c04_r3_native_stage_a/invocation_boundary.py",
+      "bytes": 1587,
+      "sha256": "e6dde5e5466796ff7f6c3655c59003e6448515dd3d7cf2264b1f9378828e6ccf"
+    },
+    "BASELINE_STAGE_A_V1.txt": {
+      "base_path": "tools/pf002_c04_r3_native_stage_a/stage_a.py",
+      "bytes": 8297,
+      "sha256": "9a232d9461cc8eeb273730c7a20d58ed7f2eeee887e4cd29c8002d2eb0cba282"
+    }
+  },
+  "head": "ce9aed927262fea6205a4693031979a36ff13d38"
+}
