@@ -24,7 +24,10 @@ ALLOWED = {
     "tests/test_phase2_production.py", "tests/test_phase2_compatibility.py",
 }
 GROUPS = {
-    "existing_131": (OLD_MODULES, 131),
+    # PR #90 added three scheduler regressions and the current imported suite now
+    # executes 135 tests. Keep the historical group key stable for downstream
+    # evidence consumers; only the exact current-main count changes.
+    "existing_131": (OLD_MODULES, 135),
     "pr42_56": (["test_public_official_partial_valid", "test_partial_to_evening_acceptance"], 56),
     "report_soak_48": (["test_report_production_soak"], 48),
     "scheduler_lock_8": (["test_cer081_scheduler_lock_validation"], 8),
