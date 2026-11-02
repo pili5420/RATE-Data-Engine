@@ -279,12 +279,14 @@ def validate_catalogue(catalogue, trading_date):
                     "OFFICIAL_CATALOGUE_RECEIPT_REQUIRED")
         for row in market["records"]:
             expected = row.get("cfi_code", "").startswith("ES") and row.get("official_listing_market") in NORMAL_LISTING_MARKETS[market["market"]]
-            try:
-                listed_on = date.fromisoformat(str(row.get("official_listing_date", "")))
-            except ValueError as exc:
-                raise RuntimeError("CATALOGUE_LISTING_DATE_INVALID") from exc
-            require(listed_on.isoformat() == row.get("official_listing_date") and listed_on.isoformat() <= trading_date,
-                    "CATALOGUE_LISTING_DATE_INVALID")
+            listed_value = row.get("official_listing_date")
+            if listed_value is not None:
+                try:
+                    listed_on = date.fromisoformat(str(listed_value))
+                except ValueError as exc:
+                    raise RuntimeError("CATALOGUE_LISTING_DATE_INVALID") from exc
+                require(listed_on.isoformat() == listed_value and listed_on.isoformat() <= trading_date,
+                        "CATALOGUE_LISTING_DATE_INVALID")
             require(row.get("eligible") is expected and row.get("eligibility") is expected
                     and row.get("market") == market["market"], "ELIGIBILITY_DECISION_INVALID")
             if expected:
