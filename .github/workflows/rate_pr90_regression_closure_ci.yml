@@ -29,6 +29,11 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Preserve exact Git blob bytes
+        shell: bash
+        run: |
+          git config core.autocrlf false
+          git reset --hard HEAD
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
