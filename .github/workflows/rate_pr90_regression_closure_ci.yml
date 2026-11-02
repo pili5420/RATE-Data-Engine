@@ -1,0 +1,49 @@
+name: RATE PR90 Regression Closure
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - tests/test_rate_soak_005.py
+      - tests/report_soak_support.py
+      - tests/test_full_market_rotation.py
+      - .github/workflows/rate_pr90_regression_closure_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Preserve exact Git blob bytes
+        shell: bash
+        run: |
+          git config core.autocrlf false
+          git reset --hard HEAD
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install lxml==6.1.1 tzdata==2025.2 PyYAML==6.0.3
+      - name: PR90 regression closure
+        run: >-
+          python -B -m unittest
+          tests.test_rate_soak_005
+          tests.test_report_production_soak
+          tests.test_full_market_rotation
+          tests.test_production_scheduler_change_control -v
+      - name: No tracked mutation
+        run: git diff --exit-code

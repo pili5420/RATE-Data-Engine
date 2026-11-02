@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -225,7 +226,8 @@ class RateSoak005Tests(unittest.TestCase):
         return bootstrap_recovery_state(**args), state
 
     def context(self, day, cadence, artifacts=None):
-        with patch("scripts.resolve_production_runtime_context._today_taipei", return_value=day):
+        scheduled_now = datetime.fromisoformat(f"{day}T{cadence}:01+08:00")
+        with patch("scripts.resolve_production_runtime_context._now_taipei", return_value=scheduled_now):
             return resolve_context(cadence=cadence, event_name="schedule", dispatch_trading_date="2026-09-18",
                                    state_root=(artifacts or self.artifacts) / "production_state")
 
