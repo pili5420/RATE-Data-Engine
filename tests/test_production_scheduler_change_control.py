@@ -7,7 +7,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from scripts.resolve_production_runtime_context import resolve_context
+from scripts.resolve_production_runtime_context import _scheduled_nominal_trading_date, resolve_context
 from scripts.validate_production_scheduler_safety import validate
 from scripts.publish_production_state_latest import publish_state
 from scripts.seed_live_production_state import seed
@@ -201,13 +201,40 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
         finally:
             shutil.rmtree(root, ignore_errors=True)
 
+    def test_schedule_nominal_date_survives_1930_runner_delay_past_midnight(self):
+        taipei = timezone(timedelta(hours=8))
+        resolved = _scheduled_nominal_trading_date(
+            "19:30",
+            now=datetime(2026, 10, 31, 1, 5, tzinfo=taipei),
+            schedule_expression="30 11 * * 1-5",
+        )
+        self.assertEqual(resolved, "2026-10-30")
+
+    def test_schedule_nominal_date_keeps_same_day_for_delayed_morning_run(self):
+        taipei = timezone(timedelta(hours=8))
+        resolved = _scheduled_nominal_trading_date(
+            "07:30",
+            now=datetime(2026, 11, 2, 10, 39, tzinfo=taipei),
+            schedule_expression="30 23 * * 0-4",
+        )
+        self.assertEqual(resolved, "2026-11-02")
+
+    def test_schedule_expression_mismatch_fails_closed(self):
+        taipei = timezone(timedelta(hours=8))
+        with self.assertRaisesRegex(RuntimeError, "SCHEDULE_EXPRESSION_MISMATCH"):
+            _scheduled_nominal_trading_date(
+                "19:30",
+                now=datetime(2026, 10, 31, 1, 5, tzinfo=taipei),
+                schedule_expression="0 0 * * *",
+            )
+
     def test_schedule_resolves_dynamic_taiwan_trading_date_and_blocks_missing_live_predecessor(self):
         root = Path("artifacts/test-production-scheduler-change-control")
         try:
             shutil.rmtree(root, ignore_errors=True)
             root.mkdir(parents=True, exist_ok=True)
             context = resolve_context(cadence='09:30', event_name='schedule', dispatch_trading_date=None, state_root=root)
-            self.assertEqual(context['trading_date_resolution'], 'DYNAMIC_TAIWAN_TRADING_DATE')
+            self.assertEqual(context['trading_date_resolution'], 'SCHEDULE_NOMINAL_TAIPEI_CADENCE_DATE')
             self.assertNotEqual(context['trading_date'], '2026-09-18')
             self.assertEqual(context['previous_state_resolution'], 'LIVE_PRODUCTION_STATE_STORE')
             if context['runtime_mode'] == 'RUN':
