@@ -33,7 +33,8 @@ jobs:
         shell: bash
         run: |
           git config core.autocrlf false
-          git reset --hard HEAD
+          git checkout-index --all --force
+          git diff --exit-code
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
