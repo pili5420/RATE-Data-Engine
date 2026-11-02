@@ -305,7 +305,8 @@ class FullMarketRotationTests(unittest.TestCase):
         names = subprocess.check_output(["git", "-C", str(ROOT), "ls-tree", "-r", "--name-only", BASE]).decode().splitlines()
         integration = {"scripts/build_production_source_bundle_from_official.py", "scripts/resolve_production_runtime_context.py",
                        "scripts/publish_production_state_latest.py", "scripts/publish_production_source_bundle_latest.py",
-                       "tests/test_production_scheduler_change_control.py"}
+                       "tests/test_production_scheduler_change_control.py", "tests/test_rate_soak_005.py",
+                       "tests/report_soak_support.py", "tests/test_full_market_rotation.py"}
         integration.update(f".github/workflows/rate_production_{slot}_scheduler.yml" for slot in ("0730", "0930", "1200", "1930"))
         integration.add(".github/workflows/rate_public_official_partial_valid_ci.yml")
         for name in names:
