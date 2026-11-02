@@ -19,11 +19,20 @@ GOVERNANCE_FILES = {
     "docs/RATE_CI_APPLICABILITY_GOVERNANCE_V1.md",
 }
 WORKFLOW = ".github/workflows/rate_public_official_partial_valid_ci.yml"
-GOVERNANCE_TEST_COUNT = 12
 CURRENT_MAIN_GROUPS = {
     **GROUPS,
     "atomic_publication_inherited": (["test_atomic_refresh_publication"], 29),
 }
+
+
+def inventory_delta(base_ids, head_ids):
+    base = list(base_ids)
+    head = list(head_ids)
+    if len(base) != len(set(base)) or len(head) != len(set(head)):
+        raise ValueError("TEST_INVENTORY_DUPLICATE_ID")
+    missing = sorted(set(base) - set(head))
+    return {"base_count": len(base), "head_count": len(head), "missing_base_ids": missing,
+            "base_preserved": not missing}
 
 
 def applicability(base, head, merge_base, current_main, changed, clean):
@@ -53,6 +62,19 @@ def main():
     if len(sys.argv) > 1 and sys.argv[1] == "--test-child":
         sys.addaudithook(network_guard)
         return child(Path(sys.argv[2]), sys.argv[3:])
+    if len(sys.argv) > 1 and sys.argv[1] == "--inventory-child":
+        sys.addaudithook(network_guard)
+        sys.path.insert(0, str(Path.cwd()))
+        import unittest
+        def flatten(suite):
+            result = []
+            for item in suite:
+                result.extend(flatten(item) if isinstance(item, unittest.TestSuite) else [item.id()])
+            return result
+        suite = unittest.defaultTestLoader.loadTestsFromNames(["tests." + name for name in sys.argv[3:]])
+        ids = flatten(suite)
+        write(Path(sys.argv[2]), {"test_ids": ids, "test_count": len(ids)})
+        return 0
     p = argparse.ArgumentParser()
     p.add_argument("--expected-base", required=True)
     p.add_argument("--expected-head", required=True)
@@ -90,33 +112,61 @@ def main():
             package["strict"] = strict
         else:
             results = {}
+            inventories = {}
             with tempfile.TemporaryDirectory(prefix="cg-", dir=ROOT.parent) as directory:
+                base_mirror = Path(directory) / "b"
                 mirror = Path(directory) / "h"
+                extract(a.expected_base, base_mirror)
                 extract(a.expected_head, mirror)
-                (mirror / ".git").write_text("gitdir: " + git("rev-parse", "--absolute-git-dir") + "\n", encoding="utf-8")
+                gitdir = git("rev-parse", "--absolute-git-dir")
+                (base_mirror / ".git").write_text("gitdir: " + gitdir + "\n", encoding="utf-8")
+                (mirror / ".git").write_text("gitdir: " + gitdir + "\n", encoding="utf-8")
                 temp = Path(directory) / "t"
                 temp.mkdir()
                 env = {**os.environ, "TEMP": str(temp), "TMP": str(temp),
                        "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8"}
-                groups = {**CURRENT_MAIN_GROUPS, "ci_applicability_new": (["test_ci_applicability"], GOVERNANCE_TEST_COUNT)}
-                for name, (modules, count) in groups.items():
+                groups = {**CURRENT_MAIN_GROUPS, "ci_applicability_new": (["test_ci_applicability"], None)}
+                for name, (modules, _) in groups.items():
+                    base_inventory_path = output / (name + "-base-inventory.json")
+                    head_inventory_path = output / (name + "-head-inventory.json")
+                    base_inventory_run = subprocess.run([sys.executable, "-B",
+                        str(mirror / "scripts/verify_ci_applicability.py"), "--inventory-child",
+                        str(base_inventory_path), *modules], cwd=base_mirror, env=env, capture_output=True)
+                    head_inventory_run = subprocess.run([sys.executable, "-B",
+                        str(mirror / "scripts/verify_ci_applicability.py"), "--inventory-child",
+                        str(head_inventory_path), *modules], cwd=mirror, env=env, capture_output=True)
+                    if base_inventory_run.returncode or head_inventory_run.returncode:
+                        raise ValueError("TEST_INVENTORY_DISCOVERY_FAILED:" + name)
+                    base_inventory = json.loads(base_inventory_path.read_text(encoding="utf-8"))
+                    head_inventory = json.loads(head_inventory_path.read_text(encoding="utf-8"))
+                    delta = inventory_delta(base_inventory["test_ids"], head_inventory["test_ids"])
+                    if not delta["base_preserved"]:
+                        raise ValueError("CURRENT_MAIN_TEST_DELETION_FORBIDDEN:" + name + ":" + ",".join(delta["missing_base_ids"]))
+                    inventories[name] = delta
+
                     report = output / (name + ".json")
                     run = subprocess.run([sys.executable, "-B", str(mirror / "scripts/verify_ci_applicability.py"),
                         "--test-child", str(report), *modules], cwd=mirror, env=env, capture_output=True)
                     (output / (name + ".log")).write_bytes(run.stdout + run.stderr)
                     result = json.loads(report.read_text(encoding="utf-8"))
-                    result.update(exit_code=run.returncode, exact_count_pass=result["tests_run"] == count)
+                    result.update(exit_code=run.returncode,
+                                  exact_count_pass=result["tests_run"] == delta["head_count"],
+                                  inventory_base_preserved=delta["base_preserved"],
+                                  base_test_count=delta["base_count"], head_test_count=delta["head_count"])
                     results[name] = result
-                    print(json.dumps({"group": name, "tests": result["tests_run"], "pass": result["all_pass"]}), flush=True)
+                    print(json.dumps({"group": name, "tests": result["tests_run"], "pass": result["all_pass"],
+                                      "base_tests": delta["base_count"], "head_tests": delta["head_count"]}), flush=True)
                 run = subprocess.run([sys.executable, "-B", str(mirror / "scripts/verify_phase2_compatibility.py"),
                     "--proof-child", str(output / "continuity-proof")], cwd=mirror, env=env, capture_output=True)
                 (output / "continuity-proof.log").write_bytes(run.stdout + run.stderr)
                 proof_pass = run.returncode == 0
-            tests_pass = all(r["all_pass"] and r["exact_count_pass"] and not r["exit_code"]
-                             and not r["skipped"] for r in results.values())
-            package.update(results=results, proof_exit_code=run.returncode,
-                           existing_tests=sum(count for _, count in CURRENT_MAIN_GROUPS.values()),
-                           governance_tests=GOVERNANCE_TEST_COUNT,
+            tests_pass = all(r["all_pass"] and r["exact_count_pass"] and r["inventory_base_preserved"]
+                             and not r["exit_code"] and not r["skipped"] for r in results.values())
+            package.update(results=results, test_inventory_deltas=inventories, proof_exit_code=run.returncode,
+                           existing_tests=sum(row["head_count"] for name, row in inventories.items()
+                                              if name != "ci_applicability_new"),
+                           governance_tests=inventories["ci_applicability_new"]["head_count"],
+                           current_main_test_deletion_forbidden=True,
                            applicability_result=verdict(mode, tests_pass, proof_pass))
         if git("rev-parse", "HEAD") != a.expected_head or git("status", "--porcelain") or git("rev-parse", "origin/main") != current:
             raise ValueError("EXECUTION_BINDING_CHANGED")
