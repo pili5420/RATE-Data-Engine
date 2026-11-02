@@ -1,5 +1,6 @@
 """SYNTHETIC ENGINEERING ONLY: 07:30 transport fixtures + real intraday/EOD CLIs."""
 import copy
+from datetime import datetime
 from pathlib import Path
 import subprocess
 import sys
@@ -55,7 +56,8 @@ class ReportSoakFixture:
             t.day, t.root = day, self.base / day
             t.runtime = t.root / "runtime"
             t.root.mkdir(parents=True, exist_ok=True)
-            with patch("scripts.resolve_production_runtime_context._today_taipei", return_value=day):
+            with patch("scripts.resolve_production_runtime_context._now_taipei",
+                       return_value=datetime.fromisoformat(f"{day}T07:30:01+08:00")):
                 context = resolve_context(cadence="07:30", event_name="schedule", dispatch_trading_date=None,
                     state_root=self.artifacts / "production_state")
             t.assertEqual(context["validation_status"], "PASS")
@@ -78,7 +80,8 @@ class ReportSoakFixture:
             t.assertEqual(result["validation_status"], "PASS")
             self.record(day, "07:30", source_path, context)
             for cadence, number in (("09:30", "076"), ("12:00", "077")):
-                with patch("scripts.resolve_production_runtime_context._today_taipei", return_value=day):
+                with patch("scripts.resolve_production_runtime_context._now_taipei",
+                           return_value=datetime.fromisoformat(f"{day}T{cadence}:01+08:00")):
                     context = resolve_context(cadence=cadence, event_name="schedule", dispatch_trading_date=None,
                         state_root=self.artifacts / "production_state")
                 previous_path = Path(context["previous_state_evidence_path"])
@@ -102,7 +105,8 @@ class ReportSoakFixture:
                     workflow_job_id="2000", event_name="schedule", ref="refs/heads/main", commit_sha="a" * 40)
                 t.assertEqual(published["validation_status"], "PASS", published)
                 self.record(day, cadence, source_path, context)
-            with patch("scripts.resolve_production_runtime_context._today_taipei", return_value=day):
+            with patch("scripts.resolve_production_runtime_context._now_taipei",
+                       return_value=datetime.fromisoformat(f"{day}T19:30:01+08:00")):
                 context = resolve_context(cadence="19:30", event_name="schedule", dispatch_trading_date=None,
                     state_root=self.artifacts / "production_state")
             source_path = t.root / "evening-source.json"
