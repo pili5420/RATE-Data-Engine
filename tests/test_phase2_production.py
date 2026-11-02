@@ -292,8 +292,21 @@ class Phase2ProductionTests(unittest.TestCase):
                 [symbol + " Fixture", "ISIN" + symbol, "2000/01/01", "TWSE LISTED", "", cfi, ""]) + "</tr>"
         _, records = parse_classification((body + "</table>").encode("big5"), "TWSE")
         self.assertEqual([row["eligible"] for row in records], [case[3] for case in cases])
+        self.assertTrue(all(row["official_listing_date"] == "2000-01-01" for row in records))
         catalogue = fake_catalogue(self.day, ["LONG-COMMON-CODE"] + [str(i) for i in range(60)])
         self.assertTrue(validate_catalogue(catalogue, self.day))
+
+    def test_listing_date_is_official_source_bound_and_future_date_rejected(self):
+        catalogue = fake_catalogue(self.day)
+        self.assertTrue(all(row["official_listing_date"] == "2000-01-01"
+                            for market in catalogue["markets"] for row in market["records"]))
+        future = copy.deepcopy(catalogue)
+        future["markets"][0]["records"][0]["official_listing_date"] = "2099-01-01"
+        future["markets"][0]["records_sha256"] = sha256(future["markets"][0]["records"])
+        future["content_hash"] = sha256({k: v for k, v in future.items() if k not in ("content_hash", "catalogue_id")})
+        future["catalogue_id"] = "rate-full-market-catalogue-" + future["content_hash"][:24]
+        with self.assertRaisesRegex(RuntimeError, "CATALOGUE_LISTING_DATE_INVALID"):
+            validate_catalogue(future, self.day)
 
     def test_schedulers_keep_cron_and_phase2_is_explicit_opt_in(self):
         import yaml
