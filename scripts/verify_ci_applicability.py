@@ -19,9 +19,14 @@ GOVERNANCE_FILES = {
     "docs/RATE_CI_APPLICABILITY_GOVERNANCE_V1.md",
 }
 WORKFLOW = ".github/workflows/rate_public_official_partial_valid_ci.yml"
-GOVERNANCE_TEST_COUNT = 12
+GOVERNANCE_TEST_COUNT = 13
 CURRENT_MAIN_GROUPS = {
     **GROUPS,
+    # Historical Phase2 acceptance remains pinned at 131 in its original verifier.
+    # Current main gained four additional OLD_MODULES tests after PR #90; the
+    # replacement gate must use the actual current-main inventory without
+    # rewriting historical acceptance.
+    "existing_131": (GROUPS["existing_131"][0], 135),
     "atomic_publication_inherited": (["test_atomic_refresh_publication"], 29),
 }
 
