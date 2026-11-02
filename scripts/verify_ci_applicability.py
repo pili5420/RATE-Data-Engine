@@ -19,6 +19,10 @@ GOVERNANCE_FILES = {
     "docs/RATE_CI_APPLICABILITY_GOVERNANCE_V1.md",
 }
 WORKFLOW = ".github/workflows/rate_public_official_partial_valid_ci.yml"
+# Compatibility export for inherited exact-head verifiers. The current-main
+# replacement gate below discovers inventories dynamically and does not trust
+# this value for admission.
+GOVERNANCE_TEST_COUNT = 15
 CURRENT_MAIN_GROUPS = {
     **GROUPS,
     "atomic_publication_inherited": (["test_atomic_refresh_publication"], 29),
