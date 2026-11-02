@@ -1,0 +1,714 @@
+{
+  "artifact_kind": "RATE_CONTROLLED_BATCH_ENGINEERING_REQUIREMENT_MATRIX_V1",
+  "design_package_sha256": "1ffb7ae926a4d6ce88461f7d7dc839c71eefac36f7a107f5da54217429f97358",
+  "required_platforms": [
+    "Windows",
+    "Linux"
+  ],
+  "rows": [
+    {
+      "requirement_id": "BATCH-01",
+      "category": "policy_and_issuer",
+      "requirement": "unapproved policy rejected",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_authority.PolicyTests.test_missing_approval"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-02",
+      "category": "policy_and_issuer",
+      "requirement": "window range/identity mismatch",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_authority.PolicyTests.test_wrong_window_ordinal",
+        "tests.test_history_batch_authority.PolicyTests.test_wrong_chunk_ids"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-03",
+      "category": "policy_and_issuer",
+      "requirement": "wrong manifest/scope/universe",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_authority.PolicyTests.test_wrong_manifest_sha256",
+        "tests.test_history_batch_authority.PolicyTests.test_wrong_scope_sha256",
+        "tests.test_history_batch_authority.PolicyTests.test_wrong_universe_sha256"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-04",
+      "category": "policy_and_issuer",
+      "requirement": "wrong producer/executor/Sidecar/issuer Head",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_authority.PolicyTests.test_wrong_main_sha",
+        "tests.test_history_batch_authority.PolicyTests.test_wrong_sidecar_head",
+        "tests.test_history_batch_authority.PolicyTests.test_wrong_engineering_head",
+        "tests.test_history_batch_authority.PolicyTests.test_wrong_engineering_owner_sha256_lf",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_source_head_and_owner_binding_readonly",
+        "tests.test_history_batch_containment.ContainmentTests.test_wrong_head_rejected_before_any_issuer_process_or_key",
+        "tests.test_history_batch_containment.ContainmentTests.test_wrong_owner_rejected_before_any_issuer_process_or_key"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-05",
+      "category": "policy_and_issuer",
+      "requirement": "wrong root and path alias",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_malformed_or_extra_root_policy_fails_before_claim",
+        "tests.test_history_batch_authority.JournalTests.test_formal_root_denied"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-06",
+      "category": "policy_and_issuer",
+      "requirement": "expired or revoked policy",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_authority.PolicyTests.test_expired",
+        "tests.test_history_batch_authority.PolicyTests.test_future_policy",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_revocation_before_release"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-07",
+      "category": "policy_and_issuer",
+      "requirement": "untrusted signature/key/epoch",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_authority.SignatureTests.test_signature_tamper",
+        "tests.test_history_batch_authority.SignatureTests.test_unknown_key",
+        "tests.test_history_batch_authority.SignatureTests.test_key_epoch_mismatch",
+        "tests.test_history_batch_orchestration.PacketSecurityTests.test_head_payload_signature_and_purpose_tamper",
+        "tests.test_history_batch_orchestration.PacketSecurityTests.test_valid_local_digest_is_not_external_signature"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-08",
+      "category": "policy_and_issuer",
+      "requirement": "file pin vs semantic pin confusion",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_authority.SignatureTests.test_semantic_digest_cannot_replace_file_pin",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_registry_mutation_cannot_self_pin_during_initialize",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_registry_mutation_after_initialize_is_rejected_before_claim",
+        "tests.test_history_batch_authority.CanonicalProtocolTests.test_duplicate_noncanonical_truncated_encodings_rejected",
+        "tests.test_history_batch_orchestration.PacketSecurityTests.test_complete_packet_and_nested_missing_or_extra_fields",
+        "tests.test_history_batch_orchestration.PacketSecurityTests.test_integer_counters_reject_bool_float_string_zero_negative",
+        "tests.test_history_batch_orchestration.PacketSecurityTests.test_issuer_events_strict_schema_type_and_chain",
+        "tests.test_history_batch_authority.JournalTests.test_intent_and_checkpoint_numeric_aliases_fail_cold_replay"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-09",
+      "category": "policy_and_issuer",
+      "requirement": "duplicate JSON key/nonfinite rejection",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_authority.PolicyTests.test_duplicate_keys_and_nonfinite_metadata"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-10",
+      "category": "policy_and_issuer",
+      "requirement": "scope overlap across windows",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_restart_overlapping_window_nonce_cannot_reissue",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_global_issuer_root_cannot_be_replaced"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-11",
+      "category": "policy_and_issuer",
+      "requirement": "request budget sum mismatch",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_authority.PolicyTests.test_request_budget_not_multiplied_by_cap",
+        "tests.test_history_batch_authority.PolicyTests.test_wrong_per_chunk_requests"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-12",
+      "category": "policy_and_issuer",
+      "requirement": "global lifetime double issuance rejected",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_global_single_release_before_any_claim",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_restart_overlapping_window_nonce_cannot_reissue"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-13",
+      "category": "policy_and_issuer",
+      "requirement": "issuer account/key inaccessible from runner",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_no_sign_rpc_and_no_private_key_export",
+        "tests.test_history_batch_containment.ContainmentTests.test_owner_signing_key_never_serialized_by_worker"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-14",
+      "category": "policy_and_issuer",
+      "requirement": "issuer independently rebuilds original Plan/Seal",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_rebuilds_seal_not_runner_value"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-15",
+      "category": "policy_and_issuer",
+      "requirement": "pending candidate rejected as formal authorization",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_pending_candidate_is_not_authorized"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-16",
+      "category": "policy_and_issuer",
+      "requirement": "acceptance purpose not implicitly delegated",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_authority.PolicyTests.test_acceptance_not_implicitly_delegated",
+        "tests.test_history_batch_authority.SignatureTests.test_wrong_purpose_cannot_grant_acceptance"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-17",
+      "category": "orchestration_and_cold_replay",
+      "requirement": "three-chunk success gated per step",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_three_chunk_pilot_full_owner_e2e",
+        "tests.test_history_batch_orchestration.PacketSecurityTests.test_legitimate_reserve_sequence_divergence"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-18",
+      "category": "orchestration_and_cold_replay",
+      "requirement": "ten-chunk success same predicates",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_ten_chunk_window_full_owner_e2e"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-19",
+      "category": "orchestration_and_cold_replay",
+      "requirement": "prior chunk PASS without acceptance cannot advance",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_execution_pass_without_acceptance_cannot_release_next",
+        "tests.test_history_batch_orchestration.PacketSecurityTests.test_replay_stale_truncated_and_untrusted_prior_state"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-20",
+      "category": "orchestration_and_cold_replay",
+      "requirement": "cold child fresh interpreter/committed pins/network guard",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_three_chunk_pilot_full_owner_e2e",
+        "tests.test_history_batch_containment.ContainmentTests.test_redirected_pid_rejected_before_initialization"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-21",
+      "category": "orchestration_and_cold_replay",
+      "requirement": "raw/receipt/intent/event/checkpoint/RESULT/consumption tamper",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_prior_raw_tamper_before_claim",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_prior_receipts_tamper_before_claim",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_prior_intents_tamper_before_claim",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_prior_events_tamper_before_claim",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_prior_checkpoints_tamper_before_claim",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_prior_result_tamper_before_claim",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_prior_consumption_tamper_before_claim",
+        "tests.test_history_batch_orchestration.PacketSecurityTests.test_original_three_attacks_rehashed_without_forging_signature",
+        "tests.test_history_batch_orchestration.SecurityHaltTests.test_sequence_999_AUTHORIZE_1_halts",
+        "tests.test_history_batch_orchestration.SecurityHaltTests.test_sequence_999_ACCEPT_1_halts",
+        "tests.test_history_batch_orchestration.SecurityHaltTests.test_sequence_999_ACK_1_halts",
+        "tests.test_history_batch_orchestration.SecurityHaltTests.test_sequence_999_AUTHORIZE_2_halts",
+        "tests.test_history_batch_orchestration.SecurityHaltTests.test_unsigned_extra_AUTHORIZE_1_halts",
+        "tests.test_history_batch_orchestration.SecurityHaltTests.test_unsigned_extra_ACCEPT_1_halts",
+        "tests.test_history_batch_orchestration.SecurityHaltTests.test_unsigned_extra_ACK_1_halts",
+        "tests.test_history_batch_orchestration.SecurityHaltTests.test_unsigned_extra_AUTHORIZE_2_halts",
+        "tests.test_history_batch_orchestration.SecurityHaltTests.test_ack_float_AUTHORIZE_1_halts",
+        "tests.test_history_batch_orchestration.SecurityHaltTests.test_ack_float_ACCEPT_1_halts",
+        "tests.test_history_batch_orchestration.SecurityHaltTests.test_ack_float_ACK_1_halts",
+        "tests.test_history_batch_orchestration.SecurityHaltTests.test_ack_float_AUTHORIZE_2_halts"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-22",
+      "category": "orchestration_and_cold_replay",
+      "requirement": "child nonzero/ledger mismatch/network attempt",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_cold_acceptance_nonzero_exit_rejected",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_cold_acceptance_wrong_head_rejected",
+        "tests.test_history_batch_containment.ContainmentTests.test_network_attempt_is_denied_before_connect"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-23",
+      "category": "orchestration_and_cold_replay",
+      "requirement": "missing/incomplete/STOP prior execution",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_prior_stop_blocks_before_claim",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_bootstrap_missing_record_blocks_before_release"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-24",
+      "category": "orchestration_and_cold_replay",
+      "requirement": "no fourth/eleventh out-of-window release",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_three_chunk_pilot_full_owner_e2e",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_ten_chunk_window_full_owner_e2e",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_out_of_window_release_has_no_claim"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-25",
+      "category": "orchestration_and_cold_replay",
+      "requirement": "no parallel execution",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_second_orchestrator_writer_rejected"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-26",
+      "category": "orchestration_and_cold_replay",
+      "requirement": "orchestrator/campaign/Sidecar lock separation",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_orchestrator_and_owner_locks_do_not_deadlock"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-27",
+      "category": "orchestration_and_cold_replay",
+      "requirement": "second writer OS-lock rejection",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_authority.JournalTests.test_second_writer_os_lock_rejected"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-28",
+      "category": "orchestration_and_cold_replay",
+      "requirement": "same-session anchor spacing",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_acquisition_wiring.HistoryAcquisitionTests.test_four_families_complete_immutable_lifecycle"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-29",
+      "category": "orchestration_and_cold_replay",
+      "requirement": "cross-session conservative wait/no clock stitching",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_three_chunk_pilot_full_owner_e2e"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-30",
+      "category": "orchestration_and_cold_replay",
+      "requirement": "no source endpoint override",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_endpoint_override_rejected_by_original_plan_owner"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-31",
+      "category": "acceptance_and_crash",
+      "requirement": "independent acceptance not runner-derived trust",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_cannot_accept_without_original_result"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-32",
+      "category": "acceptance_and_crash",
+      "requirement": "Genesis and record external pins exact",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_genesis_pin_tamper_rejected_before_claim",
+        "tests.test_history_acceptance_sidecar.SidecarTests.test_external_record_pin_required"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-33",
+      "category": "acceptance_and_crash",
+      "requirement": "acceptance time/monotonic decision order",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_acceptance_sidecar.SidecarTests.test_future_acceptance_timestamp_rejected",
+        "tests.test_history_acceptance_sidecar.SidecarTests.test_pre_acquisition_acceptance_timestamp_rejected"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-34",
+      "category": "acceptance_and_crash",
+      "requirement": "append old-head CAS/precondition",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_append_stale_expected_head_halts_no_duplicate_credit"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-35",
+      "category": "acceptance_and_crash",
+      "requirement": "cold acceptance replay after append",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_three_chunk_pilot_full_owner_e2e"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-36",
+      "category": "acceptance_and_crash",
+      "requirement": "external head acknowledgement required",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_external_ack_unknown_preserves_append_without_advancing"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-37",
+      "category": "acceptance_and_crash",
+      "requirement": "same-record idempotency gives no duplicate credit",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_acceptance_sidecar.SidecarTests.test_same_record_is_idempotent_noop"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-38",
+      "category": "acceptance_and_crash",
+      "requirement": "conflicting record HALT",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_acceptance_sidecar.SidecarTests.test_conflicting_record_halts_without_credit"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-39",
+      "category": "acceptance_and_crash",
+      "requirement": "tail truncation with external head",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_authority.JournalTests.test_tail_truncation",
+        "tests.test_history_acceptance_sidecar.SidecarTests.test_tail_truncation_rejected"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-40",
+      "category": "acceptance_and_crash",
+      "requirement": "crash at every issuer commit boundary",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_reserve_intents",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_reserve_events",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_reserve_checkpoints",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_authorization_intents",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_authorization_events",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_authorization_checkpoints",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_authorization_witness_intents",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_authorization_witness_events",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_authorization_witness_checkpoints",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_acceptance_intents",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_acceptance_events",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_acceptance_checkpoints",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_acceptance_witness_intents",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_acceptance_witness_events",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_acceptance_witness_checkpoints",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_head_ack_intents",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_head_ack_events",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_head_ack_checkpoints",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_head_ack_witness_intents",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_head_ack_witness_events",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_head_ack_witness_checkpoints",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_revocation_intents",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_revocation_events",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_revocation_checkpoints",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_revocation_witness_intents",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_revocation_witness_events",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_issuer_crash_revocation_witness_checkpoints"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-41",
+      "category": "acceptance_and_crash",
+      "requirement": "crash before/after authorization claim",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_crash_before_claim_no_resume",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_execution_pass_without_acceptance_cannot_release_next"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-42",
+      "category": "acceptance_and_crash",
+      "requirement": "unknown transport outcome cannot resend",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_unknown_transport_outcome_stops_no_resend"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-43",
+      "category": "acceptance_and_crash",
+      "requirement": "crash between Sidecar intent/record/event/checkpoint",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_acceptance_sidecar.SidecarTests.test_crash_after_write_1_halts_preserves_files",
+        "tests.test_history_acceptance_sidecar.SidecarTests.test_crash_after_write_2_halts_preserves_files",
+        "tests.test_history_acceptance_sidecar.SidecarTests.test_crash_after_write_3_halts_preserves_files",
+        "tests.test_history_acceptance_sidecar.SidecarTests.test_crash_after_write_4_halts_preserves_files"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-44",
+      "category": "acceptance_and_crash",
+      "requirement": "append committed but ACK unknown HALT",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_external_ack_unknown_preserves_append_without_advancing"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-45",
+      "category": "acceptance_and_crash",
+      "requirement": "parent death/process-tree containment",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_containment.ContainmentTests.test_parent_abnormal_death_kills_tree",
+        "tests.test_history_batch_containment.ContainmentTests.test_contained_close_terminates_child_and_grandchild",
+        "tests.test_history_batch_containment.ContainmentTests.test_child_response_exact_canonical_utf8_bytes_and_single_lf",
+        "tests.test_history_batch_containment.ContainmentTests.test_environment_response_exact_canonical_utf8_bytes_and_single_lf",
+        "tests.test_history_batch_containment.ContainmentTests.test_canonical_utf8_response_pass",
+        "tests.test_history_batch_containment.ContainmentTests.test_noncanonical_response_rejected",
+        "tests.test_history_batch_containment.ContainmentTests.test_malformed_response_rejected",
+        "tests.test_history_batch_containment.ContainmentTests.test_duplicate_key_response_rejected",
+        "tests.test_history_batch_containment.ContainmentTests.test_truncated_response_rejected",
+        "tests.test_history_batch_containment.ContainmentTests.test_unapproved_environment_secret_not_inherited"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-46",
+      "category": "acceptance_and_crash",
+      "requirement": "host reboot does not resume",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_restart_overlapping_window_nonce_cannot_reissue",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_no_second_window_or_repeat_execution"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-47",
+      "category": "acceptance_and_crash",
+      "requirement": "read-only post-crash inspection does not become recovery permission",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_authority.JournalTests.test_append_and_cold_reconstruct",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_restart_overlapping_window_nonce_cannot_reissue"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-48",
+      "category": "non_interference_and_scale",
+      "requirement": "all current inherited regressions inventoried and preserved",
+      "evidence_kind": "full_inherited_inventory",
+      "test_ids": [],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-49",
+      "category": "non_interference_and_scale",
+      "requirement": "Windows exact-head full suite",
+      "evidence_kind": "windows_exact_head_ci",
+      "test_ids": [],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-50",
+      "category": "non_interference_and_scale",
+      "requirement": "Linux exact-head full suite",
+      "evidence_kind": "linux_exact_head_ci",
+      "test_ids": [],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-51",
+      "category": "non_interference_and_scale",
+      "requirement": "current-main replacement/continuity",
+      "evidence_kind": "replacement_and_continuity",
+      "test_ids": [],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-52",
+      "category": "non_interference_and_scale",
+      "requirement": "zero skips/relaxed assertions/failure whitelists",
+      "evidence_kind": "strict_counts_and_no_waivers",
+      "test_ids": [],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-53",
+      "category": "non_interference_and_scale",
+      "requirement": "old execution/manifest/scope/consumption immutable",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_three_chunk_pilot_full_owner_e2e"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-54",
+      "category": "non_interference_and_scale",
+      "requirement": "frozen tracked blobs and ranking/strategy byte-identical",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_full_market_component_evidence.ComponentEvidenceTests.test_protected_files_and_no_publication"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-55",
+      "category": "non_interference_and_scale",
+      "requirement": "Production/Portfolio/state/scheduler unchanged",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_full_market_component_evidence.ComponentEvidenceTests.test_protected_files_and_no_publication",
+        "tests.test_full_market_component_evidence.ComponentEvidenceTests.test_no_ranking_execution"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-56",
+      "category": "non_interference_and_scale",
+      "requirement": "Bootstrap Acceptance isolated during engineering",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_authority.JournalTests.test_formal_root_denied",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_real_launch_always_rejected"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-57",
+      "category": "non_interference_and_scale",
+      "requirement": "real raw/receipts never public CI",
+      "evidence_kind": "synthetic_only_ci_allowlist",
+      "test_ids": [],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-58",
+      "category": "non_interference_and_scale",
+      "requirement": "10-window resource soak and verification overhead measured",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_orchestration.EndToEndTests.test_ten_chunk_window_full_owner_e2e"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-59",
+      "category": "non_interference_and_scale",
+      "requirement": "final short-window budget exact",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_batch_authority.PolicyTests.test_request_budget_not_multiplied_by_cap",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_ten_chunk_window_full_owner_e2e"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-60",
+      "category": "non_interference_and_scale",
+      "requirement": "strict common-latest/final12 and TPEx gates preserved",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_acquisition_wiring.HistoryAcquisitionTests.test_control_center_decision_binds_independent_history_and_strict_decision",
+        "tests.test_history_acquisition_wiring.HistoryAcquisitionTests.test_tp_ex_units_remain_unproven_no_rescale"
+      ],
+      "all_listed_tests_required": true
+    },
+    {
+      "requirement_id": "BATCH-61",
+      "category": "non_interference_and_scale",
+      "requirement": "no Historical PIT/Calendar180/Ranking credit promotion",
+      "evidence_kind": "passing_test_ids",
+      "test_ids": [
+        "tests.test_history_acquisition_wiring.HistoryAcquisitionTests.test_benchmark_180_alone_not_full_calendar_credit",
+        "tests.test_full_market_component_evidence.ComponentEvidenceTests.test_intraday_still_blocked",
+        "tests.test_history_batch_orchestration.EndToEndTests.test_real_launch_always_rejected"
+      ],
+      "all_listed_tests_required": true
+    }
+  ],
+  "no_failure_whitelists": true
+}

@@ -1,0 +1,65 @@
+name: RATE M-H Latest-Main Compatibility Verification
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/history_acceptance_sidecar.py
+      - src/history_batch_*.py
+      - scripts/run_history_acceptance_sidecar.py
+      - scripts/history_batch_*.py
+      - scripts/verify_history_acceptance_sidecar.py
+      - scripts/verify_history_controlled_batch.py
+      - scripts/verify_history_mainline_compatibility.py
+      - tests/test_history_acceptance_sidecar.py
+      - tests/test_history_batch_*.py
+      - tests/history_batch_process_probe.py
+      - tests/batch_synthetic_support.py
+      - requirements/history_batch_synthetic.lock.txt
+      - docs/RATE_HISTORY_ACCEPTANCE_SIDECAR_V1.md
+      - docs/RATE_HISTORY_CONTROLLED_BATCH_ENGINEERING_V1.md
+      - docs/RATE_HISTORY_MAINLINE_COMPATIBILITY_V1.md
+      - docs/contracts/RATE_HISTORY_ACCEPTANCE_SIDECAR_V1.json
+      - docs/contracts/RATE_HISTORY_CONTROLLED_BATCH*.json
+      - .github/workflows/rate_history_mainline_compatibility_ci.yml
+permissions:
+  contents: read
+concurrency:
+  group: rate-mh-mainline-compat-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+jobs:
+  compatibility:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 180
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install accepted locked synthetic dependencies
+        run: >-
+          python -m pip install --require-hashes --only-binary=:all:
+          -r requirements/history_batch_synthetic.lock.txt
+      - name: Verify frozen acceptance pins against latest main
+        run: >-
+          python -B scripts/verify_history_mainline_compatibility.py
+          --expected-base 5df302a720ac8114d3610342dad3783cc0a3debd
+          --expected-head "${{ github.event.pull_request.head.sha || github.sha }}"
+          --output-dir "${{ runner.temp }}/rate-mh-mainline-compat"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: RATE_MH_MAINLINE_COMPAT_${{ matrix.os }}_${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/rate-mh-mainline-compat
+          if-no-files-found: error
+          retention-days: 14
