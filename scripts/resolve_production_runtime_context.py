@@ -25,12 +25,38 @@ CADENCE_PREDECESSOR = {
     "19:30": "12:00",
 }
 CADENCE_DIR = {"07:30": "0730", "09:30": "0930", "12:00": "1200", "19:30": "1930"}
+EXPECTED_SCHEDULE_CRON = {
+    "07:30": "30 23 * * 0-4",
+    "09:30": "30 1 * * 1-5",
+    "12:00": "0 4 * * 1-5",
+    "19:30": "30 11 * * 1-5",
+}
+
+
+def _now_taipei() -> datetime:
+    if ZoneInfo is None:
+        raise RuntimeError("ZONEINFO_UNAVAILABLE")
+    return datetime.now(ZoneInfo("Asia/Taipei"))
 
 
 def _today_taipei() -> str:
-    if ZoneInfo is None:
-        raise RuntimeError("ZONEINFO_UNAVAILABLE")
-    return datetime.now(ZoneInfo("Asia/Taipei")).date().isoformat()
+    return _now_taipei().date().isoformat()
+
+
+def _scheduled_nominal_trading_date(cadence: str, *, now: datetime | None = None, schedule_expression: str | None = None) -> str:
+    if cadence not in EXPECTED_SCHEDULE_CRON:
+        raise RuntimeError("UNSUPPORTED_CADENCE")
+    expected = EXPECTED_SCHEDULE_CRON[cadence]
+    if schedule_expression and schedule_expression != expected:
+        raise RuntimeError("SCHEDULE_EXPRESSION_MISMATCH")
+    local_now = now or _now_taipei()
+    hour, minute = (int(part) for part in cadence.split(":"))
+    candidate = local_now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    if candidate > local_now:
+        candidate -= timedelta(days=1)
+    while candidate.weekday() > 4:
+        candidate -= timedelta(days=1)
+    return candidate.date().isoformat()
 
 
 def _previous_legal_trading_day(trading_date: str) -> str:
@@ -49,9 +75,10 @@ def _state_path(root: Path, trading_date: str, cadence: str) -> Path:
 def resolve_context(*, cadence: str, event_name: str, dispatch_trading_date: str | None, state_root: Path) -> dict[str, Any]:
     if cadence not in CADENCE_PREDECESSOR:
         raise RuntimeError("UNSUPPORTED_CADENCE")
+    schedule_expression = os.getenv("GITHUB_EVENT_SCHEDULE") if event_name == "schedule" else None
     if event_name == "schedule":
-        trading_date = _today_taipei()
-        trading_date_resolution = "DYNAMIC_TAIWAN_TRADING_DATE"
+        trading_date = _scheduled_nominal_trading_date(cadence, schedule_expression=schedule_expression)
+        trading_date_resolution = "SCHEDULE_NOMINAL_TAIPEI_CADENCE_DATE"
     elif event_name == "workflow_dispatch":
         if not dispatch_trading_date:
             raise RuntimeError("WORKFLOW_DISPATCH_REQUIRES_EXPLICIT_TRADING_DATE")
@@ -77,6 +104,8 @@ def resolve_context(*, cadence: str, event_name: str, dispatch_trading_date: str
         "cadence": cadence,
         "trading_date": trading_date,
         "trading_date_resolution": trading_date_resolution,
+        "schedule_expression": schedule_expression,
+        "schedule_nominal_cadence": cadence if event_name == "schedule" else None,
         "scheduled_historical_acceptance_date_fallback": "FORBIDDEN",
         "calendar": calendar,
         "runtime_mode": runtime_mode,
