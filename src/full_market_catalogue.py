@@ -92,7 +92,9 @@ def parse_classification(body, market):
             continue
         require(len(row) == 7, "CATALOGUE_RECORD_INVALID")
         symbol = row[0].split()[0]
-        require(symbol not in seen and row[1] and section and row[5], "CATALOGUE_RECORD_INVALID")
+        require(symbol not in seen and row[1] and row[2] and section and row[5], "CATALOGUE_RECORD_INVALID")
+        listed_on = date.fromisoformat(row[2].replace("/", "-")).isoformat()
+        require(listed_on <= as_of, "CATALOGUE_LISTING_DATE_INVALID")
         seen.add(symbol)
         normal = row[3] in NORMAL_LISTING_MARKETS[market]
         cfi = row[5]
@@ -105,7 +107,7 @@ def parse_classification(body, market):
         eligible = common and normal
         records.append({"symbol": symbol, "market": market, "security_type": security_type,
                         "cfi_code": cfi, "official_section": section, "official_listing_market": row[3],
-                        "isin": row[1], "eligibility": eligible, "eligible": eligible,
+                        "official_listing_date": listed_on, "isin": row[1], "eligibility": eligible, "eligible": eligible,
                         "eligibility_reason": "OFFICIAL_COMMON_EQUITY_NORMAL_LISTING" if eligible
                         else "DELISTED_OR_NON_NORMAL_LISTING" if not normal else "OFFICIAL_NON_COMMON_EQUITY"})
     require(records and any(row["eligible"] for row in records), "CATALOGUE_EMPTY")
@@ -277,6 +279,12 @@ def validate_catalogue(catalogue, trading_date):
                     "OFFICIAL_CATALOGUE_RECEIPT_REQUIRED")
         for row in market["records"]:
             expected = row.get("cfi_code", "").startswith("ES") and row.get("official_listing_market") in NORMAL_LISTING_MARKETS[market["market"]]
+            try:
+                listed_on = date.fromisoformat(str(row.get("official_listing_date", "")))
+            except ValueError as exc:
+                raise RuntimeError("CATALOGUE_LISTING_DATE_INVALID") from exc
+            require(listed_on.isoformat() == row.get("official_listing_date") and listed_on.isoformat() <= trading_date,
+                    "CATALOGUE_LISTING_DATE_INVALID")
             require(row.get("eligible") is expected and row.get("eligibility") is expected
                     and row.get("market") == market["market"], "ELIGIBILITY_DECISION_INVALID")
             if expected:
