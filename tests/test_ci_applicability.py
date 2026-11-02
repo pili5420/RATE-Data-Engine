@@ -1,7 +1,7 @@
 """Synthetic applicability tests; historical assertions are not changed."""
 import unittest
 from scripts.verify_ci_applicability import (ALLOWED, CURRENT_MAIN_GROUPS, HISTORICAL_BASE,
-                                             applicability, verdict, network_guard)
+                                             applicability, inventory_delta, verdict, network_guard)
 from scripts.verify_phase2_compatibility import GROUPS as HISTORICAL_GROUPS
 
 MAIN = "6" * 40
@@ -51,7 +51,19 @@ class ApplicabilityTests(unittest.TestCase):
 
     def test_current_main_inventory_does_not_rewrite_historical_count(self):
         self.assertEqual(HISTORICAL_GROUPS["existing_131"][1], 131)
-        self.assertEqual(CURRENT_MAIN_GROUPS["existing_131"][1], 135)
+        self.assertEqual(CURRENT_MAIN_GROUPS["existing_131"], HISTORICAL_GROUPS["existing_131"])
+
+    def test_current_main_inventory_allows_addition_but_forbids_deletion(self):
+        added = inventory_delta(["a", "b"], ["a", "b", "c"])
+        self.assertTrue(added["base_preserved"])
+        self.assertEqual((added["base_count"], added["head_count"]), (2, 3))
+        removed = inventory_delta(["a", "b"], ["a"])
+        self.assertFalse(removed["base_preserved"])
+        self.assertEqual(removed["missing_base_ids"], ["b"])
+
+    def test_duplicate_inventory_ids_are_rejected(self):
+        with self.assertRaisesRegex(ValueError, "TEST_INVENTORY_DUPLICATE_ID"):
+            inventory_delta(["a", "a"], ["a"])
 
     def test_network_forbidden_fixture_only(self):
         network_guard("urllib.Request", ("file:///synthetic.json",))
