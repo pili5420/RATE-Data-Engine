@@ -230,13 +230,19 @@ def main() -> int:
     accepted_results = {}
     equivalence_results = {}
     temp_parent = os.getenv("RUNNER_TEMP")
-    with tempfile.TemporaryDirectory(prefix="mhc-", dir=temp_parent or None) as temporary:
-        temp_root = Path(temporary)
-
-        for name, modules in ACCEPTED_CORE_GROUPS.items():
-            checkout = temp_root / ("accepted-" + name)
+    short_parent = Path(temp_parent) if temp_parent else ROOT.parent
+    # Controlled-batch acceptance explicitly enforces Windows MAX_PATH <= 259.
+    # Keep compatibility checkouts intentionally short instead of relaxing that gate.
+    temp_root = short_parent / "m"
+    if temp_root.exists():
+        import shutil
+        shutil.rmtree(temp_root)
+    temp_root.mkdir()
+    try:
+        for index, (name, modules) in enumerate(ACCEPTED_CORE_GROUPS.items()):
+            checkout = temp_root / f"c{index}"
             prepare_checkout(args.expected_head, checkout)
-            run_temp = temp_root / ("tmp-" + name)
+            run_temp = temp_root / f"t{index}"
             run_temp.mkdir()
             env = {
                 **os.environ,
@@ -255,13 +261,13 @@ def main() -> int:
                 "pass": result["exit_code"] == 0 and result["clean_after"],
             }, sort_keys=True), flush=True)
 
-        for name, modules in CURRENT_EQUIVALENCE_GROUPS.items():
-            base_checkout = temp_root / ("base-" + name)
-            head_checkout = temp_root / ("head-" + name)
+        for index, (name, modules) in enumerate(CURRENT_EQUIVALENCE_GROUPS.items()):
+            base_checkout = temp_root / f"b{index}"
+            head_checkout = temp_root / f"h{index}"
             prepare_checkout(CURRENT_BASE, base_checkout)
             prepare_checkout(args.expected_head, head_checkout)
-            base_tmp = temp_root / ("tmp-base-" + name)
-            head_tmp = temp_root / ("tmp-head-" + name)
+            base_tmp = temp_root / f"u{index}"
+            head_tmp = temp_root / f"v{index}"
             base_tmp.mkdir()
             head_tmp.mkdir()
             base_env = {
@@ -299,6 +305,10 @@ def main() -> int:
                 "equivalent": equivalent,
                 "tests": head_result["tests_run"],
             }, sort_keys=True), flush=True)
+
+    finally:
+        import shutil
+        shutil.rmtree(temp_root, ignore_errors=True)
 
     accepted_pass = all(
         result["exit_code"] == 0
