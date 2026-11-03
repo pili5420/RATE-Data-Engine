@@ -71,7 +71,7 @@ class CloudflareQualificationRehearsalTests(unittest.TestCase):
         self.assertEqual(result["disposition"], "READY_FOR_REAL_CLOUDFLARE_QUALIFICATION_EXECUTOR")
         self.assertTrue(result["single_use_consumed"])
         self.assertFalse(result["retry_allowed"])
-        self.assertEqual(len(result["admin_calls"]), 7)
+        self.assertEqual(len(result["admin_calls"]), 8)
         self.assertEqual(len(result["runtime_calls"]), 6)
         self.assertEqual(result["cleanup_attempts"]["DELETE_WORKER_SCRIPT"], 1)
         self.assertEqual(result["cleanup_attempts"]["DELETE_D1_DATABASE"], 1)
