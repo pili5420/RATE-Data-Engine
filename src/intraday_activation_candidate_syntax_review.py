@@ -266,6 +266,26 @@ def _validate_workflow(
         "scripts/run_phase2_production.py",
     ):
         require(required in commands, "ACTIVATION_SYNTAX_SCHEDULER_COMMAND_MISSING:" + cadence)
+    command_indices = {}
+    for index, step in enumerate(steps):
+        if not isinstance(step, Mapping):
+            continue
+        run = str(step.get("run", ""))
+        for required in (
+            "scripts/acquire_intraday_provider_feed.py",
+            "scripts/build_phase2_production_source.py",
+            "scripts/run_phase2_production.py",
+        ):
+            if required in run:
+                require(required not in command_indices,
+                        "ACTIVATION_SYNTAX_SCHEDULER_COMMAND_DUPLICATE:" + cadence)
+                command_indices[required] = index
+    require(
+        command_indices["scripts/acquire_intraday_provider_feed.py"]
+        < command_indices["scripts/build_phase2_production_source.py"]
+        < command_indices["scripts/run_phase2_production.py"],
+        "ACTIVATION_SYNTAX_SCHEDULER_COMMAND_ORDER_INVALID:" + cadence,
+    )
     for mapping in _walk_mapping(value):
         require(mapping.get("continue-on-error") is not True,
                 "ACTIVATION_SYNTAX_SCHEDULER_CONTINUE_ON_ERROR_FORBIDDEN:" + cadence)
