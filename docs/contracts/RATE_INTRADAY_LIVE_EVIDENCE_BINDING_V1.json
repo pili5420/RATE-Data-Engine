@@ -1,0 +1,27 @@
+{
+  "artifact": "RATE_INTRADAY_LIVE_EVIDENCE_BINDING_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "required_external_bindings": [
+    "synthetic_review_sha256",
+    "live_review_sha256",
+    "provider_acceptance_sha256",
+    "provider_acceptance_decision_sha256",
+    "candidate_manifest_sha256",
+    "candidate_base_main_sha",
+    "provider_name",
+    "live_cadence",
+    "license_basis"
+  ],
+  "single_live_cadence_credit_only": true,
+  "authorized_provider_cadences": ["09:30", "12:00"],
+  "final_main_rebase_required": true,
+  "provider_accepted": true,
+  "apply_allowed": false,
+  "activation_execution_allowed": false,
+  "external_dependency_resolved": false,
+  "registry_activation_allowed": false,
+  "production_credit": 0,
+  "cer081_credit": 0,
+  "success_status": "LIVE_EVIDENCE_BOUND",
+  "next_gate": "FINAL_MAIN_REBASE_AND_ACTIVATION_APPLY_REVIEW"
+}
