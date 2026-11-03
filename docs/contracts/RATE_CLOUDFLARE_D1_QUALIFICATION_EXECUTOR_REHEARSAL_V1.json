@@ -1,0 +1,20 @@
+{
+  "artifact": "RATE_CLOUDFLARE_D1_QUALIFICATION_EXECUTOR_REHEARSAL_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "backend": "SYNTHETIC_CLOUDFLARE_QUALIFICATION_BACKEND_ONLY",
+  "single_use_consumed_before_first_mutation": true,
+  "retry_after_consumption_allowed": false,
+  "admin_operation_count": 7,
+  "runtime_probe_count": 6,
+  "cleanup_worker_max_attempts": 1,
+  "cleanup_d1_max_attempts": 1,
+  "cleanup_on_failure_required": true,
+  "residual_resource_disposition": "BLOCKED_RESIDUAL_RESOURCE",
+  "real_cloudflare_requests": 0,
+  "credentials_read": 0,
+  "real_resources_created": 0,
+  "provider_qualified": false,
+  "production_credit": 0,
+  "cer081_credit": 0,
+  "next_gate": "EXPLICIT_REAL_CLOUDFLARE_QUALIFICATION_EXECUTION"
+}
