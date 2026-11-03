@@ -1,0 +1,22 @@
+{
+  "artifact": "RATE_INTRADAY_ACTIVATION_CANDIDATE_SCAFFOLD_BUILDER_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "purpose": "RENDER_IN_MEMORY_ACTIVATION_CANDIDATE_AND_RUN_STATIC_REVIEW",
+  "candidate_file_count": 9,
+  "repository_writes": 0,
+  "provider_network_requests": 0,
+  "credential_access": 0,
+  "static_review_required": true,
+  "phase2_three_hard_blockers_removed_in_scaffold": true,
+  "phase2_authoritative_admission_replay_preserved": true,
+  "runtime_max_requests": 30,
+  "runtime_max_retries": 0,
+  "runtime_fallback_allowed": false,
+  "scaffold_status": "DESIGN_SCAFFOLD_ONLY",
+  "apply_allowed": false,
+  "activation_execution_allowed": false,
+  "external_dependency_resolved": false,
+  "registry_activation_allowed": false,
+  "production_credit": 0,
+  "cer081_credit": 0
+}
