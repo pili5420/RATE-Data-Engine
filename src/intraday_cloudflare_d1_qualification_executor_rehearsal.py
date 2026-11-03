@@ -9,6 +9,7 @@ from copy import deepcopy
 from typing import Any, Mapping
 
 from .intraday_activation_candidate_review import canonical_digest
+from .intraday_cloudflare_d1_real_qualification_plan import EXPECTED_CONSUMPTION_MARKER
 from .intraday_cloudflare_d1_real_qualification_authorization import (
     EXPECTED_ADMIN_BUDGET,
     EXPECTED_CLEANUP_BUDGET,
@@ -165,6 +166,10 @@ def _preflight(
     require(qualification.get("cleanup_operation_budget") == EXPECTED_CLEANUP_BUDGET,
             "CF_REHEARSAL_CLEANUP_BUDGET_INVALID")
     require(
+        qualification.get("consumption_marker") == EXPECTED_CONSUMPTION_MARKER,
+        "CF_REHEARSAL_CONSUMPTION_MARKER_INVALID",
+    )
+    require(
         qualification.get("cleanup_required") is True
         and qualification.get("qualification_credit_requires_cleanup_success") is True
         and qualification.get("real_cloudflare_requests") == 0
@@ -270,6 +275,7 @@ def rehearse_cloudflare_real_qualification(
         "disposition": disposition,
         "authorization_qualification_sha256": token,
         "single_use_consumed": True,
+        "durable_consumption_marker_contract_verified": True,
         "retry_allowed": False,
         "fallback_used": False,
         "admin_calls": [name for name in backend.calls if name in ADMIN_SEQUENCE],
