@@ -234,8 +234,10 @@ def _runtime_source(secret_name: str) -> str:
     return f'''"""Design scaffold for the authorized intraday provider runtime."""
 from __future__ import annotations
 
+from datetime import datetime
 from http.client import HTTPSConnection
 import json
+import math
 
 MAX_REQUESTS = 30
 MAX_RETRIES = 0
@@ -244,23 +246,71 @@ API_HOST = "api.fugle.tw"
 SECRET_NAME = "{secret_name}"
 
 
+def _number(value, *, positive=False):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise RuntimeError("INTRADAY_RUNTIME_NUMERIC_INVALID")
+    number = float(value)
+    if not math.isfinite(number) or (number <= 0 if positive else number < 0):
+        raise RuntimeError("INTRADAY_RUNTIME_NUMERIC_INVALID")
+    return number
+
+
+def _timestamp(value):
+    if not isinstance(value, str) or not value:
+        raise RuntimeError("INTRADAY_RUNTIME_TIMESTAMP_INVALID")
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise RuntimeError("INTRADAY_RUNTIME_TIMESTAMP_INVALID") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise RuntimeError("INTRADAY_RUNTIME_TIMESTAMP_TIMEZONE_REQUIRED")
+    return parsed.isoformat()
+
+
 def acquire_intraday_feed(symbols, *, trading_date, cadence, api_key):
+    if not isinstance(api_key, str) or not api_key:
+        raise RuntimeError("INTRADAY_RUNTIME_API_KEY_MISSING")
+    if cadence not in {"09:30", "12:00"}:
+        raise RuntimeError("INTRADAY_RUNTIME_CADENCE_INVALID")
     if len(symbols) != MAX_REQUESTS:
         raise RuntimeError("INTRADAY_RUNTIME_EXACT_30_REQUIRED")
+
     records = []
     raw = []
+    request_count = 0
     for symbol, market in symbols:
         conn = HTTPSConnection(API_HOST, timeout=10)
-        path = f"/marketdata/v1.0/stock/intraday/quote/{{symbol}}"
-        conn.request("GET", path, headers={{"X-API-KEY": api_key}})
-        response = conn.getresponse()
-        body = response.read()
+        try:
+            path = f"/marketdata/v1.0/stock/intraday/quote/{{symbol}}"
+            conn.request("GET", path, headers={{"X-API-KEY": api_key}})
+            request_count += 1
+            response = conn.getresponse()
+            body = response.read()
+        finally:
+            conn.close()
+
         if response.status != 200:
             raise RuntimeError(f"INTRADAY_RUNTIME_HTTP_{{response.status}}")
         payload = json.loads(body)
+        total = payload.get("total")
+        if not isinstance(total, dict):
+            raise RuntimeError("INTRADAY_RUNTIME_TOTAL_MISSING")
+        price = payload.get("lastPrice")
+        if price is None and isinstance(payload.get("lastTrade"), dict):
+            price = payload["lastTrade"].get("price")
         raw.append({{"symbol": symbol, "market": market, "payload": payload}})
-        records.append({{"symbol": symbol, "market": market, "raw": payload}})
-    return {{"records": records, "raw_evidence": raw, "requests": MAX_REQUESTS,
+        records.append({{
+            "symbol": symbol,
+            "market": market,
+            "timestamp": _timestamp(payload.get("lastUpdated")),
+            "price": _number(price, positive=True),
+            "volume": _number(total.get("tradeVolume")),
+            "turnover": _number(total.get("tradeValue")),
+        }})
+
+    if request_count != MAX_REQUESTS or len(records) != MAX_REQUESTS:
+        raise RuntimeError("INTRADAY_RUNTIME_EXACT_30_REQUIRED")
+    return {{"records": records, "raw_evidence": raw, "requests": request_count,
             "automatic_retries": MAX_RETRIES, "fallback_used": FALLBACK_ALLOWED}}
 '''
 
