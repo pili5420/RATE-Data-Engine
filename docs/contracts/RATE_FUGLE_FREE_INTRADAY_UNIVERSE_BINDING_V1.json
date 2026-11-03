@@ -131,5 +131,10 @@
       "market": "TPEX"
     }
   ],
-  "validation_status": "PASS"
+  "validation_status": "PASS",
+  "source_bundle_sha256": "f999d33a73e1b042143f900f7a8edde4aff640a773297bc01aa0677d3e1777f4",
+  "universe_contract_sha256": "57772eb40b16431f4b9e89395b2a98c2b8cd6d526e626a1860355c1b403a12e7",
+  "universe_binding_hash": "343328e806133c97dd14581283790253412c9aabd3dd51c402700d7cce46ae2d",
+  "binding_authority": "MIRROR_ONLY_VALIDATED_AGAINST_RATE_PRODUCTION_AUTHORITY_CHAIN",
+  "runtime_override_allowed": false
 }
