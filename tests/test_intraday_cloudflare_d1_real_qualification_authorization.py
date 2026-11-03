@@ -67,6 +67,7 @@ def authorization(plan_hash):
         "admin_operation_budget": dict(EXPECTED_ADMIN_BUDGET),
         "runtime_probe_budget": dict(EXPECTED_RUNTIME_BUDGET),
         "cleanup_operation_budget": dict(EXPECTED_CLEANUP_BUDGET),
+        "consumption_marker": dict(EXPECTED_CONSUMPTION_MARKER),
         "api_token_secret_name": "CLOUDFLARE_API_TOKEN",
         "account_id_variable_name": "CLOUDFLARE_ACCOUNT_ID",
         "worker_secret_name": "RATE_D1_RECEIPT_WORKER_TOKEN",
