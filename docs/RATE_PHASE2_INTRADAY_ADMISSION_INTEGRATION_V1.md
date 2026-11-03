@@ -17,10 +17,13 @@ For 09:30 / 12:00, once the separate dependency-authority gate permits execution
 5. require freshness <= the payload validator limit;
 6. bind the resulting qualification and the feed digest into Phase2 input material;
 7. revalidate the feed digest and qualification digest inside `evaluate_material()`
-   before predecessor lookup or ranking evaluation.
+   before predecessor lookup or ranking evaluation;
+8. replay the authoritative #94 validator against the same feed using the recorded
+   qualification timestamp and current repo-rooted universe;
+9. require the admission to be no older than 300 seconds.
 
 A caller cannot replace the feed after admission, substitute another 25+5 universe,
-or provide an unbound qualification result.
+provide a self-resealed forged qualification result, or replay an expired admission.
 
 ## Governance
 
