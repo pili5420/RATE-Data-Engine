@@ -1,0 +1,47 @@
+name: RATE Activation Apply Transaction Plan
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/intraday_activation_apply_transaction_plan.py
+      - tests/test_intraday_activation_apply_transaction_plan.py
+      - docs/contracts/RATE_INTRADAY_ACTIVATION_APPLY_TRANSACTION_PLAN_V1.json
+      - docs/RATE_INTRADAY_ACTIVATION_APPLY_TRANSACTION_PLAN_V1.md
+      - .github/workflows/rate_intraday_activation_apply_transaction_plan_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Transaction plan dependencies
+        run: python -m pip install PyYAML==6.0.3
+      - name: Exact Git bytes
+        shell: bash
+        run: |
+          git config core.autocrlf false
+          git checkout-index --all --force
+          git diff --exit-code
+      - name: Transaction plan regressions
+        run: python -B -m unittest tests.test_intraday_activation_apply_transaction_plan -v
+      - name: No tracked mutation
+        run: git diff --exit-code
