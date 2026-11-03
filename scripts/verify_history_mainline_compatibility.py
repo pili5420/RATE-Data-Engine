@@ -11,9 +11,9 @@ import io
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
-import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -230,14 +230,13 @@ def main() -> int:
     accepted_results = {}
     equivalence_results = {}
     temp_parent = os.getenv("RUNNER_TEMP")
-    short_parent = Path(temp_parent) if temp_parent else ROOT.parent
-    # Controlled-batch acceptance explicitly enforces Windows MAX_PATH <= 259.
-    # Keep compatibility checkouts intentionally short instead of relaxing that gate.
+    short_parent = Path(temp_parent).resolve() if temp_parent else ROOT.parent
+    # Match the accepted controlled-batch verifier's short Windows runner root.
+    # Its synthetic MAX_PATH assertion measures resolved filesystem paths.
+    if os.name == "nt" and temp_parent and os.environ.get("GITHUB_ACTIONS") == "true":
+        short_parent = short_parent.parent
     temp_root = short_parent / "m"
-    if temp_root.exists():
-        import shutil
-        shutil.rmtree(temp_root)
-    temp_root.mkdir()
+    temp_root.mkdir(exist_ok=False)
     try:
         for index, (name, modules) in enumerate(ACCEPTED_CORE_GROUPS.items()):
             checkout = temp_root / f"{index}"
@@ -307,7 +306,6 @@ def main() -> int:
             }, sort_keys=True), flush=True)
 
     finally:
-        import shutil
         shutil.rmtree(temp_root, ignore_errors=True)
 
     accepted_pass = all(
