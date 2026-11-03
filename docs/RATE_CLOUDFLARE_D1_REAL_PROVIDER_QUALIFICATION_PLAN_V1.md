@@ -30,3 +30,12 @@ resource after the one allowed cleanup attempt yields BLOCKED_RESIDUAL_RESOURCE.
 
 This PR is plan-only and performs zero Cloudflare requests, reads zero credentials
 and creates zero resources.
+
+
+## Durable single-use consumption marker
+
+Before the first Cloudflare request, the future executor must atomically create and
+read back exactly one lightweight Git tag ref under
+`refs/tags/rate-v11-qualification-consumed/cloudflare-d1-`. The ref targets the
+exact current main bound by the authorization. Ref update and deletion are forbidden.
+A duplicate/pre-existing marker blocks qualification before any Cloudflare request.
