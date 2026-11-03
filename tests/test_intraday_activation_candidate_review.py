@@ -100,10 +100,18 @@ def candidates():
         }],
     }
     phase2 = '''
+CADENCES = ["07:30", "09:30", "12:00", "19:30"]
 def require_intraday_authority():
     if dependency.get("status") == "PASS":
         return True
+def intraday_decision_gate_status(cadence):
+    return "PASS" if cadence in {"09:30", "12:00"} else "NOT_APPLICABLE"
+require(cadence in CADENCES, "PHASE2_CADENCE_INVALID")
 from .intraday_phase2_admission import validate_phase2_intraday_admission
+if cadence in {"09:30", "12:00"}:
+    validate_phase2_intraday_admission(feed, admission, trading_date=day, cadence=cadence)
+decision.get("market_intraday_price_gate") == intraday_decision_gate_status(cadence)
+decision.get("full_intraday_decision_status") == intraday_decision_gate_status(cadence)
 '''
     builder = '''
 from src.intraday_phase2_admission import qualify_phase2_intraday_feed
@@ -240,6 +248,28 @@ class ActivationCandidateReviewTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(
             ActivationCandidateReviewError, "PHASE2_REQUIRED_GATES_MISSING"
+        ):
+            self.review(files=value)
+
+    def test_phase2_old_cadence_restriction_is_rejected(self):
+        value = candidates()
+        value["src/phase2_production.py"] += '\nrequire(cadence in {"07:30", "19:30"}, "PUBLIC_OFFICIAL_PARTIAL_RUNTIME_REQUIRED")\n'
+        with self.assertRaisesRegex(
+            ActivationCandidateReviewError, "FORCED_PARTIAL_RUNTIME_REMAINS"
+        ):
+            self.review(files=value)
+
+    def test_phase2_hardcoded_blocked_external_status_is_rejected(self):
+        value = candidates()
+        value["src/phase2_production.py"] += '\nmarket_intraday_price_gate="BLOCKED_EXTERNAL"\n'
+        with self.assertRaisesRegex(
+            ActivationCandidateReviewError, "FORCED_PARTIAL_RUNTIME_REMAINS"
+        ):
+            self.review(files=value)
+        value = candidates()
+        value["src/phase2_production.py"] += '\ndecision.get("full_intraday_decision_status") == "BLOCKED_EXTERNAL"\n'
+        with self.assertRaisesRegex(
+            ActivationCandidateReviewError, "FORCED_PARTIAL_RUNTIME_REMAINS"
         ):
             self.review(files=value)
 
