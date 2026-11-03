@@ -1,21 +1,26 @@
 """Fugle free/basic intraday feasibility diagnostic for RATE V11.
 
 This module never changes Production registry or resolves the external dependency.
-It performs at most one REST quote request per bound symbol, with no retry.
+The approved 30-symbol universe is rooted in RATE's authoritative Production
+universe chain. Live transport uses one direct HTTPS request per approved symbol,
+does not follow redirects, never retries, and cannot switch hosts.
 """
 from __future__ import annotations
 
 from collections import Counter
 from datetime import datetime, timezone
+from http.client import HTTPSConnection
 import json
 import math
-from typing import Any, Mapping
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from typing import Any, Callable, Mapping
 
-BASE_URL = "https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/"
+from src.authorized_intraday_feed import load_authoritative_universe_binding
+
+API_HOST = "api.fugle.tw"
+QUOTE_PATH_PREFIX = "/marketdata/v1.0/stock/intraday/quote/"
 MAX_REQUESTS = 30
 MAX_AGE_SECONDS = 180
+ALLOWED_MARKETS = {"TWSE", "TPEX"}
 
 
 class FugleDiagnosticError(RuntimeError):
@@ -48,30 +53,95 @@ def _timestamp(value: Any) -> datetime:
 
 def _market(value: Any) -> str:
     text = str(value or "").strip().upper()
-    if text == "TPEX":
-        return "TPEX"
-    if text == "TWSE":
-        return "TWSE"
-    raise FugleDiagnosticError("FUGLE_MARKET_INVALID:" + text)
+    require(text in ALLOWED_MARKETS, "FUGLE_MARKET_INVALID:" + text)
+    return text
 
 
-def _request(symbol: str, api_key: str, opener=urlopen) -> Mapping[str, Any]:
+def _trusted_binding() -> tuple[dict[str, str], dict[str, str]]:
+    trusted, lineage = load_authoritative_universe_binding()
+    require(len(trusted) == 30, "FUGLE_TRUSTED_UNIVERSE_COUNT_INVALID")
+    require(Counter(trusted.values()) == Counter({"TWSE": 25, "TPEX": 5}),
+            "FUGLE_TRUSTED_UNIVERSE_MARKET_COUNTS_INVALID")
+    return trusted, lineage
+
+
+def load_binding(value: Mapping[str, Any]) -> tuple[dict[str, str], dict[str, str]]:
+    """Validate the diagnostic mirror against RATE's independent Production authority."""
+    require(isinstance(value, Mapping), "FUGLE_BINDING_INVALID")
+    require(value.get("artifact") == "RATE_FUGLE_FREE_INTRADAY_UNIVERSE_BINDING_V1",
+            "FUGLE_BINDING_ARTIFACT_INVALID")
+    require(value.get("evidence_scope") == "DIAGNOSTIC_ONLY", "FUGLE_BINDING_SCOPE_INVALID")
+    require(value.get("validation_status") == "PASS", "FUGLE_BINDING_NOT_PASS")
+
+    trusted, lineage = _trusted_binding()
+    require(value.get("expected_count") == 30, "FUGLE_BINDING_COUNT_INVALID")
+    require(value.get("expected_market_counts") == {"TWSE": 25, "TPEX": 5},
+            "FUGLE_BINDING_MARKET_COUNTS_INVALID")
+    require(value.get("production_snapshot_id") == lineage["production_snapshot_id"],
+            "FUGLE_BINDING_SNAPSHOT_MISMATCH")
+    require(value.get("source_bundle_path") == lineage["immutable_bundle_path"],
+            "FUGLE_BINDING_SOURCE_PATH_MISMATCH")
+    require(value.get("source_bundle_sha256") == lineage["source_bundle_sha256"],
+            "FUGLE_BINDING_SOURCE_SHA256_MISMATCH")
+    require(value.get("universe_contract_sha256") == lineage["universe_contract_sha256"],
+            "FUGLE_BINDING_CONTRACT_SHA256_MISMATCH")
+    require(value.get("universe_binding_hash") == lineage["universe_binding_hash"],
+            "FUGLE_BINDING_HASH_MISMATCH")
+
+    records = value.get("records")
+    require(isinstance(records, list) and len(records) == 30, "FUGLE_BINDING_COUNT_INVALID")
+    result: dict[str, str] = {}
+    for row in records:
+        require(isinstance(row, Mapping), "FUGLE_BINDING_ROW_INVALID")
+        raw_symbol = row.get("symbol")
+        raw_market = row.get("market")
+        require(isinstance(raw_symbol, str) and raw_symbol == raw_symbol.strip() and raw_symbol,
+                "FUGLE_BINDING_ROW_INVALID")
+        require(isinstance(raw_market, str) and raw_market in ALLOWED_MARKETS,
+                "FUGLE_BINDING_ROW_INVALID")
+        require(raw_symbol not in result, "FUGLE_BINDING_DUPLICATE:" + raw_symbol)
+        result[raw_symbol] = raw_market
+
+    require(result == trusted, "FUGLE_BINDING_NOT_APPROVED")
+    return result, lineage
+
+
+def _single_https_request(
+    symbol: str,
+    api_key: str,
+    *,
+    connection_factory: Callable[..., Any] = HTTPSConnection,
+) -> Mapping[str, Any]:
+    """Perform exactly one direct HTTPS request; never follows HTTP redirects."""
     require(api_key, "FUGLE_API_KEY_MISSING")
-    req = Request(BASE_URL + symbol, headers={"X-API-KEY": api_key, "Accept": "application/json"})
+    require(isinstance(symbol, str) and symbol and "/" not in symbol and "?" not in symbol,
+            "FUGLE_SYMBOL_INVALID")
+    connection = connection_factory(API_HOST, timeout=10)
     try:
-        response = opener(req, timeout=10)
-        status = getattr(response, "status", 200)
+        connection.request(
+            "GET",
+            QUOTE_PATH_PREFIX + symbol,
+            headers={"X-API-KEY": api_key, "Accept": "application/json"},
+        )
+        response = connection.getresponse()
+        status = int(response.status)
         body = response.read()
-    except HTTPError as exc:
-        if exc.code == 403:
-            raise FugleDiagnosticError("FUGLE_FREE_PLAN_NOT_AUTHORIZED") from exc
-        if exc.code == 429:
-            raise FugleDiagnosticError("FUGLE_FREE_PLAN_RATE_LIMIT") from exc
-        if exc.code == 401:
-            raise FugleDiagnosticError("FUGLE_API_KEY_INVALID") from exc
-        raise FugleDiagnosticError("FUGLE_HTTP_" + str(exc.code)) from exc
-    except URLError as exc:
+    except (OSError, TimeoutError) as exc:
         raise FugleDiagnosticError("FUGLE_CONNECTIVITY_FAILURE") from exc
+    finally:
+        try:
+            connection.close()
+        except Exception:
+            pass
+
+    if 300 <= status < 400:
+        raise FugleDiagnosticError("FUGLE_REDIRECT_FORBIDDEN")
+    if status == 401:
+        raise FugleDiagnosticError("FUGLE_API_KEY_INVALID")
+    if status == 403:
+        raise FugleDiagnosticError("FUGLE_FREE_PLAN_NOT_AUTHORIZED")
+    if status == 429:
+        raise FugleDiagnosticError("FUGLE_FREE_PLAN_RATE_LIMIT")
     require(status == 200 and body, "FUGLE_HTTP_OR_EMPTY_RESPONSE")
     try:
         value = json.loads(body)
@@ -81,32 +151,33 @@ def _request(symbol: str, api_key: str, opener=urlopen) -> Mapping[str, Any]:
     return value
 
 
-def load_binding(value: Mapping[str, Any]) -> dict[str, str]:
-    require(value.get("validation_status") == "PASS", "FUGLE_BINDING_NOT_PASS")
-    records = value.get("records")
-    require(isinstance(records, list) and len(records) == 30, "FUGLE_BINDING_COUNT_INVALID")
-    result = {}
-    for row in records:
-        require(isinstance(row, Mapping), "FUGLE_BINDING_ROW_INVALID")
-        symbol = str(row.get("symbol") or "").strip()
-        market = str(row.get("market") or "").strip().upper()
-        require(symbol and market in {"TWSE", "TPEX"} and symbol not in result, "FUGLE_BINDING_ROW_INVALID")
-        result[symbol] = market
-    require(Counter(result.values()) == Counter({"TWSE": 25, "TPEX": 5}), "FUGLE_BINDING_MARKET_COUNTS_INVALID")
-    return result
-
-
-def qualify(api_key: str, binding: Mapping[str, Any], *, trading_date: str, cadence: str,
-            now_utc: datetime, opener=urlopen, max_age_seconds: int = MAX_AGE_SECONDS) -> dict[str, Any]:
+def qualify(
+    api_key: str,
+    binding: Mapping[str, Any],
+    *,
+    trading_date: str,
+    cadence: str,
+    now_utc: datetime,
+    connection_factory: Callable[..., Any] = HTTPSConnection,
+    max_age_seconds: int = MAX_AGE_SECONDS,
+) -> dict[str, Any]:
     require(cadence in {"09:30", "12:00"}, "FUGLE_CADENCE_INVALID")
     require(now_utc.tzinfo is not None and now_utc.utcoffset() is not None, "FUGLE_NOW_TIMEZONE_REQUIRED")
-    expected = load_binding(binding)
+
+    # All binding checks occur before credential use or any network attempt.
+    expected, lineage = load_binding(binding)
+    require(api_key, "FUGLE_API_KEY_MISSING")
+
     records = []
     request_count = 0
     for symbol, expected_market in expected.items():
         require(request_count < MAX_REQUESTS, "FUGLE_REQUEST_CAP_EXCEEDED")
-        raw = _request(symbol, api_key, opener)
         request_count += 1
+        raw = _single_https_request(
+            symbol,
+            api_key,
+            connection_factory=connection_factory,
+        )
         require(str(raw.get("symbol") or "").strip() == symbol, "FUGLE_SYMBOL_MISMATCH")
         market = _market(raw.get("exchange"))
         require(market == expected_market, "FUGLE_MARKET_MISMATCH:" + symbol)
@@ -130,7 +201,7 @@ def qualify(api_key: str, binding: Mapping[str, Any], *, trading_date: str, cade
         })
 
     counts = Counter(row["market"] for row in records)
-    require(request_count == 30 and len(records) == 30, "FUGLE_EXACT_30_REQUIRED")
+    require(request_count == MAX_REQUESTS and len(records) == MAX_REQUESTS, "FUGLE_EXACT_30_REQUIRED")
     require(counts == Counter({"TWSE": 25, "TPEX": 5}), "FUGLE_DUAL_MARKET_COVERAGE_FAIL")
     return {
         "artifact": "RATE_FUGLE_FREE_INTRADAY_DIAGNOSTIC_RESULT_V1",
@@ -142,9 +213,14 @@ def qualify(api_key: str, binding: Mapping[str, Any], *, trading_date: str, cade
         "trading_date": trading_date,
         "cadence": cadence,
         "network_requests": request_count,
+        "http_redirects_followed": 0,
         "automatic_retries": 0,
         "fallback_used": False,
         "token_persisted": False,
+        "approved_universe_production_snapshot_id": lineage["production_snapshot_id"],
+        "approved_universe_source_bundle_sha256": lineage["source_bundle_sha256"],
+        "approved_universe_contract_sha256": lineage["universe_contract_sha256"],
+        "approved_universe_binding_hash": lineage["universe_binding_hash"],
         "license_gate": "UNPROVEN_REQUIRES_PROVIDER_CONFIRMATION_FOR_NON_DISPLAY_AUTOMATED_USE",
         "production_eligible": False,
         "external_dependency_resolved": False,
