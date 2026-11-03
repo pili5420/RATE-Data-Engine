@@ -25,6 +25,7 @@ ADMIN_SEQUENCE = (
     "GET_WORKER_SCRIPT",
     "GET_WORKER_SECRET_METADATA",
     "GET_WORKERS_SUBDOMAIN",
+    "GET_WORKER_SCRIPT_SUBDOMAIN",
 )
 RUNTIME_SEQUENCE = (
     "UNAUTHORIZED_GET",
@@ -93,6 +94,8 @@ class SyntheticCloudflareQualificationBackend:
             return {"name": "RATE_D1_RECEIPT_WORKER_TOKEN", "present": self.secret_exists}
         if name == "GET_WORKERS_SUBDOMAIN":
             return {"subdomain": "synthetic-account"}
+        if name == "GET_WORKER_SCRIPT_SUBDOMAIN":
+            return {"enabled": True, "previews_enabled": False}
         raise CloudflareQualificationRehearsalError("CF_REHEARSAL_UNKNOWN_ADMIN_OPERATION")
 
     def runtime_probe(self, name: str) -> dict[str, Any]:
@@ -209,6 +212,8 @@ def rehearse_cloudflare_real_qualification(
                 "CF_REHEARSAL_SECRET_METADATA_INVALID")
         require(evidence["GET_WORKERS_SUBDOMAIN"]["subdomain"] == "synthetic-account",
                 "CF_REHEARSAL_WORKERS_SUBDOMAIN_INVALID")
+        require(evidence["GET_WORKER_SCRIPT_SUBDOMAIN"]["enabled"] is True,
+                "CF_REHEARSAL_WORKER_SCRIPT_SUBDOMAIN_DISABLED")
         expected_statuses = {
             "UNAUTHORIZED_GET": 401,
             "MISSING_GET": 404,
