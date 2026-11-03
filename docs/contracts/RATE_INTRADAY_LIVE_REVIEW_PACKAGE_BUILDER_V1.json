@@ -1,0 +1,18 @@
+{
+  "artifact": "RATE_INTRADAY_LIVE_REVIEW_PACKAGE_BUILDER_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "purpose": "DETERMINISTICALLY_PACKAGE_LIVE_RESULT_FOR_INDEPENDENT_REVIEW",
+  "review_decision_performed": false,
+  "external_expected_hash_created": false,
+  "single_use_required": true,
+  "workflow_attempt": 1,
+  "rerun_count": 0,
+  "job_retry_count": 0,
+  "secret_scan_required": "PASS_NO_SECRET_EXPOSURE",
+  "network_requests_by_builder": 0,
+  "credential_access_by_builder": 0,
+  "provider_acceptance_performed": false,
+  "activation_execution_allowed": false,
+  "production_credit": 0,
+  "cer081_credit": 0
+}
