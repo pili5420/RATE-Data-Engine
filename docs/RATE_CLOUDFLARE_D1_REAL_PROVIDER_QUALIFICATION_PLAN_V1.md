@@ -1,0 +1,26 @@
+# RATE V11 Cloudflare D1 Real Provider Qualification Plan V1
+
+This layer fixes the exact boundary for one later, separately authorized real
+Cloudflare provider qualification.
+
+The qualification uses temporary resources only:
+
+- one D1 database with read replication disabled;
+- one Worker script;
+- one Worker secret;
+- zero custom routes/domains;
+- workers.dev endpoint only.
+
+The Cloudflare API token must be stored as a GitHub Actions secret and limited to
+D1 Write and Workers Scripts Write. The account ID is a GitHub Actions variable.
+No secret value is embedded in the plan or repository.
+
+The runtime probe budget is exactly one each of unauthorized GET, missing GET,
+create POST, readback GET, duplicate POST and unsupported method. Automatic retry
+and fallback are forbidden.
+
+Qualification credit requires mandatory cleanup of both Worker and D1. Any residual
+resource after the one allowed cleanup attempt yields BLOCKED_RESIDUAL_RESOURCE.
+
+This PR is plan-only and performs zero Cloudflare requests, reads zero credentials
+and creates zero resources.
