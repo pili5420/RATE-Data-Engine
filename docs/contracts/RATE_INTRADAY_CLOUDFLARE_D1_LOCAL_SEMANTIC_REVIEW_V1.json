@@ -1,0 +1,20 @@
+{
+  "artifact": "RATE_INTRADAY_CLOUDFLARE_D1_LOCAL_SEMANTIC_REVIEW_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "database_runtime": "SQLITE_IN_MEMORY",
+  "duplicate_status": 409,
+  "database_failure_status": 503,
+  "update_guard_required": true,
+  "delete_guard_required": true,
+  "worker_auth_fail_closed": true,
+  "worker_route_scope": "EXACT_EXECUTION_ID",
+  "worker_methods": ["GET", "POST"],
+  "ambiguous_http_policy": "ONE_POST_THEN_ONE_GET_NO_POST_RETRY",
+  "real_cloudflare_requests": 0,
+  "credentials_read": 0,
+  "resources_created": 0,
+  "provider_qualified": false,
+  "production_credit": 0,
+  "cer081_credit": 0,
+  "next_gate": "CLOUDFLARE_D1_SCAFFOLD_NODE_WORKER_REVIEW"
+}
