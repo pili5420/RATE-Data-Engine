@@ -7,6 +7,16 @@
   "candidate_new_file_count": 2,
   "repo_preimage_revalidation_required": true,
   "phase2_admission_replay_required": true,
+  "phase2_source_all_four_cadences_required": true,
+  "phase2_intraday_decision_gate_status": {
+    "07:30": "NOT_APPLICABLE",
+    "09:30": "PASS",
+    "12:00": "PASS",
+    "19:30": "NOT_APPLICABLE"
+  },
+  "phase2_transition_must_enforce_same_intraday_gate_status": true,
+  "hardcoded_blocked_external_intraday_status_allowed": false,
+  "public_partial_only_cadence_restriction_allowed": false,
   "source_builder_provider_network_allowed": false,
   "scheduler_public_partial_allowed_after_activation_candidate": false,
   "scheduler_fallback_allowed": false,
