@@ -211,6 +211,12 @@ def rehearse_activation_git_transaction(
         and branch != "main",
         "GIT_REHEARSAL_TARGET_BRANCH_INVALID",
     )
+    # Replay is rejected by the single-use trust root before any branch-state
+    # interpretation or synthetic mutation.
+    require(
+        plan_hash not in backend.consumed_tokens,
+        "GIT_REHEARSAL_SINGLE_USE_ALREADY_CONSUMED",
+    )
     require(branch not in backend.refs, "GIT_REHEARSAL_BRANCH_ALREADY_EXISTS")
 
     # Single-use is consumed before the first synthetic Git mutation. A later
