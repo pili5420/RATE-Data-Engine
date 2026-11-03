@@ -19,5 +19,11 @@
   "registry_activation_allowed": false,
   "production_credit": 0,
   "cer081_credit": 0,
-  "next_gate": "SEPARATE_SINGLE_USE_GIT_TRANSACTION_EXECUTOR"
+  "next_gate": "SEPARATE_SINGLE_USE_GIT_TRANSACTION_EXECUTOR",
+  "git_ref_safe_decision_id_required": true,
+  "forbidden_decision_id_forms": [
+    "CONTAINS_DOUBLE_DOT",
+    "TRAILING_DOT",
+    "LOCK_SUFFIX"
+  ]
 }

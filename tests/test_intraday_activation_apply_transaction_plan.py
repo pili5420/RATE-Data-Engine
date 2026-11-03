@@ -186,6 +186,28 @@ class ActivationApplyTransactionPlanTests(unittest.TestCase):
         ):
             self.build(decision="OTHER")
 
+    def test_decision_id_must_produce_a_valid_git_branch_name(self):
+        for invalid in (
+            "BAD..RANGE",
+            "TRAILING.",
+            "reserved.lock",
+        ):
+            with self.subTest(invalid=invalid), self.assertRaisesRegex(
+                ActivationApplyTransactionPlanError, "EXPECTED_DECISION_ID_INVALID"
+            ):
+                self.build(decision=invalid)
+
+    def test_target_branch_is_deterministic_and_never_main(self):
+        plan = self.build()
+        self.assertEqual(
+            plan["target_branch"],
+            "activation/rate-v11-intraday-" + DECISION.lower(),
+        )
+        self.assertNotEqual(plan["target_branch"], "main")
+        self.assertNotIn("..", plan["target_branch"])
+        self.assertFalse(plan["target_branch"].endswith("."))
+        self.assertFalse(plan["target_branch"].lower().endswith(".lock"))
+
     def test_plan_hash_changes_when_candidate_content_changes(self):
         one = self.build()
         files = candidate_files()

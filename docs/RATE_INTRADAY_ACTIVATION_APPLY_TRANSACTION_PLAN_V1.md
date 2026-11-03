@@ -15,10 +15,12 @@ The plan binds:
 - confirmed absence of the 2 new runtime files;
 - per-file content SHA-256;
 - per-file Git blob SHA-1;
-- exact CREATE_NEW vs REPLACE_EXISTING operation.
+- exact CREATE_NEW vs REPLACE_EXISTING operation;
+- a Git-ref-safe Control Center decision ID and deterministic activation branch.
 
 The plan proposes a dedicated activation branch but explicitly forbids direct main
-updates and merge.
+updates and merge. Decision IDs containing invalid Git-ref forms such as `..`,
+a trailing `.`, or a `.lock` suffix are rejected before a plan is produced.
 
 It does not create Git blobs, trees, commits, branches or pull requests.
 
