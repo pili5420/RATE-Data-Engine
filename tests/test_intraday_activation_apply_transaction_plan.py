@@ -132,9 +132,27 @@ class ActivationApplyTransactionPlanTests(unittest.TestCase):
 
     def test_candidate_manifest_and_file_set_are_exact(self):
         with self.assertRaisesRegex(
-            ActivationApplyTransactionPlanError, "CANDIDATE_MANIFEST_HASH_MISMATCH"
+            ActivationApplyTransactionPlanError, "CANDIDATE_MANIFEST_BINDING_MISMATCH"
         ):
             self.build(manifest="f" * 64)
+
+        files = candidate_files()
+        manifest = candidate_manifest_sha256(files)
+        q = qualification(manifest)
+        tampered = dict(files)
+        tampered[EXPECTED_PATHS[0]] += "tamper\n"
+        with self.assertRaisesRegex(
+            ActivationApplyTransactionPlanError, "CANDIDATE_MANIFEST_HASH_MISMATCH"
+        ):
+            build_activation_apply_transaction_plan(
+                q,
+                tampered,
+                expected_authorization_qualification_sha256=canonical_digest(q),
+                expected_current_main_sha=MAIN,
+                expected_candidate_manifest_sha256=manifest,
+                expected_control_center_decision_id=DECISION,
+                expected_provider_name=PROVIDER,
+            )
 
         files = candidate_files()
         files["config/UNAUTHORIZED.json"] = "x"
