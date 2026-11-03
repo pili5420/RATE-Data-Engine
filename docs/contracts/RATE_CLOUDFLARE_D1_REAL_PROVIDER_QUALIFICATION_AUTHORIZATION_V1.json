@@ -18,6 +18,8 @@
   "production_credit": 0,
   "cer081_credit": 0,
   "next_gate": "SEPARATE_CLOUDFLARE_REAL_QUALIFICATION_EXECUTOR",
-  "admin_operation_count": 8,
-  "workers_subdomain_lookup_count": 1
+  "admin_operation_count": 9,
+  "workers_subdomain_lookup_count": 1,
+  "worker_script_subdomain_lookup_count": 1,
+  "worker_subdomain_mutation_allowed": false
 }
