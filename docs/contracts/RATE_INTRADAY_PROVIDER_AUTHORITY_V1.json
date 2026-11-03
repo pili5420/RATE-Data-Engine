@@ -1,0 +1,41 @@
+{
+  "artifact": "RATE_INTRADAY_PROVIDER_AUTHORITY_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "required_markets": ["TWSE", "TPEX"],
+  "required_data_class": "REAL_TIME_TRADING_INFORMATION",
+  "required_usage_rights": [
+    "AUTOMATED_NON_DISPLAY_USE",
+    "INTERNAL_ANALYSIS_USE"
+  ],
+  "manifest_self_authorization": "FORBIDDEN",
+  "trusted_expected_binding": {
+    "artifact": "RATE_INTRADAY_PROVIDER_AUTHORITY_EXPECTED_BINDING_V1",
+    "source": "CONTROL_CENTER_CALL_SITE_OUTSIDE_PROVIDER_MANIFEST",
+    "required_fields": [
+      "control_center_decision_id",
+      "provider_name",
+      "service_id",
+      "credential_secret_name",
+      "valid_from",
+      "valid_through",
+      "exchange_evidence.TWSE.evidence_reference",
+      "exchange_evidence.TWSE.evidence_sha256",
+      "exchange_evidence.TPEX.evidence_reference",
+      "exchange_evidence.TPEX.evidence_sha256"
+    ]
+  },
+  "exchange_authorization_evidence": "REQUIRED_PER_MARKET_AND_EXPECTED_BINDING_MATCH",
+  "evidence_digest": "SHA256_REQUIRED",
+  "validity_window": "MUST_MATCH_EXPECTED_BINDING_AND_INCLUDE_TARGET_TRADING_DATE",
+  "credential_value_in_repository": "FORBIDDEN",
+  "allowed_credential_stores": [
+    "GITHUB_ACTIONS_SECRET",
+    "EXTERNAL_SECRET_MANAGER"
+  ],
+  "fallback_allowed": false,
+  "provider_selection_performed": false,
+  "network_execution_allowed": false,
+  "registry_activation_allowed": false,
+  "production_activation_allowed": false,
+  "cer081_credit": 0
+}
