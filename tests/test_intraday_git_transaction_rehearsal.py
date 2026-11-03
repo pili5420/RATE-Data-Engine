@@ -106,12 +106,9 @@ class GitTransactionRehearsalTests(unittest.TestCase):
                 expected_base_main_sha=MAIN,
                 expected_candidate_manifest_sha256=candidate_manifest_sha256(candidate),
             )
+        self.assertEqual(backend.calls, calls_before)
         self.assertEqual(
-            backend.calls[len(calls_before)],
-            "consume:" + canonical_digest(p),
-        )
-        self.assertEqual(
-            [c for c in backend.calls[len(calls_before)+1:] if c.startswith("blob:")],
+            [c for c in backend.calls[len(calls_before):] if c.startswith("blob:")],
             [],
         )
 
