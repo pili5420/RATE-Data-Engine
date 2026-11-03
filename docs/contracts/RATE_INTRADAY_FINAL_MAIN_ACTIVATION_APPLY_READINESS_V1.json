@@ -1,0 +1,21 @@
+{
+  "artifact": "RATE_INTRADAY_FINAL_MAIN_ACTIVATION_APPLY_READINESS_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "historical_evidence_rewrite_allowed": false,
+  "current_repo_preimages_required": true,
+  "rebased_delta_plan_required": true,
+  "rebased_full_synthetic_review_required": true,
+  "provider_identity_must_not_drift": true,
+  "license_basis_must_not_drift": true,
+  "endpoint_template_must_not_drift": true,
+  "secret_name_must_not_drift": true,
+  "single_live_cadence_credit_only": true,
+  "apply_allowed": false,
+  "activation_execution_allowed": false,
+  "external_dependency_resolved": false,
+  "registry_activation_allowed": false,
+  "production_credit": 0,
+  "cer081_credit": 0,
+  "success_disposition": "READY_FOR_CONTROL_CENTER_ACTIVATION_APPLY_AUTHORIZATION",
+  "next_gate": "EXPLICIT_CONTROL_CENTER_ACTIVATION_APPLY_AUTHORIZATION"
+}
