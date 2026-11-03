@@ -222,8 +222,8 @@ def _validate_workflow(
     require(isinstance(job, Mapping), "ACTIVATION_SYNTAX_SCHEDULER_JOB_INVALID:" + cadence)
     env = job.get("env")
     require(isinstance(env, Mapping), "ACTIVATION_SYNTAX_SCHEDULER_ENV_MISSING:" + cadence)
-    require(env.get(secret_name) == "${{ secrets." + secret_name + " }}",
-            "ACTIVATION_SYNTAX_SCHEDULER_SECRET_EXPRESSION_INVALID:" + cadence)
+    require(secret_name not in env,
+            "ACTIVATION_SYNTAX_SCHEDULER_JOB_SECRET_SCOPE_FORBIDDEN:" + cadence)
     require(
         env.get("RATE_AUTHORIZED_INTRADAY_FEED_PATH")
         == f"artifacts/production_{cadence.replace(':', '')}/RATE_AUTHORIZED_INTRADAY_FEED.json",
@@ -231,6 +231,32 @@ def _validate_workflow(
     )
     steps = job.get("steps")
     require(isinstance(steps, list), "ACTIVATION_SYNTAX_SCHEDULER_STEPS_INVALID:" + cadence)
+    acquisition_steps = [
+        step for step in steps
+        if isinstance(step, Mapping)
+        and step.get("name") == "Acquire authorized intraday provider feed"
+    ]
+    require(len(acquisition_steps) == 1,
+            "ACTIVATION_SYNTAX_SCHEDULER_ACQUISITION_STEP_INVALID:" + cadence)
+    acquisition_env = acquisition_steps[0].get("env")
+    require(
+        isinstance(acquisition_env, Mapping)
+        and acquisition_env.get(secret_name) == "${{ secrets." + secret_name + " }}",
+        "ACTIVATION_SYNTAX_SCHEDULER_SECRET_EXPRESSION_INVALID:" + cadence,
+    )
+    secret_expression = "${{ secrets." + secret_name + " }}"
+    for step in steps:
+        if not isinstance(step, Mapping) or step is acquisition_steps[0]:
+            continue
+        step_env = step.get("env") or {}
+        require(
+            not isinstance(step_env, Mapping) or secret_name not in step_env,
+            "ACTIVATION_SYNTAX_SCHEDULER_SECRET_SCOPE_LEAK:" + cadence,
+        )
+        require(
+            secret_expression not in json.dumps(step, sort_keys=True),
+            "ACTIVATION_SYNTAX_SCHEDULER_SECRET_EXPRESSION_LEAK:" + cadence,
+        )
     commands = "\n".join(
         str(step.get("run", "")) for step in steps if isinstance(step, Mapping)
     )
@@ -240,6 +266,26 @@ def _validate_workflow(
         "scripts/run_phase2_production.py",
     ):
         require(required in commands, "ACTIVATION_SYNTAX_SCHEDULER_COMMAND_MISSING:" + cadence)
+    command_indices = {}
+    for index, step in enumerate(steps):
+        if not isinstance(step, Mapping):
+            continue
+        run = str(step.get("run", ""))
+        for required in (
+            "scripts/acquire_intraday_provider_feed.py",
+            "scripts/build_phase2_production_source.py",
+            "scripts/run_phase2_production.py",
+        ):
+            if required in run:
+                require(required not in command_indices,
+                        "ACTIVATION_SYNTAX_SCHEDULER_COMMAND_DUPLICATE:" + cadence)
+                command_indices[required] = index
+    require(
+        command_indices["scripts/acquire_intraday_provider_feed.py"]
+        < command_indices["scripts/build_phase2_production_source.py"]
+        < command_indices["scripts/run_phase2_production.py"],
+        "ACTIVATION_SYNTAX_SCHEDULER_COMMAND_ORDER_INVALID:" + cadence,
+    )
     for mapping in _walk_mapping(value):
         require(mapping.get("continue-on-error") is not True,
                 "ACTIVATION_SYNTAX_SCHEDULER_CONTINUE_ON_ERROR_FORBIDDEN:" + cadence)

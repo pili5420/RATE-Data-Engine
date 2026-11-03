@@ -143,6 +143,51 @@ class ActivationCandidateSyntaxReviewTests(unittest.TestCase):
         ):
             self.review(value)
 
+    def test_scheduler_secret_is_scoped_only_to_acquisition_step(self):
+        path = ".github/workflows/rate_production_0930_scheduler.yml"
+
+        value = candidates()
+        value[path] = value[path].replace(
+            '      RATE_AUTHORIZED_INTRADAY_FEED_PATH: "artifacts/production_0930/RATE_AUTHORIZED_INTRADAY_FEED.json"\n',
+            '      FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}\n'
+            '      RATE_AUTHORIZED_INTRADAY_FEED_PATH: "artifacts/production_0930/RATE_AUTHORIZED_INTRADAY_FEED.json"\n',
+        )
+        with self.assertRaisesRegex(
+            ActivationCandidateSyntaxError, "JOB_SECRET_SCOPE_FORBIDDEN"
+        ):
+            self.review(value)
+
+        value = candidates()
+        value[path] = value[path].replace(
+            "      - name: Build Phase2 authorized intraday production source bundle\n",
+            "      - name: Build Phase2 authorized intraday production source bundle\n"
+            "        env:\n"
+            "          FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}\n",
+        )
+        with self.assertRaisesRegex(
+            ActivationCandidateSyntaxError, "SECRET_SCOPE_LEAK"
+        ):
+            self.review(value)
+
+    def test_scheduler_acquisition_build_run_order_is_exact(self):
+        path = ".github/workflows/rate_production_1200_scheduler.yml"
+        value = candidates()
+        text = value[path]
+        acquire = text.index("      - name: Acquire authorized intraday provider feed\n")
+        build = text.index("      - name: Build Phase2 authorized intraday production source bundle\n")
+        run = text.index("      - name: Execute Phase2 authorized intraday runtime\n")
+        self.assertLess(acquire, build)
+        self.assertLess(build, run)
+
+        acquire_block = text[acquire:build]
+        build_block = text[build:run]
+        mutated = text[:acquire] + build_block + acquire_block + text[run:]
+        value[path] = mutated
+        with self.assertRaisesRegex(
+            ActivationCandidateSyntaxError, "COMMAND_ORDER_INVALID"
+        ):
+            self.review(value)
+
     def test_scheduler_secret_expression_must_be_exact(self):
         value = candidates()
         path = ".github/workflows/rate_production_0930_scheduler.yml"
