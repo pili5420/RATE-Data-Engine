@@ -414,7 +414,7 @@ def main():
         "previous_state_id": args.previous_state_id,
         "previous_state_hash": args.previous_state_hash,
         "payload_references": [{{
-            "path": str(raw_path),
+            "path": raw_path.as_posix(),
             "sha256": hashlib.sha256(raw_bytes).hexdigest(),
         }}],
     }}
