@@ -1,0 +1,22 @@
+{
+  "artifact": "RATE_INTRADAY_ACTIVATION_APPLY_AUTHORIZATION_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "explicit_control_center_authorization_required": true,
+  "single_use": true,
+  "automatic_retry_allowed": false,
+  "fallback_allowed": false,
+  "exact_current_main_binding_required": true,
+  "final_main_readiness_sha256_required": true,
+  "candidate_manifest_sha256_required": true,
+  "exact_9_file_allowlist_required": true,
+  "allowed_operations": ["CREATE_OR_REPLACE_EXACT_CANDIDATE_FILES"],
+  "credential_value_embedding": false,
+  "additional_live_provider_requests_allowed": 0,
+  "production_credit_before_apply": 0,
+  "cer081_credit_before_apply": 0,
+  "apply_performed_by_validator": false,
+  "repository_writes": 0,
+  "external_dependency_resolved": false,
+  "registry_activation_allowed": false,
+  "next_gate": "SEPARATE_SINGLE_USE_ACTIVATION_APPLY_EXECUTOR"
+}
