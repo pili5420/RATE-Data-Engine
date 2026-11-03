@@ -19,3 +19,8 @@ GitHub Actions secret/variable names. No credential value is present.
 A PASS is authorization qualification only. This validator does not create resources
 or execute Cloudflare requests. The next gate is a separate one-shot real
 qualification executor.
+
+
+The authorization also binds one durable single-use consumption marker: one
+lightweight Git tag ref create/readback before the first Cloudflare request. Ref
+update/delete and marker reuse are not authorized.
