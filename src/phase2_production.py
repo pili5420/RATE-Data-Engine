@@ -343,6 +343,13 @@ def bind_input_material(raw, catalogue, previous, *, trading_date, cadence, auth
 def evaluate_material(material, catalogue, state_root):
     if material["cadence"] in {"09:30", "12:00"}:
         require_intraday_authority()
+        from .intraday_phase2_admission import validate_phase2_intraday_admission
+        validate_phase2_intraday_admission(
+            material.get("intraday_feed"),
+            material.get("intraday_admission"),
+            trading_date=material["trading_date"],
+            cadence=material["cadence"],
+        )
     day, time, loaded = latest_predecessor(state_root, material["trading_date"], material["cadence"])
     previous = loaded["state"]
     require(material.get("previous_state_id") == previous["current_state_id"]
