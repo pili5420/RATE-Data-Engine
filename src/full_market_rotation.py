@@ -202,7 +202,7 @@ def evaluate_rotation(*, state_root, previous_trading_date, previous_cadence, tr
             require(feed.get("authorization_status") == "PASS" and feed.get("validation_status") == "PASS"
                     and feed.get("source_status") == "PASS" and feed.get("freshness_status") == "PASS"
                     and feed.get("fallback_used") is False and feed.get("blocked_dependencies") == []
-                    and feed.get("source_authority") == "AUTHORIZED_TWSE_INTRADAY_FEED"
+                    and feed.get("source_authority") == "AUTHORIZED_TAIWAN_INTRADAY_FEED"
                     and feed.get("trading_date") == trading_date and feed.get("cadence") == cadence, EXTERNAL_FEED)
         loaded = load_live_state(state_root, previous_trading_date, previous_cadence)
         previous = loaded["state"]

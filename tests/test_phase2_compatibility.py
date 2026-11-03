@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 from src.cer074_acceptance import atomic_write_json
 from src import phase2_production as phase2
+from src.full_market_rotation import EXTERNAL_FEED
 from src.production_live_state import load_live_state, file_hash, PERSIST_NAME
 from tests import test_phase2_production as fixtures
 from tests import test_public_official_partial_valid as public_fixtures
@@ -142,11 +143,28 @@ class Phase2CompatibilityTests(unittest.TestCase):
             self.assertEqual((ROOT / path).read_bytes(), subprocess.check_output(["git", "show", fixtures.BASE + ":" + path], cwd=ROOT))
 
     def test_registry_eps_contract_soak_and_model_owners_unchanged(self):
-        paths = ["config/RATE_EXTERNAL_PRODUCTION_DEPENDENCIES.json", "config/RATE_FOUR_CADENCE_REPORT_SOAK_V1.json",
+        paths = ["config/RATE_FOUR_CADENCE_REPORT_SOAK_V1.json",
             "src/report_production_soak.py", "src/cer081_unattended_soak.py", "src/public_official_partial_valid.py",
             "src/sources/fundamental_history.py", "src/feature_math.py", "src/rate_logic.py", "src/full_market_catalogue.py"]
         for path in paths:
             self.assertEqual((ROOT / path).read_bytes(), subprocess.check_output(["git", "show", fixtures.BASE + ":" + path], cwd=ROOT))
+
+        dependency_doc = json.loads((ROOT / "config/RATE_EXTERNAL_PRODUCTION_DEPENDENCIES.json").read_text(encoding="utf-8"))
+        dependency = next(item for item in dependency_doc["dependencies"] if item["dependency_id"] == EXTERNAL_FEED)
+        self.assertEqual(dependency["status"], "BLOCKED_EXTERNAL")
+        self.assertFalse(dependency["fallback_allowed"])
+        self.assertFalse(dependency["engineering_resolution_available"])
+        self.assertEqual(set(dependency["required_market_coverage"]), {"TWSE", "TPEX"})
+        self.assertEqual(dependency["required_resolution"],
+            "AUTHORIZED_TAIWAN_INTRADAY_PRODUCTION_FEED_WITH_TWSE_TPEX_COVERAGE")
+
+        registry_doc = json.loads((ROOT / "config/RATE_PRODUCTION_OFFICIAL_SOURCE_REGISTRY_V1.json").read_text(encoding="utf-8"))
+        intraday = next(item for item in registry_doc["datasets"] if item["dataset_id"] == "authorized_market_intraday")
+        self.assertEqual(intraday["authority"], "AUTHORIZED_TAIWAN_INTRADAY_FEED")
+        self.assertEqual(set(intraday["required_market_coverage"]), {"TWSE", "TPEX"})
+        self.assertEqual(intraday["authorization_status"], "BLOCKED_EXTERNAL")
+        self.assertIsNone(intraday["endpoint"])
+        self.assertFalse(intraday["fallback_allowed"])
 
     def test_phase_a_does_not_grant_activation(self):
         contract = phase2.contract()

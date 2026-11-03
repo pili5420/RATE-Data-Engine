@@ -187,7 +187,8 @@
     {
       "dataset_id": "authorized_market_intraday",
       "domain": "market_intraday",
-      "authority": "AUTHORIZED_TWSE_INTRADAY_FEED",
+      "authority": "AUTHORIZED_TAIWAN_INTRADAY_FEED",
+      "required_market_coverage": ["TWSE", "TPEX"],
       "endpoint": null,
       "response_type": "json",
       "parser": "AUTHORIZED_INTRADAY_FEED_V1",

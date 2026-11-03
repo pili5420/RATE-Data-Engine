@@ -201,6 +201,29 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
         finally:
             shutil.rmtree(root, ignore_errors=True)
 
+    def test_intraday_dependency_requires_twse_and_tpex_without_claiming_authorization(self):
+        dependency_doc = json.loads(Path("config/RATE_EXTERNAL_PRODUCTION_DEPENDENCIES.json").read_text(encoding="utf-8"))
+        dependency = next(
+            row for row in dependency_doc["dependencies"]
+            if row["dependency_id"] == "EXTERNAL_AUTHORIZED_INTRADAY_FEED_DEPENDENCY"
+        )
+        self.assertEqual(dependency["status"], "BLOCKED_EXTERNAL")
+        self.assertFalse(dependency["engineering_resolution_available"])
+        self.assertFalse(dependency["fallback_allowed"])
+        self.assertEqual(set(dependency["required_market_coverage"]), {"TWSE", "TPEX"})
+        self.assertEqual(
+            dependency["required_resolution"],
+            "AUTHORIZED_TAIWAN_INTRADAY_PRODUCTION_FEED_WITH_TWSE_TPEX_COVERAGE",
+        )
+
+        registry_doc = json.loads(Path("config/RATE_PRODUCTION_OFFICIAL_SOURCE_REGISTRY_V1.json").read_text(encoding="utf-8"))
+        intraday = next(row for row in registry_doc["datasets"] if row["dataset_id"] == "authorized_market_intraday")
+        self.assertEqual(intraday["authority"], "AUTHORIZED_TAIWAN_INTRADAY_FEED")
+        self.assertEqual(set(intraday["required_market_coverage"]), {"TWSE", "TPEX"})
+        self.assertEqual(intraday["authorization_status"], "BLOCKED_EXTERNAL")
+        self.assertIsNone(intraday["endpoint"])
+        self.assertEqual(intraday["blocked_dependency"], dependency["dependency_id"])
+
     def test_schedule_nominal_date_survives_1930_runner_delay_past_midnight(self):
         taipei = timezone(timedelta(hours=8))
         resolved = _scheduled_nominal_trading_date(
