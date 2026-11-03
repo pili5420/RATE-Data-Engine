@@ -30,5 +30,15 @@
   "admin_operation_count": 9,
   "workers_subdomain_lookup_count": 1,
   "worker_script_subdomain_lookup_count": 1,
-  "worker_subdomain_mutation_allowed": false
+  "worker_subdomain_mutation_allowed": false,
+  "consumption_marker": {
+    "kind": "GITHUB_LIGHTWEIGHT_TAG_REF",
+    "ref_prefix": "refs/tags/rate-v11-qualification-consumed/cloudflare-d1-",
+    "create_count": 1,
+    "update_count": 0,
+    "delete_count": 0,
+    "target": "EXACT_CURRENT_MAIN",
+    "create_before_first_cloudflare_request": true,
+    "readback_required": true
+  }
 }
