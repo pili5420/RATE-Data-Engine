@@ -192,6 +192,10 @@ def build_activation_delta_plan(
             "required_postconditions": [
                 "require_intraday_authority accepts only authoritative dependency PASS",
                 "no unconditional PUBLIC_OFFICIAL_PARTIAL_RUNTIME_REQUIRED after PASS",
+                "validate_phase2_source_bundle accepts all four RATE cadences and selects INTRADAY_REQUIRED_DATASETS for 09:30/12:00",
+                "intraday_decision_gate_status returns PASS for 09:30/12:00 and NOT_APPLICABLE for 07:30/19:30",
+                "decision_from_evaluation uses intraday_decision_gate_status for market_intraday_price_gate and full_intraday_decision_status",
+                "validate_transition enforces the same cadence-derived intraday gate status",
                 "09:30/12:00 still require Phase2 authoritative admission replay",
                 "fallback remains forbidden",
             ],

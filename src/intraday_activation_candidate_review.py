@@ -197,12 +197,24 @@ def validate_activation_candidate(
             "def require_intraday_authority",
             "validate_phase2_intraday_admission",
             'status") == "PASS"',
+            "def intraday_decision_gate_status(cadence):",
+            'return "PASS" if cadence in {"09:30", "12:00"} else "NOT_APPLICABLE"',
+            "require(cadence in CADENCES",
+            'decision.get("market_intraday_price_gate") == intraday_decision_gate_status(cadence)',
+            'decision.get("full_intraday_decision_status") == intraday_decision_gate_status(cadence)',
         ),
         "ACTIVATION_CANDIDATE_PHASE2_REQUIRED_GATES_MISSING",
     )
     _require_absent(
         phase2,
-        ('raise RuntimeError("PUBLIC_OFFICIAL_PARTIAL_RUNTIME_REQUIRED")',),
+        (
+            'raise RuntimeError("PUBLIC_OFFICIAL_PARTIAL_RUNTIME_REQUIRED")',
+            'require(cadence in {"07:30", "19:30"}, "PUBLIC_OFFICIAL_PARTIAL_RUNTIME_REQUIRED")',
+            'market_intraday_price_gate="BLOCKED_EXTERNAL"',
+            'full_intraday_decision_status="BLOCKED_EXTERNAL"',
+            'decision.get("market_intraday_price_gate") == "BLOCKED_EXTERNAL"',
+            'decision.get("full_intraday_decision_status") == "BLOCKED_EXTERNAL"',
+        ),
         "ACTIVATION_CANDIDATE_PHASE2_FORCED_PARTIAL_RUNTIME_REMAINS",
     )
 

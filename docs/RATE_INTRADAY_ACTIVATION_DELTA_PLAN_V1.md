@@ -29,6 +29,27 @@ The plan describes the required postconditions for:
 - 09:30 scheduler;
 - 12:00 scheduler.
 
+## Phase2 activation blockers that must all be removed
+
+The future candidate must close all three current hard-coded intraday blockers, not
+only the first authority guard:
+
+1. `require_intraday_authority()` may return only when the authoritative external
+   dependency is PASS. The unconditional
+   `PUBLIC_OFFICIAL_PARTIAL_RUNTIME_REQUIRED` raise after PASS must be removed.
+2. `validate_phase2_source_bundle()` must accept all four RATE cadences and use
+   `INTRADAY_REQUIRED_DATASETS` for 09:30 / 12:00 instead of restricting the
+   function to 07:30 / 19:30.
+3. Decision creation and transition validation must derive intraday gate state by
+   cadence:
+   - 09:30 / 12:00 = `PASS`;
+   - 07:30 / 19:30 = `NOT_APPLICABLE`.
+   Hard-coded `BLOCKED_EXTERNAL` values are forbidden after activation.
+
+The candidate must still retain authoritative Phase2 admission replay before any
+intraday consumption. Full Production acceptance, soak credit and CER-081 credit
+remain separate downstream gates.
+
 It also reserves two new runtime files:
 
 - `src/intraday_provider_runtime.py`

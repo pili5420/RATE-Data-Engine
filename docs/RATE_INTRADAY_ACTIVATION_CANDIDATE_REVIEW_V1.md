@@ -15,8 +15,15 @@ It validates:
 - current repo preimages still match the delta plan;
 - candidate path set is exact;
 - dependency/source/official registry postconditions;
-- Phase2 keeps authoritative admission replay and removes the forced partial-only
-  runtime after authority PASS;
+- Phase2 keeps authoritative admission replay;
+- Phase2 no longer contains the authority-PASS forced partial-runtime raise;
+- Phase2 source validation accepts all four RATE cadences rather than only
+  07:30 / 19:30;
+- Phase2 defines one cadence-derived intraday gate status:
+  09:30 / 12:00 = PASS and 07:30 / 19:30 = NOT_APPLICABLE;
+- both decision creation and transition validation bind to that same derived
+  intraday status;
+- hard-coded BLOCKED_EXTERNAL intraday decision-state checks are absent;
 - the Phase2 builder does not acquire provider network data directly;
 - 09:30 / 12:00 schedulers use the approved secret and acquisition step, remove
   public-partial runtime, and prohibit fallback/retry wiring;

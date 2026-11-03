@@ -168,6 +168,17 @@ class ActivationDeltaPlanTests(unittest.TestCase):
         self.assertEqual(official["authorization_status"], "PASS")
         self.assertFalse(official["fallback_allowed"])
 
+    def test_phase2_postconditions_cover_all_activation_blockers(self):
+        plan = self.build()
+        requirements = " ".join(
+            plan["mutation_specs"]["src/phase2_production.py"]["required_postconditions"]
+        )
+        self.assertIn("validate_phase2_source_bundle accepts all four RATE cadences", requirements)
+        self.assertIn("intraday_decision_gate_status returns PASS", requirements)
+        self.assertIn("decision_from_evaluation uses intraday_decision_gate_status", requirements)
+        self.assertIn("validate_transition enforces the same cadence-derived intraday gate status", requirements)
+        self.assertIn("authoritative admission replay", requirements)
+
     def test_workflow_postconditions_keep_secret_and_retry_boundaries(self):
         plan = self.build()
         for path in (
