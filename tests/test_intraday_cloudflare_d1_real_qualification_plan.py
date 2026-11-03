@@ -6,6 +6,7 @@ import unittest
 
 from src.intraday_cloudflare_d1_real_qualification_plan import (
     CloudflareQualificationPlanError,
+    EXPECTED_CONSUMPTION_MARKER,
     REQUIRED_EVIDENCE,
     validate_cloudflare_real_qualification_plan,
 )
@@ -101,6 +102,7 @@ def plan():
         },
         "automatic_retry_allowed": False,
         "fallback_allowed": False,
+        "consumption_marker": dict(EXPECTED_CONSUMPTION_MARKER),
         "cleanup": {
             "mandatory": True,
             "cleanup_even_on_failure": True,
@@ -206,6 +208,20 @@ class CloudflareQualificationPlanTests(unittest.TestCase):
         value = plan()
         value["runtime_acceptance"]["post_retry_count"] = 1
         with self.assertRaisesRegex(CloudflareQualificationPlanError, "RUNTIME_SEMANTICS_INVALID"):
+            self.qualify(value)
+
+    def test_consumption_marker_is_exact_and_precedes_cloudflare_requests(self):
+        value = plan()
+        value["consumption_marker"]["create_count"] = 2
+        with self.assertRaisesRegex(CloudflareQualificationPlanError, "CONSUMPTION_MARKER_INVALID"):
+            self.qualify(value)
+        value = plan()
+        value["consumption_marker"]["delete_count"] = 1
+        with self.assertRaisesRegex(CloudflareQualificationPlanError, "CONSUMPTION_MARKER_INVALID"):
+            self.qualify(value)
+        value = plan()
+        value["consumption_marker"]["create_before_first_cloudflare_request"] = False
+        with self.assertRaisesRegex(CloudflareQualificationPlanError, "CONSUMPTION_MARKER_INVALID"):
             self.qualify(value)
 
     def test_cleanup_is_mandatory_for_qualification_credit(self):
