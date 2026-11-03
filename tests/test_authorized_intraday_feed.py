@@ -1,13 +1,18 @@
 """Synthetic tests for provider-neutral authorized intraday payload qualification."""
 from __future__ import annotations
 
+from collections import Counter
 from copy import deepcopy
 from datetime import datetime, timezone
 import hashlib
 import json
 import unittest
 
-from src.authorized_intraday_feed import IntradayQualificationError, qualify_authorized_intraday_payload
+from src.authorized_intraday_feed import (
+    IntradayQualificationError,
+    load_authoritative_universe_binding,
+    qualify_authorized_intraday_payload,
+)
 
 NOW = datetime(2026, 11, 2, 1, 30, 30, tzinfo=timezone.utc)
 TRADING_DATE = "2026-11-02"
@@ -15,38 +20,36 @@ CADENCE = "09:30"
 
 
 def universe():
-    values = {}
-    for index in range(25):
-        values[str(1000 + index)] = "TWSE"
-    for index in range(5):
-        values[str(2000 + index)] = "TPEX"
-    return values
+    trusted, _ = load_authoritative_universe_binding()
+    return trusted
 
 
 def universe_binding():
-    values = universe()
-    canonical = json.dumps(sorted(values.items()), separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    _, lineage = load_authoritative_universe_binding()
     return {
         "artifact": "RATE_APPROVED_INTRADAY_UNIVERSE_BINDING_V1",
-        "source_kind": "RATE_PRODUCTION_SOURCE_BUNDLE",
+        "source_kind": lineage["source_kind"],
         "source_validation_status": "PASS",
-        "production_snapshot_id": "rate-source-snapshot-test-fixture",
-        "source_bundle_sha256": "a" * 64,
-        "universe_sha256": hashlib.sha256(canonical).hexdigest(),
+        "production_snapshot_id": lineage["production_snapshot_id"],
+        "source_bundle_sha256": lineage["source_bundle_sha256"],
+        "universe_sha256": lineage["universe_sha256"],
+        "universe_contract_sha256": lineage["universe_contract_sha256"],
+        "universe_binding_hash": lineage["universe_binding_hash"],
     }
 
 
-def payload():
-    rows = []
-    for symbol, market in universe().items():
-        rows.append({
-            "symbol": symbol,
-            "market": market,
-            "timestamp": "2026-11-02T09:30:00+08:00",
-            "price": 100.0,
-            "volume": 1000,
-            "turnover": 100000.0,
-        })
+def rows_for(values):
+    return [{
+        "symbol": symbol,
+        "market": market,
+        "timestamp": "2026-11-02T09:30:00+08:00",
+        "price": 100.0,
+        "volume": 1000,
+        "turnover": 100000.0,
+    } for symbol, market in values.items()]
+
+
+def payload(values=None):
     return {
         "artifact": "RATE_AUTHORIZED_TAIWAN_INTRADAY_FEED_V1",
         "authorization_status": "PASS",
@@ -56,7 +59,7 @@ def payload():
         "trading_date": TRADING_DATE,
         "cadence": CADENCE,
         "fallback_used": False,
-        "records": rows,
+        "records": rows_for(values or universe()),
     }
 
 
@@ -72,11 +75,24 @@ class AuthorizedIntradayPayloadTests(unittest.TestCase):
             **kwargs,
         )
 
+    def test_authoritative_universe_is_repo_rooted_exact_30_and_dual_market(self):
+        trusted, lineage = load_authoritative_universe_binding()
+        self.assertEqual(len(trusted), 30)
+        self.assertEqual(Counter(trusted.values()), Counter({"TWSE": 25, "TPEX": 5}))
+        self.assertEqual(lineage["source_kind"], "RATE_PRODUCTION_SOURCE_BUNDLE")
+        self.assertTrue(lineage["production_snapshot_id"].startswith("rate-source-snapshot-"))
+        self.assertEqual(len(lineage["source_bundle_sha256"]), 64)
+        self.assertEqual(len(lineage["universe_contract_sha256"]), 64)
+        self.assertEqual(len(lineage["universe_binding_hash"]), 64)
+        self.assertEqual(lineage["universe_contract_path"], "config/RATE_PRODUCTION_UNIVERSE_CONTRACT_V1.json")
+        self.assertEqual(lineage["production_latest_path"], "artifacts/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json")
+
     def test_dual_market_30_of_30_passes_contract_only(self):
         result = self.qualify()
         self.assertEqual(result["validation_status"], "PASS")
         self.assertEqual(result["coverage"], "30/30")
         self.assertEqual(result["selected_market_counts"], {"TWSE": 25, "TPEX": 5})
+        self.assertEqual(result["expected_universe_contract_path"], "config/RATE_PRODUCTION_UNIVERSE_CONTRACT_V1.json")
         self.assertFalse(result["production_eligible"])
         self.assertFalse(result["registry_activated"])
         self.assertEqual(result["network_requests"], 0)
@@ -93,13 +109,15 @@ class AuthorizedIntradayPayloadTests(unittest.TestCase):
 
     def test_missing_expected_symbol_fails_closed(self):
         value = payload()
-        value["records"] = [r for r in value["records"] if r["symbol"] != "2004"]
+        missing = next(iter(universe()))
+        value["records"] = [r for r in value["records"] if r["symbol"] != missing]
         with self.assertRaisesRegex(IntradayQualificationError, "EXPECTED_SYMBOL_MISSING"):
             self.qualify(value)
 
     def test_market_mismatch_fails_closed(self):
         value = payload()
-        next(r for r in value["records"] if r["symbol"] == "2000")["market"] = "TWSE"
+        tpex = next(symbol for symbol, market in universe().items() if market == "TPEX")
+        next(r for r in value["records"] if r["symbol"] == tpex)["market"] = "TWSE"
         with self.assertRaisesRegex(IntradayQualificationError, "MARKET_BINDING_MISMATCH"):
             self.qualify(value)
 
@@ -163,21 +181,56 @@ class AuthorizedIntradayPayloadTests(unittest.TestCase):
 
     def test_expected_universe_normalization_collision_fails_closed(self):
         expected = universe()
-        expected.pop("1001")
-        expected[" 1000 "] = "TPEX"
+        symbols = list(expected)
+        duplicate = symbols[0]
+        removed = symbols[1]
+        expected.pop(removed)
+        expected[" " + duplicate + " "] = "TPEX" if expected[duplicate] == "TWSE" else "TWSE"
         with self.assertRaisesRegex(
             IntradayQualificationError, "EXPECTED_UNIVERSE_NORMALIZATION_COLLISION"
         ):
             self.qualify(expected=expected)
 
-    def test_expected_universe_must_match_approved_source_binding(self):
+    def test_expected_universe_market_mapping_must_match_authoritative_bundle(self):
         expected = universe()
-        expected["1000"] = "TPEX"
-        expected["2000"] = "TWSE"
-        with self.assertRaisesRegex(
-            IntradayQualificationError, "EXPECTED_UNIVERSE_BINDING_MISMATCH"
-        ):
+        twse = next(symbol for symbol, market in expected.items() if market == "TWSE")
+        tpex = next(symbol for symbol, market in expected.items() if market == "TPEX")
+        expected[twse], expected[tpex] = expected[tpex], expected[twse]
+        with self.assertRaisesRegex(IntradayQualificationError, "EXPECTED_UNIVERSE_NOT_APPROVED"):
             self.qualify(expected=expected)
+
+    def test_caller_cannot_replace_universe_and_all_hashes_together(self):
+        expected = universe()
+        removed = next(iter(expected))
+        removed_market = expected.pop(removed)
+        fake_symbol = "9999"
+        expected[fake_symbol] = removed_market
+        fake_canonical = json.dumps(
+            sorted(expected.items()), separators=(",", ":"), ensure_ascii=True
+        ).encode("utf-8")
+        fake_binding = universe_binding()
+        fake_binding.update({
+            "production_snapshot_id": "rate-source-snapshot-fake0000000000000000000000",
+            "source_bundle_sha256": "a" * 64,
+            "universe_sha256": hashlib.sha256(fake_canonical).hexdigest(),
+            "universe_contract_sha256": "b" * 64,
+            "universe_binding_hash": "c" * 64,
+        })
+        with self.assertRaisesRegex(IntradayQualificationError, "EXPECTED_UNIVERSE_NOT_APPROVED"):
+            self.qualify(payload(expected), expected=expected, expected_binding=fake_binding)
+
+    def test_expected_universe_binding_must_match_trusted_lineage(self):
+        for field, value, reason in (
+            ("production_snapshot_id", "rate-source-snapshot-fake", "SNAPSHOT_MISMATCH"),
+            ("source_bundle_sha256", "a" * 64, "SOURCE_SHA256_MISMATCH"),
+            ("universe_sha256", "b" * 64, "UNIVERSE_SHA256_MISMATCH"),
+            ("universe_contract_sha256", "c" * 64, "CONTRACT_SHA256_MISMATCH"),
+            ("universe_binding_hash", "d" * 64, "BINDING_HASH_MISMATCH"),
+        ):
+            binding = universe_binding()
+            binding[field] = value
+            with self.subTest(field=field), self.assertRaisesRegex(IntradayQualificationError, reason):
+                self.qualify(expected_binding=binding)
 
     def test_expected_universe_binding_requires_validated_source_metadata(self):
         binding = universe_binding()
@@ -187,18 +240,12 @@ class AuthorizedIntradayPayloadTests(unittest.TestCase):
         ):
             self.qualify(expected_binding=binding)
 
-        binding = universe_binding()
-        binding["source_bundle_sha256"] = "not-a-sha"
-        with self.assertRaisesRegex(
-            IntradayQualificationError, "EXPECTED_UNIVERSE_SOURCE_SHA256_INVALID"
-        ):
-            self.qualify(expected_binding=binding)
-
     def test_expected_universe_must_be_exact_30_and_dual_market(self):
-        one_market = {str(1000 + i): "TWSE" for i in range(30)}
+        trusted = universe()
+        one_market = {symbol: "TWSE" for symbol in trusted}
         with self.assertRaisesRegex(IntradayQualificationError, "DUAL_MARKET_COVERAGE_REQUIRED"):
             self.qualify(expected=one_market)
-        short = dict(list(universe().items())[:-1])
+        short = dict(list(trusted.items())[:-1])
         with self.assertRaisesRegex(IntradayQualificationError, "COUNT_INVALID"):
             self.qualify(expected=short)
 
