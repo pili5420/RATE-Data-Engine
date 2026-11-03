@@ -4,6 +4,7 @@ from __future__ import annotations
 import unittest
 
 from src.intraday_activation_candidate_review import canonical_digest
+from src.intraday_cloudflare_d1_real_qualification_plan import EXPECTED_CONSUMPTION_MARKER
 from src.intraday_cloudflare_d1_real_qualification_authorization import (
     EXPECTED_ADMIN_BUDGET,
     EXPECTED_CLEANUP_BUDGET,
@@ -39,6 +40,7 @@ def qualification():
         "admin_operation_budget": dict(EXPECTED_ADMIN_BUDGET),
         "runtime_probe_budget": dict(EXPECTED_RUNTIME_BUDGET),
         "cleanup_operation_budget": dict(EXPECTED_CLEANUP_BUDGET),
+        "consumption_marker": dict(EXPECTED_CONSUMPTION_MARKER),
         "cleanup_required": True,
         "qualification_credit_requires_cleanup_success": True,
         "qualification_execution_allowed_by_validator": False,
@@ -70,6 +72,7 @@ class CloudflareQualificationRehearsalTests(unittest.TestCase):
         self.assertEqual(result["validation_status"], "PASS")
         self.assertEqual(result["disposition"], "READY_FOR_REAL_CLOUDFLARE_QUALIFICATION_EXECUTOR")
         self.assertTrue(result["single_use_consumed"])
+        self.assertTrue(result["durable_consumption_marker_contract_verified"])
         self.assertFalse(result["retry_allowed"])
         self.assertEqual(len(result["admin_calls"]), 9)
         self.assertEqual(len(result["runtime_calls"]), 6)
@@ -78,6 +81,21 @@ class CloudflareQualificationRehearsalTests(unittest.TestCase):
         self.assertFalse(result["residual_resources"])
         self.assertFalse(backend.worker_exists)
         self.assertFalse(backend.d1_exists)
+
+    def test_consumption_marker_drift_fails_before_consume(self):
+        q = qualification()
+        q["consumption_marker"]["create_before_first_cloudflare_request"] = False
+        backend = SyntheticCloudflareQualificationBackend()
+        with self.assertRaisesRegex(
+            CloudflareQualificationRehearsalError, "CONSUMPTION_MARKER_INVALID"
+        ):
+            rehearse_cloudflare_real_qualification(
+                q, backend,
+                expected_qualification_sha256=canonical_digest(q),
+                expected_current_main_sha=MAIN,
+            )
+        self.assertEqual(backend.consumed, set())
+        self.assertEqual(backend.calls, [])
 
     def test_preflight_hash_and_main_drift_fail_before_consume(self):
         q = qualification()
