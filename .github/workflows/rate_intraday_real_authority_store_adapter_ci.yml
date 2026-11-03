@@ -1,0 +1,45 @@
+name: RATE Real Authority Store Adapter Qualification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/intraday_real_authority_store_adapter.py
+      - tests/test_intraday_real_authority_store_adapter.py
+      - docs/contracts/RATE_INTRADAY_REAL_AUTHORITY_STORE_ADAPTER_V1.json
+      - docs/RATE_INTRADAY_REAL_AUTHORITY_STORE_ADAPTER_V1.md
+      - .github/workflows/rate_intraday_real_authority_store_adapter_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Exact Git bytes
+        shell: bash
+        run: |
+          git config core.autocrlf false
+          git checkout-index --all --force
+          git diff --exit-code
+      - name: Authority-store adapter semantic regressions
+        run: python -B -m unittest tests.test_intraday_real_authority_store_adapter -v
+      - name: No tracked mutation
+        run: git diff --exit-code
