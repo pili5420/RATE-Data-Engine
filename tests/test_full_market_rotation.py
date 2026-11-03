@@ -252,7 +252,7 @@ class FullMarketRotationTests(unittest.TestCase):
                 install_canonical_fixture(root, self.day, previous_cadence, full_market=True)
                 feed = {"authorization_status": "PASS", "validation_status": "PASS", "source_status": "PASS",
                         "freshness_status": "PASS", "blocked_dependencies": [], "fallback_used": False,
-                        "source_authority": "AUTHORIZED_TWSE_INTRADAY_FEED", "trading_date": self.day, "cadence": cadence}
+                        "source_authority": "AUTHORIZED_TAIWAN_INTRADAY_FEED", "trading_date": self.day, "cadence": cadence}
                 with patch("src.full_market_rotation.derive_full_market_inputs", side_effect=AssertionError("RESCAN_FORBIDDEN")):
                     result = self.evaluate(state_root=root, previous_trading_date=self.day, previous_cadence=previous_cadence,
                                            cadence=cadence, intraday_feed=feed)
@@ -306,7 +306,10 @@ class FullMarketRotationTests(unittest.TestCase):
         integration = {"scripts/build_production_source_bundle_from_official.py", "scripts/resolve_production_runtime_context.py",
                        "scripts/publish_production_state_latest.py", "scripts/publish_production_source_bundle_latest.py",
                        "tests/test_production_scheduler_change_control.py", "tests/test_rate_soak_005.py",
-                       "tests/report_soak_support.py", "tests/test_full_market_rotation.py"}
+                       "tests/report_soak_support.py", "tests/test_full_market_rotation.py",
+                       "config/RATE_EXTERNAL_PRODUCTION_DEPENDENCIES.json",
+                       "config/RATE_PRODUCTION_OFFICIAL_SOURCE_REGISTRY_V1.json",
+                       "src/full_market_rotation.py", "tests/test_phase2_compatibility.py"}
         integration.update(f".github/workflows/rate_production_{slot}_scheduler.yml" for slot in ("0730", "0930", "1200", "1930"))
         integration.add(".github/workflows/rate_public_official_partial_valid_ci.yml")
         for name in names:
