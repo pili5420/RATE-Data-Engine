@@ -39,6 +39,7 @@
     "delete_count": 0,
     "target": "EXACT_CURRENT_MAIN",
     "create_before_first_cloudflare_request": true,
-    "readback_required": true
+    "readback_required": true,
+    "hash_prefix_hex_chars": 16
   }
 }
