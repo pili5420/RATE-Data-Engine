@@ -7,7 +7,8 @@ It binds the exact current main, qualification-plan review SHA-256, deployment
 scaffold SHA-256, Node Worker review SHA-256 and Control Center decision ID.
 
 The authorization cannot expand any resource, administrative operation, runtime probe
-or cleanup budget from the accepted plan. It remains single-use, unconsumed,
+or cleanup budget from the accepted plan. The administrative budget includes exactly
+one Workers-subdomain lookup used to construct the workers.dev qualification URL. It remains single-use, unconsumed,
 no-retry and no-fallback.
 
 Cloudflare API token, account ID and Worker bearer token are referenced only by their
