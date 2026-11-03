@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import datetime, timedelta, timezone
+import hashlib
+import json
 import math
 from typing import Any, Mapping
 TAIPEI = timezone(timedelta(hours=8), name="Asia/Taipei")
@@ -42,19 +44,76 @@ def _number(value: Any, *, positive: bool) -> float:
     return number
 
 
-def _expected_universe(expected_universe: Mapping[str, str]) -> dict[str, str]:
-    require(isinstance(expected_universe, Mapping), "INTRADAY_EXPECTED_UNIVERSE_INVALID")
-    normalized = {str(symbol).strip(): str(market).strip().upper() for symbol, market in expected_universe.items()}
-    require(len(normalized) == 30 and all(normalized), "INTRADAY_EXPECTED_UNIVERSE_COUNT_INVALID")
-    require(set(normalized.values()).issubset(ALLOWED_MARKETS), "INTRADAY_EXPECTED_MARKET_INVALID")
-    require(set(normalized.values()) == ALLOWED_MARKETS, "INTRADAY_DUAL_MARKET_COVERAGE_REQUIRED")
+def _canonical_universe_sha256(universe: Mapping[str, str]) -> str:
+    encoded = json.dumps(sorted(universe.items()), separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _sha256_text(value: Any, reason: str) -> str:
+    require(isinstance(value, str), reason)
+    normalized = value.strip().lower()
+    require(len(normalized) == 64 and all(char in "0123456789abcdef" for char in normalized), reason)
     return normalized
+
+
+def _expected_universe(
+    expected_universe: Mapping[str, str],
+    expected_universe_binding: Mapping[str, Any],
+) -> tuple[dict[str, str], dict[str, str]]:
+    require(isinstance(expected_universe, Mapping), "INTRADAY_EXPECTED_UNIVERSE_INVALID")
+    raw_items = list(expected_universe.items())
+    require(len(raw_items) == 30, "INTRADAY_EXPECTED_UNIVERSE_COUNT_INVALID")
+
+    normalized: dict[str, str] = {}
+    for raw_symbol, raw_market in raw_items:
+        require(isinstance(raw_symbol, str) and raw_symbol, "INTRADAY_EXPECTED_SYMBOL_INVALID")
+        require(isinstance(raw_market, str) and raw_market, "INTRADAY_EXPECTED_MARKET_INVALID")
+        symbol = raw_symbol.strip()
+        market = raw_market.strip().upper()
+        require(symbol, "INTRADAY_EXPECTED_SYMBOL_INVALID")
+        require(symbol not in normalized, "INTRADAY_EXPECTED_UNIVERSE_NORMALIZATION_COLLISION:" + symbol)
+        require(raw_symbol == symbol, "INTRADAY_EXPECTED_SYMBOL_NONCANONICAL:" + symbol)
+        require(raw_market == market, "INTRADAY_EXPECTED_MARKET_NONCANONICAL:" + symbol)
+        require(market in ALLOWED_MARKETS, "INTRADAY_EXPECTED_MARKET_INVALID")
+        normalized[symbol] = market
+
+    require(set(normalized.values()) == ALLOWED_MARKETS, "INTRADAY_DUAL_MARKET_COVERAGE_REQUIRED")
+
+    require(isinstance(expected_universe_binding, Mapping), "INTRADAY_EXPECTED_UNIVERSE_BINDING_REQUIRED")
+    require(expected_universe_binding.get("artifact") == "RATE_APPROVED_INTRADAY_UNIVERSE_BINDING_V1",
+            "INTRADAY_EXPECTED_UNIVERSE_BINDING_ARTIFACT_INVALID")
+    require(expected_universe_binding.get("source_kind") == "RATE_PRODUCTION_SOURCE_BUNDLE",
+            "INTRADAY_EXPECTED_UNIVERSE_SOURCE_INVALID")
+    require(expected_universe_binding.get("source_validation_status") == "PASS",
+            "INTRADAY_EXPECTED_UNIVERSE_SOURCE_NOT_VALIDATED")
+    snapshot_id = expected_universe_binding.get("production_snapshot_id")
+    require(isinstance(snapshot_id, str) and snapshot_id.startswith("rate-source-snapshot-"),
+            "INTRADAY_EXPECTED_UNIVERSE_SNAPSHOT_INVALID")
+    source_bundle_sha256 = _sha256_text(
+        expected_universe_binding.get("source_bundle_sha256"),
+        "INTRADAY_EXPECTED_UNIVERSE_SOURCE_SHA256_INVALID",
+    )
+    bound_universe_sha256 = _sha256_text(
+        expected_universe_binding.get("universe_sha256"),
+        "INTRADAY_EXPECTED_UNIVERSE_SHA256_INVALID",
+    )
+    actual_universe_sha256 = _canonical_universe_sha256(normalized)
+    require(bound_universe_sha256 == actual_universe_sha256,
+            "INTRADAY_EXPECTED_UNIVERSE_BINDING_MISMATCH")
+
+    return normalized, {
+        "source_kind": "RATE_PRODUCTION_SOURCE_BUNDLE",
+        "production_snapshot_id": snapshot_id,
+        "source_bundle_sha256": source_bundle_sha256,
+        "universe_sha256": actual_universe_sha256,
+    }
 
 
 def qualify_authorized_intraday_payload(
     payload: Mapping[str, Any],
     *,
     expected_universe: Mapping[str, str],
+    expected_universe_binding: Mapping[str, Any],
     trading_date: str,
     cadence: str,
     now_utc: datetime,
@@ -68,7 +127,7 @@ def qualify_authorized_intraday_payload(
     except ValueError as exc:
         raise IntradayQualificationError("INTRADAY_TRADING_DATE_INVALID") from exc
 
-    expected = _expected_universe(expected_universe)
+    expected, universe_binding = _expected_universe(expected_universe, expected_universe_binding)
     require(isinstance(payload, Mapping), "INTRADAY_PAYLOAD_INVALID")
     require(payload.get("artifact") == "RATE_AUTHORIZED_TAIWAN_INTRADAY_FEED_V1", "INTRADAY_ARTIFACT_INVALID")
     require(payload.get("authorization_status") == "PASS", "INTRADAY_AUTHORIZATION_NOT_PASS")
@@ -83,7 +142,12 @@ def qualify_authorized_intraday_payload(
     require(isinstance(license_scope, Mapping)
             and license_scope.get("automated_production_use") is True,
             "INTRADAY_AUTOMATED_USE_AUTHORITY_REQUIRED")
-    licensed_markets = {str(v).upper() for v in license_scope.get("markets", [])}
+    license_markets = license_scope.get("markets")
+    require(isinstance(license_markets, list)
+            and all(isinstance(value, str) and value.strip() for value in license_markets),
+            "INTRADAY_LICENSE_MARKETS_FORMAT_INVALID")
+    licensed_markets = {value.strip().upper() for value in license_markets}
+    require(licensed_markets.issubset(ALLOWED_MARKETS), "INTRADAY_LICENSE_MARKET_INVALID")
     require(ALLOWED_MARKETS.issubset(licensed_markets), "INTRADAY_LICENSE_MARKET_COVERAGE_INCOMPLETE")
 
     records = payload.get("records")
@@ -147,6 +211,10 @@ def qualify_authorized_intraday_payload(
         "trading_date": trading_date,
         "cadence": cadence,
         "expected_count": len(expected),
+        "expected_universe_source_kind": universe_binding["source_kind"],
+        "expected_universe_production_snapshot_id": universe_binding["production_snapshot_id"],
+        "expected_universe_source_bundle_sha256": universe_binding["source_bundle_sha256"],
+        "expected_universe_sha256": universe_binding["universe_sha256"],
         "selected_count": len(selected),
         "coverage": f"{len(selected)}/{len(expected)}",
         "expected_market_counts": expected_market_counts,
