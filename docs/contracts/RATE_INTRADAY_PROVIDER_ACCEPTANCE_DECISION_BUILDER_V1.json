@@ -1,0 +1,22 @@
+{
+  "artifact": "RATE_INTRADAY_PROVIDER_ACCEPTANCE_DECISION_PACKAGE_BUILDER_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "purpose": "DETERMINISTICALLY_BUILD_VALIDATOR_READY_PROVIDER_ACCEPTANCE_DECISION",
+  "builder_is_control_center_decision": false,
+  "explicit_control_center_authorization_input_required": "PROVIDER_ACCEPTANCE_AUTHORIZED",
+  "external_expected_decision_hash_created": false,
+  "external_expected_live_review_hash_created": false,
+  "allowed_license_bases": [
+    "OWNER_ASSUMED_AUTHORIZED",
+    "PROVIDER_WRITTEN_CONFIRMED"
+  ],
+  "activation_execution_allowed": false,
+  "external_dependency_resolved": false,
+  "registry_activation_allowed": false,
+  "network_requests_by_builder": 0,
+  "credential_access_by_builder": 0,
+  "registry_mutations_by_builder": 0,
+  "scheduler_mutations_by_builder": 0,
+  "production_credit": 0,
+  "cer081_credit": 0
+}
