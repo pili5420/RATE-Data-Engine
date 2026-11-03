@@ -3,9 +3,10 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import datetime, timezone
-import io
 import json
+import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -45,6 +46,13 @@ def quote(symbol, market, stamp=1793669400000000):
         "total": {"tradeVolume": 1000, "tradeValue": 100000.0},
         "lastTrade": {"price": 100.0},
     }
+
+
+def output_tree(tmp: str) -> tuple[Path, Path]:
+    root = Path(tmp) / "repo"
+    output_root = root.joinpath(*cli.OUTPUT_PARTS)
+    root.mkdir()
+    return root, output_root
 
 
 class FakeResponse:
@@ -246,44 +254,138 @@ class FugleFreeDiagnosticTests(unittest.TestCase):
                 cli.main()
             qualify_mock.assert_not_called()
 
-    def test_output_path_traversal_is_rejected_before_binding_or_network(self):
-        with patch.object(sys, "argv", [
-            "run_fugle_intraday_qualification.py",
-            "--trading-date", DATE,
-            "--cadence", "09:30",
-            "--output-name", "../artifacts/production.json",
-        ]), patch.object(cli, "_load_fixed_binding") as binding_mock, patch.object(cli, "qualify") as qualify_mock:
-            with self.assertRaisesRegex(RuntimeError, "OUTPUT_PATH_FORBIDDEN"):
-                cli.main()
-            binding_mock.assert_not_called()
-            qualify_mock.assert_not_called()
-
-    def test_existing_output_is_rejected_before_binding_or_network(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            output_root = Path(tmp) / "diagnostic"
-            output_root.mkdir()
-            (output_root / "result.json").write_text("{}\n", encoding="utf-8")
-            with patch.object(cli, "OUTPUT_ROOT", output_root), patch.object(sys, "argv", [
+    def test_output_path_traversal_is_rejected_before_binding_credential_or_network(self):
+        for bad_name in ("../production.json", "nested/result.json", r"nested\result.json"):
+            with self.subTest(name=bad_name), patch.object(sys, "argv", [
                 "run_fugle_intraday_qualification.py",
                 "--trading-date", DATE,
                 "--cadence", "09:30",
-                "--output-name", "result.json",
-            ]), patch.object(cli, "_load_fixed_binding") as binding_mock, patch.object(cli, "qualify") as qualify_mock:
+                "--output-name", bad_name,
+            ]), patch.object(cli, "_load_fixed_binding") as binding_mock, patch.object(
+                cli.os, "getenv"
+            ) as getenv_mock, patch.object(cli, "qualify") as qualify_mock:
+                with self.assertRaisesRegex(RuntimeError, "OUTPUT_PATH_FORBIDDEN"):
+                    cli.main()
+                binding_mock.assert_not_called()
+                getenv_mock.assert_not_called()
+                qualify_mock.assert_not_called()
+
+    def test_existing_output_is_rejected_before_binding_credential_or_network(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, output_root = output_tree(tmp)
+            output_root.mkdir(parents=True)
+            (output_root / "result.json").write_text("{}\n", encoding="utf-8")
+            with patch.object(cli, "ROOT", root), patch.object(cli, "OUTPUT_ROOT", output_root), patch.object(
+                sys, "argv", [
+                    "run_fugle_intraday_qualification.py",
+                    "--trading-date", DATE,
+                    "--cadence", "09:30",
+                    "--output-name", "result.json",
+                ]
+            ), patch.object(cli, "_load_fixed_binding") as binding_mock, patch.object(
+                cli.os, "getenv"
+            ) as getenv_mock, patch.object(cli, "qualify") as qualify_mock:
                 with self.assertRaisesRegex(RuntimeError, "OUTPUT_EXISTS"):
                     cli.main()
                 binding_mock.assert_not_called()
+                getenv_mock.assert_not_called()
                 qualify_mock.assert_not_called()
+
+    def test_ancestor_symlink_is_rejected_before_binding_credential_or_network(self):
+        if os.name == "nt":
+            return
+        with tempfile.TemporaryDirectory() as tmp:
+            root, output_root = output_tree(tmp)
+            outside = Path(tmp) / "outside"
+            outside.mkdir()
+            (root / "artifacts").mkdir()
+            (root / "artifacts" / "diagnostics").symlink_to(outside, target_is_directory=True)
+            with patch.object(cli, "ROOT", root), patch.object(cli, "OUTPUT_ROOT", output_root), patch.object(
+                sys, "argv", [
+                    "run_fugle_intraday_qualification.py",
+                    "--trading-date", DATE,
+                    "--cadence", "09:30",
+                    "--output-name", "result.json",
+                ]
+            ), patch.object(cli, "_load_fixed_binding") as binding_mock, patch.object(
+                cli.os, "getenv"
+            ) as getenv_mock, patch.object(cli, "qualify") as qualify_mock:
+                with self.assertRaisesRegex(RuntimeError, "OUTPUT_ANCESTRY_UNTRUSTED"):
+                    cli.main()
+                binding_mock.assert_not_called()
+                getenv_mock.assert_not_called()
+                qualify_mock.assert_not_called()
+                self.assertFalse((outside / "result.json").exists())
+
+    def test_windows_junction_is_rejected_before_binding_credential_or_network(self):
+        if os.name != "nt":
+            return
+        with tempfile.TemporaryDirectory() as tmp:
+            root, output_root = output_tree(tmp)
+            outside = Path(tmp) / "outside"
+            outside.mkdir()
+            (root / "artifacts").mkdir()
+            junction = root / "artifacts" / "diagnostics"
+            created = subprocess.run(
+                ["cmd", "/d", "/c", "mklink", "/J", str(junction), str(outside)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(created.returncode, 0, msg=created.stdout + created.stderr)
+            with patch.object(cli, "ROOT", root), patch.object(cli, "OUTPUT_ROOT", output_root), patch.object(
+                sys, "argv", [
+                    "run_fugle_intraday_qualification.py",
+                    "--trading-date", DATE,
+                    "--cadence", "09:30",
+                    "--output-name", "result.json",
+                ]
+            ), patch.object(cli, "_load_fixed_binding") as binding_mock, patch.object(
+                cli.os, "getenv"
+            ) as getenv_mock, patch.object(cli, "qualify") as qualify_mock:
+                with self.assertRaisesRegex(RuntimeError, "OUTPUT_ANCESTRY_UNTRUSTED"):
+                    cli.main()
+                binding_mock.assert_not_called()
+                getenv_mock.assert_not_called()
+                qualify_mock.assert_not_called()
+                self.assertFalse((outside / "result.json").exists())
+
+    def test_output_directory_is_pinned_across_preflight_to_write(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, output_root = output_tree(tmp)
+            moved = output_root.with_name("fugle-free-intraday.original")
+            outside = Path(tmp) / "outside"
+            outside.mkdir()
+            with patch.object(cli, "ROOT", root), patch.object(cli, "OUTPUT_ROOT", output_root):
+                with cli._open_trusted_output("result.json") as trusted:
+                    if os.name == "nt":
+                        # Each directory handle denies FILE_SHARE_DELETE, so rename/
+                        # replacement of the trusted chain must fail while the session lives.
+                        with self.assertRaises(OSError):
+                            output_root.rename(moved)
+                        trusted.write_result({"artifact": "TEST"})
+                        self.assertTrue((output_root / "result.json").is_file())
+                    else:
+                        # POSIX writes are relative to the already-open directory fd.
+                        # Even if the pathname is replaced, the result stays on that fd.
+                        output_root.rename(moved)
+                        output_root.symlink_to(outside, target_is_directory=True)
+                        trusted.write_result({"artifact": "TEST"})
+                        self.assertTrue((moved / "result.json").is_file())
+                    self.assertFalse((outside / "result.json").exists())
 
     def test_result_writer_is_exclusive_create_only(self):
         with tempfile.TemporaryDirectory() as tmp:
-            output_root = Path(tmp) / "diagnostic"
-            with patch.object(cli, "OUTPUT_ROOT", output_root):
-                target = cli._safe_output_path("result.json")
-                cli._write_new_result(target, {"artifact": "TEST"})
-                self.assertTrue(target.is_file())
-                with self.assertRaises(FileExistsError):
-                    cli._write_new_result(target, {"artifact": "OVERWRITE"})
-                self.assertEqual(json.loads(target.read_text(encoding="utf-8"))["artifact"], "TEST")
+            root, output_root = output_tree(tmp)
+            with patch.object(cli, "ROOT", root), patch.object(cli, "OUTPUT_ROOT", output_root):
+                with cli._open_trusted_output("result.json") as trusted:
+                    trusted.write_result({"artifact": "TEST"})
+                    with self.assertRaises(FileExistsError):
+                        trusted.write_result({"artifact": "OVERWRITE"})
+                self.assertEqual(
+                    json.loads((output_root / "result.json").read_text(encoding="utf-8"))["artifact"],
+                    "TEST",
+                )
 
 
 if __name__ == "__main__":
