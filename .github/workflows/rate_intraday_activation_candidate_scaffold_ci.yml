@@ -1,0 +1,45 @@
+name: RATE Intraday Activation Candidate Scaffold
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/intraday_activation_candidate_scaffold.py
+      - tests/test_intraday_activation_candidate_scaffold.py
+      - docs/contracts/RATE_INTRADAY_ACTIVATION_CANDIDATE_SCAFFOLD_V1.json
+      - docs/RATE_INTRADAY_ACTIVATION_CANDIDATE_SCAFFOLD_V1.md
+      - .github/workflows/rate_intraday_activation_candidate_scaffold_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Exact Git bytes
+        shell: bash
+        run: |
+          git config core.autocrlf false
+          git checkout-index --all --force
+          git diff --exit-code
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: In-memory activation candidate scaffold tests
+        run: python -B -m unittest tests.test_intraday_activation_candidate_scaffold -v
+      - name: No tracked mutation
+        run: git diff --exit-code
