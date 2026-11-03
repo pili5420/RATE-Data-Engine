@@ -8,9 +8,13 @@ Workers + D1 durable receipt-store candidate:
 - wrangler.jsonc
 
 The Worker exposes only exact execution-ID GET and POST routes. It has no arbitrary
-SQL endpoint and no update/delete/list route. POST performs one INSERT. If the INSERT
-has an ambiguous outcome, the Worker reads the same execution ID once and never
-retries INSERT.
+SQL endpoint and no update/delete/list route. POST performs one INSERT. A database
+primary-key conflict is an explicit duplicate and returns 409; other database errors
+return 503. The Worker never retries INSERT.
+
+Transport ambiguity is handled by the external client adapter: if the HTTP outcome is
+unknown after POST, the client performs one GET of the same execution ID and never
+retries POST.
 
 The D1 schema uses execution_id as PRIMARY KEY and includes fail-closed UPDATE and
 DELETE guards. The Wrangler configuration contains only placeholder database
