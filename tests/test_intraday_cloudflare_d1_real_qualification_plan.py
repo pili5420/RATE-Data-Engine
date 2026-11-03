@@ -19,6 +19,7 @@ def plan():
         "WORKERS_SCRIPT_UPLOAD_API": "https://developers.cloudflare.com/api/resources/workers/subresources/scripts/methods/update/",
         "WORKER_SECRETS": "https://developers.cloudflare.com/workers/configuration/secrets/",
         "WORKERS_DEV_ROUTING": "https://developers.cloudflare.com/workers/configuration/routing/",
+        "WORKERS_SUBDOMAIN_API": "https://developers.cloudflare.com/api/resources/workers/subresources/subdomains/methods/get/",
     }
     return {
         "artifact": "RATE_CLOUDFLARE_D1_REAL_PROVIDER_QUALIFICATION_PLAN_V1",
@@ -75,6 +76,7 @@ def plan():
             "GET_D1_METADATA": 1,
             "GET_WORKER_SCRIPT": 1,
             "GET_WORKER_SECRET_METADATA": 1,
+            "GET_WORKERS_SUBDOMAIN": 1,
         },
         "runtime_probe_budget": {
             "UNAUTHORIZED_GET": 1,
