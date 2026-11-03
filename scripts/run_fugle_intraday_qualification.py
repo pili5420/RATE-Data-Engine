@@ -220,6 +220,12 @@ def _win_error(path: Path) -> OSError:
     return OSError(code, ctypes.FormatError(code), str(path))
 
 
+def _win_error_code(error: OSError) -> int | None:
+    """Prefer Win32 error when present; otherwise use Python errno."""
+    winerror = getattr(error, "winerror", None)
+    return error.errno if winerror is None else winerror
+
+
 def _win_close_handle(handle: int) -> None:
     if os.name != "nt":
         return
@@ -273,7 +279,7 @@ def _win_require_target_absent(target: Path) -> None:
         _CloseHandle(handle)
         raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_EXISTS")
     error = _win_error(target)
-    if getattr(error, "winerror", error.errno) not in {_ERROR_FILE_NOT_FOUND, _ERROR_PATH_NOT_FOUND}:
+    if _win_error_code(error) not in {_ERROR_FILE_NOT_FOUND, _ERROR_PATH_NOT_FOUND}:
         raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_TARGET_UNTRUSTED") from error
 
 
@@ -291,7 +297,7 @@ def _win_write_new(target: Path, result: dict) -> None:
     )
     if handle == _INVALID_HANDLE_VALUE:
         error = _win_error(target)
-        if getattr(error, "winerror", error.errno) in {_ERROR_FILE_EXISTS, _ERROR_ALREADY_EXISTS}:
+        if _win_error_code(error) in {_ERROR_FILE_EXISTS, _ERROR_ALREADY_EXISTS}:
             raise FileExistsError(error.errno, error.strerror, str(target)) from error
         raise error
     try:
@@ -319,7 +325,7 @@ def _open_trusted_output_windows(output_name: str, root: Path, output_root: Path
             try:
                 handle = _win_open_directory(current)
             except OSError as exc:
-                if getattr(exc, "winerror", exc.errno) not in {_ERROR_FILE_NOT_FOUND, _ERROR_PATH_NOT_FOUND}:
+                if _win_error_code(exc) not in {_ERROR_FILE_NOT_FOUND, _ERROR_PATH_NOT_FOUND}:
                     raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_ANCESTRY_UNTRUSTED") from exc
                 try:
                     os.mkdir(current)
