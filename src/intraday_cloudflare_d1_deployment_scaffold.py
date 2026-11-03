@@ -135,15 +135,15 @@ export default {
         return json({ error: "READBACK_MISMATCH" }, 503);
       }
       return json({ outcome: "CREATED_AND_READBACK_VERIFIED" }, 201);
-    } catch {
-      // Ambiguous write outcome: never retry INSERT. Read the exact key once.
-      const row = await readReceipt(env, executionId);
-      if (!row) return json({ error: "AMBIGUOUS_CREATE_UNRESOLVED" }, 503);
-      if (row.receipt_sha256 !== body.receipt_sha256 ||
-          row.receipt_json !== receiptText) {
-        return json({ error: "EXISTING_RECEIPT_CONFLICT" }, 409);
+    } catch (error) {
+      // Server-side INSERT failures are never retried. A primary-key conflict is
+      // an explicit duplicate and remains fail-closed. Transport ambiguity is
+      // resolved by the external client adapter via a later exact-key GET.
+      const message = String(error && error.message ? error.message : error).toLowerCase();
+      if (message.includes("unique") || message.includes("constraint")) {
+        return json({ error: "ALREADY_EXISTS" }, 409);
       }
-      return json({ outcome: "AMBIGUOUS_CREATE_CONFIRMED_BY_READBACK" }, 200);
+      return json({ error: "D1_CREATE_FAILED" }, 503);
     }
   },
 };
@@ -227,9 +227,8 @@ def validate_cloudflare_d1_scaffold(files: Mapping[str, str]) -> dict[str, Any]:
         'request.method !== "POST"',
         "INSERT INTO rate_execution_receipts",
         "SELECT execution_id, receipt_json, receipt_sha256",
-        "AMBIGUOUS_CREATE_UNRESOLVED",
-        "AMBIGUOUS_CREATE_CONFIRMED_BY_READBACK",
-        "EXISTING_RECEIPT_CONFLICT",
+        "ALREADY_EXISTS",
+        "D1_CREATE_FAILED",
         "RATE_D1_RECEIPT_WORKER_TOKEN",
     ):
         require(required in worker, "D1_SCAFFOLD_WORKER_REQUIRED_BEHAVIOR_MISSING:" + required)
