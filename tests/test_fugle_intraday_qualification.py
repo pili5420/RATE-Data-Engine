@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import datetime, timezone
+from http.client import HTTPSConnection
 import json
 import os
 from pathlib import Path
@@ -269,6 +270,39 @@ class FugleFreeDiagnosticTests(unittest.TestCase):
                 binding_mock.assert_not_called()
                 getenv_mock.assert_not_called()
                 qualify_mock.assert_not_called()
+
+    def test_ads_output_name_is_rejected_before_binding_credential_or_network(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, output_root = output_tree(tmp)
+            output_root.mkdir(parents=True)
+            base_file = output_root / "existing.json"
+            original = b'{"original": true}\n'
+            base_file.write_bytes(original)
+            output_name = "existing.json:result.json"
+            with patch.object(cli, "ROOT", root), patch.object(cli, "OUTPUT_ROOT", output_root), patch.object(
+                sys, "argv", [
+                    "run_fugle_intraday_qualification.py",
+                    "--trading-date", DATE,
+                    "--cadence", "09:30",
+                    "--output-name", output_name,
+                ]
+            ), patch.object(cli, "_load_fixed_binding") as binding_mock, patch.object(
+                cli.os, "getenv"
+            ) as getenv_mock, patch.object(cli, "qualify") as qualify_mock, patch.object(
+                HTTPSConnection, "__init__", side_effect=AssertionError("Unexpected HTTPS connection")
+            ) as connection_mock, patch.object(HTTPSConnection, "request") as request_mock:
+                with self.assertRaisesRegex(RuntimeError, "OUTPUT_PATH_FORBIDDEN"):
+                    cli.main()
+                binding_mock.assert_not_called()
+                getenv_mock.assert_not_called()
+                qualify_mock.assert_not_called()
+                connection_mock.assert_not_called()
+                request_mock.assert_not_called()
+
+            self.assertEqual(base_file.read_bytes(), original)
+            # On Windows this opens the named NTFS stream directly.
+            with self.assertRaises(FileNotFoundError), (output_root / output_name).open("rb"):
+                pass
 
     def test_existing_output_is_rejected_before_binding_credential_or_network(self):
         with tempfile.TemporaryDirectory() as tmp:

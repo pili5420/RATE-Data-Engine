@@ -31,7 +31,7 @@ def _load_fixed_binding() -> dict:
 def _validate_output_name(output_name: str) -> None:
     if not isinstance(output_name, str) or not output_name:
         raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_NAME_INVALID")
-    if Path(output_name).name != output_name or "/" in output_name or "\\" in output_name:
+    if ":" in output_name or Path(output_name).name != output_name or "/" in output_name or "\\" in output_name:
         raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_PATH_FORBIDDEN")
     if output_name in {".", "..", ".json", "..json"} or not output_name.endswith(".json"):
         raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_NAME_INVALID")
