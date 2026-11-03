@@ -217,10 +217,14 @@ def rehearse_activation_git_transaction(
         plan_hash not in backend.consumed_tokens,
         "GIT_REHEARSAL_SINGLE_USE_ALREADY_CONSUMED",
     )
+    require(
+        plan_hash not in backend.consumed_tokens,
+        "GIT_REHEARSAL_SINGLE_USE_ALREADY_CONSUMED",
+    )
     require(branch not in backend.refs, "GIT_REHEARSAL_BRANCH_ALREADY_EXISTS")
 
-    # Single-use is consumed before the first synthetic Git mutation. A later
-    # failure is intentionally non-retryable.
+    # Single-use is consumed only after all preflight checks pass and before the
+    # first synthetic Git mutation. A later failure is intentionally non-retryable.
     backend.consume(plan_hash)
 
     elements = []
