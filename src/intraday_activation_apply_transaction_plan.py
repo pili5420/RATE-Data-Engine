@@ -83,7 +83,10 @@ def build_activation_apply_transaction_plan(
     )
     require(
         isinstance(expected_control_center_decision_id, str)
-        and bool(DECISION_ID.fullmatch(expected_control_center_decision_id)),
+        and bool(DECISION_ID.fullmatch(expected_control_center_decision_id))
+        and ".." not in expected_control_center_decision_id
+        and not expected_control_center_decision_id.endswith(".")
+        and not expected_control_center_decision_id.lower().endswith(".lock"),
         "APPLY_PLAN_EXPECTED_DECISION_ID_INVALID",
     )
     require(
@@ -184,7 +187,13 @@ def build_activation_apply_transaction_plan(
         "activation/rate-v11-intraday-"
         + expected_control_center_decision_id.lower()
     )
-    require(len(branch_name) <= 180, "APPLY_PLAN_BRANCH_NAME_TOO_LONG")
+    require(
+        len(branch_name) <= 180
+        and ".." not in branch_name
+        and not branch_name.endswith(".")
+        and not branch_name.lower().endswith(".lock"),
+        "APPLY_PLAN_BRANCH_NAME_INVALID",
+    )
 
     plan_core = {
         "artifact": "RATE_INTRADAY_ACTIVATION_APPLY_TRANSACTION_PLAN_V1",
