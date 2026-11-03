@@ -4,7 +4,7 @@
   "backend": "SYNTHETIC_CLOUDFLARE_QUALIFICATION_BACKEND_ONLY",
   "single_use_consumed_before_first_mutation": true,
   "retry_after_consumption_allowed": false,
-  "admin_operation_count": 8,
+  "admin_operation_count": 9,
   "runtime_probe_count": 6,
   "cleanup_worker_max_attempts": 1,
   "cleanup_d1_max_attempts": 1,
@@ -17,5 +17,6 @@
   "production_credit": 0,
   "cer081_credit": 0,
   "next_gate": "EXPLICIT_REAL_CLOUDFLARE_QUALIFICATION_EXECUTION",
-  "workers_subdomain_lookup_count": 1
+  "workers_subdomain_lookup_count": 1,
+  "worker_script_subdomain_lookup_count": 1
 }
