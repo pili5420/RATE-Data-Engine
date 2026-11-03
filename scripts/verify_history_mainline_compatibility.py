@@ -240,7 +240,7 @@ def main() -> int:
     temp_root.mkdir()
     try:
         for index, (name, modules) in enumerate(ACCEPTED_CORE_GROUPS.items()):
-            checkout = temp_root / f"c{index}"
+            checkout = temp_root / f"{index}"
             prepare_checkout(args.expected_head, checkout)
             run_temp = temp_root / f"t{index}"
             run_temp.mkdir()
