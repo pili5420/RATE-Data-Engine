@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import datetime, timezone
+import hashlib
+import json
 import unittest
 
 from src.authorized_intraday_feed import IntradayQualificationError, qualify_authorized_intraday_payload
@@ -19,6 +21,19 @@ def universe():
     for index in range(5):
         values[str(2000 + index)] = "TPEX"
     return values
+
+
+def universe_binding():
+    values = universe()
+    canonical = json.dumps(sorted(values.items()), separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    return {
+        "artifact": "RATE_APPROVED_INTRADAY_UNIVERSE_BINDING_V1",
+        "source_kind": "RATE_PRODUCTION_SOURCE_BUNDLE",
+        "source_validation_status": "PASS",
+        "production_snapshot_id": "rate-source-snapshot-test-fixture",
+        "source_bundle_sha256": "a" * 64,
+        "universe_sha256": hashlib.sha256(canonical).hexdigest(),
+    }
 
 
 def payload():
@@ -50,6 +65,7 @@ class AuthorizedIntradayPayloadTests(unittest.TestCase):
         return qualify_authorized_intraday_payload(
             value or payload(),
             expected_universe=expected or universe(),
+            expected_universe_binding=kwargs.pop("expected_binding", universe_binding()),
             trading_date=kwargs.pop("trading_date", TRADING_DATE),
             cadence=kwargs.pop("cadence", CADENCE),
             now_utc=kwargs.pop("now_utc", NOW),
@@ -131,6 +147,52 @@ class AuthorizedIntradayPayloadTests(unittest.TestCase):
         value = payload(); value["license_scope"]["automated_production_use"] = False
         with self.assertRaisesRegex(IntradayQualificationError, "AUTOMATED_USE_AUTHORITY_REQUIRED"):
             self.qualify(value)
+
+    def test_license_markets_must_be_json_array_of_strings(self):
+        for invalid in (
+            {"TWSE": False, "TPEX": False},
+            "TWSE,TPEX",
+            ["TWSE", False],
+        ):
+            value = payload()
+            value["license_scope"]["markets"] = invalid
+            with self.subTest(invalid=invalid), self.assertRaisesRegex(
+                IntradayQualificationError, "LICENSE_MARKETS_FORMAT_INVALID"
+            ):
+                self.qualify(value)
+
+    def test_expected_universe_normalization_collision_fails_closed(self):
+        expected = universe()
+        expected.pop("1001")
+        expected[" 1000 "] = "TPEX"
+        with self.assertRaisesRegex(
+            IntradayQualificationError, "EXPECTED_UNIVERSE_NORMALIZATION_COLLISION"
+        ):
+            self.qualify(expected=expected)
+
+    def test_expected_universe_must_match_approved_source_binding(self):
+        expected = universe()
+        expected["1000"] = "TPEX"
+        expected["2000"] = "TWSE"
+        with self.assertRaisesRegex(
+            IntradayQualificationError, "EXPECTED_UNIVERSE_BINDING_MISMATCH"
+        ):
+            self.qualify(expected=expected)
+
+    def test_expected_universe_binding_requires_validated_source_metadata(self):
+        binding = universe_binding()
+        binding["source_validation_status"] = "BLOCKED"
+        with self.assertRaisesRegex(
+            IntradayQualificationError, "EXPECTED_UNIVERSE_SOURCE_NOT_VALIDATED"
+        ):
+            self.qualify(expected_binding=binding)
+
+        binding = universe_binding()
+        binding["source_bundle_sha256"] = "not-a-sha"
+        with self.assertRaisesRegex(
+            IntradayQualificationError, "EXPECTED_UNIVERSE_SOURCE_SHA256_INVALID"
+        ):
+            self.qualify(expected_binding=binding)
 
     def test_expected_universe_must_be_exact_30_and_dual_market(self):
         one_market = {str(1000 + i): "TWSE" for i in range(30)}
