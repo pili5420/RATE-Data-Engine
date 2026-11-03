@@ -54,7 +54,7 @@ def qualification():
 
 
 class CloudflareQualificationRehearsalTests(unittest.TestCase):
-    def run(self, backend=None, q=None, **overrides):
+    def run_rehearsal(self, backend=None, q=None, **overrides):
         q = q or qualification()
         backend = backend or SyntheticCloudflareQualificationBackend()
         result = rehearse_cloudflare_real_qualification(
@@ -66,7 +66,7 @@ class CloudflareQualificationRehearsalTests(unittest.TestCase):
         return result, backend, q
 
     def test_success_sequence_consumes_once_probes_and_cleans_all_resources(self):
-        result, backend, _ = self.run()
+        result, backend, _ = self.run_rehearsal()
         self.assertEqual(result["validation_status"], "PASS")
         self.assertEqual(result["disposition"], "READY_FOR_REAL_CLOUDFLARE_QUALIFICATION_EXECUTOR")
         self.assertTrue(result["single_use_consumed"])
@@ -99,7 +99,7 @@ class CloudflareQualificationRehearsalTests(unittest.TestCase):
 
     def test_replay_is_rejected_before_new_calls(self):
         backend = SyntheticCloudflareQualificationBackend()
-        result, backend, q = self.run(backend=backend)
+        result, backend, q = self.run_rehearsal(backend=backend)
         calls = list(backend.calls)
         with self.assertRaisesRegex(
             CloudflareQualificationRehearsalError, "SINGLE_USE_ALREADY_CONSUMED"
@@ -113,7 +113,7 @@ class CloudflareQualificationRehearsalTests(unittest.TestCase):
 
     def test_failure_after_d1_creation_cleans_d1_once_and_is_non_retryable(self):
         backend = SyntheticCloudflareQualificationBackend(fail_at="UPLOAD_WORKER_MODULE")
-        result, backend, q = self.run(backend=backend)
+        result, backend, q = self.run_rehearsal(backend=backend)
         self.assertEqual(result["validation_status"], "BLOCKED")
         self.assertEqual(result["disposition"], "BLOCKED_SYNTHETIC_OPERATION_FAILURE")
         self.assertEqual(result["cleanup_attempts"]["DELETE_D1_DATABASE"], 1)
@@ -128,7 +128,7 @@ class CloudflareQualificationRehearsalTests(unittest.TestCase):
 
     def test_runtime_failure_cleans_worker_and_d1_once(self):
         backend = SyntheticCloudflareQualificationBackend(fail_at="DUPLICATE_POST")
-        result, backend, _ = self.run(backend=backend)
+        result, backend, _ = self.run_rehearsal(backend=backend)
         self.assertEqual(result["validation_status"], "BLOCKED")
         self.assertEqual(result["cleanup_attempts"]["DELETE_WORKER_SCRIPT"], 1)
         self.assertEqual(result["cleanup_attempts"]["DELETE_D1_DATABASE"], 1)
@@ -136,7 +136,7 @@ class CloudflareQualificationRehearsalTests(unittest.TestCase):
 
     def test_cleanup_failure_blocks_with_residual_resource_and_no_cleanup_retry(self):
         backend = SyntheticCloudflareQualificationBackend(fail_at="DELETE_WORKER_SCRIPT")
-        result, backend, _ = self.run(backend=backend)
+        result, backend, _ = self.run_rehearsal(backend=backend)
         self.assertEqual(result["validation_status"], "BLOCKED")
         self.assertEqual(result["disposition"], "BLOCKED_RESIDUAL_RESOURCE")
         self.assertEqual(result["cleanup_attempts"]["DELETE_WORKER_SCRIPT"], 1)
@@ -147,7 +147,7 @@ class CloudflareQualificationRehearsalTests(unittest.TestCase):
 
     def test_cleanup_d1_failure_blocks_with_residual_d1(self):
         backend = SyntheticCloudflareQualificationBackend(fail_at="DELETE_D1_DATABASE")
-        result, backend, _ = self.run(backend=backend)
+        result, backend, _ = self.run_rehearsal(backend=backend)
         self.assertEqual(result["disposition"], "BLOCKED_RESIDUAL_RESOURCE")
         self.assertTrue(result["residual_resources"])
         self.assertTrue(backend.d1_exists)
@@ -165,7 +165,7 @@ class CloudflareQualificationRehearsalTests(unittest.TestCase):
             )
 
     def test_rehearsal_never_claims_real_provider_credit(self):
-        result, _, _ = self.run()
+        result, _, _ = self.run_rehearsal()
         self.assertEqual(result["real_cloudflare_requests"], 0)
         self.assertEqual(result["credentials_read"], 0)
         self.assertEqual(result["real_resources_created"], 0)
