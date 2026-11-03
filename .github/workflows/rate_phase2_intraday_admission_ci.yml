@@ -1,0 +1,53 @@
+name: RATE Phase2 Intraday Admission Integration
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/intraday_phase2_admission.py
+      - src/phase2_production.py
+      - scripts/build_phase2_production_source.py
+      - tests/test_intraday_phase2_admission.py
+      - docs/contracts/RATE_PHASE2_INTRADAY_ADMISSION_INTEGRATION_V1.json
+      - docs/RATE_PHASE2_INTRADAY_ADMISSION_INTEGRATION_V1.md
+      - .github/workflows/rate_phase2_intraday_admission_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Exact Git bytes
+        shell: bash
+        run: |
+          git config core.autocrlf false
+          git checkout-index --all --force
+          git diff --exit-code
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Authoritative admission and payload qualification
+        run: >-
+          python -B -m unittest
+          tests.test_intraday_phase2_admission
+          tests.test_authorized_intraday_feed
+          tests.test_phase2_production.Phase2ProductionTests.test_missing_intraday_feed_never_calls_full_market_materializer
+          tests.test_phase2_production.Phase2ProductionTests.test_file_cannot_override_unresolved_external_intraday_policy
+          -v
+      - name: No tracked mutation
+        run: git diff --exit-code
