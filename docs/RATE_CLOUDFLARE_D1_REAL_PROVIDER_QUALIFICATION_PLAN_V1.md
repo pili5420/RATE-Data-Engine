@@ -36,6 +36,7 @@ and creates zero resources.
 
 Before the first Cloudflare request, the future executor must atomically create and
 read back exactly one lightweight Git tag ref under
-`refs/tags/rate-v11-qualification-consumed/cloudflare-d1-`. The ref targets the
-exact current main bound by the authorization. Ref update and deletion are forbidden.
+`refs/tags/rate-v11-qualification-consumed/cloudflare-d1-<first16hex>`, where the
+suffix is the first 16 hexadecimal characters of the authorization qualification
+SHA-256. The ref targets the exact current main bound by the authorization. Ref update and deletion are forbidden.
 A duplicate/pre-existing marker blocks qualification before any Cloudflare request.
