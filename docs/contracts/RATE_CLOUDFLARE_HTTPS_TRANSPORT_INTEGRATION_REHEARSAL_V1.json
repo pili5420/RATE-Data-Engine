@@ -1,0 +1,21 @@
+{
+  "artifact":"RATE_CLOUDFLARE_HTTPS_TRANSPORT_INTEGRATION_REHEARSAL_CONTRACT_V1",
+  "status":"ENGINEERING_CONTRACT_ONLY",
+  "request_shape_reused":"RATE_CLOUDFLARE_D1_HTTP_REQUEST_SHAPE_REHEARSAL_V1",
+  "bounded_transport":"CLOUDFLARE_BOUNDED_HTTPS_V1",
+  "total_requests":17,
+  "admin_requests":11,
+  "worker_requests":6,
+  "connections_created":17,
+  "connections_closed":17,
+  "tls_hostname_verification_all":true,
+  "automatic_retry_allowed":false,
+  "redirect_following_allowed":false,
+  "fallback_allowed":false,
+  "real_network_requests":0,
+  "real_cloudflare_requests":0,
+  "provider_qualified":false,
+  "production_credit":0,
+  "cer081_credit":0,
+  "next_gate":"EXPLICIT_REAL_CLOUDFLARE_QUALIFICATION_EXECUTION"
+}
