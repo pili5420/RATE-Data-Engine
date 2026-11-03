@@ -101,20 +101,42 @@ class IntradayPhase2AdmissionTests(unittest.TestCase):
         admission = qualify_phase2_intraday_feed(value, trading_date=DAY, cadence=CADENCE, now_utc=NOW)
         value["records"][0]["price"] = 101.0
         with self.assertRaisesRegex(RuntimeError, "FEED_DIGEST_MISMATCH"):
-            validate_phase2_intraday_admission(value, admission, trading_date=DAY, cadence=CADENCE)
+            validate_phase2_intraday_admission(value, admission, trading_date=DAY, cadence=CADENCE, now_utc=NOW)
 
     def test_qualification_mutation_after_admission_is_rejected(self):
         value = feed()
         admission = qualify_phase2_intraday_feed(value, trading_date=DAY, cadence=CADENCE, now_utc=NOW)
         admission["qualified_payload"]["coverage"] = "29/30"
         with self.assertRaisesRegex(RuntimeError, "QUALIFICATION_DIGEST_MISMATCH"):
-            validate_phase2_intraday_admission(value, admission, trading_date=DAY, cadence=CADENCE)
+            validate_phase2_intraday_admission(value, admission, trading_date=DAY, cadence=CADENCE, now_utc=NOW)
 
     def test_admission_scope_cannot_be_reused_for_other_cadence(self):
         value = feed()
         admission = qualify_phase2_intraday_feed(value, trading_date=DAY, cadence=CADENCE, now_utc=NOW)
         with self.assertRaisesRegex(RuntimeError, "ADMISSION_SCOPE_MISMATCH"):
-            validate_phase2_intraday_admission(value, admission, trading_date=DAY, cadence="12:00")
+            validate_phase2_intraday_admission(value, admission, trading_date=DAY, cadence="12:00", now_utc=NOW)
+
+    def test_self_resealed_forged_qualification_is_replayed_and_rejected(self):
+        value = feed()
+        admission = qualify_phase2_intraday_feed(value, trading_date=DAY, cadence=CADENCE, now_utc=NOW)
+        forged = deepcopy(admission)
+        forged["qualified_payload"]["coverage"] = "30/30"
+        forged["qualified_payload"]["provider_authority"] = "FORGED_AUTHORITY"
+        from src.cer074_acceptance import sha256
+        forged["qualification_sha256"] = sha256(forged["qualified_payload"])
+        with self.assertRaisesRegex(RuntimeError, "QUALIFICATION_REPLAY_MISMATCH"):
+            validate_phase2_intraday_admission(
+                value, forged, trading_date=DAY, cadence=CADENCE, now_utc=NOW
+            )
+
+    def test_admission_age_is_bounded(self):
+        value = feed()
+        admission = qualify_phase2_intraday_feed(value, trading_date=DAY, cadence=CADENCE, now_utc=NOW)
+        later = datetime(2026, 11, 4, 1, 41, 0, tzinfo=timezone.utc)
+        with self.assertRaisesRegex(RuntimeError, "ADMISSION_EXPIRED"):
+            validate_phase2_intraday_admission(
+                value, admission, trading_date=DAY, cadence=CADENCE, now_utc=later
+            )
 
     def test_builder_admission_failure_happens_before_material_binding(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -153,7 +175,7 @@ class IntradayPhase2AdmissionTests(unittest.TestCase):
     def test_valid_admission_is_byte_bound_into_material_snapshot_inputs(self):
         value = feed()
         admission = qualify_phase2_intraday_feed(value, trading_date=DAY, cadence=CADENCE, now_utc=NOW)
-        self.assertTrue(validate_phase2_intraday_admission(value, admission, trading_date=DAY, cadence=CADENCE))
+        self.assertTrue(validate_phase2_intraday_admission(value, admission, trading_date=DAY, cadence=CADENCE, now_utc=NOW))
         self.assertEqual(admission["qualified_payload"]["expected_market_counts"], {"TWSE": 25, "TPEX": 5})
         self.assertEqual(admission["qualified_payload"]["selected_market_counts"], {"TWSE": 25, "TPEX": 5})
 
