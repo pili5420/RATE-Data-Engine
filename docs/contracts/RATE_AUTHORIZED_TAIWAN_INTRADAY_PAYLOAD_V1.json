@@ -1,0 +1,22 @@
+{
+  "artifact": "RATE_AUTHORIZED_TAIWAN_INTRADAY_PAYLOAD_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY_NOT_PRODUCTION_ACTIVE",
+  "affected_cadences": ["09:30", "12:00"],
+  "required_universe_count": 30,
+  "required_markets": ["TWSE", "TPEX"],
+  "required_fields": ["symbol", "market", "timestamp", "price", "volume", "turnover"],
+  "timestamp_rule": "EXPLICIT_TIMEZONE_REQUIRED",
+  "freshness_default_seconds": 180,
+  "coverage_policy": "EXACT_APPROVED_30_SELECTED_FROM_PROVIDER_PAYLOAD",
+  "extra_raw_symbol_policy": "ALLOWED_NOT_SELECTED",
+  "duplicate_policy": "FAIL_CLOSED",
+  "market_mismatch_policy": "FAIL_CLOSED",
+  "fallback_allowed": false,
+  "automated_production_use_license_required": true,
+  "provider_selected": false,
+  "endpoint_configured": false,
+  "credential_configured": false,
+  "registry_activation_allowed": false,
+  "production_admission_allowed": false,
+  "external_dependency_resolved": false
+}
