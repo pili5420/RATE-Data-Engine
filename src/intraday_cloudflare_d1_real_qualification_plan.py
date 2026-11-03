@@ -35,6 +35,16 @@ CLEANUP_OPERATIONS = (
     "DELETE_WORKER_SCRIPT",
     "DELETE_D1_DATABASE",
 )
+EXPECTED_CONSUMPTION_MARKER = {
+    "kind": "GITHUB_LIGHTWEIGHT_TAG_REF",
+    "ref_prefix": "refs/tags/rate-v11-qualification-consumed/cloudflare-d1-",
+    "create_count": 1,
+    "update_count": 0,
+    "delete_count": 0,
+    "target": "EXACT_CURRENT_MAIN",
+    "create_before_first_cloudflare_request": True,
+    "readback_required": True,
+}
 REQUIRED_EVIDENCE = {
     "WORKERS_FREE_LIMITS",
     "D1_FREE_PRICING",
@@ -187,6 +197,11 @@ def validate_cloudflare_real_qualification_plan(plan: Mapping[str, Any]) -> dict
         "CF_QUAL_PLAN_RUNTIME_SEMANTICS_INVALID",
     )
 
+    require(
+        plan.get("consumption_marker") == EXPECTED_CONSUMPTION_MARKER,
+        "CF_QUAL_PLAN_CONSUMPTION_MARKER_INVALID",
+    )
+
     cleanup = plan.get("cleanup")
     require(isinstance(cleanup, Mapping), "CF_QUAL_PLAN_CLEANUP_MISSING")
     require(
@@ -249,6 +264,7 @@ def validate_cloudflare_real_qualification_plan(plan: Mapping[str, Any]) -> dict
         "admin_operation_budget": deepcopy(dict(admin_ops)),
         "runtime_probe_budget": deepcopy(dict(probes)),
         "cleanup_operation_budget": deepcopy(dict(cleanup_ops)),
+        "consumption_marker": deepcopy(dict(EXPECTED_CONSUMPTION_MARKER)),
         "api_token_permissions": sorted(API_TOKEN_PERMISSIONS),
         "workers_endpoint": "WORKERS_DEV_ONLY",
         "d1_read_replication": "disabled",

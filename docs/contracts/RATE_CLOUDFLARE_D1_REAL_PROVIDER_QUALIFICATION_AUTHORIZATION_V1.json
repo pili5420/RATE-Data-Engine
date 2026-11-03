@@ -21,5 +21,10 @@
   "admin_operation_count": 9,
   "workers_subdomain_lookup_count": 1,
   "worker_script_subdomain_lookup_count": 1,
-  "worker_subdomain_mutation_allowed": false
+  "worker_subdomain_mutation_allowed": false,
+  "consumption_marker_required": true,
+  "consumption_marker_create_count": 1,
+  "consumption_marker_update_count": 0,
+  "consumption_marker_delete_count": 0,
+  "consumption_marker_before_first_cloudflare_request": true
 }

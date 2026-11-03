@@ -9,6 +9,7 @@ import re
 from typing import Any, Mapping
 
 from .intraday_activation_candidate_review import canonical_digest
+from .intraday_cloudflare_d1_real_qualification_plan import EXPECTED_CONSUMPTION_MARKER
 
 HEX40 = re.compile(r"^[0-9a-f]{40}$")
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
@@ -117,6 +118,10 @@ def validate_cloudflare_real_qualification_authorization(
     require(plan_review.get("cleanup_operation_budget") == EXPECTED_CLEANUP_BUDGET,
             "CF_AUTH_CLEANUP_BUDGET_INVALID")
     require(
+        plan_review.get("consumption_marker") == EXPECTED_CONSUMPTION_MARKER,
+        "CF_AUTH_CONSUMPTION_MARKER_INVALID",
+    )
+    require(
         plan_review.get("automatic_retry_allowed") is False
         and plan_review.get("fallback_allowed") is False
         and plan_review.get("qualification_executed") is False
@@ -170,6 +175,10 @@ def validate_cloudflare_real_qualification_authorization(
     require(authorization.get("cleanup_operation_budget") == EXPECTED_CLEANUP_BUDGET,
             "CF_AUTHORIZATION_CLEANUP_BUDGET_INVALID")
     require(
+        authorization.get("consumption_marker") == EXPECTED_CONSUMPTION_MARKER,
+        "CF_AUTHORIZATION_CONSUMPTION_MARKER_INVALID",
+    )
+    require(
         authorization.get("api_token_secret_name") == "CLOUDFLARE_API_TOKEN"
         and authorization.get("account_id_variable_name") == "CLOUDFLARE_ACCOUNT_ID"
         and authorization.get("worker_secret_name") == "RATE_D1_RECEIPT_WORKER_TOKEN"
@@ -214,6 +223,7 @@ def validate_cloudflare_real_qualification_authorization(
         "admin_operation_budget": dict(EXPECTED_ADMIN_BUDGET),
         "runtime_probe_budget": dict(EXPECTED_RUNTIME_BUDGET),
         "cleanup_operation_budget": dict(EXPECTED_CLEANUP_BUDGET),
+        "consumption_marker": dict(EXPECTED_CONSUMPTION_MARKER),
         "cleanup_required": True,
         "qualification_credit_requires_cleanup_success": True,
         "qualification_execution_allowed_by_validator": False,
