@@ -332,6 +332,31 @@ SECRET_NAME = "{secret_name}"
 RATE_AUTHORIZED_INTRADAY_FEED_PATH = "RATE_AUTHORIZED_INTRADAY_FEED_PATH"
 
 
+def _expected_outputs(cadence):
+    compact = cadence.replace(":", "")
+    root = Path(f"artifacts/production_{{compact}}")
+    return (
+        root / "RATE_AUTHORIZED_INTRADAY_FEED.json",
+        root / "RATE_AUTHORIZED_INTRADAY_RAW_EVIDENCE.json",
+    )
+
+
+def _bounded_output(raw, expected, reason):
+    if not isinstance(raw, str) or not raw:
+        raise RuntimeError(reason)
+    path = Path(raw)
+    if path.is_absolute() or ".." in path.parts or path.as_posix() != expected.as_posix():
+        raise RuntimeError(reason)
+    current = Path()
+    for part in path.parent.parts:
+        current = current / part
+        if current.exists() and current.is_symlink():
+            raise RuntimeError("INTRADAY_RUNTIME_OUTPUT_ANCESTOR_SYMLINK_FORBIDDEN")
+    if path.exists() or path.is_symlink():
+        raise RuntimeError("INTRADAY_RUNTIME_OUTPUT_EXISTS")
+    return path
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--trading-date", required=True)
@@ -341,6 +366,16 @@ def main():
     parser.add_argument("--output", required=True)
     parser.add_argument("--raw-evidence-output", required=True)
     args = parser.parse_args()
+
+    expected_output, expected_raw = _expected_outputs(args.cadence)
+    output = _bounded_output(
+        args.output, expected_output, "INTRADAY_RUNTIME_OUTPUT_PATH_FORBIDDEN"
+    )
+    raw_path = _bounded_output(
+        args.raw_evidence_output,
+        expected_raw,
+        "INTRADAY_RUNTIME_RAW_EVIDENCE_PATH_FORBIDDEN",
+    )
 
     api_key = os.getenv(SECRET_NAME)
     if not api_key:
@@ -352,10 +387,10 @@ def main():
         cadence=args.cadence,
         api_key=api_key,
     )
-    raw_path = Path(args.raw_evidence_output)
     raw_path.parent.mkdir(parents=True, exist_ok=True)
     raw_bytes = json.dumps(result["raw_evidence"], sort_keys=True, separators=(",", ":")).encode()
-    raw_path.write_bytes(raw_bytes)
+    with raw_path.open("xb") as handle:
+        handle.write(raw_bytes)
 
     feed = {{
         "artifact": "RATE_AUTHORIZED_TAIWAN_INTRADAY_FEED_V1",
@@ -378,9 +413,9 @@ def main():
             "sha256": hashlib.sha256(raw_bytes).hexdigest(),
         }}],
     }}
-    output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(feed, sort_keys=True), encoding="utf-8")
+    with output.open("x", encoding="utf-8", newline="") as handle:
+        handle.write(json.dumps(feed, sort_keys=True))
     return 0
 
 
