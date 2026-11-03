@@ -352,6 +352,11 @@ def _bounded_output(raw, expected, reason):
         current = current / part
         if current.exists() and current.is_symlink():
             raise RuntimeError("INTRADAY_RUNTIME_OUTPUT_ANCESTOR_SYMLINK_FORBIDDEN")
+    repo_root = Path.cwd().resolve()
+    lexical_parent = repo_root / path.parent
+    resolved_parent = (Path.cwd() / path.parent).resolve()
+    if resolved_parent != lexical_parent:
+        raise RuntimeError("INTRADAY_RUNTIME_OUTPUT_ANCESTOR_SYMLINK_FORBIDDEN")
     if path.exists() or path.is_symlink():
         raise RuntimeError("INTRADAY_RUNTIME_OUTPUT_EXISTS")
     return path
