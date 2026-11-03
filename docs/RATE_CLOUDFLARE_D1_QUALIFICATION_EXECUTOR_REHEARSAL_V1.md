@@ -4,7 +4,7 @@ This layer rehearses the entire future one-shot Cloudflare Workers + D1 provider
 qualification against an in-memory backend only.
 
 The sequence consumes the single-use authorization before the first synthetic
-Cloudflare mutation, then executes the exact seven administrative operations and six
+Cloudflare mutation, then executes the exact eight administrative operations (including Workers-subdomain discovery) and six
 runtime probes from the approved plan.
 
 All failures after consumption are non-retryable. The rehearsal performs at most one

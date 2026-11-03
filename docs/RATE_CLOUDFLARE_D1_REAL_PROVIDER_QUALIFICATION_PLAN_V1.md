@@ -15,6 +15,10 @@ The Cloudflare API token must be stored as a GitHub Actions secret and limited t
 D1 Write and Workers Scripts Write. The account ID is a GitHub Actions variable.
 No secret value is embedded in the plan or repository.
 
+The administrative budget also includes exactly one account Workers-subdomain lookup
+to derive the qualification-only workers.dev endpoint from Cloudflare rather than
+storing the account subdomain in GitHub.
+
 The runtime probe budget is exactly one each of unauthorized GET, missing GET,
 create POST, readback GET, duplicate POST and unsupported method. Automatic retry
 and fallback are forbidden.
