@@ -129,21 +129,44 @@ class ActivationApplyAuthorizationTests(unittest.TestCase):
 
     def test_main_manifest_provider_and_decision_are_exact(self):
         with self.assertRaisesRegex(
-            ActivationApplyAuthorizationError, "MAIN_SHA_MISMATCH"
+            ActivationApplyAuthorizationError, "READINESS_MAIN_MISMATCH"
         ):
             self.qualify(main="f" * 40)
         with self.assertRaisesRegex(
-            ActivationApplyAuthorizationError, "CANDIDATE_MANIFEST_MISMATCH"
+            ActivationApplyAuthorizationError, "READINESS_MANIFEST_MISMATCH"
         ):
             self.qualify(manifest="e" * 64)
         with self.assertRaisesRegex(
-            ActivationApplyAuthorizationError, "PROVIDER_MISMATCH"
+            ActivationApplyAuthorizationError, "READINESS_PROVIDER_MISMATCH"
         ):
             self.qualify(provider="OTHER")
         with self.assertRaisesRegex(
             ActivationApplyAuthorizationError, "DECISION_ID_MISMATCH"
         ):
             self.qualify(decision="OTHER")
+
+        r = readiness()
+        rh = canonical_digest(r)
+        a = authorization(rh)
+        a["current_main_sha"] = "f" * 40
+        with self.assertRaisesRegex(
+            ActivationApplyAuthorizationError, "MAIN_SHA_MISMATCH"
+        ):
+            self.qualify(auth=a, ready=r)
+
+        a = authorization(rh)
+        a["candidate_manifest_sha256"] = "e" * 64
+        with self.assertRaisesRegex(
+            ActivationApplyAuthorizationError, "CANDIDATE_MANIFEST_MISMATCH"
+        ):
+            self.qualify(auth=a, ready=r)
+
+        a = authorization(rh)
+        a["provider_name"] = "OTHER"
+        with self.assertRaisesRegex(
+            ActivationApplyAuthorizationError, "PROVIDER_MISMATCH"
+        ):
+            self.qualify(auth=a, ready=r)
 
     def test_authorization_cannot_request_live_traffic_or_credit(self):
         r = readiness()
