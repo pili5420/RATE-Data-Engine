@@ -1,0 +1,64 @@
+{
+  "artifact": "RATE_AUTHORIZED_TAIWAN_INTRADAY_PAYLOAD_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY_NOT_PRODUCTION_ACTIVE",
+  "affected_cadences": [
+    "09:30",
+    "12:00"
+  ],
+  "required_universe_count": 30,
+  "required_markets": [
+    "TWSE",
+    "TPEX"
+  ],
+  "required_fields": [
+    "symbol",
+    "market",
+    "timestamp",
+    "price",
+    "volume",
+    "turnover"
+  ],
+  "timestamp_rule": "EXPLICIT_TIMEZONE_REQUIRED",
+  "freshness_default_seconds": 180,
+  "coverage_policy": "EXACT_APPROVED_30_SELECTED_FROM_PROVIDER_PAYLOAD",
+  "extra_raw_symbol_policy": "ALLOWED_NOT_SELECTED",
+  "duplicate_policy": "FAIL_CLOSED",
+  "market_mismatch_policy": "FAIL_CLOSED",
+  "fallback_allowed": false,
+  "automated_production_use_license_required": true,
+  "provider_selected": false,
+  "endpoint_configured": false,
+  "credential_configured": false,
+  "registry_activation_allowed": false,
+  "production_admission_allowed": false,
+  "external_dependency_resolved": false,
+  "expected_universe_binding_required": true,
+  "expected_universe_source_kind": "RATE_PRODUCTION_SOURCE_BUNDLE",
+  "expected_universe_source_validation_status": "PASS",
+  "expected_universe_binding_fields": [
+    "production_snapshot_id",
+    "source_bundle_sha256",
+    "universe_sha256"
+  ],
+  "expected_universe_normalization_policy": "REJECT_NONCANONICAL_OR_NORMALIZATION_COLLISION",
+  "expected_universe_digest_rule": "SHA256_OF_CANONICAL_SORTED_SYMBOL_MARKET_PAIRS",
+  "license_scope_markets_type": "JSON_ARRAY_OF_NONEMPTY_STRINGS",
+  "license_scope_invalid_structure_policy": "FAIL_CLOSED",
+  "expected_universe_authority": "REPOSITORY_PRODUCTION_AUTHORITY_CHAIN",
+  "authoritative_universe_contract_path": "config/RATE_PRODUCTION_UNIVERSE_CONTRACT_V1.json",
+  "authoritative_latest_pointer_path": "artifacts/RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json",
+  "authoritative_trust_chain": [
+    "PRODUCTION_UNIVERSE_CONTRACT",
+    "PRODUCTION_SOURCE_BUNDLE_LATEST",
+    "IMMUTABLE_PRODUCTION_SOURCE_BUNDLE",
+    "AUTHORITATIVE_UNIVERSE_BINDING",
+    "BUNDLE_RECORD_SYMBOL_MARKET_BINDING"
+  ],
+  "caller_universe_binding_role": "ASSERTION_ONLY_NOT_AUTHORITY",
+  "coordinated_caller_universe_and_hash_replacement_policy": "FAIL_CLOSED",
+  "authoritative_hash_checks": [
+    "CONTRACT_CANONICAL_SHA256",
+    "LATEST_SOURCE_BUNDLE_CANONICAL_SHA256",
+    "UNIVERSE_BINDING_HASH"
+  ]
+}
