@@ -67,7 +67,7 @@ class D1NodeWorkerReviewTests(unittest.TestCase):
         altered = deepcopy(files())
         altered[EXPECTED_FILES[0]] = altered[EXPECTED_FILES[0]].replace(
             'return json({ error: "ALREADY_EXISTS" }, 409);',
-            'return json({ outcome: "WRONG_DUPLICATE_SUCCESS" }, 200);',
+            'return json({ error: "ALREADY_EXISTS" }, 200);',
         )
         with self.assertRaisesRegex(
             D1NodeWorkerReviewError, "DUPLICATE_NOT_FAIL_CLOSED"
@@ -78,7 +78,7 @@ class D1NodeWorkerReviewTests(unittest.TestCase):
         altered = deepcopy(files())
         altered[EXPECTED_FILES[0]] = altered[EXPECTED_FILES[0]].replace(
             'return json({ error: "D1_CREATE_FAILED" }, 503);',
-            'return json({ outcome: "WRONG_DB_SUCCESS" }, 201);',
+            'return json({ error: "D1_CREATE_FAILED" }, 201);',
         )
         with self.assertRaisesRegex(
             D1NodeWorkerReviewError, "DATABASE_FAILURE_INVALID"
