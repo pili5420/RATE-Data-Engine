@@ -1,0 +1,47 @@
+name: RATE Real Git Transaction Execution Authorization
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/intraday_git_transaction_execution_authorization.py
+      - tests/test_intraday_git_transaction_execution_authorization.py
+      - docs/contracts/RATE_INTRADAY_REAL_GIT_TRANSACTION_EXECUTION_AUTHORIZATION_V1.json
+      - docs/RATE_INTRADAY_REAL_GIT_TRANSACTION_EXECUTION_AUTHORIZATION_V1.md
+      - .github/workflows/rate_intraday_real_git_execution_authorization_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Authorization dependencies
+        run: python -m pip install PyYAML==6.0.3
+      - name: Exact Git bytes
+        shell: bash
+        run: |
+          git config core.autocrlf false
+          git checkout-index --all --force
+          git diff --exit-code
+      - name: Real execution authorization qualification regressions
+        run: python -B -m unittest tests.test_intraday_git_transaction_execution_authorization -v
+      - name: No tracked mutation
+        run: git diff --exit-code
