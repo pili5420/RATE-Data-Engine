@@ -1,0 +1,23 @@
+{
+  "artifact": "RATE_INTRADAY_GIT_TRANSACTION_REHEARSAL_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "backend": "SYNTHETIC_IN_MEMORY_ONLY",
+  "real_backend_allowed": false,
+  "single_use_consumed_before_first_mutation": true,
+  "retry_after_failure_allowed": false,
+  "blob_count": 9,
+  "branch_ref_created_last": true,
+  "main_ref_mutation_allowed": false,
+  "direct_main_update_allowed": false,
+  "merge_allowed": false,
+  "real_git_objects_created": 0,
+  "real_repository_writes": 0,
+  "real_branch_created": false,
+  "real_pull_request_created": false,
+  "live_provider_requests": 0,
+  "external_dependency_resolved": false,
+  "registry_activation_allowed": false,
+  "production_credit": 0,
+  "cer081_credit": 0,
+  "next_gate": "EXPLICIT_REAL_GIT_TRANSACTION_EXECUTION_AUTHORIZATION"
+}
