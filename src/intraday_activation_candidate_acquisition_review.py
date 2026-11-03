@@ -273,6 +273,12 @@ def review_candidate_acquisition_synthetic(
                 side_effect=AssertionError("SECRET_READ_TOO_EARLY")):
                 try:
                     namespace["main"]()
+                except AssertionError as exc:
+                    if "SECRET_READ_TOO_EARLY" in str(exc):
+                        raise AcquisitionSemanticReviewError(
+                            "ACQUISITION_SEMANTIC_BAD_PATH_SECRET_READ"
+                        ) from exc
+                    raise
                 except RuntimeError as exc:
                     require(reason in str(exc),
                             "ACQUISITION_SEMANTIC_BAD_PATH_REASON_INVALID")
@@ -300,6 +306,12 @@ def review_candidate_acquisition_synthetic(
                 side_effect=AssertionError("SECRET_READ_TOO_EARLY")):
                 try:
                     namespace["main"]()
+                except AssertionError as exc:
+                    if "SECRET_READ_TOO_EARLY" in str(exc):
+                        raise AcquisitionSemanticReviewError(
+                            "ACQUISITION_SEMANTIC_EXISTING_OUTPUT_SECRET_READ"
+                        ) from exc
+                    raise
                 except RuntimeError as exc:
                     require("OUTPUT_EXISTS" in str(exc),
                             "ACQUISITION_SEMANTIC_EXISTING_OUTPUT_REASON_INVALID")
