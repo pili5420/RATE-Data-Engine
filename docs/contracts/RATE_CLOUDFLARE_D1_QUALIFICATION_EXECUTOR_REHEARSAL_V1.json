@@ -18,5 +18,7 @@
   "cer081_credit": 0,
   "next_gate": "EXPLICIT_REAL_CLOUDFLARE_QUALIFICATION_EXECUTION",
   "workers_subdomain_lookup_count": 1,
-  "worker_script_subdomain_lookup_count": 1
+  "worker_script_subdomain_lookup_count": 1,
+  "durable_consumption_marker_contract_verified": true,
+  "actual_git_marker_created_by_rehearsal": false
 }
