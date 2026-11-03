@@ -4,14 +4,17 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import stat
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from src.provider_fugle_intraday_candidate import load_binding, qualify
 
 ROOT = Path(__file__).resolve().parents[1]
 BINDING_PATH = ROOT / "docs" / "contracts" / "RATE_FUGLE_FREE_INTRADAY_UNIVERSE_BINDING_V1.json"
-OUTPUT_ROOT = ROOT / "artifacts" / "diagnostics" / "fugle-free-intraday"
+OUTPUT_PARTS = ("artifacts", "diagnostics", "fugle-free-intraday")
+OUTPUT_ROOT = ROOT.joinpath(*OUTPUT_PARTS)
 
 
 def _load_fixed_binding() -> dict:
@@ -25,27 +28,331 @@ def _load_fixed_binding() -> dict:
     return value
 
 
-def _safe_output_path(output_name: str) -> Path:
+def _validate_output_name(output_name: str) -> None:
     if not isinstance(output_name, str) or not output_name:
         raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_NAME_INVALID")
     if Path(output_name).name != output_name or "/" in output_name or "\\" in output_name:
         raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_PATH_FORBIDDEN")
-    if not output_name.endswith(".json") or output_name in {".json", "..json"}:
+    if output_name in {".", "..", ".json", "..json"} or not output_name.endswith(".json"):
         raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_NAME_INVALID")
-    target = OUTPUT_ROOT / output_name
-    if target.exists() or target.is_symlink():
+
+
+def _validate_output_layout() -> tuple[Path, Path]:
+    root = ROOT.absolute()
+    output_root = OUTPUT_ROOT.absolute()
+    try:
+        relative = output_root.relative_to(root)
+    except ValueError as exc:
+        raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_ROOT_OUTSIDE_REPOSITORY") from exc
+    if relative.parts != OUTPUT_PARTS:
+        raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_ROOT_INVALID")
+    return root, output_root
+
+
+class _TrustedOutput:
+    """Pinned diagnostic directory plus exclusive-create writer."""
+
+    def __init__(
+        self,
+        output_name: str,
+        output_root: Path,
+        *,
+        posix_fds: list[int] | None = None,
+        windows_handles: list[int] | None = None,
+    ) -> None:
+        self.output_name = output_name
+        self.output_root = output_root
+        self._posix_fds = posix_fds or []
+        self._windows_handles = windows_handles or []
+        self._closed = False
+
+    @property
+    def target_path(self) -> Path:
+        return self.output_root / self.output_name
+
+    def __enter__(self) -> "_TrustedOutput":
+        return self
+
+    def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
+        self.close()
+
+    def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        for fd in reversed(self._posix_fds):
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+        self._posix_fds.clear()
+        if os.name == "nt":
+            for handle in reversed(self._windows_handles):
+                try:
+                    _win_close_handle(handle)
+                except OSError:
+                    pass
+        self._windows_handles.clear()
+
+    def write_result(self, result: dict) -> None:
+        if self._closed:
+            raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_SESSION_CLOSED")
+        if os.name == "nt":
+            _win_write_new(self.target_path, result)
+            return
+        if not self._posix_fds:
+            raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_SESSION_INVALID")
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+        flags |= getattr(os, "O_CLOEXEC", 0)
+        flags |= getattr(os, "O_NOFOLLOW", 0)
+        fd = os.open(self.output_name, flags, 0o600, dir_fd=self._posix_fds[-1])
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+            json.dump(result, handle, ensure_ascii=False, indent=2, sort_keys=True)
+            handle.write("\n")
+
+
+def _open_trusted_output_posix(output_name: str, root: Path, output_root: Path) -> _TrustedOutput:
+    if not hasattr(os, "O_DIRECTORY") or not hasattr(os, "O_NOFOLLOW"):
+        raise RuntimeError("FUGLE_DIAGNOSTIC_SECURE_DIRECTORY_API_UNAVAILABLE")
+    if os.open not in os.supports_dir_fd or os.mkdir not in os.supports_dir_fd or os.stat not in os.supports_dir_fd:
+        raise RuntimeError("FUGLE_DIAGNOSTIC_SECURE_DIRECTORY_API_UNAVAILABLE")
+
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
+    fds: list[int] = []
+    try:
+        root_fd = os.open(root, flags)
+        fds.append(root_fd)
+        current_fd = root_fd
+        for component in OUTPUT_PARTS:
+            try:
+                child_fd = os.open(component, flags, dir_fd=current_fd)
+            except FileNotFoundError:
+                try:
+                    os.mkdir(component, mode=0o755, dir_fd=current_fd)
+                except FileExistsError:
+                    pass
+                try:
+                    child_fd = os.open(component, flags, dir_fd=current_fd)
+                except OSError as exc:
+                    raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_ANCESTRY_UNTRUSTED") from exc
+            except OSError as exc:
+                raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_ANCESTRY_UNTRUSTED") from exc
+            if not stat.S_ISDIR(os.fstat(child_fd).st_mode):
+                os.close(child_fd)
+                raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_ANCESTRY_UNTRUSTED")
+            fds.append(child_fd)
+            current_fd = child_fd
+
+        try:
+            os.stat(output_name, dir_fd=current_fd, follow_symlinks=False)
+        except FileNotFoundError:
+            pass
+        else:
+            raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_EXISTS")
+        return _TrustedOutput(output_name, output_root, posix_fds=fds)
+    except Exception:
+        for fd in reversed(fds):
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+        raise
+
+
+if os.name == "nt":
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+
+    _INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
+    _FILE_READ_ATTRIBUTES = 0x0080
+    _GENERIC_WRITE = 0x40000000
+    _FILE_SHARE_READ = 0x00000001
+    _FILE_SHARE_WRITE = 0x00000002
+    _CREATE_NEW = 1
+    _OPEN_EXISTING = 3
+    _FILE_ATTRIBUTE_DIRECTORY = 0x00000010
+    _FILE_ATTRIBUTE_NORMAL = 0x00000080
+    _FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400
+    _FILE_FLAG_BACKUP_SEMANTICS = 0x02000000
+    _FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
+    _FILE_ATTRIBUTE_TAG_INFO_CLASS = 9
+    _ERROR_FILE_NOT_FOUND = 2
+    _ERROR_PATH_NOT_FOUND = 3
+    _ERROR_FILE_EXISTS = 80
+    _ERROR_ALREADY_EXISTS = 183
+
+    class _FILE_ATTRIBUTE_TAG_INFO(ctypes.Structure):
+        _fields_ = [
+            ("FileAttributes", wintypes.DWORD),
+            ("ReparseTag", wintypes.DWORD),
+        ]
+
+    _KERNEL32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    _CreateFileW = _KERNEL32.CreateFileW
+    _CreateFileW.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.HANDLE,
+    ]
+    _CreateFileW.restype = wintypes.HANDLE
+    _CloseHandle = _KERNEL32.CloseHandle
+    _CloseHandle.argtypes = [wintypes.HANDLE]
+    _CloseHandle.restype = wintypes.BOOL
+    _GetFileInformationByHandleEx = _KERNEL32.GetFileInformationByHandleEx
+    _GetFileInformationByHandleEx.argtypes = [
+        wintypes.HANDLE,
+        ctypes.c_int,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+    ]
+    _GetFileInformationByHandleEx.restype = wintypes.BOOL
+
+
+def _win_error(path: Path) -> OSError:
+    import ctypes
+
+    code = ctypes.get_last_error()
+    return OSError(code, ctypes.FormatError(code), str(path))
+
+
+def _win_close_handle(handle: int) -> None:
+    if os.name != "nt":
+        return
+    if not _CloseHandle(handle):
+        raise _win_error(Path("<handle>"))
+
+
+def _win_open_directory(path: Path) -> int:
+    if os.name != "nt":
+        raise RuntimeError("FUGLE_DIAGNOSTIC_WINDOWS_API_UNAVAILABLE")
+    handle = _CreateFileW(
+        str(path),
+        _FILE_READ_ATTRIBUTES,
+        _FILE_SHARE_READ | _FILE_SHARE_WRITE,  # Deliberately omit FILE_SHARE_DELETE.
+        None,
+        _OPEN_EXISTING,
+        _FILE_FLAG_BACKUP_SEMANTICS | _FILE_FLAG_OPEN_REPARSE_POINT,
+        None,
+    )
+    if handle == _INVALID_HANDLE_VALUE:
+        raise _win_error(path)
+    info = _FILE_ATTRIBUTE_TAG_INFO()
+    if not _GetFileInformationByHandleEx(
+        handle,
+        _FILE_ATTRIBUTE_TAG_INFO_CLASS,
+        ctypes.byref(info),
+        ctypes.sizeof(info),
+    ):
+        error = _win_error(path)
+        _CloseHandle(handle)
+        raise error
+    if not (info.FileAttributes & _FILE_ATTRIBUTE_DIRECTORY) or (info.FileAttributes & _FILE_ATTRIBUTE_REPARSE_POINT):
+        _CloseHandle(handle)
+        raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_ANCESTRY_UNTRUSTED")
+    return int(handle)
+
+
+def _win_require_target_absent(target: Path) -> None:
+    if os.name != "nt":
+        raise RuntimeError("FUGLE_DIAGNOSTIC_WINDOWS_API_UNAVAILABLE")
+    handle = _CreateFileW(
+        str(target),
+        _FILE_READ_ATTRIBUTES,
+        _FILE_SHARE_READ | _FILE_SHARE_WRITE,
+        None,
+        _OPEN_EXISTING,
+        _FILE_FLAG_BACKUP_SEMANTICS | _FILE_FLAG_OPEN_REPARSE_POINT,
+        None,
+    )
+    if handle != _INVALID_HANDLE_VALUE:
+        _CloseHandle(handle)
         raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_EXISTS")
-    if OUTPUT_ROOT.exists() and OUTPUT_ROOT.is_symlink():
-        raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_ROOT_SYMLINK_FORBIDDEN")
-    return target
+    error = _win_error(target)
+    if getattr(error, "winerror", error.errno) not in {_ERROR_FILE_NOT_FOUND, _ERROR_PATH_NOT_FOUND}:
+        raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_TARGET_UNTRUSTED") from error
 
 
-def _write_new_result(target: Path, result: dict) -> None:
-    OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
-    # Exclusive create is the final race-safe no-overwrite gate.
-    with target.open("x", encoding="utf-8", newline="\n") as handle:
-        json.dump(result, handle, ensure_ascii=False, indent=2, sort_keys=True)
-        handle.write("\n")
+def _win_write_new(target: Path, result: dict) -> None:
+    if os.name != "nt":
+        raise RuntimeError("FUGLE_DIAGNOSTIC_WINDOWS_API_UNAVAILABLE")
+    handle = _CreateFileW(
+        str(target),
+        _GENERIC_WRITE,
+        0,
+        None,
+        _CREATE_NEW,
+        _FILE_ATTRIBUTE_NORMAL | _FILE_FLAG_OPEN_REPARSE_POINT,
+        None,
+    )
+    if handle == _INVALID_HANDLE_VALUE:
+        error = _win_error(target)
+        if getattr(error, "winerror", error.errno) in {_ERROR_FILE_EXISTS, _ERROR_ALREADY_EXISTS}:
+            raise FileExistsError(error.errno, error.strerror, str(target)) from error
+        raise error
+    try:
+        fd = msvcrt.open_osfhandle(int(handle), os.O_WRONLY)
+    except Exception:
+        _CloseHandle(handle)
+        raise
+    with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as stream:
+        json.dump(result, stream, ensure_ascii=False, indent=2, sort_keys=True)
+        stream.write("\n")
+
+
+def _open_trusted_output_windows(output_name: str, root: Path, output_root: Path) -> _TrustedOutput:
+    handles: list[int] = []
+    try:
+        try:
+            root_handle = _win_open_directory(root)
+        except OSError as exc:
+            raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_ROOT_UNAVAILABLE") from exc
+        handles.append(root_handle)
+
+        current = root
+        for component in OUTPUT_PARTS:
+            current = current / component
+            try:
+                handle = _win_open_directory(current)
+            except OSError as exc:
+                if getattr(exc, "winerror", exc.errno) not in {_ERROR_FILE_NOT_FOUND, _ERROR_PATH_NOT_FOUND}:
+                    raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_ANCESTRY_UNTRUSTED") from exc
+                try:
+                    os.mkdir(current)
+                except FileExistsError:
+                    pass
+                try:
+                    handle = _win_open_directory(current)
+                except (OSError, RuntimeError) as open_exc:
+                    raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_ANCESTRY_UNTRUSTED") from open_exc
+            except RuntimeError:
+                raise
+            handles.append(handle)
+
+        # The directory chain is now pinned by handles that deny FILE_SHARE_DELETE.
+        # Existing targets are rejected before credential access/network. A later race
+        # is still fail-closed by CREATE_NEW in _win_write_new.
+        _win_require_target_absent(output_root / output_name)
+        return _TrustedOutput(output_name, output_root, windows_handles=handles)
+    except Exception:
+        for handle in reversed(handles):
+            try:
+                _win_close_handle(handle)
+            except OSError:
+                pass
+        raise
+
+
+def _open_trusted_output(output_name: str) -> _TrustedOutput:
+    _validate_output_name(output_name)
+    root, output_root = _validate_output_layout()
+    if os.name == "nt":
+        return _open_trusted_output_windows(output_name, root, output_root)
+    return _open_trusted_output_posix(output_name, root, output_root)
 
 
 def main() -> int:
@@ -59,19 +366,20 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    # All filesystem scope/binding gates execute before credential access/network.
-    target = _safe_output_path(args.output_name)
-    binding = _load_fixed_binding()
-    token = os.getenv("FUGLE_API_KEY", "")
+    # Pin and validate the full output directory chain before binding, credentials,
+    # or network. Keep the same trusted directory object alive through persistence.
+    with _open_trusted_output(args.output_name) as output:
+        binding = _load_fixed_binding()
+        token = os.getenv("FUGLE_API_KEY", "")
+        result = qualify(
+            token,
+            binding,
+            trading_date=args.trading_date,
+            cadence=args.cadence,
+            now_utc=datetime.now(timezone.utc),
+        )
+        output.write_result(result)
 
-    result = qualify(
-        token,
-        binding,
-        trading_date=args.trading_date,
-        cadence=args.cadence,
-        now_utc=datetime.now(timezone.utc),
-    )
-    _write_new_result(target, result)
     print(json.dumps({
         key: result[key]
         for key in ("technical_validation_status", "market_coverage", "license_gate", "production_eligible")
