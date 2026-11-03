@@ -1,0 +1,24 @@
+{
+  "artifact": "RATE_INTRADAY_PROVIDER_AUTHORITY_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "required_markets": ["TWSE", "TPEX"],
+  "required_data_class": "REAL_TIME_TRADING_INFORMATION",
+  "required_usage_rights": [
+    "AUTOMATED_NON_DISPLAY_USE",
+    "INTERNAL_ANALYSIS_USE"
+  ],
+  "exchange_authorization_evidence": "REQUIRED_PER_MARKET",
+  "evidence_digest": "SHA256_REQUIRED",
+  "validity_window": "MUST_INCLUDE_TARGET_TRADING_DATE",
+  "credential_value_in_repository": "FORBIDDEN",
+  "allowed_credential_stores": [
+    "GITHUB_ACTIONS_SECRET",
+    "EXTERNAL_SECRET_MANAGER"
+  ],
+  "fallback_allowed": false,
+  "provider_selection_performed": false,
+  "network_execution_allowed": false,
+  "registry_activation_allowed": false,
+  "production_activation_allowed": false,
+  "cer081_credit": 0
+}
