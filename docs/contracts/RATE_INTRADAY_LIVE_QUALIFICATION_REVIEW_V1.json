@@ -1,0 +1,33 @@
+{
+  "artifact": "RATE_INTRADAY_SINGLE_LIVE_QUALIFICATION_REVIEW_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "purpose": "INDEPENDENTLY_REVIEW_ONE_ALREADY_EXECUTED_LIVE_PROVIDER_QUALIFICATION",
+  "required_external_bindings": [
+    "engineering_source_sha",
+    "trigger_commit_sha",
+    "workflow_run_id",
+    "workflow_job_id",
+    "provider_name",
+    "trading_date",
+    "cadence",
+    "result_sha256",
+    "approved_universe_binding_hash",
+    "exact_symbol_market_map"
+  ],
+  "workflow_attempt": 1,
+  "rerun_count": 0,
+  "job_retry_count": 0,
+  "single_use_required": true,
+  "exact_provider_requests": 30,
+  "market_coverage": "30/30",
+  "market_counts": {"TWSE": 25, "TPEX": 5},
+  "redirects_followed": 0,
+  "automatic_retries": 0,
+  "fallback_allowed": false,
+  "secret_exposure_allowed": false,
+  "provider_accepted_by_validator": false,
+  "activation_execution_allowed": false,
+  "external_dependency_resolved": false,
+  "production_credit": 0,
+  "cer081_credit": 0
+}
