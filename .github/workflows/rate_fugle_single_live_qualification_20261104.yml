@@ -1,0 +1,85 @@
+name: RATE Fugle Single Live Qualification 2026-11-04
+
+on:
+  push:
+    branches:
+      - qualification/rate-v11-fugle-live-20261104
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rate-fugle-single-live-qualification-20261104
+  cancel-in-progress: false
+
+jobs:
+  live-qualification:
+    if: github.event.head_commit.message == 'RUN FUGLE LIVE QUALIFICATION 2026-11-04 09:35'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify exact source anchor
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD^)" = "f2916d47f54e0c54204efc88336785fcc9214f79" || {
+            echo "SOURCE_ANCHOR_MISMATCH"
+            exit 10
+          }
+          git diff --exit-code f2916d47f54e0c54204efc88336785fcc9214f79...HEAD --             scripts/run_fugle_intraday_qualification.py             src/provider_fugle_intraday_candidate.py             docs/contracts/RATE_FUGLE_FREE_INTRADAY_UNIVERSE_BINDING_V1.json
+          echo "SOURCE_ANCHOR_PASS"
+
+      - name: Execute exactly one live qualification
+        shell: bash
+        run: |
+          python -B scripts/run_fugle_intraday_qualification.py             --trading-date 2026-11-04             --cadence 09:30             --output-name fugle-live-qualification-2026-11-04-0930.json
+
+      - name: Validate live result contract
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("artifacts/diagnostics/fugle-free-intraday/fugle-live-qualification-2026-11-04-0930.json")
+          result = json.loads(path.read_text(encoding="utf-8"))
+
+          assert result["technical_validation_status"] == "PASS"
+          assert result["market_coverage"] == "30/30"
+          assert result["market_counts"] == {"TWSE": 25, "TPEX": 5}
+          assert result["network_requests"] == 30
+          assert result["http_redirects_followed"] == 0
+          assert result["automatic_retries"] == 0
+          assert result["fallback_used"] is False
+          assert result["token_persisted"] is False
+          assert result["production_eligible"] is False
+          assert result["external_dependency_resolved"] is False
+          assert result["registry_activation_allowed"] is False
+
+          print("FUGLE_SINGLE_LIVE_QUALIFICATION_PASS")
+          print("market_coverage=30/30")
+          print("network_requests=30")
+          print("redirects_followed=0")
+          print("automatic_retries=0")
+          print("fallback_used=false")
+          print("token_persisted=false")
+          PY
+
+      - name: Upload bounded live qualification evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: fugle-single-live-qualification-2026-11-04-0930
+          path: artifacts/diagnostics/fugle-free-intraday/fugle-live-qualification-2026-11-04-0930.json
+          if-no-files-found: error
+          retention-days: 7
