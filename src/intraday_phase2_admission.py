@@ -54,13 +54,18 @@ def qualify_phase2_intraday_feed(
             "PHASE2_INTRADAY_SCOPE_BINDING_MISMATCH")
 
     trusted, binding = expected_universe_binding()
+    evaluation_now = now_utc or datetime.now(timezone.utc)
+    require(
+        evaluation_now.tzinfo is not None and evaluation_now.utcoffset() is not None,
+        "PHASE2_INTRADAY_ADMISSION_NOW_TIMEZONE_REQUIRED",
+    )
     qualified = qualify_authorized_intraday_payload(
         feed,
         expected_universe=trusted,
         expected_universe_binding=binding,
         trading_date=trading_date,
         cadence=cadence,
-        now_utc=now_utc or datetime.now(timezone.utc),
+        now_utc=evaluation_now,
     )
 
     require(qualified.get("validation_status") == "PASS",
@@ -91,6 +96,7 @@ def qualify_phase2_intraday_feed(
         "cadence": cadence,
         "feed_sha256": feed_sha,
         "qualification_sha256": qualification_sha,
+        "qualified_at_utc": evaluation_now.astimezone(timezone.utc).isoformat(),
         "provider_authority": qualified["provider_authority"],
         "coverage": qualified["coverage"],
         "market_counts": dict(REQUIRED_MARKET_COUNTS),
@@ -111,6 +117,8 @@ def validate_phase2_intraday_admission(
     *,
     trading_date: str,
     cadence: str,
+    now_utc: datetime | None = None,
+    max_admission_age_seconds: int = 300,
 ) -> bool:
     require(isinstance(admission, Mapping), "PHASE2_INTRADAY_ADMISSION_MISSING")
     require(admission.get("artifact") == "RATE_PHASE2_INTRADAY_ADMISSION_V1"
@@ -124,6 +132,36 @@ def validate_phase2_intraday_admission(
     require(isinstance(qualified, Mapping), "PHASE2_INTRADAY_QUALIFIED_PAYLOAD_MISSING")
     require(admission.get("qualification_sha256") == sha256(qualified),
             "PHASE2_INTRADAY_QUALIFICATION_DIGEST_MISMATCH")
+
+    qualified_at_raw = admission.get("qualified_at_utc")
+    require(isinstance(qualified_at_raw, str) and qualified_at_raw,
+            "PHASE2_INTRADAY_QUALIFICATION_TIME_MISSING")
+    try:
+        qualified_at = datetime.fromisoformat(qualified_at_raw.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise RuntimeError("PHASE2_INTRADAY_QUALIFICATION_TIME_INVALID") from exc
+    require(qualified_at.tzinfo is not None and qualified_at.utcoffset() is not None,
+            "PHASE2_INTRADAY_QUALIFICATION_TIME_INVALID")
+    current = now_utc or datetime.now(timezone.utc)
+    require(current.tzinfo is not None and current.utcoffset() is not None,
+            "PHASE2_INTRADAY_ADMISSION_NOW_TIMEZONE_REQUIRED")
+    require(isinstance(max_admission_age_seconds, int) and max_admission_age_seconds > 0,
+            "PHASE2_INTRADAY_ADMISSION_AGE_LIMIT_INVALID")
+    admission_age = (current.astimezone(timezone.utc) - qualified_at.astimezone(timezone.utc)).total_seconds()
+    require(0 <= admission_age <= max_admission_age_seconds,
+            "PHASE2_INTRADAY_ADMISSION_EXPIRED")
+
+    trusted, binding = expected_universe_binding()
+    replay = qualify_authorized_intraday_payload(
+        feed,
+        expected_universe=trusted,
+        expected_universe_binding=binding,
+        trading_date=trading_date,
+        cadence=cadence,
+        now_utc=qualified_at,
+    )
+    require(replay == qualified and sha256(replay) == admission.get("qualification_sha256"),
+            "PHASE2_INTRADAY_QUALIFICATION_REPLAY_MISMATCH")
     require(qualified.get("validation_status") == "PASS"
             and qualified.get("coverage") == "30/30"
             and qualified.get("expected_market_counts") == REQUIRED_MARKET_COUNTS
