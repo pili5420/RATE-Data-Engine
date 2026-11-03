@@ -4,6 +4,7 @@ from __future__ import annotations
 import unittest
 
 from src.intraday_activation_candidate_review import canonical_digest
+from src.intraday_cloudflare_d1_real_qualification_plan import EXPECTED_CONSUMPTION_MARKER
 from src.intraday_cloudflare_d1_real_qualification_authorization import (
     CloudflareQualificationAuthorizationError,
     EXPECTED_ADMIN_BUDGET,
@@ -30,6 +31,7 @@ def plan_review():
         "admin_operation_budget": dict(EXPECTED_ADMIN_BUDGET),
         "runtime_probe_budget": dict(EXPECTED_RUNTIME_BUDGET),
         "cleanup_operation_budget": dict(EXPECTED_CLEANUP_BUDGET),
+        "consumption_marker": dict(EXPECTED_CONSUMPTION_MARKER),
         "api_token_permissions": ["D1 Write", "Workers Scripts Write"],
         "workers_endpoint": "WORKERS_DEV_ONLY",
         "d1_read_replication": "disabled",
@@ -148,6 +150,22 @@ class CloudflareQualificationAuthorizationTests(unittest.TestCase):
                 CloudflareQualificationAuthorizationError, "BUDGET_INVALID"
             ):
                 self.qualify(auth=auth, review=review)
+
+    def test_consumption_marker_cannot_be_expanded_or_deleted(self):
+        review = plan_review()
+        ph = canonical_digest(review)
+        auth = authorization(ph)
+        auth["consumption_marker"]["create_count"] = 2
+        with self.assertRaisesRegex(
+            CloudflareQualificationAuthorizationError, "CONSUMPTION_MARKER_INVALID"
+        ):
+            self.qualify(auth=auth, review=review)
+        auth = authorization(ph)
+        auth["consumption_marker"]["delete_count"] = 1
+        with self.assertRaisesRegex(
+            CloudflareQualificationAuthorizationError, "CONSUMPTION_MARKER_INVALID"
+        ):
+            self.qualify(auth=auth, review=review)
 
     def test_secret_names_are_exact_and_values_never_embedded(self):
         review = plan_review()
