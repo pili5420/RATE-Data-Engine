@@ -1,0 +1,45 @@
+name: RATE Cloudflare HTTPS Transport Integration Rehearsal
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/intraday_cloudflare_https_transport_integration_rehearsal.py
+      - tests/test_intraday_cloudflare_https_transport_integration_rehearsal.py
+      - docs/contracts/RATE_CLOUDFLARE_HTTPS_TRANSPORT_INTEGRATION_REHEARSAL_V1.json
+      - docs/RATE_CLOUDFLARE_HTTPS_TRANSPORT_INTEGRATION_REHEARSAL_V1.md
+      - .github/workflows/rate_cloudflare_https_transport_integration_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Exact Git bytes
+        shell: bash
+        run: |
+          git config core.autocrlf false
+          git checkout-index --all --force
+          git diff --exit-code
+      - name: Full bounded transport integration regressions
+        run: python -B -m unittest tests.test_intraday_cloudflare_https_transport_integration_rehearsal -v
+      - name: No tracked mutation
+        run: git diff --exit-code
