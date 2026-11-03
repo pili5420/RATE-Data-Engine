@@ -1,7 +1,9 @@
 """Provider-neutral qualification for an already-authorized RATE intraday payload.
 
 No network access, credential handling, provider selection, registry activation or
-Production publication occurs here. This module validates an input contract only.
+Production publication occurs here. The approved universe is rooted in the repository's
+authoritative Production universe contract and validation-PASS immutable source bundle;
+caller-supplied universe metadata is assertion-only and never establishes authority.
 """
 from __future__ import annotations
 
@@ -10,7 +12,12 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import math
+from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
+
+ROOT = Path(__file__).resolve().parents[1]
+UNIVERSE_CONTRACT_PATH = ROOT / "config" / "RATE_PRODUCTION_UNIVERSE_CONTRACT_V1.json"
+PRODUCTION_LATEST_PATH = ROOT / "artifacts" / "RATE_PRODUCTION_SOURCE_BUNDLE_LATEST.json"
 TAIPEI = timezone(timedelta(hours=8), name="Asia/Taipei")
 CADENCES = {"09:30", "12:00"}
 REQUIRED_FIELDS = ("symbol", "market", "timestamp", "price", "volume", "turnover")
@@ -44,6 +51,14 @@ def _number(value: Any, *, positive: bool) -> float:
     return number
 
 
+def _canonical(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _sha256_value(value: Any) -> str:
+    return hashlib.sha256(_canonical(value).encode("utf-8")).hexdigest()
+
+
 def _canonical_universe_sha256(universe: Mapping[str, str]) -> str:
     encoded = json.dumps(sorted(universe.items()), separators=(",", ":"), ensure_ascii=True).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
@@ -54,6 +69,149 @@ def _sha256_text(value: Any, reason: str) -> str:
     normalized = value.strip().lower()
     require(len(normalized) == 64 and all(char in "0123456789abcdef" for char in normalized), reason)
     return normalized
+
+
+def _load_json(path: Path, missing_reason: str, invalid_reason: str) -> Mapping[str, Any]:
+    require(path.is_file(), missing_reason)
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise IntradayQualificationError(invalid_reason) from exc
+    require(isinstance(value, Mapping), invalid_reason)
+    return value
+
+
+def _authoritative_universe() -> tuple[dict[str, str], dict[str, str]]:
+    contract = _load_json(
+        UNIVERSE_CONTRACT_PATH,
+        "INTRADAY_TRUSTED_UNIVERSE_CONTRACT_MISSING",
+        "INTRADAY_TRUSTED_UNIVERSE_CONTRACT_INVALID",
+    )
+    require(contract.get("artifact") == "RATE_PRODUCTION_UNIVERSE_CONTRACT",
+            "INTRADAY_TRUSTED_UNIVERSE_CONTRACT_INVALID")
+    require(contract.get("contract_purpose") == "PRODUCTION_SOURCE_ACQUISITION_BINDING",
+            "INTRADAY_TRUSTED_UNIVERSE_CONTRACT_INVALID")
+    require(contract.get("validation_status") == "PASS",
+            "INTRADAY_TRUSTED_UNIVERSE_CONTRACT_NOT_PASS")
+    require(contract.get("required_count") == 30,
+            "INTRADAY_TRUSTED_UNIVERSE_CONTRACT_COUNT_INVALID")
+    require(contract.get("post_rebaseline_fallback_allowed") is False,
+            "INTRADAY_TRUSTED_UNIVERSE_FALLBACK_FORBIDDEN")
+    approved = contract.get("approved_universe")
+    require(isinstance(approved, list) and len(approved) == 30,
+            "INTRADAY_TRUSTED_UNIVERSE_CONTRACT_COUNT_INVALID")
+    require(all(isinstance(symbol, str) and symbol and symbol == symbol.strip() for symbol in approved),
+            "INTRADAY_TRUSTED_UNIVERSE_SYMBOL_INVALID")
+    require(len(set(approved)) == 30, "INTRADAY_TRUSTED_UNIVERSE_DUPLICATE")
+    contract_sha256 = _sha256_value(contract)
+
+    latest = _load_json(
+        PRODUCTION_LATEST_PATH,
+        "INTRADAY_PRODUCTION_LATEST_MISSING",
+        "INTRADAY_PRODUCTION_LATEST_INVALID",
+    )
+    require(latest.get("artifact") == "RATE_PRODUCTION_SOURCE_BUNDLE_LATEST",
+            "INTRADAY_PRODUCTION_LATEST_INVALID")
+    require(latest.get("validation_status") == "PASS",
+            "INTRADAY_PRODUCTION_LATEST_NOT_PASS")
+    snapshot_id = latest.get("production_snapshot_id")
+    require(isinstance(snapshot_id, str) and snapshot_id.startswith("rate-source-snapshot-"),
+            "INTRADAY_PRODUCTION_SNAPSHOT_INVALID")
+    source_bundle_hash = _sha256_text(
+        latest.get("source_bundle_hash"),
+        "INTRADAY_PRODUCTION_SOURCE_BUNDLE_HASH_INVALID",
+    )
+    raw_bundle_path = latest.get("immutable_bundle_path")
+    require(isinstance(raw_bundle_path, str) and raw_bundle_path,
+            "INTRADAY_PRODUCTION_IMMUTABLE_BUNDLE_PATH_INVALID")
+    relative = PurePosixPath(raw_bundle_path)
+    require(not relative.is_absolute()
+            and ".." not in relative.parts
+            and relative.parts[:2] == ("artifacts", "production_source_snapshots")
+            and relative.name == "RATE_PRODUCTION_SOURCE_BUNDLE.json",
+            "INTRADAY_PRODUCTION_IMMUTABLE_BUNDLE_PATH_INVALID")
+    require(snapshot_id in relative.parts,
+            "INTRADAY_PRODUCTION_IMMUTABLE_BUNDLE_SNAPSHOT_MISMATCH")
+    bundle_path = ROOT.joinpath(*relative.parts)
+
+    bundle = _load_json(
+        bundle_path,
+        "INTRADAY_PRODUCTION_IMMUTABLE_BUNDLE_MISSING",
+        "INTRADAY_PRODUCTION_IMMUTABLE_BUNDLE_INVALID",
+    )
+    require(bundle.get("artifact") == "RATE_PRODUCTION_SOURCE_BUNDLE",
+            "INTRADAY_PRODUCTION_IMMUTABLE_BUNDLE_INVALID")
+    require(bundle.get("validation_status") == "PASS"
+            and bundle.get("source_status") == "PASS"
+            and bundle.get("source_bundle_validation") == "PASS",
+            "INTRADAY_PRODUCTION_IMMUTABLE_BUNDLE_NOT_PASS")
+    require(bundle.get("production_snapshot_id") == snapshot_id
+            and bundle.get("snapshot_id") == snapshot_id,
+            "INTRADAY_PRODUCTION_IMMUTABLE_BUNDLE_SNAPSHOT_MISMATCH")
+    require(_sha256_value(bundle) == source_bundle_hash,
+            "INTRADAY_PRODUCTION_SOURCE_BUNDLE_HASH_MISMATCH")
+
+    binding = bundle.get("universe_binding")
+    require(isinstance(binding, Mapping), "INTRADAY_PRODUCTION_UNIVERSE_BINDING_INVALID")
+    require(binding.get("artifact") == "RATE_PRODUCTION_UNIVERSE_BINDING"
+            and binding.get("validation_status") == "PASS"
+            and binding.get("production_authoritative") is True
+            and binding.get("binding_mode") == "AUTHORITATIVE_CONTRACT_EXACT_30"
+            and binding.get("approved_universe_count") == 30
+            and binding.get("blocking_reason") is None,
+            "INTRADAY_PRODUCTION_UNIVERSE_BINDING_NOT_AUTHORITATIVE")
+    require(binding.get("expected_universe") == approved,
+            "INTRADAY_PRODUCTION_UNIVERSE_CONTRACT_MISMATCH")
+    require(binding.get("contract_sha256") == contract_sha256,
+            "INTRADAY_PRODUCTION_UNIVERSE_CONTRACT_HASH_MISMATCH")
+    binding_hash = _sha256_value({"expected_universe": approved, "contract_sha256": contract_sha256})
+    require(binding.get("universe_binding_hash") == binding_hash,
+            "INTRADAY_PRODUCTION_UNIVERSE_BINDING_HASH_MISMATCH")
+    require(binding.get("missing_symbols") == []
+            and binding.get("duplicate_symbols") == []
+            and binding.get("invalid_market_symbols") == []
+            and binding.get("unapproved_symbols") == [],
+            "INTRADAY_PRODUCTION_UNIVERSE_BINDING_DEFECT")
+    require(bundle.get("universe") == approved and bundle.get("short_term_top30") == approved,
+            "INTRADAY_PRODUCTION_UNIVERSE_LIST_MISMATCH")
+
+    records = bundle.get("records")
+    require(isinstance(records, list) and len(records) == 30,
+            "INTRADAY_PRODUCTION_RECORD_UNIVERSE_COUNT_INVALID")
+    trusted: dict[str, str] = {}
+    for row in records:
+        require(isinstance(row, Mapping), "INTRADAY_PRODUCTION_RECORD_INVALID")
+        symbol = row.get("symbol")
+        stage = row.get("Stage_inputs")
+        require(isinstance(symbol, str) and symbol and symbol == symbol.strip()
+                and isinstance(stage, Mapping),
+                "INTRADAY_PRODUCTION_RECORD_IDENTITY_INVALID")
+        market = stage.get("listed_market")
+        require(isinstance(market, str) and market in ALLOWED_MARKETS,
+                "INTRADAY_PRODUCTION_RECORD_MARKET_INVALID")
+        require(symbol not in trusted, "INTRADAY_PRODUCTION_RECORD_DUPLICATE:" + symbol)
+        trusted[symbol] = market
+
+    require(list(trusted) == approved, "INTRADAY_PRODUCTION_RECORD_UNIVERSE_MISMATCH")
+    require(set(trusted.values()) == ALLOWED_MARKETS, "INTRADAY_DUAL_MARKET_COVERAGE_REQUIRED")
+
+    return trusted, {
+        "source_kind": "RATE_PRODUCTION_SOURCE_BUNDLE",
+        "production_snapshot_id": snapshot_id,
+        "source_bundle_sha256": source_bundle_hash,
+        "universe_sha256": _canonical_universe_sha256(trusted),
+        "universe_contract_sha256": contract_sha256,
+        "universe_binding_hash": binding_hash,
+        "universe_contract_path": str(UNIVERSE_CONTRACT_PATH.relative_to(ROOT)).replace("\\", "/"),
+        "production_latest_path": str(PRODUCTION_LATEST_PATH.relative_to(ROOT)).replace("\\", "/"),
+        "immutable_bundle_path": raw_bundle_path,
+    }
+
+
+def load_authoritative_universe_binding() -> tuple[dict[str, str], dict[str, str]]:
+    """Return a copy of the repository-rooted approved universe and its trusted lineage."""
+    trusted, lineage = _authoritative_universe()
+    return dict(trusted), dict(lineage)
 
 
 def _expected_universe(
@@ -76,8 +234,10 @@ def _expected_universe(
         require(raw_market == market, "INTRADAY_EXPECTED_MARKET_NONCANONICAL:" + symbol)
         require(market in ALLOWED_MARKETS, "INTRADAY_EXPECTED_MARKET_INVALID")
         normalized[symbol] = market
-
     require(set(normalized.values()) == ALLOWED_MARKETS, "INTRADAY_DUAL_MARKET_COVERAGE_REQUIRED")
+
+    trusted, trusted_binding = _authoritative_universe()
+    require(normalized == trusted, "INTRADAY_EXPECTED_UNIVERSE_NOT_APPROVED")
 
     require(isinstance(expected_universe_binding, Mapping), "INTRADAY_EXPECTED_UNIVERSE_BINDING_REQUIRED")
     require(expected_universe_binding.get("artifact") == "RATE_APPROVED_INTRADAY_UNIVERSE_BINDING_V1",
@@ -86,27 +246,16 @@ def _expected_universe(
             "INTRADAY_EXPECTED_UNIVERSE_SOURCE_INVALID")
     require(expected_universe_binding.get("source_validation_status") == "PASS",
             "INTRADAY_EXPECTED_UNIVERSE_SOURCE_NOT_VALIDATED")
-    snapshot_id = expected_universe_binding.get("production_snapshot_id")
-    require(isinstance(snapshot_id, str) and snapshot_id.startswith("rate-source-snapshot-"),
-            "INTRADAY_EXPECTED_UNIVERSE_SNAPSHOT_INVALID")
-    source_bundle_sha256 = _sha256_text(
-        expected_universe_binding.get("source_bundle_sha256"),
-        "INTRADAY_EXPECTED_UNIVERSE_SOURCE_SHA256_INVALID",
-    )
-    bound_universe_sha256 = _sha256_text(
-        expected_universe_binding.get("universe_sha256"),
-        "INTRADAY_EXPECTED_UNIVERSE_SHA256_INVALID",
-    )
-    actual_universe_sha256 = _canonical_universe_sha256(normalized)
-    require(bound_universe_sha256 == actual_universe_sha256,
-            "INTRADAY_EXPECTED_UNIVERSE_BINDING_MISMATCH")
+    for key, reason in (
+        ("production_snapshot_id", "INTRADAY_EXPECTED_UNIVERSE_SNAPSHOT_MISMATCH"),
+        ("source_bundle_sha256", "INTRADAY_EXPECTED_UNIVERSE_SOURCE_SHA256_MISMATCH"),
+        ("universe_sha256", "INTRADAY_EXPECTED_UNIVERSE_SHA256_MISMATCH"),
+        ("universe_contract_sha256", "INTRADAY_EXPECTED_UNIVERSE_CONTRACT_SHA256_MISMATCH"),
+        ("universe_binding_hash", "INTRADAY_EXPECTED_UNIVERSE_BINDING_HASH_MISMATCH"),
+    ):
+        require(expected_universe_binding.get(key) == trusted_binding[key], reason)
 
-    return normalized, {
-        "source_kind": "RATE_PRODUCTION_SOURCE_BUNDLE",
-        "production_snapshot_id": snapshot_id,
-        "source_bundle_sha256": source_bundle_sha256,
-        "universe_sha256": actual_universe_sha256,
-    }
+    return normalized, trusted_binding
 
 
 def qualify_authorized_intraday_payload(
@@ -154,7 +303,7 @@ def qualify_authorized_intraday_payload(
     require(isinstance(records, list) and records, "INTRADAY_RECORDS_MISSING")
     by_symbol: dict[str, dict[str, Any]] = {}
     duplicates: list[str] = []
-    for index, row in enumerate(records):
+    for row in records:
         require(isinstance(row, Mapping), "INTRADAY_ROW_NOT_OBJECT")
         missing = [field for field in REQUIRED_FIELDS if field not in row]
         require(not missing, "INTRADAY_ROW_SCHEMA_MISSING:" + ",".join(missing))
@@ -215,6 +364,11 @@ def qualify_authorized_intraday_payload(
         "expected_universe_production_snapshot_id": universe_binding["production_snapshot_id"],
         "expected_universe_source_bundle_sha256": universe_binding["source_bundle_sha256"],
         "expected_universe_sha256": universe_binding["universe_sha256"],
+        "expected_universe_contract_sha256": universe_binding["universe_contract_sha256"],
+        "expected_universe_binding_hash": universe_binding["universe_binding_hash"],
+        "expected_universe_contract_path": universe_binding["universe_contract_path"],
+        "expected_universe_latest_pointer_path": universe_binding["production_latest_path"],
+        "expected_universe_immutable_bundle_path": universe_binding["immutable_bundle_path"],
         "selected_count": len(selected),
         "coverage": f"{len(selected)}/{len(expected)}",
         "expected_market_counts": expected_market_counts,
