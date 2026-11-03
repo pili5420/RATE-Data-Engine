@@ -168,7 +168,6 @@ def _render_scheduler(cadence: str, secret_name: str) -> str:
     env_anchor = f'      GITHUB_EVENT_SCHEDULE: ${{{{ github.event.schedule }}}}\n'
     env_add = (
         env_anchor
-        + f'      {secret_name}: ${{{{ secrets.{secret_name} }}}}\n'
         + f'      RATE_AUTHORIZED_INTRADAY_FEED_PATH: "artifacts/production_{compact}/RATE_AUTHORIZED_INTRADAY_FEED.json"\n'
         + '      EXECUTION_AUTHORITY: "MAIN_ONLY"\n'
     )
@@ -186,6 +185,8 @@ def _render_scheduler(cadence: str, secret_name: str) -> str:
     _, after = remainder.split(end, 1)
     block = f'''      - name: Acquire authorized intraday provider feed
         if: ${{{{ github.event_name != 'push' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}}}
+        env:
+          {secret_name}: ${{{{ secrets.{secret_name} }}}}
         run: >
           python scripts/acquire_intraday_provider_feed.py
           --trading-date "${{{{ env.RATE_PRODUCTION_TRADING_DATE }}}}"
