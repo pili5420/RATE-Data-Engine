@@ -1,0 +1,55 @@
+name: RATE Activation Acquisition CLI Semantic Review
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/intraday_activation_candidate_scaffold.py
+      - src/intraday_activation_candidate_acquisition_review.py
+      - tests/test_intraday_activation_candidate_acquisition_review.py
+      - tests/test_intraday_activation_candidate_scaffold.py
+      - tests/test_intraday_activation_candidate_syntax_review.py
+      - docs/contracts/RATE_INTRADAY_ACTIVATION_ACQUISITION_SEMANTIC_REVIEW_V1.json
+      - docs/RATE_INTRADAY_ACTIVATION_ACQUISITION_SEMANTIC_REVIEW_V1.md
+      - .github/workflows/rate_intraday_activation_acquisition_semantic_review_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Acquisition review dependency
+        run: python -m pip install PyYAML==6.0.3
+      - name: Exact Git bytes
+        shell: bash
+        run: |
+          git config core.autocrlf false
+          git checkout-index --all --force
+          git diff --exit-code
+      - name: Scaffold syntax and acquisition semantic regressions
+        run: >-
+          python -B -m unittest
+          tests.test_intraday_activation_candidate_scaffold
+          tests.test_intraday_activation_candidate_syntax_review
+          tests.test_intraday_activation_candidate_acquisition_review
+          -v
+      - name: No tracked mutation
+        run: git diff --exit-code
