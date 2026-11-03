@@ -14,3 +14,7 @@ resource, the disposition is BLOCKED_RESIDUAL_RESOURCE.
 A successful rehearsal proves sequencing and cleanup semantics only. It creates no
 real Cloudflare resource, performs no real request, reads no credential and does not
 qualify the real provider.
+
+
+The rehearsal verifies the accepted durable-consumption-marker contract before its
+synthetic single-use consume step. Actual Git tag creation remains a separate gate.
