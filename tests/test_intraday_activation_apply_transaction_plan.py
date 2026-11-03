@@ -154,12 +154,23 @@ class ActivationApplyTransactionPlanTests(unittest.TestCase):
                 expected_provider_name=PROVIDER,
             )
 
-        files = candidate_files()
-        files["config/UNAUTHORIZED.json"] = "x"
+        valid_files = candidate_files()
+        valid_manifest = candidate_manifest_sha256(valid_files)
+        q = qualification(valid_manifest)
+        invalid_files = dict(valid_files)
+        invalid_files["config/UNAUTHORIZED.json"] = "x"
         with self.assertRaisesRegex(
             ActivationApplyTransactionPlanError, "CANDIDATE_FILE_SET_INVALID"
         ):
-            self.build(files=files)
+            build_activation_apply_transaction_plan(
+                q,
+                invalid_files,
+                expected_authorization_qualification_sha256=canonical_digest(q),
+                expected_current_main_sha=MAIN,
+                expected_candidate_manifest_sha256=valid_manifest,
+                expected_control_center_decision_id=DECISION,
+                expected_provider_name=PROVIDER,
+            )
 
     def test_main_provider_and_decision_are_exact(self):
         with self.assertRaisesRegex(
