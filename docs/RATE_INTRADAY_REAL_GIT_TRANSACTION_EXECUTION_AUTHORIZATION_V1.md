@@ -17,3 +17,11 @@ forbidden.
 
 A PASS means authorization qualification only. This validator creates no Git
 objects or refs and does not consume the single-use authorization.
+
+
+## Replacement lineage
+
+This engineering revision supersedes the closed PR #125 branch state after its
+workflow-path collision with the already-merged broader authorization gate was
+removed. It uses an independent CI workflow and intentionally remains narrower:
+pull-request creation is forbidden at this executor-authorization stage.
