@@ -358,21 +358,28 @@ class FugleFreeDiagnosticTests(unittest.TestCase):
             outside.mkdir()
             with patch.object(cli, "ROOT", root), patch.object(cli, "OUTPUT_ROOT", output_root):
                 with cli._open_trusted_output("result.json") as trusted:
+                    output_root.rename(moved)
                     if os.name == "nt":
-                        # Each directory handle denies FILE_SHARE_DELETE, so rename/
-                        # replacement of the trusted chain must fail while the session lives.
-                        with self.assertRaises(OSError):
-                            output_root.rename(moved)
-                        trusted.write_result({"artifact": "TEST"})
-                        self.assertTrue((output_root / "result.json").is_file())
+                        # Replace the old pathname with a real junction after preflight.
+                        # The final NtCreateFile is relative to the pinned directory handle,
+                        # so it must create in the renamed original directory, not outside.
+                        created = subprocess.run(
+                            ["cmd", "/d", "/c", "mklink", "/J", str(output_root), str(outside)],
+                            capture_output=True,
+                            text=True,
+                            check=False,
+                        )
+                        self.assertEqual(created.returncode, 0, msg=created.stdout + created.stderr)
                     else:
                         # POSIX writes are relative to the already-open directory fd.
-                        # Even if the pathname is replaced, the result stays on that fd.
-                        output_root.rename(moved)
                         output_root.symlink_to(outside, target_is_directory=True)
-                        trusted.write_result({"artifact": "TEST"})
-                        self.assertTrue((moved / "result.json").is_file())
+
+                    trusted.write_result({"artifact": "TEST"})
+                    self.assertTrue((moved / "result.json").is_file())
                     self.assertFalse((outside / "result.json").exists())
+
+                    if os.name == "nt":
+                        os.rmdir(output_root)
 
     def test_result_writer_is_exclusive_create_only(self):
         with tempfile.TemporaryDirectory() as tmp:
