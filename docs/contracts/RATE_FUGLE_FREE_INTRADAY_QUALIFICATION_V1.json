@@ -1,0 +1,37 @@
+{
+  "artifact": "RATE_FUGLE_FREE_INTRADAY_QUALIFICATION_V1",
+  "status": "DIAGNOSTIC_ONLY_NOT_PRODUCTION_ACTIVE",
+  "provider": "Fugle",
+  "target_plan": "FREE_OR_BASIC_TRIAL",
+  "endpoints": [
+    "GET /marketdata/v1.0/stock/intraday/quote/{symbol}"
+  ],
+  "request_cap_per_qualification": 30,
+  "retry_allowed": false,
+  "required_markets": [
+    "TWSE",
+    "TPEX"
+  ],
+  "required_market_counts": {
+    "TWSE": 25,
+    "TPEX": 5
+  },
+  "required_fields": [
+    "symbol",
+    "exchange",
+    "date",
+    "lastUpdated",
+    "lastPrice|lastTrade.price",
+    "total.tradeVolume",
+    "total.tradeValue"
+  ],
+  "forbidden_http_results": {
+    "403": "FREE_PLAN_NOT_AUTHORIZED",
+    "429": "FREE_PLAN_RATE_LIMIT"
+  },
+  "technical_pass_does_not_prove_license": true,
+  "license_gate": "UNPROVEN_REQUIRES_PROVIDER_CONFIRMATION_FOR_NON_DISPLAY_AUTOMATED_USE",
+  "production_eligible": false,
+  "registry_activation_allowed": false,
+  "external_dependency_resolved": false
+}
