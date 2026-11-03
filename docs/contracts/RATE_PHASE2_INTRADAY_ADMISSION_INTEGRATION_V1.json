@@ -1,0 +1,20 @@
+{
+  "artifact": "RATE_PHASE2_INTRADAY_ADMISSION_INTEGRATION_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "purpose": "REQUIRE_AUTHORITATIVE_PAYLOAD_QUALIFICATION_BEFORE_PHASE2_INTRADAY_CONSUMPTION",
+  "cadences": ["09:30", "12:00"],
+  "required_universe_count": 30,
+  "required_market_counts": {"TWSE": 25, "TPEX": 5},
+  "trusted_universe_source": "RATE_PRODUCTION_SOURCE_BUNDLE",
+  "payload_validator": "RATE_AUTHORIZED_TAIWAN_INTRADAY_PAYLOAD_QUALIFICATION_V1",
+  "feed_digest_binding": "REQUIRED",
+  "qualification_digest_binding": "REQUIRED",
+  "revalidate_before_predecessor_lookup": true,
+  "substitute_same_market_count_universe_allowed": false,
+  "network_requests_by_adapter": 0,
+  "credential_access_by_adapter": 0,
+  "registry_mutations_by_adapter": 0,
+  "external_dependency_resolved_by_adapter": false,
+  "production_credit": 0,
+  "cer081_credit": 0
+}
