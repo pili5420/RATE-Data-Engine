@@ -1,0 +1,23 @@
+{
+  "artifact": "RATE_INTRADAY_ACTIVATION_CANDIDATE_STATIC_REVIEW_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "purpose": "STATICALLY_VALIDATE_FUTURE_ACTIVATION_CANDIDATE_WITHOUT_APPLYING_IT",
+  "delta_plan_external_hash_required": true,
+  "candidate_existing_path_count": 7,
+  "candidate_new_file_count": 2,
+  "repo_preimage_revalidation_required": true,
+  "phase2_admission_replay_required": true,
+  "source_builder_provider_network_allowed": false,
+  "scheduler_public_partial_allowed_after_activation_candidate": false,
+  "scheduler_fallback_allowed": false,
+  "scheduler_automatic_retry_allowed": false,
+  "fugle_runtime_host": "api.fugle.tw",
+  "runtime_max_requests": 30,
+  "runtime_max_retries": 0,
+  "apply_allowed": false,
+  "activation_execution_allowed": false,
+  "external_dependency_resolved": false,
+  "registry_activation_allowed": false,
+  "production_credit": 0,
+  "cer081_credit": 0
+}
