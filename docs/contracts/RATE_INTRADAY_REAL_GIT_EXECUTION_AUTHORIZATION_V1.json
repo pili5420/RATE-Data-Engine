@@ -1,0 +1,26 @@
+{
+  "artifact": "RATE_INTRADAY_REAL_GIT_TRANSACTION_EXECUTION_AUTHORIZATION_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "exact_operation_budget": {
+    "create_blob_count": 9,
+    "create_tree_count": 1,
+    "create_commit_count": 1,
+    "create_branch_ref_count": 1,
+    "create_draft_pull_request_count": 1,
+    "update_main_ref_count": 0,
+    "merge_count": 0
+  },
+  "single_use": true,
+  "automatic_retry_allowed": false,
+  "fallback_allowed": false,
+  "draft_pull_request_required": true,
+  "pull_request_base": "main",
+  "direct_main_update_allowed": false,
+  "merge_allowed": false,
+  "additional_live_provider_requests_allowed": 0,
+  "credential_value_embedding": false,
+  "production_credit_before_execution": 0,
+  "cer081_credit_before_execution": 0,
+  "execution_performed_by_validator": false,
+  "next_gate": "SEPARATE_REAL_GIT_TRANSACTION_EXECUTOR"
+}
