@@ -1,0 +1,20 @@
+{
+  "artifact":"RATE_CLOUDFLARE_BOUNDED_HTTPS_TRANSPORT_CONTRACT_V1",
+  "status":"ENGINEERING_CONTRACT_ONLY",
+  "scheme":"HTTPS_ONLY",
+  "admin_host":"api.cloudflare.com",
+  "worker_host_pattern":"rate-v11-qual-<12hex>.<account-subdomain>.workers.dev",
+  "credential_scope_binding_required":true,
+  "tls_hostname_verification":true,
+  "tls_certificate_verification":"CERT_REQUIRED",
+  "timeout_seconds_max":10,
+  "request_bytes_max":2097152,
+  "response_bytes_max":1048576,
+  "redirect_following_allowed":false,
+  "automatic_retry_allowed":false,
+  "fallback_allowed":false,
+  "connection_close_required":true,
+  "secret_values_in_errors_allowed":false,
+  "real_network_requests_in_ci":0,
+  "next_gate":"REAL_CLOUDFLARE_HTTPS_TRANSPORT_INTEGRATION_REHEARSAL"
+}
