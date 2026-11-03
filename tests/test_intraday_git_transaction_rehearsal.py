@@ -115,6 +115,26 @@ class GitTransactionRehearsalTests(unittest.TestCase):
             [],
         )
 
+    def test_preexisting_target_branch_fails_before_token_consumption(self):
+        candidate = files()
+        p = plan(candidate)
+        backend = SyntheticGitBackend(main_sha=MAIN)
+        backend.refs[p["target_branch"]] = "f" * 40
+        with self.assertRaisesRegex(
+            GitTransactionRehearsalError, "BRANCH_ALREADY_EXISTS"
+        ):
+            rehearse_activation_git_transaction(
+                p, candidate, backend,
+                expected_transaction_plan_sha256=canonical_digest(p),
+                expected_base_main_sha=MAIN,
+                expected_candidate_manifest_sha256=candidate_manifest_sha256(candidate),
+            )
+        self.assertEqual(backend.consumed_tokens, set())
+        self.assertEqual(
+            [call for call in backend.calls if call.startswith("blob:")],
+            [],
+        )
+
     def test_blob_failure_consumes_single_use_and_creates_no_branch(self):
         candidate = files()
         p = plan(candidate)
