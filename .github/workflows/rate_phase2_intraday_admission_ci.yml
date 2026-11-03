@@ -46,8 +46,8 @@ jobs:
           python -B -m unittest
           tests.test_intraday_phase2_admission
           tests.test_authorized_intraday_feed
-          tests.test_phase2_production.Phase2ProductionTests.test_missing_intraday_feed_never_calls_full_market_materializer
-          tests.test_phase2_production.Phase2ProductionTests.test_file_cannot_override_unresolved_external_intraday_policy
           -v
+      - name: Existing Phase2 compatibility delegated to governed base-head workflow
+        run: echo "RATE Public Official Partial-Valid Engineering is the authoritative base/head compatibility gate."
       - name: No tracked mutation
         run: git diff --exit-code
