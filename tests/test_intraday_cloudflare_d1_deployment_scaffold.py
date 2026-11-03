@@ -73,7 +73,9 @@ class D1ScaffoldTests(unittest.TestCase):
         self.assertNotIn("UPDATE rate_execution_receipts", worker)
         self.assertNotIn("DELETE FROM rate_execution_receipts", worker)
         self.assertNotIn("INSERT OR REPLACE", worker)
-        self.assertIn("AMBIGUOUS_CREATE_CONFIRMED_BY_READBACK", worker)
+        self.assertIn("ALREADY_EXISTS", worker)
+        self.assertIn("D1_CREATE_FAILED", worker)
+        self.assertNotIn("AMBIGUOUS_CREATE_CONFIRMED_BY_READBACK", worker)
 
     def test_worker_tamper_with_retry_or_update_fails_static_review(self):
         result = self.build()

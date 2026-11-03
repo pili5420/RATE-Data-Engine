@@ -20,5 +20,10 @@
   "resources_created": 0,
   "production_credit": 0,
   "cer081_credit": 0,
-  "next_gate": "LOCAL_WORKER_D1_SEMANTIC_REVIEW"
+  "next_gate": "LOCAL_WORKER_D1_SEMANTIC_REVIEW",
+  "duplicate_execution_id_status": 409,
+  "database_failure_status": 503,
+  "transport_ambiguity_owner": "CLIENT_ADAPTER",
+  "transport_ambiguity_policy": "GET_SAME_EXECUTION_ID_DO_NOT_RETRY_POST",
+  "server_side_ambiguous_success": false
 }
