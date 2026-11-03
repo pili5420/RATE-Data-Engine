@@ -38,6 +38,7 @@ CLEANUP_OPERATIONS = (
 EXPECTED_CONSUMPTION_MARKER = {
     "kind": "GITHUB_LIGHTWEIGHT_TAG_REF",
     "ref_prefix": "refs/tags/rate-v11-qualification-consumed/cloudflare-d1-",
+    "hash_prefix_hex_chars": 16,
     "create_count": 1,
     "update_count": 0,
     "delete_count": 0,
