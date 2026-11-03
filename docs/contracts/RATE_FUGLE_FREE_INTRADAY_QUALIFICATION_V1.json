@@ -27,11 +27,31 @@
   ],
   "forbidden_http_results": {
     "403": "FREE_PLAN_NOT_AUTHORIZED",
-    "429": "FREE_PLAN_RATE_LIMIT"
+    "429": "FREE_PLAN_RATE_LIMIT",
+    "300-399": "REDIRECT_FORBIDDEN"
   },
   "technical_pass_does_not_prove_license": true,
   "license_gate": "UNPROVEN_REQUIRES_PROVIDER_CONFIRMATION_FOR_NON_DISPLAY_AUTOMATED_USE",
   "production_eligible": false,
   "registry_activation_allowed": false,
-  "external_dependency_resolved": false
+  "external_dependency_resolved": false,
+  "binding_authority": "RATE_PRODUCTION_AUTHORITY_CHAIN_VIA_PR94",
+  "runtime_binding_override_allowed": false,
+  "binding_must_match_authoritative_universe": true,
+  "http_transport": "DIRECT_HTTPS_SINGLE_REQUEST_NO_REDIRECT",
+  "redirect_allowed": false,
+  "redirect_policy": "FAIL_CLOSED_3XX_NO_SECOND_REQUEST",
+  "max_actual_http_requests": 30,
+  "one_http_request_per_approved_symbol": true,
+  "output_root": "artifacts/diagnostics/fugle-free-intraday",
+  "output_path_policy": "BASENAME_ONLY_FIXED_ROOT",
+  "output_overwrite_allowed": false,
+  "output_create_mode": "EXCLUSIVE_CREATE",
+  "protected_production_output_reachable": false,
+  "pre_network_gates": [
+    "OUTPUT_PATH_SCOPE",
+    "OUTPUT_NONEXISTENCE",
+    "FIXED_BINDING_READ",
+    "AUTHORITATIVE_UNIVERSE_BINDING"
+  ]
 }
