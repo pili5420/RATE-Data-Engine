@@ -121,6 +121,35 @@ class AuthorityStoreAdapterTests(unittest.TestCase):
             self.assertEqual(adapter.create_attempts, 0)
             self.assertEqual(adapter.read_attempts, 0)
 
+    def test_transport_and_credential_boundaries_fail_before_adapter_calls(self):
+        cases = []
+        cap = capabilities()
+        cap["server_identity_verified"] = False
+        cases.append((cap, "TRANSPORT_INVALID"))
+
+        cap = capabilities()
+        cap["transport"] = "HTTP"
+        cases.append((cap, "TRANSPORT_INVALID"))
+
+        cap = capabilities()
+        cap["credential_boundary"]["secret_value_embedded"] = True
+        cases.append((cap, "CREDENTIAL_BOUNDARY_INVALID"))
+
+        cap = capabilities()
+        cap["credential_boundary"]["secret_name"] = ""
+        cases.append((cap, "CREDENTIAL_BOUNDARY_INVALID"))
+
+        for cap, reason in cases:
+            adapter = SyntheticAuthorityStoreAdapter()
+            with self.subTest(reason=reason), self.assertRaisesRegex(
+                AuthorityStoreAdapterError, reason
+            ):
+                persist_receipt_via_adapter(
+                    cap, adapter, receipt(), execution_id=EXECUTION
+                )
+            self.assertEqual(adapter.create_attempts, 0)
+            self.assertEqual(adapter.read_attempts, 0)
+
     def test_existing_different_receipt_is_conflict_not_overwrite(self):
         adapter = SyntheticAuthorityStoreAdapter()
         other = receipt()
