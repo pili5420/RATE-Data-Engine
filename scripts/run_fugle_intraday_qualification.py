@@ -98,7 +98,9 @@ class _TrustedOutput:
         if self._closed:
             raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_SESSION_CLOSED")
         if os.name == "nt":
-            _win_write_new(self.target_path, result)
+            if not self._windows_handles:
+                raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_SESSION_INVALID")
+            _win_write_new(self._windows_handles[-1], self.output_name, result)
             return
         if not self._posix_fds:
             raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_SESSION_INVALID")
@@ -165,8 +167,10 @@ if os.name == "nt":
     from ctypes import wintypes
 
     _INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
+    _FILE_LIST_DIRECTORY = 0x0001
     _FILE_READ_ATTRIBUTES = 0x0080
     _GENERIC_WRITE = 0x40000000
+    _SYNCHRONIZE = 0x00100000
     _FILE_SHARE_READ = 0x00000001
     _FILE_SHARE_WRITE = 0x00000002
     _CREATE_NEW = 1
@@ -177,15 +181,47 @@ if os.name == "nt":
     _FILE_FLAG_BACKUP_SEMANTICS = 0x02000000
     _FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
     _FILE_ATTRIBUTE_TAG_INFO_CLASS = 9
-    _ERROR_FILE_NOT_FOUND = 2
-    _ERROR_PATH_NOT_FOUND = 3
-    _ERROR_FILE_EXISTS = 80
-    _ERROR_ALREADY_EXISTS = 183
+
+    _OBJ_CASE_INSENSITIVE = 0x00000040
+    _FILE_OPEN = 1
+    _FILE_CREATE = 2
+    _FILE_OPEN_IF = 3
+    _FILE_DIRECTORY_FILE = 0x00000001
+    _FILE_SYNCHRONOUS_IO_NONALERT = 0x00000020
+    _FILE_NON_DIRECTORY_FILE = 0x00000040
+    _FILE_OPEN_REPARSE_POINT_NT = 0x00200000
+
+    _STATUS_OBJECT_NAME_NOT_FOUND = 0xC0000034
+    _STATUS_OBJECT_NAME_COLLISION = 0xC0000035
+    _STATUS_OBJECT_PATH_NOT_FOUND = 0xC000003A
 
     class _FILE_ATTRIBUTE_TAG_INFO(ctypes.Structure):
         _fields_ = [
             ("FileAttributes", wintypes.DWORD),
             ("ReparseTag", wintypes.DWORD),
+        ]
+
+    class _UNICODE_STRING(ctypes.Structure):
+        _fields_ = [
+            ("Length", wintypes.USHORT),
+            ("MaximumLength", wintypes.USHORT),
+            ("Buffer", wintypes.LPWSTR),
+        ]
+
+    class _OBJECT_ATTRIBUTES(ctypes.Structure):
+        _fields_ = [
+            ("Length", wintypes.ULONG),
+            ("RootDirectory", wintypes.HANDLE),
+            ("ObjectName", ctypes.POINTER(_UNICODE_STRING)),
+            ("Attributes", wintypes.ULONG),
+            ("SecurityDescriptor", wintypes.LPVOID),
+            ("SecurityQualityOfService", wintypes.LPVOID),
+        ]
+
+    class _IO_STATUS_BLOCK(ctypes.Structure):
+        _fields_ = [
+            ("Status", wintypes.LONG),
+            ("Information", ctypes.c_size_t),
         ]
 
     _KERNEL32 = ctypes.WinDLL("kernel32", use_last_error=True)
@@ -212,6 +248,26 @@ if os.name == "nt":
     ]
     _GetFileInformationByHandleEx.restype = wintypes.BOOL
 
+    _NTDLL = ctypes.WinDLL("ntdll")
+    _NtCreateFile = _NTDLL.NtCreateFile
+    _NtCreateFile.argtypes = [
+        ctypes.POINTER(wintypes.HANDLE),
+        wintypes.DWORD,
+        ctypes.POINTER(_OBJECT_ATTRIBUTES),
+        ctypes.POINTER(_IO_STATUS_BLOCK),
+        ctypes.c_void_p,
+        wintypes.ULONG,
+        wintypes.ULONG,
+        wintypes.ULONG,
+        wintypes.ULONG,
+        ctypes.c_void_p,
+        wintypes.ULONG,
+    ]
+    _NtCreateFile.restype = wintypes.LONG
+    _RtlNtStatusToDosError = _NTDLL.RtlNtStatusToDosError
+    _RtlNtStatusToDosError.argtypes = [wintypes.LONG]
+    _RtlNtStatusToDosError.restype = wintypes.ULONG
+
 
 def _win_error(path: Path) -> OSError:
     import ctypes
@@ -226,6 +282,65 @@ def _win_error_code(error: OSError) -> int | None:
     return error.errno if winerror is None else winerror
 
 
+def _win_ntstatus_code(status: int) -> int:
+    return int(status) & 0xFFFFFFFF
+
+
+def _win_raise_ntstatus(status: int, label: str) -> None:
+    if os.name != "nt":
+        raise RuntimeError("FUGLE_DIAGNOSTIC_WINDOWS_API_UNAVAILABLE")
+    code = int(_RtlNtStatusToDosError(status))
+    raise OSError(code, ctypes.FormatError(code), label)
+
+
+def _win_relative_create(
+    parent_handle: int,
+    name: str,
+    *,
+    desired_access: int,
+    share_access: int,
+    disposition: int,
+    options: int,
+    attributes: int = 0,
+) -> tuple[int, int | None]:
+    """NtCreateFile relative to an already-open directory handle."""
+    if os.name != "nt":
+        raise RuntimeError("FUGLE_DIAGNOSTIC_WINDOWS_API_UNAVAILABLE")
+    encoded_length = len(name.encode("utf-16-le"))
+    name_buffer = ctypes.create_unicode_buffer(name)
+    unicode_name = _UNICODE_STRING(
+        Length=encoded_length,
+        MaximumLength=encoded_length + 2,
+        Buffer=ctypes.cast(name_buffer, wintypes.LPWSTR),
+    )
+    object_attributes = _OBJECT_ATTRIBUTES(
+        Length=ctypes.sizeof(_OBJECT_ATTRIBUTES),
+        RootDirectory=wintypes.HANDLE(parent_handle),
+        ObjectName=ctypes.pointer(unicode_name),
+        Attributes=_OBJ_CASE_INSENSITIVE,
+        SecurityDescriptor=None,
+        SecurityQualityOfService=None,
+    )
+    io_status = _IO_STATUS_BLOCK()
+    handle = wintypes.HANDLE()
+    status = int(_NtCreateFile(
+        ctypes.byref(handle),
+        desired_access,
+        ctypes.byref(object_attributes),
+        ctypes.byref(io_status),
+        None,
+        attributes,
+        share_access,
+        disposition,
+        options,
+        None,
+        0,
+    ))
+    if status < 0:
+        return status, None
+    return status, int(handle.value)
+
+
 def _win_close_handle(handle: int) -> None:
     if os.name != "nt":
         return
@@ -233,20 +348,7 @@ def _win_close_handle(handle: int) -> None:
         raise _win_error(Path("<handle>"))
 
 
-def _win_open_directory(path: Path) -> int:
-    if os.name != "nt":
-        raise RuntimeError("FUGLE_DIAGNOSTIC_WINDOWS_API_UNAVAILABLE")
-    handle = _CreateFileW(
-        str(path),
-        _FILE_READ_ATTRIBUTES,
-        _FILE_SHARE_READ | _FILE_SHARE_WRITE,  # Deliberately omit FILE_SHARE_DELETE.
-        None,
-        _OPEN_EXISTING,
-        _FILE_FLAG_BACKUP_SEMANTICS | _FILE_FLAG_OPEN_REPARSE_POINT,
-        None,
-    )
-    if handle == _INVALID_HANDLE_VALUE:
-        raise _win_error(path)
+def _win_check_directory_handle(handle: int) -> None:
     info = _FILE_ATTRIBUTE_TAG_INFO()
     if not _GetFileInformationByHandleEx(
         handle,
@@ -254,20 +356,19 @@ def _win_open_directory(path: Path) -> int:
         ctypes.byref(info),
         ctypes.sizeof(info),
     ):
-        error = _win_error(path)
-        _CloseHandle(handle)
-        raise error
-    if not (info.FileAttributes & _FILE_ATTRIBUTE_DIRECTORY) or (info.FileAttributes & _FILE_ATTRIBUTE_REPARSE_POINT):
-        _CloseHandle(handle)
+        raise _win_error(Path("<directory-handle>"))
+    if not (info.FileAttributes & _FILE_ATTRIBUTE_DIRECTORY):
         raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_ANCESTRY_UNTRUSTED")
-    return int(handle)
+    if info.FileAttributes & _FILE_ATTRIBUTE_REPARSE_POINT:
+        raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_ANCESTRY_UNTRUSTED")
 
 
-def _win_require_target_absent(target: Path) -> None:
+def _win_open_directory(path: Path) -> int:
+    """Open the trusted repository root without following a root reparse point."""
     if os.name != "nt":
         raise RuntimeError("FUGLE_DIAGNOSTIC_WINDOWS_API_UNAVAILABLE")
     handle = _CreateFileW(
-        str(target),
+        str(path),
         _FILE_READ_ATTRIBUTES,
         _FILE_SHARE_READ | _FILE_SHARE_WRITE,
         None,
@@ -275,35 +376,78 @@ def _win_require_target_absent(target: Path) -> None:
         _FILE_FLAG_BACKUP_SEMANTICS | _FILE_FLAG_OPEN_REPARSE_POINT,
         None,
     )
-    if handle != _INVALID_HANDLE_VALUE:
-        _CloseHandle(handle)
-        raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_EXISTS")
-    error = _win_error(target)
-    if _win_error_code(error) not in {_ERROR_FILE_NOT_FOUND, _ERROR_PATH_NOT_FOUND}:
-        raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_TARGET_UNTRUSTED") from error
-
-
-def _win_write_new(target: Path, result: dict) -> None:
-    if os.name != "nt":
-        raise RuntimeError("FUGLE_DIAGNOSTIC_WINDOWS_API_UNAVAILABLE")
-    handle = _CreateFileW(
-        str(target),
-        _GENERIC_WRITE,
-        0,
-        None,
-        _CREATE_NEW,
-        _FILE_ATTRIBUTE_NORMAL | _FILE_FLAG_OPEN_REPARSE_POINT,
-        None,
-    )
     if handle == _INVALID_HANDLE_VALUE:
-        error = _win_error(target)
-        if _win_error_code(error) in {_ERROR_FILE_EXISTS, _ERROR_ALREADY_EXISTS}:
-            raise FileExistsError(error.errno, error.strerror, str(target)) from error
-        raise error
+        raise _win_error(path)
+    value = int(handle)
     try:
-        fd = msvcrt.open_osfhandle(int(handle), os.O_WRONLY)
+        _win_check_directory_handle(value)
     except Exception:
         _CloseHandle(handle)
+        raise
+    return value
+
+
+def _win_open_or_create_child_directory(parent_handle: int, component: str) -> int:
+    """Atomically open/create one child relative to its pinned parent handle."""
+    status, handle = _win_relative_create(
+        parent_handle,
+        component,
+        desired_access=_FILE_LIST_DIRECTORY | _FILE_READ_ATTRIBUTES | _SYNCHRONIZE,
+        share_access=_FILE_SHARE_READ | _FILE_SHARE_WRITE,
+        disposition=_FILE_OPEN_IF,
+        options=_FILE_DIRECTORY_FILE | _FILE_SYNCHRONOUS_IO_NONALERT | _FILE_OPEN_REPARSE_POINT_NT,
+        attributes=_FILE_ATTRIBUTE_DIRECTORY,
+    )
+    if handle is None:
+        _win_raise_ntstatus(status, component)
+    try:
+        _win_check_directory_handle(handle)
+    except Exception:
+        _win_close_handle(handle)
+        raise
+    return handle
+
+
+def _win_require_target_absent(parent_handle: int, output_name: str) -> None:
+    status, handle = _win_relative_create(
+        parent_handle,
+        output_name,
+        desired_access=_FILE_READ_ATTRIBUTES | _SYNCHRONIZE,
+        share_access=_FILE_SHARE_READ | _FILE_SHARE_WRITE,
+        disposition=_FILE_OPEN,
+        options=_FILE_SYNCHRONOUS_IO_NONALERT | _FILE_OPEN_REPARSE_POINT_NT,
+    )
+    if handle is not None:
+        _win_close_handle(handle)
+        raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_EXISTS")
+    if _win_ntstatus_code(status) not in {
+        _STATUS_OBJECT_NAME_NOT_FOUND,
+        _STATUS_OBJECT_PATH_NOT_FOUND,
+    }:
+        try:
+            _win_raise_ntstatus(status, output_name)
+        except OSError as exc:
+            raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_TARGET_UNTRUSTED") from exc
+
+
+def _win_write_new(parent_handle: int, output_name: str, result: dict) -> None:
+    status, handle = _win_relative_create(
+        parent_handle,
+        output_name,
+        desired_access=_GENERIC_WRITE | _SYNCHRONIZE,
+        share_access=0,
+        disposition=_FILE_CREATE,
+        options=_FILE_NON_DIRECTORY_FILE | _FILE_SYNCHRONOUS_IO_NONALERT | _FILE_OPEN_REPARSE_POINT_NT,
+        attributes=_FILE_ATTRIBUTE_NORMAL,
+    )
+    if handle is None:
+        if _win_ntstatus_code(status) == _STATUS_OBJECT_NAME_COLLISION:
+            raise FileExistsError(output_name)
+        _win_raise_ntstatus(status, output_name)
+    try:
+        fd = msvcrt.open_osfhandle(handle, os.O_WRONLY)
+    except Exception:
+        _win_close_handle(handle)
         raise
     with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as stream:
         json.dump(result, stream, ensure_ascii=False, indent=2, sort_keys=True)
@@ -319,30 +463,17 @@ def _open_trusted_output_windows(output_name: str, root: Path, output_root: Path
             raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_ROOT_UNAVAILABLE") from exc
         handles.append(root_handle)
 
-        current = root
+        current_handle = root_handle
         for component in OUTPUT_PARTS:
-            current = current / component
             try:
-                handle = _win_open_directory(current)
-            except OSError as exc:
-                if _win_error_code(exc) not in {_ERROR_FILE_NOT_FOUND, _ERROR_PATH_NOT_FOUND}:
-                    raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_ANCESTRY_UNTRUSTED") from exc
-                try:
-                    os.mkdir(current)
-                except FileExistsError:
-                    pass
-                try:
-                    handle = _win_open_directory(current)
-                except (OSError, RuntimeError) as open_exc:
-                    raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_ANCESTRY_UNTRUSTED") from open_exc
-            except RuntimeError:
-                raise
-            handles.append(handle)
+                child_handle = _win_open_or_create_child_directory(current_handle, component)
+            except (OSError, RuntimeError) as exc:
+                raise RuntimeError("FUGLE_DIAGNOSTIC_OUTPUT_ANCESTRY_UNTRUSTED") from exc
+            handles.append(child_handle)
+            current_handle = child_handle
 
-        # The directory chain is now pinned by handles that deny FILE_SHARE_DELETE.
-        # Existing targets are rejected before credential access/network. A later race
-        # is still fail-closed by CREATE_NEW in _win_write_new.
-        _win_require_target_absent(output_root / output_name)
+        # Target existence and final CREATE are both relative to this pinned handle.
+        _win_require_target_absent(current_handle, output_name)
         return _TrustedOutput(output_name, output_root, windows_handles=handles)
     except Exception:
         for handle in reversed(handles):
@@ -351,7 +482,6 @@ def _open_trusted_output_windows(output_name: str, root: Path, output_root: Path
             except OSError:
                 pass
         raise
-
 
 def _open_trusted_output(output_name: str) -> _TrustedOutput:
     _validate_output_name(output_name)
