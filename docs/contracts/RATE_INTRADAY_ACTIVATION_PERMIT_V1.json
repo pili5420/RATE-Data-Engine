@@ -1,0 +1,27 @@
+{
+  "artifact": "RATE_INTRADAY_ACTIVATION_PERMIT_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "purpose": "VALIDATE_A_FUTURE_CONTROL_CENTER_ACTIVATION_PERMIT_WITHOUT_EXECUTING_IT",
+  "permit_self_authorization": "FORBIDDEN",
+  "trusted_control_center_bindings": {
+    "expected_control_center_decision_id": "REQUIRED_OUTSIDE_PERMIT",
+    "expected_permit_sha256": "REQUIRED_OUTSIDE_PERMIT_AND_MUST_MATCH_CANONICAL_PERMIT"
+  },
+  "required_markets": ["TWSE", "TPEX"],
+  "authorized_cadences": ["09:30", "12:00"],
+  "required_universe_count": 30,
+  "required_market_counts_type": "POSITIVE_INTEGERS_ONLY",
+  "external_dependency_id": "EXTERNAL_AUTHORIZED_INTRADAY_FEED_DEPENDENCY",
+  "source_registry_dataset_id": "authorized_market_intraday",
+  "provider_authority_qualification": "REQUIRED_AND_HASH_BOUND",
+  "payload_contract_qualification": "REQUIRED_AND_HASH_BOUND",
+  "main_sha_binding": "REQUIRED",
+  "universe_sha256_binding": "REQUIRED",
+  "single_use": true,
+  "fallback_allowed": false,
+  "automatic_retry_allowed": false,
+  "secret_value_embedding": "FORBIDDEN",
+  "pre_activation_cer081_credit": 0,
+  "validator_side_effects": 0,
+  "production_activation_performed_by_this_contract": false
+}
