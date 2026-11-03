@@ -1,0 +1,23 @@
+{
+  "artifact":"RATE_CLOUDFLARE_D1_HTTP_REQUEST_SHAPE_REHEARSAL_CONTRACT_V1",
+  "status":"ENGINEERING_CONTRACT_ONLY",
+  "transport":"SYNTHETIC_CLOUDFLARE_HTTP_ONLY",
+  "admin_operation_count":9,
+  "runtime_probe_count":6,
+  "cleanup_operation_count":2,
+  "total_request_count":17,
+  "d1_create_read_replication":"disabled",
+  "worker_upload_binding":"D1_DB",
+  "workers_subdomain_lookup_required":true,
+  "worker_script_subdomain_enabled_required":true,
+  "retry_count":0,
+  "fallback_allowed":false,
+  "real_network_requests":0,
+  "real_cloudflare_requests":0,
+  "credentials_read":0,
+  "real_resources_created":0,
+  "provider_qualified":false,
+  "production_credit":0,
+  "cer081_credit":0,
+  "next_gate":"REAL_CLOUDFLARE_HTTPS_TRANSPORT_ADAPTER_QUALIFICATION"
+}
