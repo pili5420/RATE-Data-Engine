@@ -1,0 +1,36 @@
+{
+  "artifact": "RATE_INTRADAY_PROVIDER_ACCEPTANCE_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "purpose": "ACCEPT_PROVIDER_AFTER_INDEPENDENT_LIVE_REVIEW_WITHOUT_ACTIVATING_PRODUCTION",
+  "trusted_external_bindings": [
+    "main_sha",
+    "control_center_decision_id",
+    "decision_sha256",
+    "provider_name",
+    "live_review_sha256",
+    "provider_authority_binding_sha256",
+    "license_basis"
+  ],
+  "allowed_license_bases": [
+    "OWNER_ASSUMED_AUTHORIZED",
+    "PROVIDER_WRITTEN_CONFIRMED"
+  ],
+  "required_usage_scope": {
+    "personal_internal_only": true,
+    "public_display": false,
+    "raw_data_redistribution": false,
+    "resale": false,
+    "sublicensing": false,
+    "third_party_market_data_feed": false
+  },
+  "required_markets": ["TWSE", "TPEX"],
+  "authorized_cadences": ["09:30", "12:00"],
+  "provider_accepted_by_validator": true,
+  "activation_execution_allowed": false,
+  "external_dependency_resolved": false,
+  "registry_activation_allowed": false,
+  "fallback_allowed": false,
+  "automatic_retry_allowed": false,
+  "production_credit": 0,
+  "cer081_credit": 0
+}
