@@ -8,11 +8,32 @@
     "src/intraday_provider_runtime.py",
     "scripts/acquire_intraday_provider_feed.py"
   ],
-  "required_markets": ["TWSE", "TPEX"],
-  "authorized_cadences": ["09:30", "12:00"],
+  "required_markets": [
+    "TWSE",
+    "TPEX"
+  ],
+  "authorized_cadences": [
+    "09:30",
+    "12:00"
+  ],
   "provider_endpoint_https_required": true,
   "fugle_host": "api.fugle.tw",
   "credential_store": "GITHUB_ACTIONS_SECRET",
+  "phase2_source_all_four_cadences_required": true,
+  "phase2_intraday_required_datasets_for": [
+    "09:30",
+    "12:00"
+  ],
+  "phase2_intraday_decision_gate_status": {
+    "07:30": "NOT_APPLICABLE",
+    "09:30": "PASS",
+    "12:00": "PASS",
+    "19:30": "NOT_APPLICABLE"
+  },
+  "phase2_transition_must_enforce_same_intraday_gate_status": true,
+  "phase2_authoritative_admission_replay_required": true,
+  "public_partial_only_cadence_restriction_allowed_after_activation": false,
+  "hardcoded_blocked_external_intraday_status_allowed_after_activation": false,
   "fallback_allowed": false,
   "automatic_retry_allowed": false,
   "apply_allowed": false,
