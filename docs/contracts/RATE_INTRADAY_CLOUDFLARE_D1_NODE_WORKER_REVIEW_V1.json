@@ -1,0 +1,24 @@
+{
+  "artifact": "RATE_INTRADAY_CLOUDFLARE_D1_NODE_WORKER_REVIEW_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "runtime": "NODE_EXECUTED_ACTUAL_WORKER_MJS",
+  "fake_d1_binding": true,
+  "expected_statuses": {
+    "unauthorized": 401,
+    "invalid_route": 404,
+    "unsupported_method": 405,
+    "create": 201,
+    "read": 200,
+    "duplicate": 409,
+    "database_failure": 503
+  },
+  "insert_retry_allowed": false,
+  "outbound_network_allowed": false,
+  "real_cloudflare_requests": 0,
+  "credentials_read": 0,
+  "resources_created": 0,
+  "provider_qualified": false,
+  "production_credit": 0,
+  "cer081_credit": 0,
+  "next_gate": "CLOUDFLARE_D1_REAL_PROVIDER_QUALIFICATION"
+}
