@@ -1,0 +1,34 @@
+{
+  "artifact": "RATE_INTRADAY_ACTIVATION_READINESS_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "purpose": "VALIDATE_PRE_LIVE_ACTIVATION_READINESS_WITH_ZERO_SIDE_EFFECTS",
+  "trusted_external_bindings": [
+    "current_main_sha",
+    "control_center_decision_id",
+    "activation_permit_sha256",
+    "provider_authority_binding_sha256",
+    "payload_qualification_sha256"
+  ],
+  "repo_rooted_preimage_required": true,
+  "allowed_existing_mutation_paths": [
+    "config/RATE_EXTERNAL_PRODUCTION_DEPENDENCIES.json",
+    "config/SOURCE_REGISTRY.json",
+    "config/RATE_PRODUCTION_OFFICIAL_SOURCE_REGISTRY_V1.json",
+    "src/phase2_production.py",
+    "scripts/build_phase2_production_source.py",
+    ".github/workflows/rate_production_0930_scheduler.yml",
+    ".github/workflows/rate_production_1200_scheduler.yml"
+  ],
+  "target_dependency": "EXTERNAL_AUTHORIZED_INTRADAY_FEED_DEPENDENCY",
+  "target_dataset": "authorized_market_intraday",
+  "required_markets": ["TWSE", "TPEX"],
+  "authorized_cadences": ["09:30", "12:00"],
+  "provider_selection_before_live_qualification": false,
+  "endpoint_binding_before_live_qualification": false,
+  "credential_value_embedding": "FORBIDDEN",
+  "fallback_allowed": false,
+  "automatic_retry_allowed": false,
+  "activation_execution_allowed": false,
+  "production_credit": 0,
+  "cer081_credit": 0
+}
