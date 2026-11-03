@@ -285,7 +285,7 @@ def review_candidate_runtime_synthetic(
     )
     require(qualified.get("validation_status") == "PASS"
             and qualified.get("coverage") == "30/30"
-            and qualified.get("selected_market_counts") == {"TWSE": 25, "TPEX": 5},
+            and qualified.get("market_counts") == {"TWSE": 25, "TPEX": 5},
             "RUNTIME_SEMANTIC_AUTHORITATIVE_QUALIFICATION_FAILED")
 
     for bad_symbols in (symbols[:-1], symbols + [("9999", "TWSE")]):
@@ -386,7 +386,7 @@ def review_candidate_runtime_synthetic(
         "real_network_requests": 0,
         "synthetic_success_requests": 30,
         "coverage": qualified["coverage"],
-        "market_counts": qualified["selected_market_counts"],
+        "market_counts": qualified["market_counts"],
         "runtime_sha256": actual_hash,
         "connections_closed": 30,
         "automatic_retries": 0,
