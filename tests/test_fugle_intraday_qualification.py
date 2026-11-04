@@ -255,6 +255,31 @@ class FugleFreeDiagnosticTests(unittest.TestCase):
                 cli.main()
             qualify_mock.assert_not_called()
 
+    def test_direct_cli_entrypoint_bootstraps_repo_root_in_isolated_mode(self):
+        script = ROOT / "scripts" / "run_fugle_intraday_qualification.py"
+        env = dict(os.environ)
+        env.pop("FUGLE_API_KEY", None)
+        env.pop("PYTHONPATH", None)
+        with tempfile.TemporaryDirectory() as tmp:
+            completed = subprocess.run(
+                [sys.executable, "-I", str(script), "--help"],
+                cwd=tmp,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        self.assertEqual(
+            completed.returncode,
+            0,
+            msg=completed.stdout + completed.stderr,
+        )
+        self.assertNotIn("ModuleNotFoundError", completed.stderr)
+        self.assertNotIn("No module named 'src'", completed.stderr)
+        self.assertIn("--trading-date", completed.stdout)
+        self.assertIn("--cadence", completed.stdout)
+        self.assertIn("--output-name", completed.stdout)
+
     def test_output_path_traversal_is_rejected_before_binding_credential_or_network(self):
         for bad_name in ("../production.json", "nested/result.json", r"nested\result.json"):
             with self.subTest(name=bad_name), patch.object(sys, "argv", [
