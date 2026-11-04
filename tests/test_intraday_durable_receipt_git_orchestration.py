@@ -272,6 +272,27 @@ class DurableReceiptGitOrchestrationTests(unittest.TestCase):
         self.assertEqual(backend.calls, calls_before)
         self.assertEqual(store.read(EXECUTION_ID), persisted)
 
+    def test_ephemeral_backend_consumed_without_durable_receipt_fails_before_receipt_write(self):
+        ready, auth, plan, candidate = fixture()
+        store = SyntheticWriteOnceReceiptStore()
+        backend = SyntheticGitBackend(main_sha=MAIN)
+        backend.consumed_tokens.add(canonical_digest(plan))
+        with self.assertRaisesRegex(
+            DurableReceiptGitOrchestrationError,
+            "BACKEND_PLAN_ALREADY_CONSUMED",
+        ):
+            rehearse_durable_receipt_then_git(
+                ready, auth, plan, candidate, store, backend,
+                execution_id=EXECUTION_ID,
+                expected_readiness_sha256=canonical_digest(ready),
+                expected_real_git_authorization_sha256=canonical_digest(auth),
+                expected_transaction_plan_sha256=canonical_digest(plan),
+                expected_candidate_manifest_sha256=candidate_manifest_sha256(candidate),
+            )
+        self.assertEqual(store.write_attempts, 0)
+        self.assertIsNone(store.read(EXECUTION_ID))
+        self.assertEqual(backend.calls, [])
+
     def test_candidate_drift_fails_before_receipt_consumption(self):
         ready, auth, plan, candidate = fixture()
         candidate = dict(candidate)
