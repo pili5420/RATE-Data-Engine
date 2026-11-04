@@ -1,0 +1,26 @@
+{
+  "artifact":"RATE_FUGLE_SINGLE_LIVE_EXECUTOR_CONTRACT_V1",
+  "status":"ENGINEERING_CONTRACT_ONLY",
+  "required_authorization_review":"RATE_FUGLE_SINGLE_LIVE_QUALIFICATION_AUTHORIZATION_QUALIFICATION_V1",
+  "execution_order":[
+    "VALIDATE_AUTHORIZATION_REVIEW",
+    "GET_CONSUMPTION_MARKER_PREFLIGHT",
+    "CREATE_CONSUMPTION_MARKER",
+    "GET_CONSUMPTION_MARKER_READBACK",
+    "USE_FUGLE_API_KEY",
+    "EXECUTE_EXACT_30_FUGLE_REQUESTS",
+    "RETURN_LIVE_EXECUTION_RESULT"
+  ],
+  "github_fence_request_budget":3,
+  "provider_request_budget":30,
+  "automatic_retry_allowed":false,
+  "fallback_allowed":false,
+  "redirect_allowed":false,
+  "marker_reuse_allowed":false,
+  "provider_access_before_marker_readback":false,
+  "production_activation_allowed":false,
+  "external_dependency_resolved":false,
+  "production_credit":0,
+  "cer081_credit":0,
+  "next_gate":"RATE_INTRADAY_SINGLE_LIVE_QUALIFICATION_REVIEW_V1"
+}
