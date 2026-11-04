@@ -23,6 +23,9 @@ def validate_overlay(source: Mapping[str,Any], previous: Mapping[str,Any], manif
     prior=previous.get("decision") or {}
     cadence=decision.get("cadence")
     require(cadence in {"09:30","12:00"},"CADENCE_INVALID")
+    require(manifest.get("cadence")==cadence
+            and manifest.get("trading_date")==decision.get("trading_date"),
+            "SOURCE_SLOT_BINDING_INVALID")
     expected_prior="07:30" if cadence=="09:30" else "09:30"
     require(prior.get("cadence")==expected_prior and prior.get("trading_date")==decision.get("trading_date"),"PREVIOUS_SLOT_INVALID")
     require(decision.get("report_runtime_status")=="PARTIAL_VALID","SOURCE_RUNTIME_INVALID")
