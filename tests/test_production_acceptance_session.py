@@ -10,6 +10,7 @@ from src.production_acceptance_session import (
 )
 
 MAIN="a"*40
+BIND="d"*40
 
 def post_merge():
     return {
@@ -29,6 +30,7 @@ def post_merge_route_b():
         "route":"B_ZERO_FEE",
         "merged_main_sha":MAIN,
         "activation_code_sha":MAIN,
+        "activation_binding_sha":BIND,
         "operational_head_policy":"AUTHORIZED_DESCENDANT_POINTER_COMMITS_ONLY",
         "production_credit":1,
         "cer081_credit":0,
@@ -42,6 +44,7 @@ def run(day,cadence,run_id):
         "trading_date":day,
         "cadence":cadence,
         "run_head_sha":MAIN,
+        "activation_binding_sha":BIND,
         "workflow_run_id":run_id,
         "workflow_job_id":run_id+1000,
         "fallback_used":False,
