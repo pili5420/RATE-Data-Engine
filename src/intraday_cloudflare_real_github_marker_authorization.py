@@ -91,7 +91,11 @@ def validate_marker_creation_authorization(
         "GH_MARKER_AUTHZ_CLOUDFLARE_BOUNDARY_INVALID",
     )
 
-    expected_ref = marker_ref(cloudflare_qualification_authorization["authorization_sha256"])
+    cloudflare_real_auth_hash = _sha64(
+        cloudflare_qualification_authorization.get("authorization_sha256"),
+        "GH_MARKER_AUTHZ_CLOUDFLARE_REAL_AUTH_HASH_INVALID",
+    )
+    expected_ref = marker_ref(cloudflare_real_auth_hash)
 
     require(isinstance(authorization, Mapping), "GH_MARKER_AUTHZ_INVALID")
     require(
@@ -107,6 +111,11 @@ def validate_marker_creation_authorization(
     require(
         authorization.get("cloudflare_authorization_qualification_sha256") == cloudflare_hash,
         "GH_MARKER_AUTHZ_CLOUDFLARE_BINDING_MISMATCH",
+    )
+    require(
+        authorization.get("cloudflare_real_qualification_authorization_sha256")
+        == cloudflare_real_auth_hash,
+        "GH_MARKER_AUTHZ_CLOUDFLARE_REAL_AUTH_BINDING_MISMATCH",
     )
     require(
         authorization.get("current_main_sha") == main
@@ -149,6 +158,7 @@ def validate_marker_creation_authorization(
         "validation_status": "PASS",
         "authorization_sha256": auth_hash,
         "cloudflare_authorization_qualification_sha256": cloudflare_hash,
+        "cloudflare_real_qualification_authorization_sha256": cloudflare_real_auth_hash,
         "current_main_sha": main,
         "marker_ref": expected_ref,
         "marker_target_sha": main,
