@@ -20,7 +20,11 @@
         "19:30": "REQUIRED"
       },
       "authorization_status": "PASS",
-      "fallback_allowed": false
+      "fallback_allowed": false,
+      "route_b_freshness_override": {
+        "09:30": "LATEST_OFFICIAL_AVAILABLE_WITH_PREVIOUS_EOD_MARKET_BASELINE",
+        "12:00": "LATEST_OFFICIAL_AVAILABLE_WITH_PREVIOUS_EOD_MARKET_BASELINE"
+      }
     },
     {
       "dataset_id": "tpex_market_daily",
@@ -38,7 +42,11 @@
         "19:30": "REQUIRED"
       },
       "authorization_status": "PASS",
-      "fallback_allowed": false
+      "fallback_allowed": false,
+      "route_b_freshness_override": {
+        "09:30": "LATEST_OFFICIAL_AVAILABLE_WITH_PREVIOUS_EOD_MARKET_BASELINE",
+        "12:00": "LATEST_OFFICIAL_AVAILABLE_WITH_PREVIOUS_EOD_MARKET_BASELINE"
+      }
     },
     {
       "dataset_id": "twse_benchmark",
@@ -56,7 +64,11 @@
         "19:30": "REQUIRED"
       },
       "authorization_status": "PASS",
-      "fallback_allowed": false
+      "fallback_allowed": false,
+      "route_b_freshness_override": {
+        "09:30": "LATEST_OFFICIAL_AVAILABLE_WITH_PREVIOUS_EOD_MARKET_BASELINE",
+        "12:00": "LATEST_OFFICIAL_AVAILABLE_WITH_PREVIOUS_EOD_MARKET_BASELINE"
+      }
     },
     {
       "dataset_id": "twse_institutional",
@@ -74,7 +86,11 @@
         "19:30": "REQUIRED"
       },
       "authorization_status": "PASS",
-      "fallback_allowed": false
+      "fallback_allowed": false,
+      "route_b_freshness_override": {
+        "09:30": "LATEST_OFFICIAL_AVAILABLE_WITH_PREVIOUS_EOD_MARKET_BASELINE",
+        "12:00": "LATEST_OFFICIAL_AVAILABLE_WITH_PREVIOUS_EOD_MARKET_BASELINE"
+      }
     },
     {
       "dataset_id": "tpex_institutional",
@@ -92,7 +108,11 @@
         "19:30": "REQUIRED"
       },
       "authorization_status": "PASS",
-      "fallback_allowed": false
+      "fallback_allowed": false,
+      "route_b_freshness_override": {
+        "09:30": "LATEST_OFFICIAL_AVAILABLE_WITH_PREVIOUS_EOD_MARKET_BASELINE",
+        "12:00": "LATEST_OFFICIAL_AVAILABLE_WITH_PREVIOUS_EOD_MARKET_BASELINE"
+      }
     },
     {
       "dataset_id": "tdcc_large_holder",
@@ -110,7 +130,11 @@
         "19:30": "REQUIRED"
       },
       "authorization_status": "PASS",
-      "fallback_allowed": false
+      "fallback_allowed": false,
+      "route_b_freshness_override": {
+        "09:30": "LATEST_OFFICIAL_AVAILABLE_WITH_PREVIOUS_EOD_MARKET_BASELINE",
+        "12:00": "LATEST_OFFICIAL_AVAILABLE_WITH_PREVIOUS_EOD_MARKET_BASELINE"
+      }
     },
     {
       "dataset_id": "twse_fundamental_revenue",
@@ -128,7 +152,11 @@
         "19:30": "REQUIRED"
       },
       "authorization_status": "PASS",
-      "fallback_allowed": false
+      "fallback_allowed": false,
+      "route_b_freshness_override": {
+        "09:30": "LATEST_OFFICIAL_AVAILABLE_WITH_PREVIOUS_EOD_MARKET_BASELINE",
+        "12:00": "LATEST_OFFICIAL_AVAILABLE_WITH_PREVIOUS_EOD_MARKET_BASELINE"
+      }
     },
     {
       "dataset_id": "tpex_fundamental_revenue",
@@ -146,7 +174,11 @@
         "19:30": "REQUIRED"
       },
       "authorization_status": "PASS",
-      "fallback_allowed": false
+      "fallback_allowed": false,
+      "route_b_freshness_override": {
+        "09:30": "LATEST_OFFICIAL_AVAILABLE_WITH_PREVIOUS_EOD_MARKET_BASELINE",
+        "12:00": "LATEST_OFFICIAL_AVAILABLE_WITH_PREVIOUS_EOD_MARKET_BASELINE"
+      }
     },
     {
       "dataset_id": "twse_trading_metadata",
@@ -164,7 +196,11 @@
         "19:30": "REQUIRED"
       },
       "authorization_status": "PASS",
-      "fallback_allowed": false
+      "fallback_allowed": false,
+      "route_b_freshness_override": {
+        "09:30": "LATEST_OFFICIAL_AVAILABLE_WITH_PREVIOUS_EOD_MARKET_BASELINE",
+        "12:00": "LATEST_OFFICIAL_AVAILABLE_WITH_PREVIOUS_EOD_MARKET_BASELINE"
+      }
     },
     {
       "dataset_id": "tpex_trading_metadata",
@@ -182,13 +218,20 @@
         "19:30": "REQUIRED"
       },
       "authorization_status": "PASS",
-      "fallback_allowed": false
+      "fallback_allowed": false,
+      "route_b_freshness_override": {
+        "09:30": "LATEST_OFFICIAL_AVAILABLE_WITH_PREVIOUS_EOD_MARKET_BASELINE",
+        "12:00": "LATEST_OFFICIAL_AVAILABLE_WITH_PREVIOUS_EOD_MARKET_BASELINE"
+      }
     },
     {
       "dataset_id": "authorized_market_intraday",
       "domain": "market_intraday",
       "authority": "AUTHORIZED_TAIWAN_INTRADAY_FEED",
-      "required_market_coverage": ["TWSE", "TPEX"],
+      "required_market_coverage": [
+        "TWSE",
+        "TPEX"
+      ],
       "endpoint": null,
       "response_type": "json",
       "parser": "AUTHORIZED_INTRADAY_FEED_V1",
@@ -202,7 +245,29 @@
       },
       "authorization_status": "BLOCKED_EXTERNAL",
       "blocked_dependency": "EXTERNAL_AUTHORIZED_INTRADAY_FEED_DEPENDENCY",
-      "fallback_allowed": false
+      "fallback_allowed": false,
+      "route_b_override": {
+        "status": "NOT_REQUIRED_ROUTE_B",
+        "cadence_applicability": {
+          "09:30": "NOT_REQUIRED_ROUTE_B",
+          "12:00": "NOT_REQUIRED_ROUTE_B"
+        },
+        "replacement_contract": "RATE_ZERO_FEE_PRODUCTION_CONTRACT_V1",
+        "replacement_runtime": "ROUTE_B_OFFICIAL_PUBLIC_CHECKPOINT",
+        "real_time_intraday_required": false
+      }
     }
-  ]
+  ],
+  "route_b_zero_fee": {
+    "contract": "RATE_ZERO_FEE_PRODUCTION_CONTRACT_V1",
+    "effective_cadences": [
+      "09:30",
+      "12:00"
+    ],
+    "real_time_intraday_required": false,
+    "authorized_intraday_feed_required": false,
+    "official_public_non_intraday_sources_required": true,
+    "previous_validated_eod_baseline_required": true,
+    "monthly_market_data_license_budget_twd": 0
+  }
 }
