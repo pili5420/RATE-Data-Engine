@@ -17,7 +17,12 @@ on:
       - .github/workflows/rate_route_b_activation_package_runtime.yml
 
 permissions:
-  contents: read
+  contents: write
+  actions: read
+
+concurrency:
+  group: rate-v11-production-acceptance-ledger-main
+  cancel-in-progress: false
 
 jobs:
   runtime:
@@ -39,6 +44,25 @@ jobs:
           --repo-root .
           --artifacts-root artifacts
           --output-dir artifacts/production_acceptance/runtime
+      - name: Persist activation session if active
+        run: >-
+          python scripts/persist_route_b_activation_session.py
+          --package artifacts/production_acceptance/runtime/RATE_ROUTE_B_ACTIVATION_RUNTIME_PACKAGE.json
+          --store-root artifacts/production_acceptance/current
+          --output artifacts/production_acceptance/runtime/RATE_ROUTE_B_ACCEPTANCE_STORE_RESULT.json
+      - name: Commit acceptance control state
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifacts/production_acceptance/current
+          if git diff --cached --quiet; then
+            echo "acceptance_session_commit=NO_CHANGES"
+          else
+            git commit -m "Update RATE Route B Production Acceptance session"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: RATE_ROUTE_B_ACTIVATION_PACKAGE_${{ github.event.workflow_run.id }}
@@ -61,5 +85,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -B -m unittest tests.test_route_b_activation_package tests.test_route_b_acceptance_overlay tests.test_route_b_post_merge_activation tests.test_route_b_acceptance_bridge tests.test_route_b_git_ancestry -v
+      - run: python -B -m unittest tests.test_route_b_activation_package tests.test_route_b_acceptance_overlay tests.test_route_b_post_merge_activation tests.test_route_b_acceptance_bridge tests.test_route_b_git_ancestry tests.test_route_b_acceptance_store tests.test_route_b_acceptance_collector -v
       - run: git diff --exit-code
