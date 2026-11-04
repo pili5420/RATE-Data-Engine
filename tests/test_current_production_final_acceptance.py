@@ -19,6 +19,19 @@ def post():
         "cer081_credit":0,
     }
 
+def post_route_b():
+    return {
+        "artifact":"RATE_POST_MERGE_PRODUCTION_ACTIVATION_VERIFICATION_V1",
+        "validation_status":"PASS",
+        "final_disposition":"PRODUCTION_ACTIVATION_VERIFIED",
+        "route":"B_ZERO_FEE",
+        "merged_main_sha":MAIN,
+        "activation_code_sha":MAIN,
+        "operational_head_policy":"AUTHORIZED_DESCENDANT_POINTER_COMMITS_ONLY",
+        "production_credit":1,
+        "cer081_credit":0,
+    }
+
 def session():
     return {
         "artifact":"RATE_V11_PRODUCTION_ACCEPTANCE_SESSION_SUMMARY_V1",
@@ -117,6 +130,33 @@ class FinalAcceptanceTests(unittest.TestCase):
         s=session(); s["merged_main_sha"]="b"*40
         with self.assertRaisesRegex(CurrentProductionFinalAcceptanceError,"SESSION_MAIN_MISMATCH"):
             self.validate(s=s)
+
+
+    def test_route_b_final_acceptance_requires_activation_binding(self):
+        p=post_route_b()
+        s=session()
+        s["activation_code_sha"]=MAIN
+        s["operational_head_policy"]="AUTHORIZED_DESCENDANT_POINTER_COMMITS_ONLY"
+        result=self.validate(p=p,s=s)
+        self.assertEqual(result["route"],"B_ZERO_FEE")
+        self.assertEqual(result["activation_code_sha"],MAIN)
+        self.assertEqual(result["operational_head_policy"],"AUTHORIZED_DESCENDANT_POINTER_COMMITS_ONLY")
+
+    def test_route_b_wrong_session_activation_code_rejected(self):
+        p=post_route_b()
+        s=session()
+        s["activation_code_sha"]="b"*40
+        s["operational_head_policy"]="AUTHORIZED_DESCENDANT_POINTER_COMMITS_ONLY"
+        with self.assertRaisesRegex(CurrentProductionFinalAcceptanceError,"SESSION_ACTIVATION_CODE_MISMATCH"):
+            self.validate(p=p,s=s)
+
+    def test_route_b_wrong_operational_policy_rejected(self):
+        p=post_route_b()
+        s=session()
+        s["activation_code_sha"]=MAIN
+        s["operational_head_policy"]="EXACT_MERGED_MAIN_ONLY"
+        with self.assertRaisesRegex(CurrentProductionFinalAcceptanceError,"SESSION_OPERATIONAL_POLICY_INVALID"):
+            self.validate(p=p,s=s)
 
 if __name__=="__main__":
     unittest.main()
