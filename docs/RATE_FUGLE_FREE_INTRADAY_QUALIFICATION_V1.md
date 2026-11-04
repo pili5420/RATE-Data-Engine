@@ -1,6 +1,6 @@
 # RATE Fugle Free/Basic Intraday Feasibility V1
 
-Purpose: test whether Fugle's free/basic trial can technically satisfy RATE's
+Purpose: test whether Fugle's free/basic plan can technically satisfy RATE's
 30-symbol 09:30/12:00 dual-market payload without changing Production authority.
 
 ## Approved universe
@@ -23,15 +23,28 @@ retry or provider/endpoint fallback.
 
 - maximum actual HTTP requests per qualification: 30
 - 401: invalid API key, fail closed
-- 403: free/basic plan not authorized, fail closed
-- 429: free/basic rate limit insufficient, fail closed
+- 403: plan not authorized, fail closed
+- 429: plan rate limit insufficient, fail closed
 - any 3xx: redirect forbidden, fail closed
 - redirects followed: 0
 - redirect target request: 0
 - API key is never forwarded to another host
 
-The request counter is incremented before each direct network attempt. A successful
-30/30 diagnostic therefore corresponds to exactly 30 HTTP requests.
+Fugle provided written confirmation on 2026-11-04 that the described personal,
+single-user, private, automated non-display analytical use is permitted on the Basic
+user plan, and that approximately 30 requests per cadence is within the current
+60-requests-per-minute Taiwan-equity intraday limit. This establishes the provider
+plan/use-scope gate only.
+
+## Exchange-authority boundary
+
+Fugle explicitly did **not** provide TWSE or TPEx authorization on behalf of those
+exchanges. RATE therefore keeps exchange authority as a separate fail-closed gate.
+
+No Fugle provider confirmation may be interpreted as proof that TWSE/TPEx non-display
+or data-feed permissions are satisfied. Production remains blocked until the existing
+provider-authority contract receives Control-Center-approved TWSE and TPEx evidence
+references and hashes covering the required real-time non-display/internal-use scope.
 
 ## Output custody
 
@@ -51,13 +64,15 @@ artifacts.
 
 ## Qualification boundary
 
-A technical PASS is **not** a license PASS. Until Fugle explicitly confirms that the
-account/plan permits RATE's non-display automated analytical use, the result remains:
+The provider-plan license gate is now `PROVIDER_WRITTEN_CONFIRMED`, but that does
+not grant Production authority and does not resolve the external dependency.
 
 - `production_eligible=false`
 - `registry_activation_allowed=false`
 - `external_dependency_resolved=false`
+- `exchange_authority_gate=UNPROVEN`
 
-No live request is run by PR CI. A later Owner-authorized manual probe must supply
-`FUGLE_API_KEY` and execute near 09:30 or 12:00. Production registry, scheduler,
-Decision State, Portfolio, Ledger and CER-081 remain outside this diagnostic.
+No live request is run by PR CI. Any new live qualification requires a fresh explicit
+Control Center authorization because the previous single-use permit was consumed by
+the blocked 2026-11-04 run. Production registry, scheduler, Decision State, Portfolio,
+Ledger and CER-081 remain outside this diagnostic.
