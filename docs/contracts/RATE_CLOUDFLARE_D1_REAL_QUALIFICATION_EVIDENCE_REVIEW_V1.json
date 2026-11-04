@@ -1,0 +1,32 @@
+{
+  "artifact": "RATE_CLOUDFLARE_D1_REAL_QUALIFICATION_EVIDENCE_REVIEW_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "workflow_attempt": 1,
+  "rerun_count": 0,
+  "request_count": 17,
+  "admin_and_cleanup_requests": 11,
+  "runtime_requests": 6,
+  "automatic_retries": 0,
+  "redirects_followed": 0,
+  "fallback_allowed": false,
+  "runtime_statuses": {
+    "UNAUTHORIZED_GET": 401,
+    "MISSING_GET": 404,
+    "CREATE_POST": 201,
+    "READBACK_GET": 200,
+    "DUPLICATE_POST": 409,
+    "UNSUPPORTED_METHOD": 405
+  },
+  "marker_consumed_before_cloudflare": true,
+  "cleanup_worker_attempts": 1,
+  "cleanup_d1_attempts": 1,
+  "cleanup_retry_count": 0,
+  "residual_resources": 0,
+  "required_evidence_object_count": 10,
+  "evidence_manifest_external_hash_required": true,
+  "provider_accepted_by_validator": false,
+  "provider_qualified_by_validator": false,
+  "production_credit": 0,
+  "cer081_credit": 0,
+  "next_gate": "CONTROL_CENTER_CLOUDFLARE_PROVIDER_ACCEPTANCE"
+}
