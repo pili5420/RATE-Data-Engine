@@ -59,17 +59,32 @@ def _authorized(paths: list[str]) -> bool:
     )
 
 
+BASELINE_CONFIG_PATH="config/RATE_ROUTE_B_ACTIVATION_BASELINE_V1.json"
+
 def build_ancestry_evidence(
     repo_root: str | Path,
     *,
     activation_merge_sha: str,
     source_heads: Mapping[str,str],
+    activation_binding_sha: str | None = None,
 ) -> dict[str,Any]:
     root=Path(repo_root).resolve()
     require(root.is_dir(),"ROUTE_B_GIT_REPO_ROOT_INVALID")
     require(_sha(activation_merge_sha),"ROUTE_B_GIT_ACTIVATION_SHA_INVALID")
     require(isinstance(source_heads,Mapping) and source_heads,
             "ROUTE_B_GIT_SOURCE_HEADS_INVALID")
+    if activation_binding_sha is not None:
+        require(_sha(activation_binding_sha),"ROUTE_B_GIT_BINDING_SHA_INVALID")
+        _git(root,"cat-file","-e",activation_merge_sha+"^{commit}")
+        _git(root,"cat-file","-e",activation_binding_sha+"^{commit}")
+        require(_is_ancestor(root,activation_merge_sha,activation_binding_sha),
+                "ROUTE_B_GIT_CODE_NOT_ANCESTOR_OF_BINDING")
+        binding_changes=_changed_paths(root,activation_merge_sha,activation_binding_sha)
+        require(binding_changes==[BASELINE_CONFIG_PATH],
+                "ROUTE_B_GIT_BINDING_DELTA_INVALID")
+    else:
+        binding_changes=[]
+        activation_binding_sha=activation_merge_sha
 
     actual_head=_git(root,"rev-parse","HEAD")
     require(_sha(actual_head),"ROUTE_B_GIT_HEAD_INVALID")
@@ -80,12 +95,14 @@ def build_ancestry_evidence(
         require(_sha(head),"ROUTE_B_GIT_SOURCE_SHA_INVALID:"+str(label))
         _git(root,"cat-file","-e",activation_merge_sha+"^{commit}")
         _git(root,"cat-file","-e",head+"^{commit}")
-        ancestor=_is_ancestor(root,activation_merge_sha,head)
-        changed=_changed_paths(root,activation_merge_sha,head) if ancestor else []
-        authorized=ancestor and _authorized(changed)
+        code_ancestor=_is_ancestor(root,activation_merge_sha,head)
+        binding_ancestor=_is_ancestor(root,activation_binding_sha,head)
+        changed=_changed_paths(root,activation_binding_sha,head) if binding_ancestor else []
+        authorized=code_ancestor and binding_ancestor and _authorized(changed)
         rows[label]={
             "source_head_sha":head,
-            "activation_is_ancestor":ancestor,
+            "activation_is_ancestor":code_ancestor,
+            "binding_is_ancestor":binding_ancestor,
             "changed_paths_since_activation":changed,
             "operational_changes_authorized":authorized,
         }
@@ -95,6 +112,8 @@ def build_ancestry_evidence(
         "artifact":"RATE_ROUTE_B_GIT_ANCESTRY_EVIDENCE_V1",
         "validation_status":"PASS" if all_pass else "FAIL_CLOSED",
         "activation_merge_sha":activation_merge_sha,
+        "activation_binding_sha":activation_binding_sha,
+        "binding_changed_paths":binding_changes,
         "evidence_builder_head_sha":actual_head,
         "source_heads":rows,
         "allowed_pointer_prefixes":list(ALLOWED_POINTER_PREFIXES),
