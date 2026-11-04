@@ -1,0 +1,65 @@
+name: RATE Route B Activation Package Runtime
+
+on:
+  workflow_run:
+    workflows:
+      - "RATE Production 12:00 Recurring Scheduler"
+    types: [completed]
+  pull_request:
+    branches: [main]
+    paths:
+      - config/RATE_ROUTE_B_ACTIVATION_BASELINE_V1.json
+      - src/route_b_activation_package.py
+      - scripts/run_route_b_activation_package.py
+      - tests/test_route_b_activation_package.py
+      - src/route_b_acceptance_overlay.py
+      - src/route_b_post_merge_activation.py
+      - .github/workflows/rate_route_b_activation_package_runtime.yml
+
+permissions:
+  contents: read
+
+jobs:
+  runtime:
+    if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build activation package
+        run: >-
+          python scripts/run_route_b_activation_package.py
+          --source-1200-run-id "${{ github.event.workflow_run.id }}"
+          --repo-root .
+          --artifacts-root artifacts
+          --output-dir artifacts/production_acceptance/runtime
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RATE_ROUTE_B_ACTIVATION_PACKAGE_${{ github.event.workflow_run.id }}
+          path: artifacts/production_acceptance/runtime/**
+          if-no-files-found: error
+
+  ci:
+    if: ${{ github.event_name == 'pull_request' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -B -m unittest tests.test_route_b_activation_package tests.test_route_b_acceptance_overlay tests.test_route_b_post_merge_activation tests.test_route_b_acceptance_bridge tests.test_route_b_git_ancestry -v
+      - run: git diff --exit-code
