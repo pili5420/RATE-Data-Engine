@@ -93,7 +93,21 @@ def transition(
         "full_production_pass":True,
         "scheduled_soak_credit":True,
         "cer081_credit":0,
-        "public_official_bundle":deepcopy(dict(public_bundle)),
+        "route_b_public_evidence":{
+            "artifact":public_bundle.get("artifact"),
+            "content_sha256":public_bundle.get("content_sha256"),
+            "contract_sha256":public_bundle.get("contract_sha256"),
+            "generated_at":public_bundle.get("generated_at"),
+            "source_datasets":[
+                {
+                    "dataset_id":source.get("dataset_id"),
+                    "authority":source.get("authority"),
+                    "raw_sha256":source.get("raw_sha256"),
+                    "receipt_sha256":source.get("receipt_sha256"),
+                }
+                for source in public_bundle.get("sources",[])
+            ],
+        },
     })
 
     for key in (
@@ -154,3 +168,37 @@ def validate_route_b_state(decision: Mapping[str,Any]) -> None:
             and decision.get("fallback_used") is False
             and decision.get("fallback_allowed") is False,
             "ROUTE_B_STATE_PRODUCTION_GATE_INVALID")
+
+
+def build_canonical_persist_material(state: Mapping[str,Any]) -> tuple[dict[str,Any],dict[str,Any]]:
+    require(isinstance(state,Mapping),"ROUTE_B_CANONICAL_STATE_INVALID")
+    decision=state.get("decision")
+    require(isinstance(decision,Mapping),"ROUTE_B_CANONICAL_DECISION_INVALID")
+    validate_route_b_state(decision)
+    cadence=decision["cadence"]
+    artifact={"09:30":"RATE_CER076_PERSIST_RESULT_EVIDENCE","12:00":"RATE_CER077_PERSIST_RESULT_EVIDENCE"}[cadence]
+    entry={
+        "trading_date":decision["trading_date"],
+        "cadence":cadence,
+        "execution_scope":"PRODUCTION",
+        "previous_state_resolution":"PERSISTED_PRODUCTION_STATE",
+        "previous_state_id":state["previous_state_id"],
+        "current_state_id":state["current_state_id"],
+        "decision_payload_hash":state["decision_payload_hash"],
+        "route_b_zero_fee":True,
+        "scheduled_soak_credit":True,
+    }
+    material={"state_entry":entry,"decision_state":deepcopy(dict(state))}
+    persist={
+        "artifact":artifact,
+        "validation_status":"PASS",
+        "current_state_id":state["current_state_id"],
+        "current_state_hash":state["decision_payload_hash"],
+        "previous_state_id":state["previous_state_id"],
+        "route_b_zero_fee":True,
+        "report_runtime_status":"PRODUCTION_VALID_ROUTE_B",
+        "full_production_acceptance":"ALLOWED_ROUTE_B",
+        "scheduled_soak_credit":True,
+        "persist_result":{"status":"PERSISTED","state_entry":entry},
+    }
+    return persist,material
