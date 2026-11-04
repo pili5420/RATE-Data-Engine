@@ -11,6 +11,7 @@ from typing import Any, Mapping
 from .intraday_activation_candidate_review import canonical_digest
 from .intraday_cloudflare_github_marker_adapter import (
     SyntheticGitHubRefTransport,
+    marker_ref,
     qualify_marker_adapter,
 )
 
@@ -69,11 +70,19 @@ def execute_marker(
         "GH_MARKER_EXEC_REAL_TRANSPORT_FORBIDDEN_IN_CI",
     )
 
+    cloudflare_real_auth_hash = authorization_qualification.get(
+        "cloudflare_real_qualification_authorization_sha256"
+    )
+    require(
+        isinstance(cloudflare_real_auth_hash, str)
+        and marker_ref(cloudflare_real_auth_hash)
+        == authorization_qualification.get("marker_ref"),
+        "GH_MARKER_EXEC_REAL_AUTH_IDENTITY_BINDING_INVALID",
+    )
+
     result = qualify_marker_adapter(
         transport,
-        authorization_sha256=authorization_qualification[
-            "cloudflare_authorization_qualification_sha256"
-        ],
+        authorization_sha256=cloudflare_real_auth_hash,
         current_main_sha=authorization_qualification["current_main_sha"],
     )
     require(
