@@ -1,0 +1,39 @@
+name: RATE Durable Receipt Then Git Orchestration
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/intraday_durable_receipt_git_orchestration.py
+      - tests/test_intraday_durable_receipt_git_orchestration.py
+      - docs/contracts/RATE_DURABLE_RECEIPT_THEN_GIT_ORCHESTRATION_V1.json
+      - docs/RATE_DURABLE_RECEIPT_THEN_GIT_ORCHESTRATION_V1.md
+      - .github/workflows/rate_durable_receipt_git_orchestration_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Durable receipt then synthetic Git regressions
+        run: python -B -m unittest tests.test_intraday_durable_receipt_git_orchestration -v
+      - name: No tracked mutation
+        run: git diff --exit-code
