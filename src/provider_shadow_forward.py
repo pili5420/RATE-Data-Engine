@@ -257,6 +257,8 @@ def resolve_returns(snapshot, horizon, book, *, as_of, prior_rows):
             continue
         entry_session = sessions[0]
         entry = book["prices"].get((symbol, entry_session["date"]))
+        if book.get("input_mode") == "OFFICIAL_MARKET_DAILY_FORWARD_INPUT_V1":
+            row["price_source"] = market + "_OFFICIAL_MARKET_DAILY"
         row.update(entry_price_date=entry_session["date"], entry_close_at=entry_session["close_at"], price_snapshot_hash=book["manifest_sha256"])
         if entry is None:
             row.update(status="FAIL_CLOSED", reason="ENTRY_PRICE_MISSING_SUSPENSION_DELISTING_OR_UNKNOWN_NOT_IMPUTED")
