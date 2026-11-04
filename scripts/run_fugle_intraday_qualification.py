@@ -5,13 +5,20 @@ import argparse
 import json
 import os
 import stat
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    # Direct-file execution (especially Python isolated mode) otherwise exposes
+    # only scripts/ on sys.path. Bootstrap the repository root before importing
+    # RATE packages. This does not read credentials or perform network I/O.
+    sys.path.insert(0, str(ROOT))
+
 from src.provider_fugle_intraday_candidate import load_binding, qualify
 
-ROOT = Path(__file__).resolve().parents[1]
 BINDING_PATH = ROOT / "docs" / "contracts" / "RATE_FUGLE_FREE_INTRADAY_UNIVERSE_BINDING_V1.json"
 OUTPUT_PARTS = ("artifacts", "diagnostics", "fugle-free-intraday")
 OUTPUT_ROOT = ROOT.joinpath(*OUTPUT_PARTS)
