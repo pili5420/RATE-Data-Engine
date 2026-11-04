@@ -31,13 +31,19 @@ def baseline_policy() -> dict[str,Any]:
             "ROUTE_B_BASELINE_STATUS_INVALID")
     if value["status"]=="PENDING_BINDING":
         require(value.get("activation_merge_sha") is None
+                and value.get("activation_binding_sha") is None
                 and value.get("production_credit_allowed") is False,
                 "ROUTE_B_PENDING_BASELINE_INVALID")
     else:
         sha=value.get("activation_merge_sha")
+        binding=value.get("activation_binding_sha")
         require(isinstance(sha,str) and len(sha)==40
                 and all(c in "0123456789abcdef" for c in sha),
                 "ROUTE_B_ACTIVE_BASELINE_SHA_INVALID")
+        require(isinstance(binding,str) and len(binding)==40
+                and all(c in "0123456789abcdef" for c in binding)
+                and binding != sha,
+                "ROUTE_B_ACTIVE_BINDING_SHA_INVALID")
         require(value.get("production_credit_allowed") is True,
                 "ROUTE_B_ACTIVE_BASELINE_CREDIT_INVALID")
     return value
@@ -96,6 +102,7 @@ def build_runtime_package(
     ancestry=build_ancestry_evidence(
         repo_root,
         activation_merge_sha=policy["activation_merge_sha"],
+        activation_binding_sha=policy["activation_binding_sha"],
         source_heads={
             "09:30":overlay_0930["source_head_sha"],
             "12:00":overlay_1200["source_head_sha"],
