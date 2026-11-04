@@ -1,0 +1,37 @@
+name: RATE Route B Official Checkpoint
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/route_b_official_checkpoint.py
+      - tests/test_route_b_official_checkpoint.py
+      - docs/RATE_ROUTE_B_OFFICIAL_CHECKPOINT_V1.md
+      - .github/workflows/rate_route_b_official_checkpoint_ci.yml
+permissions:
+  contents: read
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Route B checkpoint tests
+        run: python -B -m unittest tests.test_route_b_official_checkpoint -v
+      - name: Route B contract regression
+        run: python -B -m unittest tests.test_route_b_zero_fee_contract -v
+      - name: No tracked mutation
+        run: git diff --exit-code
