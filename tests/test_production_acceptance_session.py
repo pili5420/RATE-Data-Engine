@@ -6,6 +6,7 @@ from src.production_acceptance_session import (
     admit_scheduled_run,
     open_production_acceptance_session,
     summarize_production_acceptance_session,
+    audit_session_lineage,
 )
 
 MAIN="a"*40
@@ -82,9 +83,33 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(summary["trading_days_tested"],3)
         self.assertEqual(summary["successful_cadence_runs"],12)
         self.assertEqual(summary["full_4_cadence_scheduled_coverage"],"PASS")
+        self.assertEqual(summary["state_continuity"],"PASS")
+        self.assertEqual(summary["cross_day_continuity"],"PASS")
+        self.assertEqual(summary["cross_day_links_verified"],2)
         self.assertEqual(summary["completion_status"],"READY_FOR_CER081_FINAL_ACCEPTANCE")
         self.assertFalse(summary["production_acceptance_granted"])
         self.assertEqual(summary["cer081_credit"],0)
+
+
+    def test_lineage_audit_detects_broken_state_chain(self):
+        s=open_production_acceptance_session(post_merge(),session_start_date="2026-11-05")
+        first=run("2026-11-05","07:30",1)
+        second=run("2026-11-05","09:30",2)
+        second["previous_state_id"]="wrong-state"
+        s=admit_scheduled_run(s,first)
+        s=admit_scheduled_run(s,second)
+        with self.assertRaisesRegex(ProductionAcceptanceSessionError,"STATE_CHAIN_BROKEN"):
+            audit_session_lineage(s)
+
+    def test_lineage_audit_detects_invalid_cross_day_boundary(self):
+        s=open_production_acceptance_session(post_merge(),session_start_date="2026-11-05")
+        first=run("2026-11-05","12:00",1)
+        second=run("2026-11-06","09:30",2)
+        second["previous_state_id"]=first["current_state_id"]
+        s=admit_scheduled_run(s,first)
+        s=admit_scheduled_run(s,second)
+        with self.assertRaisesRegex(ProductionAcceptanceSessionError,"CROSS_DAY_BOUNDARY_INVALID"):
+            audit_session_lineage(s)
 
 if __name__=="__main__":
     unittest.main()

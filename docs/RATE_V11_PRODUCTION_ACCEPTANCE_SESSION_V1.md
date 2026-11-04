@@ -23,3 +23,9 @@ date/cadence runs receive no credit.
 The session becomes `READY_FOR_FINAL_ACCEPTANCE` only after at least three complete
 trading days and twelve unique official scheduled runs. It still grants no CER-081
 credit by itself; the existing final acceptance gate remains authoritative.
+
+## Independent lineage audit
+
+The session does not trust a run's self-reported continuity flag by itself. Before final readiness, it independently orders admitted runs and verifies that every next `previous_state_id` equals the immediately preceding `current_state_id`.
+
+Within-day links must follow `07:30 → 09:30 → 12:00 → 19:30`. Cross-day links must be exactly `19:30 → next trading-day 07:30`. Any reset, fork, broken state ID, or invalid cross-day boundary fails closed.
