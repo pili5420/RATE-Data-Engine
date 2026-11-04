@@ -68,6 +68,7 @@ def transition(
     decision=deepcopy(dict(previous_decision))
     decision.update({
         "schema_version":"RATE-ROUTE-B-ZERO-FEE-CHECKPOINT-V1",
+        "phase2":False,
         "execution_scope":"PRODUCTION",
         "trading_date":trading_date,
         "cadence":cadence,
