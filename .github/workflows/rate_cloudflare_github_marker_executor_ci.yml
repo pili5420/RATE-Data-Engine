@@ -1,0 +1,26 @@
+name: RATE Cloudflare GitHub Marker Executor
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/intraday_cloudflare_real_github_marker_executor.py
+      - tests/test_intraday_cloudflare_real_github_marker_executor.py
+      - docs/contracts/RATE_CLOUDFLARE_GITHUB_MARKER_EXECUTOR_V1.json
+      - docs/RATE_CLOUDFLARE_GITHUB_MARKER_EXECUTOR_V1.md
+      - .github/workflows/rate_cloudflare_github_marker_executor_ci.yml
+permissions:
+  contents: read
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: ${{ github.event.pull_request.head.sha }}, fetch-depth: 0, persist-credentials: false}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python -B -m unittest tests.test_intraday_cloudflare_real_github_marker_executor -v
+      - run: git diff --exit-code
