@@ -44,6 +44,10 @@ def rehearse_draft_activation_pr(orchestration: Mapping[str,Any], backend:Synthe
     title="RATE V11 Intraday Activation Candidate"
     body=("Synthetic rehearsal only. Durable receipt already consumed before Git mutation. "
           "Independent review required before any merge.")
+    require(
+        orchestration["receipt_sha256"] not in backend.attempted_receipts,
+        "DRAFT_PR_RECEIPT_ALREADY_ATTEMPTED",
+    )
     try:
         pr=backend.create_draft_pr(receipt_sha256=orchestration["receipt_sha256"],title=title,head=head,base=base,body=body)
     except Exception:
