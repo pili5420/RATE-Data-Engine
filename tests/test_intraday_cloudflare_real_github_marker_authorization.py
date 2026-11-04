@@ -52,6 +52,7 @@ def authorization(cf_hash):
         "artifact": "RATE_CLOUDFLARE_REAL_GITHUB_MARKER_CREATION_AUTHORIZATION_V1",
         "status": "REAL_GITHUB_MARKER_CREATION_AUTHORIZED",
         "cloudflare_authorization_qualification_sha256": cf_hash,
+        "cloudflare_real_qualification_authorization_sha256": "2" * 64,
         "current_main_sha": MAIN,
         "marker_ref": marker_ref("2" * 64),
         "marker_target_sha": MAIN,
@@ -91,6 +92,10 @@ class MarkerCreationAuthorizationTests(unittest.TestCase):
         self.assertFalse(r["marker_creation_consumed"])
         self.assertFalse(r["execution_performed"])
         self.assertEqual(r["allowed_operations"], list(ALLOWED_OPERATIONS))
+        self.assertEqual(
+            r["cloudflare_real_qualification_authorization_sha256"],
+            "2" * 64,
+        )
         self.assertEqual(r["real_github_requests"], 0)
 
     def test_external_hashes_are_trust_roots(self):
@@ -103,7 +108,19 @@ class MarkerCreationAuthorizationTests(unittest.TestCase):
         cf = cloudflare_auth()
         cf["authorization_sha256"] = "a" * 64
         auth = authorization(canonical_digest(cf))
+        auth["cloudflare_real_qualification_authorization_sha256"] = "a" * 64
         with self.assertRaisesRegex(MarkerCreationAuthorizationError, "REF_BINDING_MISMATCH"):
+            self.qualify(auth=auth, cf=cf)
+
+    def test_original_cloudflare_authorization_hash_is_independently_bound(self):
+        cf = cloudflare_auth()
+        cfh = canonical_digest(cf)
+        auth = authorization(cfh)
+        auth["cloudflare_real_qualification_authorization_sha256"] = "a" * 64
+        with self.assertRaisesRegex(
+            MarkerCreationAuthorizationError,
+            "CLOUDFLARE_REAL_AUTH_BINDING_MISMATCH",
+        ):
             self.qualify(auth=auth, cf=cf)
 
     def test_main_drift_fails(self):
