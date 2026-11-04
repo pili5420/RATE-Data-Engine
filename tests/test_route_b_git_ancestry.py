@@ -86,5 +86,64 @@ class AncestryTests(unittest.TestCase):
         finally:
             td.cleanup()
 
+
+    def test_dual_baseline_binding_then_pointer_passes(self):
+        td,root,base=self.repo()
+        try:
+            binding=self.commit(
+                root,
+                "config/RATE_ROUTE_B_ACTIVATION_BASELINE_V1.json",
+                '{"activation_merge_sha":"'+base+'"}\n',
+                "bind baseline",
+            )
+            head=self.commit(
+                root,
+                "artifacts/production_acceptance/current/session.json",
+                "{}\n",
+                "acceptance pointer",
+            )
+            r=build_ancestry_evidence(
+                root,
+                activation_merge_sha=base,
+                activation_binding_sha=binding,
+                source_heads={"09:30":head},
+            )
+            self.assertEqual(r["validation_status"],"PASS")
+            self.assertEqual(r["activation_binding_sha"],binding)
+            self.assertEqual(
+                r["binding_changed_paths"],
+                ["config/RATE_ROUTE_B_ACTIVATION_BASELINE_V1.json"],
+            )
+            self.assertTrue(r["source_heads"]["09:30"]["binding_is_ancestor"])
+            self.assertTrue(r["source_heads"]["09:30"]["operational_changes_authorized"])
+        finally:
+            td.cleanup()
+
+    def test_dual_baseline_binding_extra_change_is_rejected(self):
+        td,root,base=self.repo()
+        try:
+            target=root/"config/RATE_ROUTE_B_ACTIVATION_BASELINE_V1.json"
+            target.parent.mkdir(parents=True,exist_ok=True)
+            target.write_text("{}\n",encoding="utf-8")
+            (root/"config/other.json").write_text("{}\n",encoding="utf-8")
+            self.git(root,"add","config/RATE_ROUTE_B_ACTIVATION_BASELINE_V1.json","config/other.json")
+            self.git(root,"commit","-m","bad bind")
+            binding=self.git(root,"rev-parse","HEAD")
+            head=self.commit(
+                root,
+                "artifacts/RATE_PRODUCTION_STATE_LATEST.json",
+                "{}\n",
+                "pointer",
+            )
+            with self.assertRaisesRegex(Exception,"BINDING_DELTA_INVALID"):
+                build_ancestry_evidence(
+                    root,
+                    activation_merge_sha=base,
+                    activation_binding_sha=binding,
+                    source_heads={"12:00":head},
+                )
+        finally:
+            td.cleanup()
+
 if __name__=="__main__":
     unittest.main()
