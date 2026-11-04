@@ -1,0 +1,19 @@
+{
+  "artifact":"RATE_CLOUDFLARE_GITHUB_MARKER_TRANSPORT_BINDING_CONTRACT_V1",
+  "status":"ENGINEERING_CONTRACT_ONLY",
+  "token_source":"GITHUB_TOKEN",
+  "workflow_permissions":{"contents":"write"},
+  "api_host":"api.github.com",
+  "scheme":"https",
+  "allowed_methods":["GET","POST"],
+  "patch_ref_allowed":false,
+  "delete_ref_allowed":false,
+  "list_refs_allowed":false,
+  "main_ref_update_allowed":false,
+  "redirect_following":false,
+  "automatic_retry":false,
+  "fallback":false,
+  "real_github_requests":0,
+  "real_git_ref_created":false,
+  "next_gate":"EXPLICIT_REAL_GITHUB_MARKER_EXECUTION"
+}
