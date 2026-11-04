@@ -13,6 +13,7 @@ ALLOWED_POINTER_PREFIXES=(
     "artifacts/production_source_snapshots/",
     "artifacts/RATE_PRODUCTION_STATE_LATEST.json",
     "artifacts/production_state/live/",
+    "artifacts/production_acceptance/",
 )
 
 def _sha(value: Any) -> bool:
