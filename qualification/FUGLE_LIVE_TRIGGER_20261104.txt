@@ -1,0 +1,5 @@
+AUTHORIZED_SINGLE_USE_FUGLE_LIVE_QUALIFICATION
+engineering_source=f2916d47f54e0c54204efc88336785fcc9214f79
+cadence=09:30
+trading_date=2026-11-04
+no_retry=true
