@@ -1,0 +1,22 @@
+{
+  "artifact":"RATE_FUGLE_SINGLE_LIVE_EXECUTOR_REHEARSAL_CONTRACT_V1",
+  "status":"ENGINEERING_CONTRACT_ONLY",
+  "required_authorization_review_artifact":"RATE_FUGLE_SINGLE_LIVE_QUALIFICATION_AUTHORIZATION_QUALIFICATION_V1",
+  "request_budget":30,
+  "allowed_cadences":["09:30","12:00"],
+  "single_use_required":true,
+  "consumption_marker_required_before_credential_access":true,
+  "consumption_marker_required_before_first_network_request":true,
+  "automatic_retry_allowed":false,
+  "fallback_allowed":false,
+  "redirect_allowed":false,
+  "credential_secret_name":"FUGLE_API_KEY",
+  "rehearsal_network_requests":0,
+  "rehearsal_credential_access":0,
+  "rehearsal_file_writes":0,
+  "rehearsal_consumes_authorization":false,
+  "production_activation_allowed":false,
+  "external_dependency_resolved":false,
+  "production_credit":0,
+  "cer081_credit":0
+}
