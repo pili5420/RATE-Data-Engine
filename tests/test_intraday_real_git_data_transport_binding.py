@@ -20,6 +20,11 @@ class T(unittest.TestCase):
  def test_permissions(self):
   p=policy(); p["workflow_permissions"]={"contents":"write","pull-requests":"write"}
   with self.assertRaisesRegex(RealGitDataTransportBindingError,"PERMISSIONS_NOT_MINIMAL"): validate_real_git_data_transport_binding(p)
+ def test_base_main_commit_tree_lookup_is_required(self):
+  p=policy()
+  p["allowed_requests"]=[item for item in EXPECTED_REQUESTS if "git/commits/" not in item.get("path_template","")]
+  with self.assertRaisesRegex(RealGitDataTransportBindingError,"REQUEST_SURFACE_INVALID"):
+   validate_real_git_data_transport_binding(p)
  def test_surface(self):
   p=policy(); p["allowed_requests"]=EXPECTED_REQUESTS+[{"method":"PATCH","path":"/x"}]
   with self.assertRaisesRegex(RealGitDataTransportBindingError,"REQUEST_SURFACE_INVALID"): validate_real_git_data_transport_binding(p)
