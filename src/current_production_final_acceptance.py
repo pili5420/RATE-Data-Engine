@@ -43,6 +43,13 @@ def validate_current_production_final_acceptance(
     )
     require(post_merge_activation.get("merged_main_sha")==expected_merged_main_sha,
             "PA_FINAL_POST_MERGE_MAIN_MISMATCH")
+    route=post_merge_activation.get("route")
+    if route=="B_ZERO_FEE":
+        require(post_merge_activation.get("activation_code_sha")==expected_merged_main_sha,
+                "PA_FINAL_ROUTE_B_ACTIVATION_CODE_MISMATCH")
+        require(post_merge_activation.get("operational_head_policy")
+                =="AUTHORIZED_DESCENDANT_POINTER_COMMITS_ONLY",
+                "PA_FINAL_ROUTE_B_OPERATIONAL_POLICY_INVALID")
     require(post_merge_activation.get("production_credit")==1
             and post_merge_activation.get("cer081_credit")==0,
             "PA_FINAL_POST_MERGE_CREDIT_INVALID")
@@ -58,6 +65,12 @@ def validate_current_production_final_acceptance(
     )
     require(session_summary.get("merged_main_sha")==expected_merged_main_sha,
             "PA_FINAL_SESSION_MAIN_MISMATCH")
+    if route=="B_ZERO_FEE":
+        require(session_summary.get("activation_code_sha")==expected_merged_main_sha,
+                "PA_FINAL_ROUTE_B_SESSION_ACTIVATION_CODE_MISMATCH")
+        require(session_summary.get("operational_head_policy")
+                =="AUTHORIZED_DESCENDANT_POINTER_COMMITS_ONLY",
+                "PA_FINAL_ROUTE_B_SESSION_OPERATIONAL_POLICY_INVALID")
     require(session_summary.get("completion_status")=="READY_FOR_CER081_FINAL_ACCEPTANCE",
             "PA_FINAL_SESSION_NOT_READY")
     require(
@@ -116,7 +129,12 @@ def validate_current_production_final_acceptance(
         "final_disposition":"RATE_V11_PRODUCTION_ACCEPTED",
         "cer081_status":"CER081_ACCEPTED_CLOSED",
         "governance_scope":"CURRENT_PRODUCTION",
+        "route":route or "LEGACY_ROUTE_A",
         "merged_main_sha":expected_merged_main_sha,
+        "activation_code_sha":post_merge_activation.get("activation_code_sha",expected_merged_main_sha),
+        "operational_head_policy":post_merge_activation.get(
+            "operational_head_policy","EXACT_MERGED_MAIN_ONLY"
+        ),
         "production_activation_verified":True,
         "trading_days_tested":session_summary["trading_days_tested"],
         "scheduled_runs_accepted":session_summary["successful_cadence_runs"],
