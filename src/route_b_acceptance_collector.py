@@ -6,6 +6,7 @@ from typing import Any, Mapping
 
 from scripts.resolve_production_runtime_context import _previous_legal_trading_day
 from src.production_live_state import load_live_state
+from src.phase2_production import validate_transition as validate_phase2_transition
 from src.route_b_acceptance_bridge import bind_overlay_run_to_session, bind_standard_run_to_session
 from src.route_b_acceptance_overlay import validate_overlay
 from src.route_b_acceptance_store import admit_run_to_store, load_session
@@ -61,6 +62,66 @@ def _standard_base(current_state, previous_state, manifest, cadence):
         "input_snapshot_id":decision.get("input_snapshot_id",current_state.get("decision_payload_hash")),
     }
 
+
+
+def _phase2_standard_run(current_state, previous_state, manifest, source_artifacts, state_root, cadence):
+    runtime=_read_unique(source_artifacts,"RATE_PHASE2_RUNTIME_EVIDENCE.json")
+    ingestion=_read_unique(source_artifacts,"RATE_PRODUCTION_OFFICIAL_SOURCE_INGESTION_EVIDENCE.json")
+    live=_read_unique(source_artifacts,"RATE_PRODUCTION_STATE_LIVE_UPDATE_EVIDENCE.json")
+    require(runtime.get("validation_status")=="PASS"
+            and runtime.get("current_state_id")==current_state.get("current_state_id")
+            and runtime.get("current_state_hash")==current_state.get("decision_payload_hash")
+            and runtime.get("fallback_used") is False,
+            "ROUTE_B_PHASE2_RUNTIME_EVIDENCE_NOT_PASS")
+    require(ingestion.get("validation_status")=="PASS"
+            and ingestion.get("proposed_state_id")==current_state.get("current_state_id")
+            and ingestion.get("fallback_used") is False
+            and ingestion.get("blocked_dependencies")==[],
+            "ROUTE_B_PHASE2_SOURCE_EVIDENCE_NOT_PASS")
+    require(live.get("validation_status")=="PASS"
+            and live.get("live_state_updated") is True
+            and live.get("current_state_id")==current_state.get("current_state_id")
+            and live.get("current_state_hash")==current_state.get("decision_payload_hash"),
+            "ROUTE_B_PHASE2_LIVE_UPDATE_NOT_PASS")
+    decision=current_state.get("decision") or {}
+    require(decision.get("phase2") is True
+            and decision.get("validation_status")=="PASS"
+            and decision.get("fallback_used") is False
+            and decision.get("previous_state_id")==previous_state.get("current_state_id")
+            and decision.get("previous_state_hash")==previous_state.get("decision_payload_hash"),
+            "ROUTE_B_PHASE2_CANONICAL_STATE_INVALID")
+    validate_phase2_transition(
+        previous_state,current_state,
+        state_root=state_root,
+        trading_date=decision["trading_date"],
+        cadence=cadence,
+    )
+    if cadence=="07:30":
+        require(decision.get("full_market_refresh") is False
+                and decision.get("runtime_mode")=="CONSUME_LATEST_PASS_1930",
+                "ROUTE_B_0730_PHASE2_MODE_INVALID")
+        for key in ("records","top50","short_top30","long_top30"):
+            require(decision.get(key)==previous_state["decision"].get(key),
+                    "ROUTE_B_0730_PHASE2_RANKING_CONTINUITY_INVALID:"+key)
+    else:
+        require(decision.get("full_market_refresh") is True
+                and decision.get("runtime_mode")=="FULL_MARKET_REFRESH"
+                and len(decision.get("top50") or [])==50
+                and len(decision.get("short_top30") or [])==30
+                and len(decision.get("long_top30") or [])==30,
+                "ROUTE_B_1930_PHASE2_FULL_MARKET_INVALID")
+    run=_standard_base(current_state,previous_state,manifest,cadence)
+    run.update(
+        production_data_gate="PASS",
+        decision_state_continuity=True,
+        portfolio_continuity=True,
+        transaction_ledger_continuity=True,
+        ranking_model_continuity=True,
+        production_snapshot_id=decision.get("production_snapshot_id",run["production_snapshot_id"]),
+        input_snapshot_id=decision.get("input_snapshot_id",run["input_snapshot_id"]),
+        route_b_standard_runtime="PHASE2_DYNAMIC",
+    )
+    return run
 
 def _build_0730(current_state, previous_state, manifest, source_artifacts):
     snapshot=_read_unique(source_artifacts,"RATE_CER075_PRODUCTION_SNAPSHOT_EVIDENCE.json")
@@ -161,8 +222,15 @@ def collect_scheduled_run(
     state_root=Path(artifacts_root)/"production_state"
     day,manifest=_find_slot(state_root,cadence,source_run_id)
     current=load_live_state(state_root,day,cadence)["state"]
-    previous_cadence={"07:30":"19:30","09:30":"07:30","12:00":"09:30","19:30":"12:00"}[cadence]
-    previous_day=_previous_legal_trading_day(day) if cadence=="07:30" else day
+    decision=current.get("decision") or {}
+    if decision.get("phase2") is True and cadence in {"07:30","19:30"}:
+        previous_day=decision.get("previous_trading_date")
+        previous_cadence=decision.get("previous_cadence")
+        require(isinstance(previous_day,str) and previous_cadence in {"07:30","09:30","12:00","19:30"},
+                "ROUTE_B_PHASE2_PREVIOUS_SLOT_MISSING")
+    else:
+        previous_cadence={"07:30":"19:30","09:30":"07:30","12:00":"09:30","19:30":"12:00"}[cadence]
+        previous_day=_previous_legal_trading_day(day) if cadence=="07:30" else day
     previous=load_live_state(state_root,previous_day,previous_cadence)["state"]
     require(manifest.get("event_name")=="schedule"
             and str(manifest.get("workflow_run_id"))==str(source_run_id),
@@ -181,6 +249,9 @@ def collect_scheduled_run(
     if cadence in {"09:30","12:00"}:
         overlay=validate_overlay(current,previous,manifest,source_run_id=str(source_run_id))
         run=bind_overlay_run_to_session(overlay,session,row)
+    elif cadence in {"07:30","19:30"} and decision.get("phase2") is True:
+        raw=_phase2_standard_run(current,previous,manifest,source_artifacts,state_root,cadence)
+        run=bind_standard_run_to_session(raw,session,row)
     elif cadence=="07:30":
         raw=_build_0730(current,previous,manifest,source_artifacts)
         run=bind_standard_run_to_session(raw,session,row)
