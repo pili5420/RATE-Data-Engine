@@ -1,0 +1,17 @@
+{
+  "artifact":"RATE_CLOUDFLARE_AUTHORITY_STORE_PROVIDER_ACCEPTANCE_CONTRACT_V1",
+  "status":"ENGINEERING_CONTRACT_ONLY",
+  "provider":"CLOUDFLARE_WORKERS_D1",
+  "plan":"WORKERS_FREE",
+  "accepted_role":"REAL_GIT_EXECUTION_CONSUMPTION_RECEIPT_STORE",
+  "real_qualification_evidence_review_required":true,
+  "cleanup_closed_required":true,
+  "residual_resources_required":0,
+  "intraday_market_data_provider_acceptance":false,
+  "real_git_transaction_execution_allowed":false,
+  "production_activation_allowed":false,
+  "external_intraday_dependency_resolved":false,
+  "production_credit":0,
+  "cer081_credit":0,
+  "next_gate":"REAL_GIT_EXECUTION_WITH_ACCEPTED_AUTHORITY_STORE_READINESS"
+}
