@@ -12,7 +12,6 @@ import json
 from typing import Any, Mapping
 
 from .intraday_activation_apply_authorization import EXPECTED_PATHS
-from .intraday_activation_candidate_materialization import candidate_manifest_sha256
 from .intraday_activation_candidate_review import canonical_digest
 
 
@@ -27,6 +26,22 @@ class AmbiguousRefCreate(RuntimeError):
 def require(condition: bool, reason: str) -> None:
     if not condition:
         raise RealGitHTTPRehearsalError(reason)
+
+
+def candidate_manifest_sha256(candidate_files: Mapping[str, str]) -> str:
+    require(
+        isinstance(candidate_files, Mapping)
+        and set(candidate_files) == set(EXPECTED_PATHS)
+        and all(isinstance(v, str) and v for v in candidate_files.values()),
+        "GIT_HTTP_CANDIDATE_FILE_SET_INVALID",
+    )
+    return canonical_digest({
+        "artifact": "RATE_INTRADAY_ACTIVATION_CANDIDATE_FILE_MANIFEST_V1",
+        "files": {
+            path: hashlib.sha256(candidate_files[path].encode("utf-8")).hexdigest()
+            for path in EXPECTED_PATHS
+        },
+    })
 
 
 def _git_blob_sha1(content: bytes) -> str:
