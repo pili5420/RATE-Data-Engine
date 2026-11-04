@@ -5,17 +5,11 @@
     {
       "dependency_id": "EXTERNAL_AUTHORIZED_INTRADAY_FEED_DEPENDENCY",
       "domain": "market_intraday",
-      "affected_cadences": [
-        "09:30",
-        "12:00"
-      ],
+      "affected_cadences": ["09:30", "12:00"],
       "scope": "Approved RATE production-universe intraday coverage across TWSE and TPEx",
-      "required_market_coverage": [
-        "TWSE",
-        "TPEX"
-      ],
+      "required_market_coverage": ["TWSE", "TPEX"],
       "status": "BLOCKED_EXTERNAL",
-      "engineering_resolution_available": true,
+      "engineering_resolution_available": false,
       "control_center_decision": "KEEP_REQUIRED_DO_NOT_DEGRADE",
       "required_resolution": "AUTHORIZED_TAIWAN_INTRADAY_PRODUCTION_FEED_WITH_TWSE_TPEX_COVERAGE",
       "fallback_allowed": false,
@@ -27,24 +21,7 @@
       "production_acceptance_allowed_while_blocked": false,
       "report_production_allowed_while_intraday_blocked": true,
       "allowed_report_scope": "PUBLIC_OFFICIAL_EVIDENCE_PARTIAL_VALID_ONLY",
-      "report_runtime_contract": "RATE-0930-1200-PUBLIC-OFFICIAL-PARTIAL-VALID-V1",
-      "route_b_override": {
-        "status": "PASS_ZERO_FEE_ROUTE_B",
-        "contract": "RATE_ZERO_FEE_PRODUCTION_CONTRACT_V1",
-        "authorized_intraday_feed_required": false,
-        "twse_tpex_non_display_authority_required": false,
-        "market_intraday_real_time_required": false,
-        "monthly_market_data_license_budget_twd": 0,
-        "replacement_runtime": "ROUTE_B_OFFICIAL_PUBLIC_CHECKPOINT",
-        "effective_cadences": [
-          "09:30",
-          "12:00"
-        ],
-        "production_acceptance_allowed": true,
-        "cer081_completion_allowed": true
-      },
-      "production_acceptance_allowed_under_route_b": true,
-      "cer081_completion_allowed_under_route_b": true
+      "report_runtime_contract": "RATE-0930-1200-PUBLIC-OFFICIAL-PARTIAL-VALID-V1"
     }
   ],
   "validation_status": "PASS"
