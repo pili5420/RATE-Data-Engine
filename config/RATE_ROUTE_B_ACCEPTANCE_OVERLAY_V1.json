@@ -1,0 +1,15 @@
+{
+  "artifact": "RATE_ROUTE_B_ACCEPTANCE_OVERLAY_V1",
+  "status": "ADOPTED",
+  "route_b_contract": "RATE_ZERO_FEE_PRODUCTION_CONTRACT_V1",
+  "source_runtime": "LEGACY_PUBLIC_OFFICIAL_PARTIAL_VALID",
+  "source_cadences": ["09:30", "12:00"],
+  "source_event_required": "schedule",
+  "canonical_state_mutation_allowed": false,
+  "legacy_owner_mutation_allowed": false,
+  "promotion_result": {
+    "production_data_gate": "PASS",
+    "scheduled_soak_credit": true,
+    "cer081_credit": 0
+  }
+}
