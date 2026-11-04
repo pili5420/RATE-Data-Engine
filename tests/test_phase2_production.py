@@ -295,7 +295,7 @@ class Phase2ProductionTests(unittest.TestCase):
         catalogue = fake_catalogue(self.day, ["LONG-COMMON-CODE"] + [str(i) for i in range(60)])
         self.assertTrue(validate_catalogue(catalogue, self.day))
 
-    def test_schedulers_keep_cron_and_route_b_phase2_activation_boundary(self):
+    def test_schedulers_keep_cron_and_phase2_is_explicit_opt_in(self):
         import yaml
         for slot in ("0730", "0930", "1200", "1930"):
             relative = f".github/workflows/rate_production_{slot}_scheduler.yml"
