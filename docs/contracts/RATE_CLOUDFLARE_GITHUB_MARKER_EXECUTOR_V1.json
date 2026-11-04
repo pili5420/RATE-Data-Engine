@@ -1,13 +1,19 @@
 {
-  "artifact":"RATE_CLOUDFLARE_GITHUB_MARKER_EXECUTOR_CONTRACT_V1",
-  "status":"ENGINEERING_CONTRACT_ONLY",
-  "sequence":["GET_MARKER_PREFLIGHT","CREATE_MARKER_REF","GET_MARKER_READBACK"],
-  "create_count":1,
-  "create_retry_count":0,
-  "cloudflare_requests_before_marker":0,
-  "ci_transport":"SYNTHETIC_GITHUB_REF_TRANSPORT_ONLY",
-  "real_git_ref_created":false,
-  "production_credit":0,
-  "cer081_credit":0,
-  "next_gate":"REAL_GITHUB_MARKER_TRANSPORT_BINDING_AND_EXECUTION"
+  "artifact": "RATE_CLOUDFLARE_GITHUB_MARKER_EXECUTOR_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "sequence": [
+    "GET_MARKER_PREFLIGHT",
+    "CREATE_MARKER_REF",
+    "GET_MARKER_READBACK"
+  ],
+  "create_count": 1,
+  "create_retry_count": 0,
+  "cloudflare_requests_before_marker": 0,
+  "ci_transport": "SYNTHETIC_GITHUB_REF_TRANSPORT_ONLY",
+  "real_git_ref_created": false,
+  "production_credit": 0,
+  "cer081_credit": 0,
+  "next_gate": "REAL_GITHUB_MARKER_TRANSPORT_BINDING_AND_EXECUTION",
+  "marker_identity_source": "cloudflare_real_qualification_authorization_sha256",
+  "qualification_digest_not_marker_identity": true
 }
