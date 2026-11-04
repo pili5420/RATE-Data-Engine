@@ -25,6 +25,9 @@ on:
       - src/cer076_incremental_0930.py
       - scripts/run_cer076_incremental_0930_acceptance.py
       - tests/test_cer076_incremental_0930.py
+      - src/route_b_official_checkpoint.py
+      - scripts/run_route_b_checkpoint.py
+      - config/RATE_ZERO_FEE_PRODUCTION_CONTRACT_V1.json
 
 permissions:
   contents: write
@@ -98,13 +101,12 @@ jobs:
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
         run: >
-          python scripts/run_cer076_incremental_0930_acceptance.py
-          --public-official-partial
+          python scripts/run_route_b_checkpoint.py
           --source-bundle artifacts/production_0930/RATE_PRODUCTION_SOURCE_BUNDLE.json
-          --cer074-persisted-evidence "$RATE_PREVIOUS_STATE_EVIDENCE_PATH" --cer075-persisted-evidence "$RATE_PREVIOUS_STATE_EVIDENCE_PATH"
+          --previous-evidence "$RATE_PREVIOUS_STATE_EVIDENCE_PATH"
           --output-dir artifacts/production_0930
           --state-root data/production/scheduler_0930
-          --actions-job-id "$ACTIONS_JOB_ID"
+          --cadence "09:30"
 
       - name: Archive public report-consumption evidence before state readiness
         if: ${{ success() && github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
@@ -133,6 +135,7 @@ jobs:
           --state-root data/production/scheduler_0930
           --workflow-run-id "${{ github.run_id }}"
           --workflow-job-id "$ACTIONS_JOB_ID"
+          --source-bundle artifacts/production_0930/RATE_PRODUCTION_SOURCE_BUNDLE.json
           --evidence-output artifacts/production_0930/RATE_PRODUCTION_STATE_LIVE_UPDATE_EVIDENCE.json
 
       - name: Commit authorized production pointers
