@@ -21,6 +21,19 @@ def post_merge():
         "cer081_credit":0,
     }
 
+def post_merge_route_b():
+    return {
+        "artifact":"RATE_POST_MERGE_PRODUCTION_ACTIVATION_VERIFICATION_V1",
+        "validation_status":"PASS",
+        "final_disposition":"PRODUCTION_ACTIVATION_VERIFIED",
+        "route":"B_ZERO_FEE",
+        "merged_main_sha":MAIN,
+        "activation_code_sha":MAIN,
+        "operational_head_policy":"AUTHORIZED_DESCENDANT_POINTER_COMMITS_ONLY",
+        "production_credit":1,
+        "cer081_credit":0,
+    }
+
 def run(day,cadence,run_id):
     return {
         "event":"schedule",
@@ -110,6 +123,43 @@ class SessionTests(unittest.TestCase):
         s=admit_scheduled_run(s,second)
         with self.assertRaisesRegex(ProductionAcceptanceSessionError,"CROSS_DAY_BOUNDARY_INVALID"):
             audit_session_lineage(s)
+
+
+    def test_route_b_accepts_authorized_descendant_operational_head(self):
+        s=open_production_acceptance_session(post_merge_route_b(),session_start_date="2026-11-05")
+        r=run("2026-11-05","07:30",1)
+        r["run_head_sha"]="b"*40
+        r["activation_code_sha"]=MAIN
+        r["activation_is_ancestor"]=True
+        r["operational_changes_authorized"]=True
+        out=admit_scheduled_run(s,r)
+        self.assertEqual(out["successful_cadence_runs"],1)
+        self.assertEqual(out["accepted_runs"][0]["run_head_sha"],"b"*40)
+        self.assertEqual(out["accepted_runs"][0]["activation_code_sha"],MAIN)
+
+    def test_route_b_rejects_wrong_activation_code(self):
+        s=open_production_acceptance_session(post_merge_route_b(),session_start_date="2026-11-05")
+        r=run("2026-11-05","07:30",1)
+        r["run_head_sha"]="b"*40
+        r["activation_code_sha"]="c"*40
+        r["activation_is_ancestor"]=True
+        r["operational_changes_authorized"]=True
+        with self.assertRaisesRegex(ProductionAcceptanceSessionError,"ACTIVATION_CODE_BINDING_MISMATCH"):
+            admit_scheduled_run(s,r)
+
+    def test_route_b_rejects_unproven_or_unauthorized_descendant(self):
+        s=open_production_acceptance_session(post_merge_route_b(),session_start_date="2026-11-05")
+        r=run("2026-11-05","07:30",1)
+        r["run_head_sha"]="b"*40
+        r["activation_code_sha"]=MAIN
+        r["activation_is_ancestor"]=False
+        r["operational_changes_authorized"]=True
+        with self.assertRaisesRegex(ProductionAcceptanceSessionError,"ACTIVATION_ANCESTRY_NOT_PROVEN"):
+            admit_scheduled_run(s,r)
+        r["activation_is_ancestor"]=True
+        r["operational_changes_authorized"]=False
+        with self.assertRaisesRegex(ProductionAcceptanceSessionError,"OPERATIONAL_CHANGES_NOT_AUTHORIZED"):
+            admit_scheduled_run(s,r)
 
 if __name__=="__main__":
     unittest.main()
