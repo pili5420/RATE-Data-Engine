@@ -171,6 +171,7 @@ def collect_scheduled_run(
     ancestry=build_ancestry_evidence(
         repo_root,
         activation_merge_sha=session["activation_code_sha"],
+        activation_binding_sha=session["activation_binding_sha"],
         source_heads={cadence:manifest["commit_sha"]},
     )
     require(ancestry.get("validation_status")=="PASS",
