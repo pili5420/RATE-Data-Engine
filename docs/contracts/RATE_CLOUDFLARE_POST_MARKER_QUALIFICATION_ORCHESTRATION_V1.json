@@ -1,0 +1,22 @@
+{
+  "artifact": "RATE_CLOUDFLARE_POST_MARKER_QUALIFICATION_ORCHESTRATION_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "required_chain": [
+    "CLOUDFLARE_AUTHORIZATION_QUALIFICATION",
+    "MARKER_AUTHORIZATION_QUALIFICATION",
+    "MARKER_EXECUTION_RESULT",
+    "BOUNDED_HTTPS_17_REQUEST_CHAIN"
+  ],
+  "marker_create_attempts": 1,
+  "marker_create_retries": 0,
+  "marker_readback_required": true,
+  "cloudflare_requests_before_marker": 0,
+  "synthetic_cloudflare_requests_after_marker": 17,
+  "real_github_requests": 0,
+  "real_cloudflare_requests": 0,
+  "real_network_requests": 0,
+  "provider_qualified": false,
+  "production_credit": 0,
+  "cer081_credit": 0,
+  "next_gate": "EXPLICIT_REAL_GITHUB_MARKER_EXECUTION_THEN_CLOUDFLARE_QUALIFICATION"
+}
