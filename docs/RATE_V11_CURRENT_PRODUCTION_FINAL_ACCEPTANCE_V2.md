@@ -16,6 +16,8 @@ Final acceptance requires all of the following simultaneously:
 - at least 12 unique official scheduled runs;
 - full 07:30 / 09:30 / 12:00 / 19:30 coverage;
 - independent state and cross-day continuity PASS;
+- durable Portfolio, Transaction Ledger and Ranking continuity PASS, recomputed from admitted run evidence;
+- durable official-schedule / Production Data / no-fallback / no-auto-retry session guards PASS;
 - scheduler reliability PASS with no manual-dispatch substitution;
 - deterministic replay PASS with no new record creation;
 - model-freeze integrity PASS;
