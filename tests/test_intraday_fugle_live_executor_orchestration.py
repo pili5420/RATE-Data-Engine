@@ -45,7 +45,7 @@ def review():
 
 
 class OrchestrationTests(unittest.TestCase):
-    def run(self, backend=None, store=None):
+    def execute(self, backend=None, store=None):
         value=review()
         return rehearse_fugle_fence_then_execute(
             value,
@@ -58,7 +58,7 @@ class OrchestrationTests(unittest.TestCase):
         )
 
     def test_fence_precedes_credential_and_network(self):
-        result=self.run()
+        result=self.execute()
         self.assertTrue(result["fence_persisted_and_readback_before_credential"])
         self.assertEqual(result["credential_reads_after_fence"],1)
         self.assertEqual(result["provider_requests_after_fence"],30)
@@ -66,14 +66,14 @@ class OrchestrationTests(unittest.TestCase):
 
     def test_wrong_synthetic_request_count_fails_closed(self):
         with self.assertRaisesRegex(FugleLiveExecutorOrchestrationError,"REQUEST_COUNT_INVALID"):
-            self.run(backend=SyntheticFugleExecutorBackend(expected_requests=29))
+            self.execute(backend=SyntheticFugleExecutorBackend(expected_requests=29))
 
     def test_reused_store_blocks_second_execution(self):
         store=SyntheticWriteOnceFenceStore()
-        self.run(store=store)
+        self.execute(store=store)
         from src.intraday_fugle_live_consumption_fence import FugleConsumptionFenceError
         with self.assertRaises(FugleConsumptionFenceError):
-            self.run(store=store)
+            self.execute(store=store)
 
 
 if __name__=="__main__":
