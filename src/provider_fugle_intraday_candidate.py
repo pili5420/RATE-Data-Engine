@@ -206,7 +206,7 @@ def qualify(
     return {
         "artifact": "RATE_FUGLE_FREE_INTRADAY_DIAGNOSTIC_RESULT_V1",
         "provider": "Fugle",
-        "plan_target": "FREE_OR_BASIC_TRIAL",
+        "plan_target": "BASIC_USER_FREE",
         "technical_validation_status": "PASS",
         "market_coverage": "30/30",
         "market_counts": dict(counts),
@@ -221,7 +221,7 @@ def qualify(
         "approved_universe_source_bundle_sha256": lineage["source_bundle_sha256"],
         "approved_universe_contract_sha256": lineage["universe_contract_sha256"],
         "approved_universe_binding_hash": lineage["universe_binding_hash"],
-        "license_gate": "UNPROVEN_REQUIRES_PROVIDER_CONFIRMATION_FOR_NON_DISPLAY_AUTOMATED_USE",
+        "license_gate": "PROVIDER_WRITTEN_CONFIRMED_EXCHANGE_AUTHORITY_SEPARATE",
         "production_eligible": False,
         "external_dependency_resolved": False,
         "registry_activation_allowed": False,

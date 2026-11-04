@@ -169,6 +169,11 @@ class FugleFreeDiagnosticTests(unittest.TestCase):
         self.assertTrue(all(item["method"] == "GET" for item in factory.requests))
         self.assertTrue(all(item["headers"]["X-API-KEY"] == "SECRET" for item in factory.requests))
         self.assertTrue(all(connection.closed for connection in factory.connections))
+        self.assertEqual(result["plan_target"], "BASIC_USER_FREE")
+        self.assertEqual(
+            result["license_gate"],
+            "PROVIDER_WRITTEN_CONFIRMED_EXCHANGE_AUTHORITY_SEPARATE",
+        )
         self.assertFalse(result["production_eligible"])
         self.assertFalse(result["external_dependency_resolved"])
         self.assertNotIn("SECRET", json.dumps(result))
