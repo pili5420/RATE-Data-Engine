@@ -1,8 +1,7 @@
 import hashlib, unittest
 from src.intraday_activation_apply_authorization import EXPECTED_PATHS
-from src.intraday_activation_candidate_materialization import candidate_manifest_sha256
 from src.intraday_activation_candidate_review import canonical_digest
-from src.intraday_real_git_data_http_rehearsal import SyntheticGitDataHTTP, rehearse_real_git_data_http
+from src.intraday_real_git_data_http_rehearsal import candidate_manifest_sha256, SyntheticGitDataHTTP, rehearse_real_git_data_http
 
 MAIN="1"*40; TREE="2"*40; BRANCH="activation/rate-v11-intraday-test"
 def blob_sha(s):
