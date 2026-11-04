@@ -1,0 +1,42 @@
+name: RATE Route B Acceptance Overlay CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - config/RATE_ROUTE_B_ACCEPTANCE_OVERLAY_V1.json
+      - src/route_b_acceptance_overlay.py
+      - tests/test_route_b_acceptance_overlay.py
+      - .github/workflows/rate_route_b_acceptance_overlay_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Overlay qualification tests
+        run: python -B -m unittest tests.test_route_b_acceptance_overlay tests.test_route_b_zero_fee_contract -v
+      - name: Legacy owner byte identity
+        shell: bash
+        run: |
+          git diff --exit-code "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" --             .github/workflows/rate_production_0930_scheduler.yml             .github/workflows/rate_production_1200_scheduler.yml             config/RATE_EXTERNAL_PRODUCTION_DEPENDENCIES.json             config/SOURCE_REGISTRY.json             config/RATE_PRODUCTION_OFFICIAL_SOURCE_REGISTRY_V1.json             src/production_live_state.py
+      - name: No tracked mutation
+        run: git diff --exit-code
