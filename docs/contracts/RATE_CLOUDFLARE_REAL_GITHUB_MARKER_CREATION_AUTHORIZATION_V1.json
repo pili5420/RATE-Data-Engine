@@ -21,5 +21,8 @@
   "real_git_ref_created": false,
   "production_credit": 0,
   "cer081_credit": 0,
-  "next_gate": "SEPARATE_REAL_GITHUB_MARKER_EXECUTOR"
+  "next_gate": "SEPARATE_REAL_GITHUB_MARKER_EXECUTOR",
+  "marker_identity_hash": "cloudflare_real_qualification_authorization_sha256",
+  "qualification_object_hash": "cloudflare_authorization_qualification_sha256",
+  "hash_roles_must_differ_semantically": true
 }
