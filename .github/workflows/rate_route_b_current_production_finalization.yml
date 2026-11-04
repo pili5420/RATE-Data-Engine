@@ -1,0 +1,79 @@
+name: RATE Route B Current Production Finalization
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - artifacts/production_acceptance/current/RATE_V11_PRODUCTION_ACCEPTANCE_SESSION_SUMMARY.json
+  pull_request:
+    branches: [main]
+    paths:
+      - src/route_b_current_production_finalization.py
+      - scripts/run_route_b_current_production_finalization.py
+      - tests/test_route_b_current_production_finalization.py
+      - .github/workflows/rate_route_b_current_production_finalization.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rate-v11-production-acceptance-ledger-main
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build finalization package
+        run: >-
+          python scripts/run_route_b_current_production_finalization.py
+          --repo-root .
+          --artifacts-root artifacts
+          --store-root artifacts/production_acceptance/current
+          --output-dir artifacts/production_acceptance/final
+      - name: Commit final package if produced
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifacts/production_acceptance/final
+          if git diff --cached --quiet; then
+            echo "finalization_commit=NO_CHANGES"
+          else
+            git commit -m "Update RATE Route B Production Acceptance finalization"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: RATE_ROUTE_B_CURRENT_PRODUCTION_FINALIZATION_${{ github.run_id }}
+          path: artifacts/production_acceptance/final/**
+          if-no-files-found: warn
+
+  ci:
+    if: ${{ github.event_name == 'pull_request' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -B -m unittest tests.test_route_b_current_production_finalization tests.test_current_production_final_acceptance tests.test_production_acceptance_session -v
+      - run: git diff --exit-code
