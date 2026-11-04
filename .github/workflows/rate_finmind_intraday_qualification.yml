@@ -1,0 +1,94 @@
+name: RATE FinMind Intraday Qualification V1
+
+on:
+  pull_request:
+    paths:
+      - docs/contracts/RATE_FINMIND_INTRADAY_QUALIFICATION_V1.json
+      - docs/RATE_FINMIND_INTRADAY_QUALIFICATION_V1.md
+      - src/provider_finmind_intraday_candidate.py
+      - scripts/run_finmind_intraday_qualification.py
+      - scripts/verify_finmind_intraday_qualification.py
+      - tests/test_finmind_intraday_qualification.py
+      - .github/workflows/rate_finmind_intraday_qualification.yml
+  workflow_dispatch:
+    inputs:
+      live:
+        description: "Run Sponsor endpoint diagnostic using FINMIND_API_TOKEN"
+        required: true
+        type: boolean
+        default: false
+      universe_file:
+        description: "Optional runner-local JSON file containing exact RATE 1978-company universe"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-engineering:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Resolve verification binding
+        shell: bash
+        run: |
+          echo "HEAD_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "BASE_SHA=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_ENV"
+          else
+            git fetch origin main --depth=1
+            echo "BASE_SHA=$(git merge-base HEAD origin/main)" >> "$GITHUB_ENV"
+          fi
+      - name: Additive-only diagnostic verification
+        run: >-
+          python -B scripts/verify_finmind_intraday_qualification.py
+          --expected-base "$BASE_SHA"
+          --expected-head "$HEAD_SHA"
+          --output-dir "$RUNNER_TEMP/finmind-intraday-diagnostic"
+      - name: Upload synthetic verification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_FINMIND_INTRADAY_DIAGNOSTIC_SYNTHETIC_${{ github.sha }}
+          path: ${{ runner.temp }}/finmind-intraday-diagnostic/*.json
+          if-no-files-found: warn
+
+  controlled-live-diagnostic:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.live }}
+    runs-on: ubuntu-latest
+    env:
+      FINMIND_API_TOKEN: ${{ secrets.FINMIND_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Require Sponsor token secret
+        shell: bash
+        run: |
+          if [ -z "${FINMIND_API_TOKEN:-}" ]; then
+            echo "::error::FINMIND_API_TOKEN_NOT_CONFIGURED"
+            exit 1
+          fi
+      - name: Run live provider qualification
+        shell: bash
+        run: |
+          args=(python -B scripts/run_finmind_intraday_qualification.py --live)
+          if [ -n "${{ inputs.universe_file }}" ]; then
+            args+=(--universe-file "${{ inputs.universe_file }}")
+          fi
+          "${args[@]}"
+      - name: Upload summary-only evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_FINMIND_INTRADAY_LIVE_DIAGNOSTIC_${{ github.run_id }}
+          path: artifacts/finmind_intraday_qualification/*.json
+          if-no-files-found: warn
