@@ -39,7 +39,8 @@ def baseline_policy() -> dict[str,Any]:
         require(isinstance(sha,str) and len(sha)==40
                 and all(c in "0123456789abcdef" for c in sha),
                 "ROUTE_B_ACTIVE_BASELINE_SHA_INVALID")
-        require(value.get("activation_binding_mode")=="DERIVE_FROM_GIT_HISTORY",
+        require(value.get("activation_binding_mode")=="DERIVE_FROM_GIT_HISTORY"
+                and value.get("activation_binding_sha") is None,
                 "ROUTE_B_ACTIVE_BINDING_MODE_INVALID")
         binding=resolve_activation_binding_sha(ROOT,activation_merge_sha=sha)
         require(binding != sha,"ROUTE_B_ACTIVE_BINDING_SHA_INVALID")
