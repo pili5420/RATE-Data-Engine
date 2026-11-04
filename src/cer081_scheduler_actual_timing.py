@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
-from zoneinfo import ZoneInfo
+from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping
 
 CADENCE_CRONS = {
@@ -17,7 +16,7 @@ CADENCE_WORKFLOWS = {
     "19:30": ".github/workflows/rate_production_1930_scheduler.yml",
 }
 DEFAULT_BLOCKING_DELAY_SECONDS = 900
-TAIPEI = ZoneInfo("Asia/Taipei")
+TAIPEI = timezone(timedelta(hours=8), name="Asia/Taipei")
 
 
 class SchedulerActualTimingError(RuntimeError):
@@ -45,7 +44,7 @@ def expected_slot_utc(trading_date: str, cadence: str) -> datetime:
         local = datetime.fromisoformat(f"{trading_date}T{cadence}:00").replace(tzinfo=TAIPEI)
     except ValueError as exc:
         raise SchedulerActualTimingError("SCHEDULER_TIMING_INVALID_TRADING_DATE") from exc
-    return local.astimezone(ZoneInfo("UTC"))
+    return local.astimezone(timezone.utc)
 
 
 def build_actual_timing_evidence(
@@ -88,8 +87,8 @@ def build_actual_timing_evidence(
         "trading_date": trading_date,
         "cadence": cadence,
         "expected_scheduled_at_utc": slot.isoformat().replace("+00:00", "Z"),
-        "actions_created_at": created.astimezone(ZoneInfo("UTC")).isoformat().replace("+00:00", "Z"),
-        "actions_run_started_at": started.astimezone(ZoneInfo("UTC")).isoformat().replace("+00:00", "Z"),
+        "actions_created_at": created.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "actions_run_started_at": started.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
         "scheduler_start_delay_seconds": delay,
         "blocking_delay_seconds": blocking_delay_seconds,
         "delayed_execution_blocking": delay > blocking_delay_seconds,
