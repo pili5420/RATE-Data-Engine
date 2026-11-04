@@ -1,8 +1,10 @@
 {
-  "artifact":"RATE_ROUTE_B_ACTIVATION_BASELINE_V1",
-  "status":"PENDING_BINDING",
-  "activation_merge_sha":null,
-  "route":"B_ZERO_FEE",
-  "binding_rule":"SET_ON_FINAL_ENGINEERING_FREEZE_ONLY",
-  "production_credit_allowed":false
+  "artifact": "RATE_ROUTE_B_ACTIVATION_BASELINE_V1",
+  "status": "PENDING_BINDING",
+  "activation_merge_sha": null,
+  "route": "B_ZERO_FEE",
+  "binding_rule": "SET_ON_FINAL_ENGINEERING_FREEZE_ONLY",
+  "production_credit_allowed": false,
+  "activation_binding_sha": null,
+  "binding_contract": "CODE_SHA_TO_BINDING_SHA_EXACT_BASELINE_CONFIG_ONLY"
 }
