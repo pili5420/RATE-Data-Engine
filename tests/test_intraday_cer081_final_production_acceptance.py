@@ -23,6 +23,7 @@ def soak():
 def scheduler():
  return {"artifact":"RATE_CER081_SCHEDULER_RELIABILITY_SUMMARY","validation_status":"PASS",
  "scheduler_coverage":"PASS","manual_dispatch_substitution":"NO","missed_execution_count":0,
+ "actual_timing_evidence":"PASS","actual_timing_missing_or_invalid_count":0,
  "delayed_execution_blocking_count":0}
 def deterministic():
  return {"artifact":"RATE_CER081_DETERMINISTIC_REPLAY_SUMMARY","validation_status":"PASS",
@@ -56,6 +57,8 @@ class T(unittest.TestCase):
   with self.assertRaisesRegex(CER081FinalAcceptanceError,"CONTINUITY_NOT_PASS"): self.q(s=s)
  def test_scheduler_required(self):
   sch=scheduler(); sch["missed_execution_count"]=1
+  with self.assertRaisesRegex(CER081FinalAcceptanceError,"SCHEDULER_NOT_PASS"): self.q(sch=sch)
+  sch=scheduler(); sch["actual_timing_evidence"]="FAIL"
   with self.assertRaisesRegex(CER081FinalAcceptanceError,"SCHEDULER_NOT_PASS"): self.q(sch=sch)
  def test_determinism_and_freeze_required(self):
   d=deterministic(); d["deterministic_audit_replay"]="FAIL"
