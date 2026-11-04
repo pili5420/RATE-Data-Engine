@@ -62,6 +62,7 @@ def persist_activation_package(package: Mapping[str,Any], store_root: str | Path
     if existing is not None:
         same=(
             existing.get("activation_code_sha")==session.get("activation_code_sha")
+            and existing.get("activation_binding_sha")==session.get("activation_binding_sha")
             and existing.get("session_start_date")==session.get("session_start_date")
             and existing.get("operational_head_policy")==session.get("operational_head_policy")
         )
