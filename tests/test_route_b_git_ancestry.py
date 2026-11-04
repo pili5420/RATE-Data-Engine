@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 import unittest
 
-from src.route_b_git_ancestry import build_ancestry_evidence
+from src.route_b_git_ancestry import build_ancestry_evidence, resolve_activation_binding_sha
 
 
 class AncestryTests(unittest.TestCase):
@@ -142,6 +142,35 @@ class AncestryTests(unittest.TestCase):
                     activation_binding_sha=binding,
                     source_heads={"12:00":head},
                 )
+        finally:
+            td.cleanup()
+
+
+    def test_resolve_binding_from_baseline_history(self):
+        td,root,base=self.repo()
+        try:
+            binding=self.commit(
+                root,
+                "config/RATE_ROUTE_B_ACTIVATION_BASELINE_V1.json",
+                '{"status":"ACTIVE"}\n',
+                "baseline bind",
+            )
+            resolved=resolve_activation_binding_sha(root,activation_merge_sha=base)
+            self.assertEqual(resolved,binding)
+        finally:
+            td.cleanup()
+
+    def test_resolve_binding_rejects_mixed_binding_commit(self):
+        td,root,base=self.repo()
+        try:
+            target=root/"config/RATE_ROUTE_B_ACTIVATION_BASELINE_V1.json"
+            target.parent.mkdir(parents=True,exist_ok=True)
+            target.write_text('{"status":"ACTIVE"}\n',encoding="utf-8")
+            (root/"src/extra.py").write_text("x=2\n",encoding="utf-8")
+            self.git(root,"add","config/RATE_ROUTE_B_ACTIVATION_BASELINE_V1.json","src/extra.py")
+            self.git(root,"commit","-m","mixed bind")
+            with self.assertRaisesRegex(Exception,"BINDING_DELTA_INVALID"):
+                resolve_activation_binding_sha(root,activation_merge_sha=base)
         finally:
             td.cleanup()
 

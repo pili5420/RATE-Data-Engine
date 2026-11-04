@@ -6,5 +6,6 @@
   "binding_rule": "SET_ON_FINAL_ENGINEERING_FREEZE_ONLY",
   "production_credit_allowed": false,
   "activation_binding_sha": null,
-  "binding_contract": "CODE_SHA_TO_BINDING_SHA_EXACT_BASELINE_CONFIG_ONLY"
+  "binding_contract": "CODE_SHA_TO_BINDING_SHA_EXACT_BASELINE_CONFIG_ONLY",
+  "activation_binding_mode": "DERIVE_FROM_GIT_HISTORY"
 }

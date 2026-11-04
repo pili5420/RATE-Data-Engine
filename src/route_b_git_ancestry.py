@@ -61,6 +61,26 @@ def _authorized(paths: list[str]) -> bool:
 
 BASELINE_CONFIG_PATH="config/RATE_ROUTE_B_ACTIVATION_BASELINE_V1.json"
 
+
+def resolve_activation_binding_sha(
+    repo_root: str | Path,
+    *,
+    activation_merge_sha: str,
+) -> str:
+    root=Path(repo_root).resolve()
+    require(root.is_dir(),"ROUTE_B_GIT_REPO_ROOT_INVALID")
+    require(_sha(activation_merge_sha),"ROUTE_B_GIT_ACTIVATION_SHA_INVALID")
+    _git(root,"cat-file","-e",activation_merge_sha+"^{commit}")
+    binding=_git(root,"rev-list","-1","HEAD","--",BASELINE_CONFIG_PATH)
+    require(_sha(binding),"ROUTE_B_GIT_BINDING_HISTORY_NOT_FOUND")
+    require(_is_ancestor(root,activation_merge_sha,binding),
+            "ROUTE_B_GIT_CODE_NOT_ANCESTOR_OF_BINDING")
+    require(
+        _changed_paths(root,activation_merge_sha,binding)==[BASELINE_CONFIG_PATH],
+        "ROUTE_B_GIT_BINDING_DELTA_INVALID",
+    )
+    return binding
+
 def build_ancestry_evidence(
     repo_root: str | Path,
     *,
