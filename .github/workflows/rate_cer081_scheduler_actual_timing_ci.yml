@@ -1,0 +1,31 @@
+name: RATE CER081 Scheduler Actual Timing CI
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/cer081_scheduler_actual_timing.py
+      - scripts/build_scheduler_actual_timing_evidence.py
+      - tests/test_cer081_scheduler_actual_timing.py
+      - docs/contracts/RATE_CER081_SCHEDULER_ACTUAL_TIMING_V1.json
+      - docs/RATE_CER081_SCHEDULER_ACTUAL_TIMING_V1.md
+      - .github/workflows/rate_cer081_scheduler_actual_timing_ci.yml
+permissions:
+  contents: read
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -B -m unittest tests.test_cer081_scheduler_actual_timing -v
+      - run: git diff --exit-code
