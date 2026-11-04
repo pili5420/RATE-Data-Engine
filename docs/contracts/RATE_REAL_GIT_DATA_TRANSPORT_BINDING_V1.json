@@ -1,1 +1,27 @@
-{"artifact":"RATE_REAL_GIT_DATA_TRANSPORT_BINDING_CONTRACT_V1","status":"ENGINEERING_CONTRACT_ONLY","token_source":"GITHUB_TOKEN","workflow_permissions":{"contents":"write"},"object_budget":{"blobs":9,"trees":1,"commits":1,"refs":1},"patch_ref_allowed":false,"delete_ref_allowed":false,"merge_endpoint_allowed":false,"pull_request_endpoint_allowed":false,"main_ref_update_allowed":false,"automatic_retry":false,"fallback":false,"real_github_requests":0,"real_git_operations":0,"real_branch_created":false,"next_gate":"REAL_GIT_DATA_HTTP_EXECUTOR_REHEARSAL"}
+{
+  "artifact": "RATE_REAL_GIT_DATA_TRANSPORT_BINDING_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "token_source": "GITHUB_TOKEN",
+  "workflow_permissions": {
+    "contents": "write"
+  },
+  "object_budget": {
+    "blobs": 9,
+    "trees": 1,
+    "commits": 1,
+    "refs": 1
+  },
+  "patch_ref_allowed": false,
+  "delete_ref_allowed": false,
+  "merge_endpoint_allowed": false,
+  "pull_request_endpoint_allowed": false,
+  "main_ref_update_allowed": false,
+  "automatic_retry": false,
+  "fallback": false,
+  "real_github_requests": 0,
+  "real_git_operations": 0,
+  "real_branch_created": false,
+  "next_gate": "REAL_GIT_DATA_HTTP_EXECUTOR_REHEARSAL",
+  "base_main_commit_lookup_required": true,
+  "base_tree_source": "TREE_SHA_FROM_EXACT_BASE_MAIN_COMMIT"
+}
