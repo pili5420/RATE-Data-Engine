@@ -104,6 +104,7 @@ def bind_overlay_run_to_session(
         "cadence":cadence,
         "run_head_sha":overlay.get("source_head_sha"),
         "activation_code_sha":session.get("activation_code_sha"),
+        "activation_binding_sha":session.get("activation_binding_sha"),
         "activation_is_ancestor":True,
         "operational_changes_authorized":True,
         "workflow_run_id":overlay.get("source_workflow_run_id"),
@@ -143,6 +144,7 @@ def bind_standard_run_to_session(
     normalized["event"]="schedule"
     normalized["run_head_sha"]=head
     normalized["activation_code_sha"]=session.get("activation_code_sha")
+    normalized["activation_binding_sha"]=session.get("activation_binding_sha")
     normalized["activation_is_ancestor"]=True
     normalized["operational_changes_authorized"]=True
     return normalized
