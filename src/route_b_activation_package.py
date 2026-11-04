@@ -7,7 +7,7 @@ from typing import Any
 from src.production_live_state import CADENCE_DIR, load_live_state, read_object
 from src.route_b_acceptance_bridge import build_activation_and_open_session
 from src.route_b_acceptance_overlay import validate_overlay
-from src.route_b_git_ancestry import build_ancestry_evidence
+from src.route_b_git_ancestry import build_ancestry_evidence, resolve_activation_binding_sha
 
 ROOT=Path(__file__).resolve().parents[1]
 BASELINE_PATH=ROOT/"config"/"RATE_ROUTE_B_ACTIVATION_BASELINE_V1.json"
@@ -36,14 +36,14 @@ def baseline_policy() -> dict[str,Any]:
                 "ROUTE_B_PENDING_BASELINE_INVALID")
     else:
         sha=value.get("activation_merge_sha")
-        binding=value.get("activation_binding_sha")
         require(isinstance(sha,str) and len(sha)==40
                 and all(c in "0123456789abcdef" for c in sha),
                 "ROUTE_B_ACTIVE_BASELINE_SHA_INVALID")
-        require(isinstance(binding,str) and len(binding)==40
-                and all(c in "0123456789abcdef" for c in binding)
-                and binding != sha,
-                "ROUTE_B_ACTIVE_BINDING_SHA_INVALID")
+        require(value.get("activation_binding_mode")=="DERIVE_FROM_GIT_HISTORY",
+                "ROUTE_B_ACTIVE_BINDING_MODE_INVALID")
+        binding=resolve_activation_binding_sha(ROOT,activation_merge_sha=sha)
+        require(binding != sha,"ROUTE_B_ACTIVE_BINDING_SHA_INVALID")
+        value["activation_binding_sha"]=binding
         require(value.get("production_credit_allowed") is True,
                 "ROUTE_B_ACTIVE_BASELINE_CREDIT_INVALID")
     return value
