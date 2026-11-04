@@ -108,6 +108,7 @@ class MarkerCreationAuthorizationTests(unittest.TestCase):
         cf = cloudflare_auth()
         cf["authorization_sha256"] = "a" * 64
         auth = authorization(canonical_digest(cf))
+        auth["cloudflare_real_qualification_authorization_sha256"] = "a" * 64
         with self.assertRaisesRegex(MarkerCreationAuthorizationError, "REF_BINDING_MISMATCH"):
             self.qualify(auth=auth, cf=cf)
 
