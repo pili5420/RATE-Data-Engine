@@ -1,4 +1,5 @@
 """Synthetic ENGINEERING-only acceptance. Never fabricate production warmup evidence."""
+import ast
 import copy
 from datetime import date, timedelta
 import json
@@ -309,7 +310,8 @@ class FullMarketRotationTests(unittest.TestCase):
                        "tests/report_soak_support.py", "tests/test_full_market_rotation.py",
                        "config/RATE_EXTERNAL_PRODUCTION_DEPENDENCIES.json",
                        "config/RATE_PRODUCTION_OFFICIAL_SOURCE_REGISTRY_V1.json",
-                       "src/full_market_rotation.py", "tests/test_phase2_compatibility.py"}
+                       "src/full_market_rotation.py", "src/cer081_unattended_soak.py",
+                       "tests/test_phase2_compatibility.py"}
         integration.update(f".github/workflows/rate_production_{slot}_scheduler.yml" for slot in ("0730", "0930", "1200", "1930"))
         integration.add(".github/workflows/rate_public_official_partial_valid_ci.yml")
         cer081_workflow = ".github/workflows/rate_cer081_unattended_multi_day_soak.yml"
@@ -358,6 +360,46 @@ class FullMarketRotationTests(unittest.TestCase):
         ]
         for term in required_timing_terms:
             self.assertTrue(any(term in line for line in changed_lines), term)
+
+        # The CER-081 source may compose the new timing evidence only inside
+        # build_cer081_artifacts(). Every other governance/state/source helper
+        # remains structurally identical to the frozen base.
+        cer081_source = "src/cer081_unattended_soak.py"
+        base_source = subprocess.check_output(
+            ["git", "-C", str(ROOT), "show", f"{BASE}:{cer081_source}"]
+        ).decode()
+        head_source = (ROOT / cer081_source).read_text(encoding="utf-8")
+
+        def function_ast(source, name):
+            tree = ast.parse(source)
+            for node in tree.body:
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == name:
+                    return ast.dump(node, include_attributes=False)
+            self.fail(f"missing frozen function: {name}")
+
+        frozen_functions = [
+            "common",
+            "validate_cer080_predecessor",
+            "production_source_ssot",
+            "source_failure_gates",
+            "_shared_writer_concurrency",
+            "scheduler_definition_evidence",
+            "scheduled_time_for",
+            "build_expected_state",
+            "full_production_disqualifiers",
+            "normalize_scheduled_runs",
+            "scheduled_run_metrics",
+            "build_daily_matrix",
+            "deterministic_replay",
+            "build_daily_artifacts",
+            "write_fail_closed",
+        ]
+        for function_name in frozen_functions:
+            self.assertEqual(
+                function_ast(head_source, function_name),
+                function_ast(base_source, function_name),
+                function_name,
+            )
 
         expected = os.getenv("RATE_PHASE2_CI_HEAD_SHA")
         if expected:
