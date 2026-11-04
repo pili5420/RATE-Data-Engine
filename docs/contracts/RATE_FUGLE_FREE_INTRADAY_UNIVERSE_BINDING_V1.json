@@ -1,0 +1,140 @@
+{
+  "artifact": "RATE_FUGLE_FREE_INTRADAY_UNIVERSE_BINDING_V1",
+  "evidence_scope": "DIAGNOSTIC_ONLY",
+  "source_bundle_path": "artifacts/production_source_snapshots/2026-10-02/1930/rate-source-snapshot-3bbe73c100b02f32a57d6443/RATE_PRODUCTION_SOURCE_BUNDLE.json",
+  "source_bundle_blob_sha": "ef335f698d74bcf1566d29e714da9201300b79a0",
+  "production_snapshot_id": "rate-source-snapshot-3bbe73c100b02f32a57d6443",
+  "expected_count": 30,
+  "expected_market_counts": {
+    "TWSE": 25,
+    "TPEX": 5
+  },
+  "records": [
+    {
+      "symbol": "3231",
+      "market": "TWSE"
+    },
+    {
+      "symbol": "6274",
+      "market": "TPEX"
+    },
+    {
+      "symbol": "3443",
+      "market": "TWSE"
+    },
+    {
+      "symbol": "6669",
+      "market": "TWSE"
+    },
+    {
+      "symbol": "2313",
+      "market": "TWSE"
+    },
+    {
+      "symbol": "2449",
+      "market": "TWSE"
+    },
+    {
+      "symbol": "3413",
+      "market": "TWSE"
+    },
+    {
+      "symbol": "3081",
+      "market": "TPEX"
+    },
+    {
+      "symbol": "6187",
+      "market": "TPEX"
+    },
+    {
+      "symbol": "2368",
+      "market": "TWSE"
+    },
+    {
+      "symbol": "6442",
+      "market": "TWSE"
+    },
+    {
+      "symbol": "3017",
+      "market": "TWSE"
+    },
+    {
+      "symbol": "2345",
+      "market": "TWSE"
+    },
+    {
+      "symbol": "3661",
+      "market": "TWSE"
+    },
+    {
+      "symbol": "3037",
+      "market": "TWSE"
+    },
+    {
+      "symbol": "2383",
+      "market": "TWSE"
+    },
+    {
+      "symbol": "2317",
+      "market": "TWSE"
+    },
+    {
+      "symbol": "2330",
+      "market": "TWSE"
+    },
+    {
+      "symbol": "2376",
+      "market": "TWSE"
+    },
+    {
+      "symbol": "2356",
+      "market": "TWSE"
+    },
+    {
+      "symbol": "5388",
+      "market": "TWSE"
+    },
+    {
+      "symbol": "2344",
+      "market": "TWSE"
+    },
+    {
+      "symbol": "2337",
+      "market": "TWSE"
+    },
+    {
+      "symbol": "2408",
+      "market": "TWSE"
+    },
+    {
+      "symbol": "3035",
+      "market": "TWSE"
+    },
+    {
+      "symbol": "3034",
+      "market": "TWSE"
+    },
+    {
+      "symbol": "6510",
+      "market": "TPEX"
+    },
+    {
+      "symbol": "3036",
+      "market": "TWSE"
+    },
+    {
+      "symbol": "3014",
+      "market": "TWSE"
+    },
+    {
+      "symbol": "3227",
+      "market": "TPEX"
+    }
+  ],
+  "validation_status": "PASS",
+  "source_bundle_sha256": "f999d33a73e1b042143f900f7a8edde4aff640a773297bc01aa0677d3e1777f4",
+  "universe_contract_sha256": "57772eb40b16431f4b9e89395b2a98c2b8cd6d526e626a1860355c1b403a12e7",
+  "universe_binding_hash": "343328e806133c97dd14581283790253412c9aabd3dd51c402700d7cce46ae2d",
+  "binding_authority": "MIRROR_ONLY_VALIDATED_AGAINST_RATE_PRODUCTION_AUTHORITY_CHAIN",
+  "runtime_override_allowed": false
+}
