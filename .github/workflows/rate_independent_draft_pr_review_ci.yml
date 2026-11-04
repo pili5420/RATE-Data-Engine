@@ -1,0 +1,29 @@
+name: RATE Independent Draft Activation PR Review
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/intraday_independent_draft_pr_review.py
+      - tests/test_intraday_independent_draft_pr_review.py
+      - docs/contracts/RATE_INDEPENDENT_ACTIVATION_DRAFT_PR_REVIEW_V1.json
+      - docs/RATE_INDEPENDENT_ACTIVATION_DRAFT_PR_REVIEW_V1.md
+      - .github/workflows/rate_independent_draft_pr_review_ci.yml
+permissions:
+  contents: read
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python -B -m unittest tests.test_intraday_independent_draft_pr_review -v
+      - run: git diff --exit-code
