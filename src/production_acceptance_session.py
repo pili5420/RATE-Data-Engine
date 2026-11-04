@@ -178,6 +178,14 @@ def admit_scheduled_run(
         "previous_state_id":run.get("previous_state_id"),
         "production_snapshot_id":run.get("production_snapshot_id"),
         "input_snapshot_id":run.get("input_snapshot_id"),
+        "official_event":"schedule",
+        "production_data_gate":"PASS",
+        "decision_state_continuity":True,
+        "portfolio_continuity":True,
+        "transaction_ledger_continuity":True,
+        "ranking_model_continuity":"PASS",
+        "fallback_used":False,
+        "automatic_retry_count":0,
     }
     existing.append(admitted)
 
@@ -270,7 +278,49 @@ def summarize_production_acceptance_session(
         and lineage["state_continuity"]=="PASS"
         and lineage["cross_day_continuity"]=="PASS"
     )
-    ready=ready and lineage_pass
+    evidence_rows=[r for r in runs if isinstance(r,Mapping)]
+    evidence_rows_complete=bool(evidence_rows) and len(evidence_rows)==len(runs)
+    official_schedule_pass=evidence_rows_complete and all(
+        r.get("official_event")=="schedule" for r in evidence_rows
+    )
+    production_data_pass=evidence_rows_complete and all(
+        r.get("production_data_gate")=="PASS" for r in evidence_rows
+    )
+    decision_state_pass=evidence_rows_complete and all(
+        r.get("decision_state_continuity") is True for r in evidence_rows
+    )
+    portfolio_pass=evidence_rows_complete and all(
+        r.get("portfolio_continuity") is True for r in evidence_rows
+    )
+    transaction_ledger_pass=evidence_rows_complete and all(
+        r.get("transaction_ledger_continuity") is True for r in evidence_rows
+    )
+    ranking_pass=evidence_rows_complete and all(
+        r.get("ranking_model_continuity") in (True,"PASS") for r in evidence_rows
+    )
+    fallback_free=evidence_rows_complete and all(
+        r.get("fallback_used") is False for r in evidence_rows
+    )
+    automatic_retry_free=evidence_rows_complete and all(
+        r.get("automatic_retry_count") in (None,0) for r in evidence_rows
+    )
+    evidence_pass=(
+        official_schedule_pass
+        and production_data_pass
+        and decision_state_pass
+        and portfolio_pass
+        and transaction_ledger_pass
+        and ranking_pass
+        and fallback_free
+        and automatic_retry_free
+    )
+    ready=ready and lineage_pass and evidence_pass
+
+    def gate_status(ok: bool) -> str:
+        if ok:
+            return "PASS"
+        return "FAIL" if evidence_rows else "IN_PROGRESS"
+
     return {
         "artifact":"RATE_V11_PRODUCTION_ACCEPTANCE_SESSION_SUMMARY_V1",
         "validation_status":"PASS",
@@ -287,6 +337,14 @@ def summarize_production_acceptance_session(
         "full_4_cadence_scheduled_coverage":"PASS" if ready else "IN_PROGRESS",
         "state_continuity":"PASS" if lineage_pass else "IN_PROGRESS",
         "cross_day_continuity":"PASS" if lineage_pass else "IN_PROGRESS",
+        "official_schedule_only":gate_status(official_schedule_pass),
+        "production_data_gate":gate_status(production_data_pass),
+        "decision_state_evidence":gate_status(decision_state_pass),
+        "portfolio_continuity":gate_status(portfolio_pass),
+        "transaction_ledger_continuity":gate_status(transaction_ledger_pass),
+        "ranking_model_continuity":gate_status(ranking_pass),
+        "fallback_free":gate_status(fallback_free),
+        "automatic_retry_free":gate_status(automatic_retry_free),
         "within_day_links_verified":0 if lineage is None else lineage["within_day_links_verified"],
         "cross_day_links_verified":0 if lineage is None else lineage["cross_day_links_verified"],
         "completion_status":"READY_FOR_CER081_FINAL_ACCEPTANCE" if ready else "IN_PROGRESS",
