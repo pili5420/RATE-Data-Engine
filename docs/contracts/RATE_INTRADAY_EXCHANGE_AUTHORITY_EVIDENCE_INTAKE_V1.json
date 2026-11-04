@@ -1,0 +1,29 @@
+{
+  "artifact": "RATE_INTRADAY_EXCHANGE_AUTHORITY_EVIDENCE_INTAKE_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "required_markets": ["TWSE", "TPEX"],
+  "required_scope_per_market": {
+    "contract_status": "ACTIVE",
+    "real_time_trading_information": true,
+    "automated_non_display_use": true,
+    "internal_analysis_use": true,
+    "redistribution_allowed": false
+  },
+  "private_evidence_content_in_repository": "FORBIDDEN",
+  "required_public_metadata_per_market": [
+    "evidence_reference",
+    "evidence_sha256",
+    "contract_id",
+    "contract_status",
+    "real_time_trading_information",
+    "automated_non_display_use",
+    "internal_analysis_use"
+  ],
+  "output_expected_binding_artifact": "RATE_INTRADAY_PROVIDER_AUTHORITY_EXPECTED_BINDING_V1",
+  "network_execution_allowed": false,
+  "credential_access_allowed": false,
+  "registry_activation_allowed": false,
+  "production_activation_allowed": false,
+  "external_dependency_resolved": false,
+  "cer081_credit": 0
+}
