@@ -1,10 +1,10 @@
 {
   "artifact": "RATE_ROUTE_B_ACTIVATION_BASELINE_V1",
-  "status": "PENDING_BINDING",
-  "activation_merge_sha": null,
+  "status": "ACTIVE",
+  "activation_merge_sha": "58c22d43ac5b92d587a7015c338dd1c933342057",
   "route": "B_ZERO_FEE",
-  "binding_rule": "SET_ON_FINAL_ENGINEERING_FREEZE_ONLY",
-  "production_credit_allowed": false,
+  "binding_rule": "FINAL_ENGINEERING_FREEZE_BOUND",
+  "production_credit_allowed": true,
   "activation_binding_sha": null,
   "binding_contract": "CODE_SHA_TO_BINDING_SHA_EXACT_BASELINE_CONFIG_ONLY",
   "activation_binding_mode": "DERIVE_FROM_GIT_HISTORY"
