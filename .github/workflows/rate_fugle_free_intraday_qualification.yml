@@ -1,0 +1,40 @@
+name: RATE Fugle Free Intraday Diagnostic Engineering
+on:
+  pull_request:
+    branches:
+      - main
+      - codex/rate-v11-fugle-free-intraday-diagnostic-v1
+    paths:
+      - src/provider_fugle_intraday_candidate.py
+      - scripts/run_fugle_intraday_qualification.py
+      - tests/test_fugle_intraday_qualification.py
+      - docs/contracts/RATE_FUGLE_FREE_INTRADAY_QUALIFICATION_V1.json
+      - docs/contracts/RATE_FUGLE_FREE_INTRADAY_UNIVERSE_BINDING_V1.json
+      - docs/RATE_FUGLE_FREE_INTRADAY_QUALIFICATION_V1.md
+      - .github/workflows/rate_fugle_free_intraday_qualification.yml
+permissions:
+  contents: read
+jobs:
+  synthetic:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Synthetic-only Fugle feasibility tests
+        run: python -B -m unittest tests.test_fugle_intraday_qualification -v
+      - name: No Production-owner changes
+        shell: bash
+        run: |
+          git diff --exit-code
+          test ! -f artifacts/FUGLE_LIVE_RESULT.json
