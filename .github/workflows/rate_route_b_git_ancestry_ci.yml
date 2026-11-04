@@ -1,0 +1,36 @@
+name: RATE Route B Git Ancestry CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/route_b_git_ancestry.py
+      - scripts/build_route_b_git_ancestry_evidence.py
+      - tests/test_route_b_git_ancestry.py
+      - .github/workflows/rate_route_b_git_ancestry_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -B -m unittest tests.test_route_b_git_ancestry -v
+      - run: git diff --exit-code
