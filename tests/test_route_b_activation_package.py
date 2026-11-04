@@ -7,13 +7,20 @@ from src.route_b_activation_package import build_runtime_package, baseline_polic
 
 
 class PackageTests(unittest.TestCase):
-    def test_pending_baseline_is_safe_noop(self):
+    def test_repository_baseline_policy_is_valid_for_current_mode(self):
         p=baseline_policy()
-        self.assertEqual(p["status"],"PENDING_BINDING")
-        out=build_runtime_package(".", "artifacts", source_1200_run_id="1")
-        self.assertEqual(out["runtime_mode"],"NOOP_PENDING_BASELINE_BINDING")
-        self.assertEqual(out["production_credit"],0)
-        self.assertFalse(out["session_opened"])
+        self.assertIn(p["status"],{"PENDING_BINDING","ACTIVE"})
+        if p["status"]=="PENDING_BINDING":
+            out=build_runtime_package(".", "artifacts", source_1200_run_id="1")
+            self.assertEqual(out["runtime_mode"],"NOOP_PENDING_BASELINE_BINDING")
+            self.assertEqual(out["production_credit"],0)
+            self.assertFalse(out["session_opened"])
+        else:
+            self.assertEqual(p["activation_binding_mode"],"DERIVE_FROM_GIT_HISTORY")
+            self.assertEqual(len(p["activation_merge_sha"]),40)
+            self.assertEqual(len(p["activation_binding_sha"]),40)
+            self.assertNotEqual(p["activation_merge_sha"],p["activation_binding_sha"])
+            self.assertTrue(p["production_credit_allowed"])
 
     @patch("src.route_b_activation_package.baseline_policy")
     @patch("src.route_b_activation_package._find_slot")
