@@ -42,22 +42,23 @@ jobs:
           python-version: "3.12"
       - name: Install cross-platform CI dependencies
         run: python -m pip install tzdata==2025.2 PyYAML==6.0.3
-      - name: Route B Phase2 scheduler and collector regression
+      - name: Route B Phase2 cross-platform contract regression
         run: >-
           python -B -m unittest
           tests.test_route_b_phase2_scheduler_wiring
           tests.test_route_b_acceptance_collector
+          tests.test_route_b_acceptance_store
+          tests.test_route_b_acceptance_bridge
+          tests.test_production_acceptance_session
+          -v
+      - name: Linux authoritative full-market and scheduler regression
+        if: runner.os == 'Linux'
+        run: >-
+          python -B -m unittest
           tests.test_phase2_production
           tests.test_full_market_rotation
           tests.test_production_scheduler_change_control
           tests.test_rate_soak_005
-          -v
-      - name: Route B acceptance regression
-        run: >-
-          python -B -m unittest
-          tests.test_route_b_acceptance_store
-          tests.test_route_b_acceptance_bridge
-          tests.test_production_acceptance_session
           -v
       - name: No tracked mutation
         run: git diff --exit-code
