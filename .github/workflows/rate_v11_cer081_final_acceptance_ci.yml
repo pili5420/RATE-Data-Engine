@@ -1,0 +1,28 @@
+name: RATE V11 CER081 Final Production Acceptance
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/intraday_cer081_final_production_acceptance.py
+      - tests/test_intraday_cer081_final_production_acceptance.py
+      - docs/contracts/RATE_V11_CER081_FINAL_PRODUCTION_ACCEPTANCE_V1.json
+      - docs/RATE_V11_CER081_FINAL_PRODUCTION_ACCEPTANCE_V1.md
+      - .github/workflows/rate_v11_cer081_final_acceptance_ci.yml
+permissions:
+  contents: read
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix: {os: [windows-latest, ubuntu-latest]}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python -B -m unittest tests.test_intraday_cer081_final_production_acceptance -v
+      - run: git diff --exit-code
