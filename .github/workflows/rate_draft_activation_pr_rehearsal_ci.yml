@@ -1,0 +1,29 @@
+name: RATE Draft Activation PR Executor Rehearsal
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/intraday_draft_activation_pr_rehearsal.py
+      - tests/test_intraday_draft_activation_pr_rehearsal.py
+      - docs/contracts/RATE_DRAFT_ACTIVATION_PR_EXECUTOR_REHEARSAL_V1.json
+      - docs/RATE_DRAFT_ACTIVATION_PR_EXECUTOR_REHEARSAL_V1.md
+      - .github/workflows/rate_draft_activation_pr_rehearsal_ci.yml
+permissions:
+  contents: read
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python -B -m unittest tests.test_intraday_draft_activation_pr_rehearsal -v
+      - run: git diff --exit-code
