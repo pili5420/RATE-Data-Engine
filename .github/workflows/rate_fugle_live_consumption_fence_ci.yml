@@ -1,0 +1,51 @@
+name: RATE Fugle Live Consumption Fence
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/intraday_fugle_live_consumption_fence.py
+      - src/intraday_fugle_live_executor_orchestration.py
+      - tests/test_intraday_fugle_live_consumption_fence.py
+      - tests/test_intraday_fugle_live_executor_orchestration.py
+      - docs/contracts/RATE_FUGLE_SINGLE_LIVE_CONSUMPTION_FENCE_V1.json
+      - docs/RATE_FUGLE_SINGLE_LIVE_CONSUMPTION_FENCE_V1.md
+      - .github/workflows/rate_fugle_live_consumption_fence_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Exact Git bytes
+        shell: bash
+        run: |
+          git config core.autocrlf false
+          git checkout-index --all --force
+          git diff --exit-code
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Consumption fence tests
+        run: python -B -m unittest tests.test_intraday_fugle_live_consumption_fence -v
+      - name: Fence-then-executor orchestration tests
+        run: python -B -m unittest tests.test_intraday_fugle_live_executor_orchestration -v
+      - name: Upstream authorization/executor regressions
+        run: python -B -m unittest tests.test_intraday_fugle_single_live_authorization tests.test_intraday_fugle_live_executor_rehearsal -v
+      - name: No tracked mutation
+        run: git diff --exit-code
