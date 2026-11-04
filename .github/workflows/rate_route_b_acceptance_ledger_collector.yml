@@ -1,0 +1,124 @@
+name: RATE Route B Acceptance Ledger Collector
+
+on:
+  workflow_run:
+    workflows:
+      - "RATE Production 07:30 Recurring Scheduler"
+      - "RATE Production 09:30 Recurring Scheduler"
+      - "RATE Production 12:00 Recurring Scheduler"
+      - "RATE Production 19:30 Recurring Scheduler"
+    types: [completed]
+  pull_request:
+    branches: [main]
+    paths:
+      - src/route_b_acceptance_store.py
+      - src/route_b_acceptance_collector.py
+      - scripts/persist_route_b_activation_session.py
+      - scripts/run_route_b_acceptance_collector.py
+      - tests/test_route_b_acceptance_store.py
+      - tests/test_route_b_acceptance_collector.py
+      - .github/workflows/rate_route_b_activation_package_runtime.yml
+      - .github/workflows/rate_route_b_acceptance_ledger_collector.yml
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: rate-v11-production-acceptance-ledger-main
+  cancel-in-progress: false
+
+jobs:
+  runtime:
+    if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Resolve source cadence and artifact
+        shell: bash
+        run: |
+          case "${{ github.event.workflow_run.name }}" in
+            "RATE Production 07:30 Recurring Scheduler")
+              echo "SOURCE_CADENCE=07:30" >> "$GITHUB_ENV"
+              echo "SOURCE_ARTIFACT_NAME=RATE_PRODUCTION_0730_SCHEDULER_ARTIFACTS" >> "$GITHUB_ENV"
+              ;;
+            "RATE Production 09:30 Recurring Scheduler")
+              echo "SOURCE_CADENCE=09:30" >> "$GITHUB_ENV"
+              echo "SOURCE_ARTIFACT_NAME=RATE_PRODUCTION_0930_SCHEDULER_ARTIFACTS" >> "$GITHUB_ENV"
+              ;;
+            "RATE Production 12:00 Recurring Scheduler")
+              echo "SOURCE_CADENCE=12:00" >> "$GITHUB_ENV"
+              echo "SOURCE_ARTIFACT_NAME=RATE_PRODUCTION_1200_SCHEDULER_ARTIFACTS" >> "$GITHUB_ENV"
+              ;;
+            "RATE Production 19:30 Recurring Scheduler")
+              echo "SOURCE_CADENCE=19:30" >> "$GITHUB_ENV"
+              echo "SOURCE_ARTIFACT_NAME=RATE_PRODUCTION_1930_SCHEDULER_ARTIFACTS" >> "$GITHUB_ENV"
+              ;;
+            *)
+              exit 1
+              ;;
+          esac
+      - name: Download exact source-run artifacts
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p source_artifacts
+          gh run download "${{ github.event.workflow_run.id }}" \
+            --repo "${{ github.repository }}" \
+            --name "$SOURCE_ARTIFACT_NAME" \
+            --dir source_artifacts
+      - name: Collect scheduled run into acceptance ledger
+        run: >-
+          python scripts/run_route_b_acceptance_collector.py
+          --cadence "$SOURCE_CADENCE"
+          --source-run-id "${{ github.event.workflow_run.id }}"
+          --repo-root .
+          --artifacts-root artifacts
+          --source-artifacts-root source_artifacts
+          --store-root artifacts/production_acceptance/current
+          --output artifacts/production_acceptance/runtime/RATE_ROUTE_B_ACCEPTANCE_COLLECTOR_RESULT.json
+      - name: Commit acceptance ledger update
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifacts/production_acceptance/current
+          if git diff --cached --quiet; then
+            echo "acceptance_ledger_commit=NO_CHANGES"
+          else
+            git commit -m "Update RATE Production Acceptance ledger ($SOURCE_CADENCE)"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: RATE_ROUTE_B_ACCEPTANCE_COLLECTOR_${{ github.event.workflow_run.id }}
+          path: artifacts/production_acceptance/runtime/**
+          if-no-files-found: warn
+
+  ci:
+    if: ${{ github.event_name == 'pull_request' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -B -m unittest tests.test_route_b_acceptance_store tests.test_route_b_acceptance_collector tests.test_route_b_activation_package tests.test_route_b_acceptance_bridge tests.test_production_acceptance_session -v
+      - run: git diff --exit-code
