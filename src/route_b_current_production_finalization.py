@@ -33,6 +33,16 @@ def _ready_summary(session: Mapping[str,Any], supplied: Mapping[str,Any]) -> dic
     require(recomputed.get("state_continuity")=="PASS"
             and recomputed.get("cross_day_continuity")=="PASS",
             "ROUTE_B_FINAL_SESSION_CONTINUITY_INVALID")
+    require(recomputed.get("portfolio_continuity")=="PASS"
+            and recomputed.get("transaction_ledger_continuity")=="PASS"
+            and recomputed.get("ranking_model_continuity")=="PASS",
+            "ROUTE_B_FINAL_SESSION_BUSINESS_CONTINUITY_INVALID")
+    require(recomputed.get("official_schedule_only")=="PASS"
+            and recomputed.get("production_data_gate")=="PASS"
+            and recomputed.get("decision_state_evidence")=="PASS"
+            and recomputed.get("fallback_free")=="PASS"
+            and recomputed.get("automatic_retry_free")=="PASS",
+            "ROUTE_B_FINAL_SESSION_GUARDS_INVALID")
     return recomputed
 
 
