@@ -1,0 +1,51 @@
+name: RATE Fugle GitHub Fence Transport
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/intraday_fugle_github_fence_transport.py
+      - src/intraday_fugle_github_fence_adapter.py
+      - tests/test_intraday_fugle_github_fence_transport.py
+      - tests/test_intraday_fugle_github_fence_adapter.py
+      - docs/contracts/RATE_FUGLE_GITHUB_REF_FENCE_TRANSPORT_V1.json
+      - docs/RATE_FUGLE_GITHUB_REF_FENCE_TRANSPORT_V1.md
+      - .github/workflows/rate_fugle_github_fence_transport_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Exact Git bytes
+        shell: bash
+        run: |
+          git config core.autocrlf false
+          git checkout-index --all --force
+          git diff --exit-code
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Bounded transport tests
+        run: python -B -m unittest tests.test_intraday_fugle_github_fence_transport -v
+      - name: Adapter tests
+        run: python -B -m unittest tests.test_intraday_fugle_github_fence_adapter -v
+      - name: Fence regression
+        run: python -B -m unittest tests.test_intraday_fugle_live_consumption_fence -v
+      - name: No tracked mutation
+        run: git diff --exit-code
