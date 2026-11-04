@@ -71,6 +71,12 @@ class StoreTests(unittest.TestCase):
             first=admit_run_to_store(d,run())
             second=admit_run_to_store(d,run())
             self.assertEqual(first["store_result"],"RUN_ADMITTED")
+            stored=load_session(d)["accepted_runs"][0]
+            self.assertEqual(stored["official_event"],"schedule")
+            self.assertEqual(stored["portfolio_continuity"],True)
+            self.assertEqual(stored["transaction_ledger_continuity"],True)
+            self.assertEqual(stored["ranking_model_continuity"],"PASS")
+            self.assertEqual(stored["fallback_used"],False)
             self.assertEqual(second["store_result"],"IDEMPOTENT_NOOP_EXISTING_RUN")
 
     def test_conflicting_duplicate_rejected(self):

@@ -1,24 +1,34 @@
 {
-  "artifact":"RATE_V11_CURRENT_PRODUCTION_FINAL_ACCEPTANCE_CONTRACT_V2",
-  "status":"ENGINEERING_CONTRACT_ONLY",
-  "governance_scope":"CURRENT_PRODUCTION",
-  "required_inputs":[
+  "artifact": "RATE_V11_CURRENT_PRODUCTION_FINAL_ACCEPTANCE_CONTRACT_V2",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "governance_scope": "CURRENT_PRODUCTION",
+  "required_inputs": [
     "RATE_POST_MERGE_PRODUCTION_ACTIVATION_VERIFICATION_V1",
     "RATE_V11_PRODUCTION_ACCEPTANCE_SESSION_SUMMARY_V1",
     "RATE_CER081_SCHEDULER_RELIABILITY_SUMMARY",
     "RATE_CER081_DETERMINISTIC_REPLAY_SUMMARY",
     "RATE_CER081_MODEL_FREEZE_SUMMARY"
   ],
-  "minimum_trading_days":3,
-  "minimum_official_scheduled_runs":12,
-  "full_four_cadence_coverage_required":true,
-  "state_continuity_required":true,
-  "cross_day_continuity_required":true,
-  "scheduler_reliability_required":true,
-  "deterministic_replay_required":true,
-  "model_freeze_required":true,
-  "cross_main_evidence_allowed":false,
-  "historical_fixed_date_soak_required":false,
-  "pass_final_disposition":"RATE_V11_PRODUCTION_ACCEPTED",
-  "pass_cer081_status":"CER081_ACCEPTED_CLOSED"
+  "minimum_trading_days": 3,
+  "minimum_official_scheduled_runs": 12,
+  "full_four_cadence_coverage_required": true,
+  "state_continuity_required": true,
+  "cross_day_continuity_required": true,
+  "scheduler_reliability_required": true,
+  "deterministic_replay_required": true,
+  "model_freeze_required": true,
+  "cross_main_evidence_allowed": false,
+  "historical_fixed_date_soak_required": false,
+  "pass_final_disposition": "RATE_V11_PRODUCTION_ACCEPTED",
+  "pass_cer081_status": "CER081_ACCEPTED_CLOSED",
+  "portfolio_continuity_required": true,
+  "transaction_ledger_continuity_required": true,
+  "ranking_model_continuity_required": true,
+  "durable_session_guards_required": [
+    "official_schedule_only",
+    "production_data_gate",
+    "decision_state_evidence",
+    "fallback_free",
+    "automatic_retry_free"
+  ]
 }

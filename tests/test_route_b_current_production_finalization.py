@@ -30,7 +30,11 @@ def session():
                          "run_head_sha":("b"*39)+hex(rid%16)[2:],
                          "activation_code_sha":CODE,"activation_binding_sha":BIND,
                          "current_state_id":current,"previous_state_id":previous,
-                         "production_snapshot_id":f"p{rid}","input_snapshot_id":f"i{rid}"})
+                         "production_snapshot_id":f"p{rid}","input_snapshot_id":f"i{rid}",
+                         "official_event":"schedule","production_data_gate":"PASS",
+                         "decision_state_continuity":True,"portfolio_continuity":True,
+                         "transaction_ledger_continuity":True,"ranking_model_continuity":"PASS",
+                         "fallback_used":False,"automatic_retry_count":0})
             previous=current; rid+=1
     return {
         "artifact":"RATE_V11_PRODUCTION_ACCEPTANCE_SESSION_V1",

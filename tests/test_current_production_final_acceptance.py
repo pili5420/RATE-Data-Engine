@@ -48,6 +48,14 @@ def session():
         "full_4_cadence_scheduled_coverage":"PASS",
         "state_continuity":"PASS",
         "cross_day_continuity":"PASS",
+        "official_schedule_only":"PASS",
+        "production_data_gate":"PASS",
+        "decision_state_evidence":"PASS",
+        "portfolio_continuity":"PASS",
+        "transaction_ledger_continuity":"PASS",
+        "ranking_model_continuity":"PASS",
+        "fallback_free":"PASS",
+        "automatic_retry_free":"PASS",
         "completion_status":"READY_FOR_CER081_FINAL_ACCEPTANCE",
         "production_acceptance_granted":False,
         "cer081_credit":0,
@@ -116,6 +124,20 @@ class FinalAcceptanceTests(unittest.TestCase):
         s=session(); s["cross_day_continuity"]="FAIL"
         with self.assertRaisesRegex(CurrentProductionFinalAcceptanceError,"CONTINUITY_NOT_PASS"):
             self.validate(s=s)
+
+    def test_business_continuity_is_independent_final_gate(self):
+        for key in ("portfolio_continuity","transaction_ledger_continuity","ranking_model_continuity"):
+            s=session(); s[key]="FAIL"
+            with self.subTest(key=key):
+                with self.assertRaisesRegex(CurrentProductionFinalAcceptanceError,"BUSINESS_CONTINUITY_NOT_PASS"):
+                    self.validate(s=s)
+
+    def test_session_guards_are_independent_final_gate(self):
+        for key in ("official_schedule_only","production_data_gate","decision_state_evidence","fallback_free","automatic_retry_free"):
+            s=session(); s[key]="FAIL"
+            with self.subTest(key=key):
+                with self.assertRaisesRegex(CurrentProductionFinalAcceptanceError,"SESSION_GUARDS_NOT_PASS"):
+                    self.validate(s=s)
 
     def test_scheduler_determinism_freeze_are_independent_gates(self):
         sch=scheduler(); sch["missed_execution_count"]=1

@@ -25,5 +25,17 @@
   "within_day_lineage": "07:30->09:30->12:00->19:30",
   "cross_day_lineage": "19:30->NEXT_TRADING_DAY_07:30",
   "reset_allowed": false,
-  "fork_allowed": false
+  "fork_allowed": false,
+  "durable_run_evidence_required": [
+    "official_schedule",
+    "production_data_gate",
+    "decision_state_continuity",
+    "portfolio_continuity",
+    "transaction_ledger_continuity",
+    "ranking_model_continuity",
+    "fallback_free",
+    "automatic_retry_free"
+  ],
+  "summary_recomputation_required": true,
+  "missing_or_tampered_run_evidence": "FAIL_CLOSED"
 }
