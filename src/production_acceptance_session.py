@@ -163,6 +163,54 @@ def admit_scheduled_run(
     }
 
 
+
+def audit_session_lineage(session: Mapping[str,Any]) -> dict[str,Any]:
+    require(isinstance(session,Mapping)
+            and session.get("artifact")=="RATE_V11_PRODUCTION_ACCEPTANCE_SESSION_V1",
+            "PA_LINEAGE_SESSION_INVALID")
+    runs=[dict(r) for r in (session.get("accepted_runs") or []) if isinstance(r,Mapping)]
+    order={cadence:index for index,cadence in enumerate(CADENCES)}
+    runs.sort(key=lambda r:(r.get("trading_date",""),order.get(r.get("cadence"),99)))
+    require(runs,"PA_LINEAGE_NO_RUNS")
+
+    for row in runs:
+        require(isinstance(row.get("current_state_id"),str) and row["current_state_id"],
+                "PA_LINEAGE_CURRENT_STATE_ID_MISSING")
+        require(isinstance(row.get("previous_state_id"),str) and row["previous_state_id"],
+                "PA_LINEAGE_PREVIOUS_STATE_ID_MISSING")
+
+    within_day_links=0
+    cross_day_links=0
+    for previous,current in zip(runs,runs[1:]):
+        require(current["previous_state_id"]==previous["current_state_id"],
+                "PA_LINEAGE_STATE_CHAIN_BROKEN")
+        if current["trading_date"]==previous["trading_date"]:
+            within_day_links += 1
+        else:
+            require(previous["cadence"]=="19:30" and current["cadence"]=="07:30",
+                    "PA_LINEAGE_CROSS_DAY_BOUNDARY_INVALID")
+            cross_day_links += 1
+
+    days=sorted({r["trading_date"] for r in runs})
+    complete_days=[
+        d for d in days
+        if all(any(r["trading_date"]==d and r["cadence"]==cadence for r in runs)
+               for cadence in CADENCES)
+    ]
+    return {
+        "artifact":"RATE_V11_PRODUCTION_ACCEPTANCE_LINEAGE_AUDIT_V1",
+        "validation_status":"PASS",
+        "merged_main_sha":session["merged_main_sha"],
+        "run_count":len(runs),
+        "complete_trading_days":complete_days,
+        "within_day_links_verified":within_day_links,
+        "cross_day_links_verified":cross_day_links,
+        "state_continuity":"PASS",
+        "cross_day_continuity":"PASS" if len(complete_days) < 2 or cross_day_links >= len(complete_days)-1 else "FAIL",
+        "reset_detected":False,
+        "fork_detected":False,
+    }
+
 def summarize_production_acceptance_session(
     session: Mapping[str,Any],
 ) -> dict[str,Any]:
@@ -176,6 +224,15 @@ def summarize_production_acceptance_session(
     days=sorted({d for d,_ in unique if d})
     complete_days=[d for d in days if all((d,c) in unique for c in CADENCES)]
     ready=len(complete_days)>=MIN_TRADING_DAYS and len(unique)>=MIN_SCHEDULED_RUNS
+    lineage=None
+    if runs:
+        lineage=audit_session_lineage(session)
+    lineage_pass=(
+        lineage is not None
+        and lineage["state_continuity"]=="PASS"
+        and lineage["cross_day_continuity"]=="PASS"
+    )
+    ready=ready and lineage_pass
     return {
         "artifact":"RATE_V11_PRODUCTION_ACCEPTANCE_SESSION_SUMMARY_V1",
         "validation_status":"PASS",
@@ -187,6 +244,10 @@ def summarize_production_acceptance_session(
         "missing_cadence_runs":max(0,MIN_SCHEDULED_RUNS-len(unique)),
         "duplicate_cadence_runs":0,
         "full_4_cadence_scheduled_coverage":"PASS" if ready else "IN_PROGRESS",
+        "state_continuity":"PASS" if lineage_pass else "IN_PROGRESS",
+        "cross_day_continuity":"PASS" if lineage_pass else "IN_PROGRESS",
+        "within_day_links_verified":0 if lineage is None else lineage["within_day_links_verified"],
+        "cross_day_links_verified":0 if lineage is None else lineage["cross_day_links_verified"],
         "completion_status":"READY_FOR_CER081_FINAL_ACCEPTANCE" if ready else "IN_PROGRESS",
         "production_acceptance_granted":False,
         "cer081_credit":0,
