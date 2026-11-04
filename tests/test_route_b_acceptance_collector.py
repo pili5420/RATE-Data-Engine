@@ -8,6 +8,7 @@ from src.route_b_acceptance_collector import collect_scheduled_run
 from src.route_b_acceptance_store import persist_activation_package
 
 MAIN="a"*40
+BIND="d"*40
 
 def package():
     return {
@@ -19,6 +20,7 @@ def package():
             "artifact":"RATE_V11_PRODUCTION_ACCEPTANCE_SESSION_V1",
             "validation_status":"PASS","governance_scope":"CURRENT_PRODUCTION",
             "merged_main_sha":MAIN,"activation_code_sha":MAIN,
+            "activation_binding_sha":BIND,
             "operational_head_policy":"AUTHORIZED_DESCENDANT_POINTER_COMMITS_ONLY",
             "session_start_date":"2026-11-06","required_trading_days":3,
             "required_scheduled_runs":12,"required_cadences":["07:30","09:30","12:00","19:30"],
@@ -57,12 +59,12 @@ class CollectorTests(unittest.TestCase):
         find.return_value=("2026-11-06",{"event_name":"schedule","workflow_run_id":"7","commit_sha":"b"*40})
         load.side_effect=[{"state":{"current_state_id":"cur","decision":{}}},
                           {"state":{"current_state_id":"prev","decision":{}}}]
-        ancestry.return_value={"validation_status":"PASS","source_heads":{"09:30":{"source_head_sha":"b"*40}}}
+        ancestry.return_value={"validation_status":"PASS","source_heads":{"09:30":{"source_head_sha":"b"*40,"activation_is_ancestor":True,"binding_is_ancestor":True,"changed_paths_since_activation":[]}}}
         overlay.return_value={"artifact":"RATE_ROUTE_B_PRODUCTION_CHECKPOINT_ACCEPTANCE_V1"}
         bind.return_value={
             "event":"schedule","validation_status":"PASS","publish_result":"PASS",
             "trading_date":"2026-11-06","cadence":"09:30","run_head_sha":"b"*40,
-            "activation_code_sha":MAIN,"activation_is_ancestor":True,
+            "activation_code_sha":MAIN,"activation_binding_sha":BIND,"activation_is_ancestor":True,
             "operational_changes_authorized":True,"workflow_run_id":"7",
             "fallback_used":False,"automatic_retry_count":0,"production_data_gate":"PASS",
             "decision_state_continuity":True,"portfolio_continuity":True,
