@@ -208,16 +208,8 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
             if row["dependency_id"] == "EXTERNAL_AUTHORIZED_INTRADAY_FEED_DEPENDENCY"
         )
         self.assertEqual(dependency["status"], "BLOCKED_EXTERNAL")
-        self.assertTrue(dependency["engineering_resolution_available"])
+        self.assertFalse(dependency["engineering_resolution_available"])
         self.assertFalse(dependency["fallback_allowed"])
-        route_b = dependency["route_b_override"]
-        self.assertEqual(route_b["status"], "PASS_ZERO_FEE_ROUTE_B")
-        self.assertFalse(route_b["authorized_intraday_feed_required"])
-        self.assertFalse(route_b["twse_tpex_non_display_authority_required"])
-        self.assertFalse(route_b["market_intraday_real_time_required"])
-        self.assertEqual(route_b["monthly_market_data_license_budget_twd"], 0)
-        self.assertTrue(route_b["production_acceptance_allowed"])
-        self.assertTrue(route_b["cer081_completion_allowed"])
         self.assertEqual(set(dependency["required_market_coverage"]), {"TWSE", "TPEX"})
         self.assertEqual(
             dependency["required_resolution"],
@@ -231,12 +223,6 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
         self.assertEqual(intraday["authorization_status"], "BLOCKED_EXTERNAL")
         self.assertIsNone(intraday["endpoint"])
         self.assertEqual(intraday["blocked_dependency"], dependency["dependency_id"])
-        self.assertEqual(intraday["route_b_override"]["status"], "NOT_REQUIRED_ROUTE_B")
-        self.assertFalse(intraday["route_b_override"]["real_time_intraday_required"])
-        self.assertEqual(
-            intraday["route_b_override"]["replacement_contract"],
-            "RATE_ZERO_FEE_PRODUCTION_CONTRACT_V1",
-        )
 
     def test_schedule_nominal_date_survives_1930_runner_delay_past_midnight(self):
         taipei = timezone(timedelta(hours=8))
