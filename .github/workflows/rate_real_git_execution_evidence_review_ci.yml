@@ -1,0 +1,28 @@
+name: RATE Real Git Execution Evidence Review
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/intraday_real_git_execution_evidence_review.py
+      - tests/test_intraday_real_git_execution_evidence_review.py
+      - docs/contracts/RATE_REAL_GIT_TRANSACTION_EXECUTION_EVIDENCE_REVIEW_V1.json
+      - docs/RATE_REAL_GIT_TRANSACTION_EXECUTION_EVIDENCE_REVIEW_V1.md
+      - .github/workflows/rate_real_git_execution_evidence_review_ci.yml
+permissions:
+  contents: read
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix: {os: [windows-latest, ubuntu-latest]}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python -B -m unittest tests.test_intraday_real_git_execution_evidence_review -v
+      - run: git diff --exit-code
