@@ -1,7 +1,9 @@
 name: RATE Fugle Free Intraday Diagnostic Engineering
 on:
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - codex/rate-v11-fugle-free-intraday-diagnostic-v1
     paths:
       - src/provider_fugle_intraday_candidate.py
       - scripts/run_fugle_intraday_qualification.py
