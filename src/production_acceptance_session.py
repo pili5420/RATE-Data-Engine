@@ -53,6 +53,19 @@ def open_production_acceptance_session(
     main=post_merge_activation.get("merged_main_sha")
     require(isinstance(main,str) and len(main)==40,
             "PA_SESSION_MAIN_SHA_INVALID")
+    activation_code_sha=post_merge_activation.get("activation_code_sha",main)
+    require(isinstance(activation_code_sha,str) and len(activation_code_sha)==40,
+            "PA_SESSION_ACTIVATION_CODE_SHA_INVALID")
+    operational_head_policy=post_merge_activation.get(
+        "operational_head_policy","EXACT_MERGED_MAIN_ONLY"
+    )
+    require(operational_head_policy in {
+        "EXACT_MERGED_MAIN_ONLY",
+        "AUTHORIZED_DESCENDANT_POINTER_COMMITS_ONLY",
+    },"PA_SESSION_OPERATIONAL_HEAD_POLICY_INVALID")
+    if operational_head_policy=="AUTHORIZED_DESCENDANT_POINTER_COMMITS_ONLY":
+        require(post_merge_activation.get("route")=="B_ZERO_FEE",
+                "PA_SESSION_DESCENDANT_POLICY_ROUTE_INVALID")
     start=_iso_day(session_start_date,"PA_SESSION_START_DATE_INVALID")
 
     return {
@@ -60,6 +73,8 @@ def open_production_acceptance_session(
         "validation_status":"PASS",
         "governance_scope":"CURRENT_PRODUCTION",
         "merged_main_sha":main,
+        "activation_code_sha":activation_code_sha,
+        "operational_head_policy":operational_head_policy,
         "session_start_date":start,
         "required_trading_days":MIN_TRADING_DAYS,
         "required_scheduled_runs":MIN_SCHEDULED_RUNS,
@@ -113,9 +128,19 @@ def admit_scheduled_run(
     require(cadence in CADENCES,"PA_RUN_CADENCE_INVALID")
     require(trading_date >= session["session_start_date"],
             "PA_RUN_PRE_SESSION_HISTORY_FORBIDDEN")
-    require(run.get("run_head_sha")==session["merged_main_sha"]
-            or run.get("commit_sha")==session["merged_main_sha"],
-            "PA_RUN_MAIN_BINDING_MISMATCH")
+    operational_head=run.get("run_head_sha") or run.get("commit_sha")
+    require(isinstance(operational_head,str) and len(operational_head)==40,
+            "PA_RUN_OPERATIONAL_HEAD_INVALID")
+    if session.get("operational_head_policy")=="EXACT_MERGED_MAIN_ONLY":
+        require(operational_head==session["merged_main_sha"],
+                "PA_RUN_MAIN_BINDING_MISMATCH")
+    else:
+        require(run.get("activation_code_sha")==session.get("activation_code_sha"),
+                "PA_RUN_ACTIVATION_CODE_BINDING_MISMATCH")
+        require(run.get("activation_is_ancestor") is True,
+                "PA_RUN_ACTIVATION_ANCESTRY_NOT_PROVEN")
+        require(run.get("operational_changes_authorized") is True,
+                "PA_RUN_OPERATIONAL_CHANGES_NOT_AUTHORIZED")
 
     require(run.get("production_data_gate")=="PASS",
             "PA_RUN_PRODUCTION_DATA_GATE_NOT_PASS")
@@ -138,7 +163,8 @@ def admit_scheduled_run(
         "cadence":cadence,
         "workflow_run_id":run.get("workflow_run_id"),
         "workflow_job_id":run.get("workflow_job_id"),
-        "run_head_sha":session["merged_main_sha"],
+        "run_head_sha":operational_head,
+        "activation_code_sha":session.get("activation_code_sha"),
         "current_state_id":run.get("current_state_id"),
         "previous_state_id":run.get("previous_state_id"),
         "production_snapshot_id":run.get("production_snapshot_id"),
@@ -201,6 +227,8 @@ def audit_session_lineage(session: Mapping[str,Any]) -> dict[str,Any]:
         "artifact":"RATE_V11_PRODUCTION_ACCEPTANCE_LINEAGE_AUDIT_V1",
         "validation_status":"PASS",
         "merged_main_sha":session["merged_main_sha"],
+        "activation_code_sha":session.get("activation_code_sha"),
+        "operational_head_policy":session.get("operational_head_policy"),
         "run_count":len(runs),
         "complete_trading_days":complete_days,
         "within_day_links_verified":within_day_links,
@@ -238,6 +266,8 @@ def summarize_production_acceptance_session(
         "validation_status":"PASS",
         "governance_scope":"CURRENT_PRODUCTION",
         "merged_main_sha":session["merged_main_sha"],
+        "activation_code_sha":session.get("activation_code_sha"),
+        "operational_head_policy":session.get("operational_head_policy"),
         "session_start_date":session["session_start_date"],
         "trading_days_tested":len(complete_days),
         "successful_cadence_runs":len(unique),
