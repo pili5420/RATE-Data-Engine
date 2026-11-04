@@ -14,6 +14,7 @@ from src.route_b_git_ancestry import build_ancestry_evidence
 def main() -> int:
     p=argparse.ArgumentParser(description="Build Route B Git ancestry evidence")
     p.add_argument("--activation-merge-sha",required=True)
+    p.add_argument("--activation-binding-sha",default=None)
     p.add_argument("--source-head",action="append",default=[],
                    help="label=40hexsha; may be repeated")
     p.add_argument("--repo-root",default=".")
@@ -31,6 +32,7 @@ def main() -> int:
         result=build_ancestry_evidence(
             a.repo_root,
             activation_merge_sha=a.activation_merge_sha,
+            activation_binding_sha=a.activation_binding_sha,
             source_heads=heads,
         )
         atomic_write_json(Path(a.output),result)
