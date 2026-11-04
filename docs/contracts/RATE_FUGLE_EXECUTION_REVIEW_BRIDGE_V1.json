@@ -1,0 +1,17 @@
+{
+  "artifact":"RATE_FUGLE_EXECUTION_REVIEW_BRIDGE_CONTRACT_V1",
+  "status":"ENGINEERING_CONTRACT_ONLY",
+  "required_execution_artifact":"RATE_FUGLE_SINGLE_LIVE_EXECUTION_RESULT_V1",
+  "required_fence_readback":true,
+  "required_single_use_consumed":true,
+  "required_github_fence_requests":3,
+  "required_provider_requests":30,
+  "automatic_retries":0,
+  "fallback_used":false,
+  "redirects_followed":0,
+  "output_artifact":"RATE_INTRADAY_SINGLE_LIVE_QUALIFICATION_REVIEW_PACKAGE_V1",
+  "production_activation_allowed":false,
+  "external_dependency_resolved":false,
+  "production_credit":0,
+  "cer081_credit":0
+}
