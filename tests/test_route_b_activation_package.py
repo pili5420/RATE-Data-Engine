@@ -25,6 +25,7 @@ class PackageTests(unittest.TestCase):
         policy.return_value={
             "artifact":"RATE_ROUTE_B_ACTIVATION_BASELINE_V1",
             "status":"ACTIVE","activation_merge_sha":"a"*40,
+            "activation_binding_sha":"d"*40,
             "route":"B_ZERO_FEE","production_credit_allowed":True
         }
         find.return_value=("2026-11-05",{"workflow_run_id":"120","cadence":"12:00"})
