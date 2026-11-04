@@ -1,0 +1,47 @@
+name: RATE Fugle Single Live Executor Rehearsal
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/intraday_fugle_live_executor_rehearsal.py
+      - tests/test_intraday_fugle_live_executor_rehearsal.py
+      - docs/contracts/RATE_FUGLE_SINGLE_LIVE_EXECUTOR_REHEARSAL_V1.json
+      - docs/RATE_FUGLE_SINGLE_LIVE_EXECUTOR_REHEARSAL_V1.md
+      - .github/workflows/rate_fugle_single_live_executor_rehearsal_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Exact Git bytes
+        shell: bash
+        run: |
+          git config core.autocrlf false
+          git checkout-index --all --force
+          git diff --exit-code
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Executor rehearsal tests
+        run: python -B -m unittest tests.test_intraday_fugle_live_executor_rehearsal -v
+      - name: Authorization/readiness regression
+        run: python -B -m unittest tests.test_intraday_fugle_single_live_authorization tests.test_intraday_new_live_qualification_readiness -v
+      - name: No tracked mutation
+        run: git diff --exit-code
