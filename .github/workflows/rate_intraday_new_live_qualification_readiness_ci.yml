@@ -1,0 +1,47 @@
+name: RATE Intraday New Live Qualification Readiness
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/intraday_new_live_qualification_readiness.py
+      - tests/test_intraday_new_live_qualification_readiness.py
+      - docs/contracts/RATE_INTRADAY_NEW_SINGLE_LIVE_QUALIFICATION_READINESS_V1.json
+      - docs/RATE_INTRADAY_NEW_SINGLE_LIVE_QUALIFICATION_READINESS_V1.md
+      - .github/workflows/rate_intraday_new_live_qualification_readiness_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Exact Git bytes
+        shell: bash
+        run: |
+          git config core.autocrlf false
+          git checkout-index --all --force
+          git diff --exit-code
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: New live qualification readiness tests
+        run: python -B -m unittest tests.test_intraday_new_live_qualification_readiness -v
+      - name: Exchange authority regression
+        run: python -B -m unittest tests.test_intraday_exchange_authority_evidence_intake tests.test_intraday_provider_authority -v
+      - name: No tracked mutation
+        run: git diff --exit-code
