@@ -70,7 +70,8 @@ def validate_route_b_post_merge_activation(
         row=heads.get(cadence)
         require(isinstance(row,Mapping)
                 and row.get("source_head_sha")==overlay.get("source_head_sha")
-                and row.get("activation_is_ancestor") is True,
+                and row.get("activation_is_ancestor") is True
+                and row.get("binding_is_ancestor") is True,
                 "ROUTE_B_ACTIVATION_ANCESTRY_NOT_PROVEN:"+cadence)
         changed=row.get("changed_paths_since_activation")
         require(isinstance(changed,Sequence) and not isinstance(changed,(str,bytes)),
@@ -80,12 +81,17 @@ def validate_route_b_post_merge_activation(
                     and any(path==prefix or path.startswith(prefix) for prefix in ALLOWED_POINTER_PREFIXES),
                     "ROUTE_B_ACTIVATION_UNAUTHORIZED_POST_MERGE_CHANGE:"+str(path))
 
+    binding_sha=ancestry_evidence.get("activation_binding_sha")
+    require(isinstance(binding_sha,str) and len(binding_sha)==40,
+            "ROUTE_B_ACTIVATION_BINDING_SHA_INVALID")
+
     return {
         "artifact":"RATE_POST_MERGE_PRODUCTION_ACTIVATION_VERIFICATION_V1",
         "validation_status":"PASS",
         "final_disposition":"PRODUCTION_ACTIVATION_VERIFIED",
         "route":"B_ZERO_FEE",
         "activation_code_sha":activation_merge_sha,
+        "activation_binding_sha":binding_sha,
         "merged_main_sha":activation_merge_sha,
         "operational_head_policy":"AUTHORIZED_DESCENDANT_POINTER_COMMITS_ONLY",
         "trading_date":overlay_0930["trading_date"],
