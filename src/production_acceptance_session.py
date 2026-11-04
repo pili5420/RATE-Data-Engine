@@ -56,6 +56,8 @@ def open_production_acceptance_session(
     activation_code_sha=post_merge_activation.get("activation_code_sha",main)
     require(isinstance(activation_code_sha,str) and len(activation_code_sha)==40,
             "PA_SESSION_ACTIVATION_CODE_SHA_INVALID")
+    activation_binding_sha=post_merge_activation.get("activation_binding_sha")
+
     operational_head_policy=post_merge_activation.get(
         "operational_head_policy","EXACT_MERGED_MAIN_ONLY"
     )
@@ -66,6 +68,9 @@ def open_production_acceptance_session(
     if operational_head_policy=="AUTHORIZED_DESCENDANT_POINTER_COMMITS_ONLY":
         require(post_merge_activation.get("route")=="B_ZERO_FEE",
                 "PA_SESSION_DESCENDANT_POLICY_ROUTE_INVALID")
+        require(isinstance(activation_binding_sha,str) and len(activation_binding_sha)==40
+                and activation_binding_sha != activation_code_sha,
+                "PA_SESSION_ACTIVATION_BINDING_SHA_INVALID")
     start=_iso_day(session_start_date,"PA_SESSION_START_DATE_INVALID")
 
     return {
@@ -74,6 +79,7 @@ def open_production_acceptance_session(
         "governance_scope":"CURRENT_PRODUCTION",
         "merged_main_sha":main,
         "activation_code_sha":activation_code_sha,
+        "activation_binding_sha":activation_binding_sha,
         "operational_head_policy":operational_head_policy,
         "session_start_date":start,
         "required_trading_days":MIN_TRADING_DAYS,
@@ -137,6 +143,8 @@ def admit_scheduled_run(
     else:
         require(run.get("activation_code_sha")==session.get("activation_code_sha"),
                 "PA_RUN_ACTIVATION_CODE_BINDING_MISMATCH")
+        require(run.get("activation_binding_sha")==session.get("activation_binding_sha"),
+                "PA_RUN_ACTIVATION_BINDING_SHA_MISMATCH")
         require(run.get("activation_is_ancestor") is True,
                 "PA_RUN_ACTIVATION_ANCESTRY_NOT_PROVEN")
         require(run.get("operational_changes_authorized") is True,
@@ -165,6 +173,7 @@ def admit_scheduled_run(
         "workflow_job_id":run.get("workflow_job_id"),
         "run_head_sha":operational_head,
         "activation_code_sha":session.get("activation_code_sha"),
+        "activation_binding_sha":session.get("activation_binding_sha"),
         "current_state_id":run.get("current_state_id"),
         "previous_state_id":run.get("previous_state_id"),
         "production_snapshot_id":run.get("production_snapshot_id"),
@@ -228,6 +237,7 @@ def audit_session_lineage(session: Mapping[str,Any]) -> dict[str,Any]:
         "validation_status":"PASS",
         "merged_main_sha":session["merged_main_sha"],
         "activation_code_sha":session.get("activation_code_sha"),
+        "activation_binding_sha":session.get("activation_binding_sha"),
         "operational_head_policy":session.get("operational_head_policy"),
         "run_count":len(runs),
         "complete_trading_days":complete_days,
@@ -267,6 +277,7 @@ def summarize_production_acceptance_session(
         "governance_scope":"CURRENT_PRODUCTION",
         "merged_main_sha":session["merged_main_sha"],
         "activation_code_sha":session.get("activation_code_sha"),
+        "activation_binding_sha":session.get("activation_binding_sha"),
         "operational_head_policy":session.get("operational_head_policy"),
         "session_start_date":session["session_start_date"],
         "trading_days_tested":len(complete_days),

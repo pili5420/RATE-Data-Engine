@@ -12,12 +12,14 @@ from src.route_b_acceptance_store import (
 )
 
 MAIN="a"*40
+BIND="d"*40
 
 def package():
     session={
         "artifact":"RATE_V11_PRODUCTION_ACCEPTANCE_SESSION_V1",
         "validation_status":"PASS","governance_scope":"CURRENT_PRODUCTION",
         "merged_main_sha":MAIN,"activation_code_sha":MAIN,
+        "activation_binding_sha":BIND,
         "operational_head_policy":"AUTHORIZED_DESCENDANT_POINTER_COMMITS_ONLY",
         "session_start_date":"2026-11-06",
         "required_trading_days":3,"required_scheduled_runs":12,
@@ -44,6 +46,7 @@ def run(run_id="1",state="s1",head="b"*40):
         "event":"schedule","validation_status":"PASS","publish_result":"PASS",
         "trading_date":"2026-11-06","cadence":"07:30",
         "run_head_sha":head,"activation_code_sha":MAIN,
+        "activation_binding_sha":BIND,
         "activation_is_ancestor":True,"operational_changes_authorized":True,
         "workflow_run_id":run_id,"workflow_job_id":"10",
         "fallback_used":False,"automatic_retry_count":0,

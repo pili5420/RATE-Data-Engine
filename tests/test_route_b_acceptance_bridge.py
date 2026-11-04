@@ -13,6 +13,7 @@ from src.route_b_acceptance_bridge import (
 BASE="a"*40
 H0930="b"*40
 H1200="c"*40
+BIND="d"*40
 
 def overlay(cadence,head,state,previous):
     return {
@@ -40,10 +41,12 @@ def ancestry():
         "artifact":"RATE_ROUTE_B_GIT_ANCESTRY_EVIDENCE_V1",
         "validation_status":"PASS",
         "activation_merge_sha":BASE,
+        "activation_binding_sha":BIND,
+        "binding_changed_paths":["config/RATE_ROUTE_B_ACTIVATION_BASELINE_V1.json"],
         "source_heads":{
-            "09:30":{"source_head_sha":H0930,"activation_is_ancestor":True,
+            "09:30":{"source_head_sha":H0930,"activation_is_ancestor":True,"binding_is_ancestor":True,
                      "changed_paths_since_activation":["artifacts/production_state/live/2026-11-05/0930/x.json"]},
-            "12:00":{"source_head_sha":H1200,"activation_is_ancestor":True,
+            "12:00":{"source_head_sha":H1200,"activation_is_ancestor":True,"binding_is_ancestor":True,
                      "changed_paths_since_activation":["artifacts/RATE_PRODUCTION_STATE_LATEST.json"]}
         }
     }
@@ -55,6 +58,7 @@ class BridgeTests(unittest.TestCase):
         out=build_activation_and_open_session(a,b,ancestry(),activation_merge_sha=BASE)
         self.assertEqual(out["activation"]["final_disposition"],"PRODUCTION_ACTIVATION_VERIFIED")
         self.assertEqual(out["session"]["activation_code_sha"],BASE)
+        self.assertEqual(out["session"]["activation_binding_sha"],BIND)
         self.assertEqual(out["session_start_date"],"2026-11-06")
         self.assertFalse(out["activation_day_acceptance_credit_allowed"])
 
@@ -71,7 +75,7 @@ class BridgeTests(unittest.TestCase):
         session=bridge["session"]
         future=overlay("09:30","e"*40,"x0930","x0730")
         future["trading_date"]=session["session_start_date"]
-        row={"source_head_sha":"e"*40,"activation_is_ancestor":True,
+        row={"source_head_sha":"e"*40,"activation_is_ancestor":True,"binding_is_ancestor":True,
              "changed_paths_since_activation":["artifacts/RATE_PRODUCTION_STATE_LATEST.json"]}
         run=bind_overlay_run_to_session(future,session,row)
         out=admit_scheduled_run(session,run)
@@ -83,7 +87,7 @@ class BridgeTests(unittest.TestCase):
         session=build_activation_and_open_session(a,b,ancestry(),activation_merge_sha=BASE)["session"]
         future=overlay("09:30","e"*40,"x0930","x0730")
         future["trading_date"]=session["session_start_date"]
-        row={"source_head_sha":"e"*40,"activation_is_ancestor":True,
+        row={"source_head_sha":"e"*40,"activation_is_ancestor":True,"binding_is_ancestor":True,
              "changed_paths_since_activation":["src/rate_logic.py"]}
         with self.assertRaisesRegex(RouteBAcceptanceBridgeError,"UNAUTHORIZED_OPERATIONAL_CHANGE"):
             bind_overlay_run_to_session(future,session,row)
@@ -101,7 +105,7 @@ class BridgeTests(unittest.TestCase):
             "ranking_model_continuity":True,"current_state_id":"s0730",
             "previous_state_id":"prior1930"
         }
-        row={"source_head_sha":"f"*40,"activation_is_ancestor":True,
+        row={"source_head_sha":"f"*40,"activation_is_ancestor":True,"binding_is_ancestor":True,
              "changed_paths_since_activation":["artifacts/production_state/live/2026-11-06/0730/x.json"]}
         normalized=bind_standard_run_to_session(standard,session,row)
         self.assertEqual(normalized["activation_code_sha"],BASE)

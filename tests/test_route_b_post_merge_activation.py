@@ -9,6 +9,7 @@ from src.route_b_post_merge_activation import (
 BASE="a"*40
 H0930="b"*40
 H1200="c"*40
+BIND="d"*40
 
 def overlay(cadence,head,state,previous):
     return {
@@ -33,10 +34,12 @@ def ancestry():
         "artifact":"RATE_ROUTE_B_GIT_ANCESTRY_EVIDENCE_V1",
         "validation_status":"PASS",
         "activation_merge_sha":BASE,
+        "activation_binding_sha":BIND,
+        "binding_changed_paths":["config/RATE_ROUTE_B_ACTIVATION_BASELINE_V1.json"],
         "source_heads":{
-            "09:30":{"source_head_sha":H0930,"activation_is_ancestor":True,
+            "09:30":{"source_head_sha":H0930,"activation_is_ancestor":True,"binding_is_ancestor":True,
                      "changed_paths_since_activation":["artifacts/production_state/live/2026-11-05/0930/RATE_PRODUCTION_STATE_MANIFEST.json"]},
-            "12:00":{"source_head_sha":H1200,"activation_is_ancestor":True,
+            "12:00":{"source_head_sha":H1200,"activation_is_ancestor":True,"binding_is_ancestor":True,
                      "changed_paths_since_activation":["artifacts/RATE_PRODUCTION_STATE_LATEST.json"]}
         }
     }
@@ -48,6 +51,7 @@ class ActivationTests(unittest.TestCase):
         r=validate_route_b_post_merge_activation(a,b,ancestry(),activation_merge_sha=BASE)
         self.assertEqual(r["final_disposition"],"PRODUCTION_ACTIVATION_VERIFIED")
         self.assertEqual(r["activation_code_sha"],BASE)
+        self.assertEqual(r["activation_binding_sha"],BIND)
         self.assertEqual(r["operational_head_policy"],"AUTHORIZED_DESCENDANT_POINTER_COMMITS_ONLY")
 
     def test_lineage_required(self):

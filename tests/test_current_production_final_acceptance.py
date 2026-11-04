@@ -8,6 +8,7 @@ from src.current_production_final_acceptance import (
 from src.intraday_activation_candidate_review import canonical_digest
 
 MAIN="a"*40
+BIND="d"*40
 
 def post():
     return {
@@ -27,6 +28,7 @@ def post_route_b():
         "route":"B_ZERO_FEE",
         "merged_main_sha":MAIN,
         "activation_code_sha":MAIN,
+        "activation_binding_sha":BIND,
         "operational_head_policy":"AUTHORIZED_DESCENDANT_POINTER_COMMITS_ONLY",
         "production_credit":1,
         "cer081_credit":0,
@@ -136,6 +138,7 @@ class FinalAcceptanceTests(unittest.TestCase):
         p=post_route_b()
         s=session()
         s["activation_code_sha"]=MAIN
+        s["activation_binding_sha"]=BIND
         s["operational_head_policy"]="AUTHORIZED_DESCENDANT_POINTER_COMMITS_ONLY"
         result=self.validate(p=p,s=s)
         self.assertEqual(result["route"],"B_ZERO_FEE")
@@ -146,6 +149,7 @@ class FinalAcceptanceTests(unittest.TestCase):
         p=post_route_b()
         s=session()
         s["activation_code_sha"]="b"*40
+        s["activation_binding_sha"]=BIND
         s["operational_head_policy"]="AUTHORIZED_DESCENDANT_POINTER_COMMITS_ONLY"
         with self.assertRaisesRegex(CurrentProductionFinalAcceptanceError,"SESSION_ACTIVATION_CODE_MISMATCH"):
             self.validate(p=p,s=s)
