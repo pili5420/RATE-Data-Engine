@@ -31,9 +31,17 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Restore exact Git bytes
+        shell: bash
+        run: |
+          git config core.autocrlf false
+          git checkout-index --all --force
+          git diff --exit-code
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install cross-platform timezone data
+        run: python -m pip install tzdata==2025.2
       - name: Route B Phase2 scheduler and collector regression
         run: >-
           python -B -m unittest
