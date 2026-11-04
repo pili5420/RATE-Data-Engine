@@ -46,6 +46,7 @@ def _preflight(
     receipt_store: SyntheticWriteOnceReceiptStore,
     git_backend: SyntheticGitBackend,
     *,
+    execution_id: str,
     expected_readiness_sha256: str,
     expected_real_git_authorization_sha256: str,
     expected_transaction_plan_sha256: str,
@@ -189,6 +190,14 @@ def _preflight(
         type(receipt_store) is SyntheticWriteOnceReceiptStore,
         "DURABLE_GIT_REAL_RECEIPT_STORE_FORBIDDEN_IN_CI",
     )
+
+    # The durable receipt is the cross-process single-use trust root. If it
+    # already exists, reject reentry before interpreting any ephemeral backend
+    # state. This preserves durable ALREADY_CONSUMED semantics after crashes.
+    if receipt_store.read(execution_id) is not None:
+        from .intraday_real_git_execution_fence import ExecutionFenceError
+        raise ExecutionFenceError("EXECUTION_FENCE_ALREADY_CONSUMED")
+
     require(
         type(git_backend) is SyntheticGitBackend,
         "DURABLE_GIT_REAL_BACKEND_FORBIDDEN_IN_CI",
@@ -235,6 +244,7 @@ def rehearse_durable_receipt_then_git(
         candidate_files,
         receipt_store,
         git_backend,
+        execution_id=execution_id,
         expected_readiness_sha256=expected_readiness_sha256,
         expected_real_git_authorization_sha256=expected_real_git_authorization_sha256,
         expected_transaction_plan_sha256=expected_transaction_plan_sha256,
