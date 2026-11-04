@@ -74,13 +74,7 @@ def _require_current_runtime_accounts(decision):
 def validate_material(persist, material, trading_date, cadence):
     state, decision, _ = _validate_material_core(persist, material, trading_date, cadence)
     _require_current_runtime_accounts(decision)
-    if decision.get("route_b_zero_fee") is True:
-        from src.route_b_official_checkpoint import validate_route_b_state
-        validate_route_b_state(decision)
-        require(persist.get("report_runtime_status") == "PRODUCTION_VALID_ROUTE_B"
-                and persist.get("full_production_acceptance") == "ALLOWED_ROUTE_B",
-                "ROUTE_B_PERSIST_GATE_INVALID")
-    elif "public_official_bundle" in decision or decision.get("report_runtime_status") == "PARTIAL_VALID":
+    if "public_official_bundle" in decision or decision.get("report_runtime_status") == "PARTIAL_VALID":
         from src.public_official_partial_valid import validate_partial_state
         validate_partial_state(decision)
         require(persist.get("report_runtime_status") == "PARTIAL_VALID"
