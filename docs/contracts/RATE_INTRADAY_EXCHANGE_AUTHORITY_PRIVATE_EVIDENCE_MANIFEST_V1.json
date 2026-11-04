@@ -1,0 +1,17 @@
+{
+  "artifact":"RATE_INTRADAY_EXCHANGE_AUTHORITY_PRIVATE_EVIDENCE_MANIFEST_CONTRACT_V1",
+  "status":"ENGINEERING_CONTRACT_ONLY",
+  "markets":["TWSE","TPEX"],
+  "private_file_hash":"SHA256",
+  "private_file_content_embedded":false,
+  "private_source_path_embedded":false,
+  "required_asserted_scope":"ACTIVE_REALTIME_AUTOMATED_NONDISPLAY_INTERNAL",
+  "manifest_status":"PENDING_CONTROL_CENTER_REVIEW",
+  "manifest_grants_authority":false,
+  "provider_authority_qualification_pass":false,
+  "production_activation_allowed":false,
+  "external_dependency_resolved":false,
+  "production_credit":0,
+  "cer081_credit":0,
+  "next_gate":"CONTROL_CENTER_PRIVATE_EVIDENCE_REVIEW_THEN_EXCHANGE_AUTHORITY_INTAKE"
+}
