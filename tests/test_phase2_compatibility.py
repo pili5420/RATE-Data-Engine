@@ -131,8 +131,12 @@ class Phase2CompatibilityTests(unittest.TestCase):
         for slot in ("0730", "1930"):
             workflow = yaml.safe_load((ROOT / f".github/workflows/rate_production_{slot}_scheduler.yml").read_text())
             self.assertFalse(workflow[True]["workflow_dispatch"]["inputs"]["phase2"]["default"])
-            self.assertEqual(workflow["jobs"]["production-" + slot]["env"]["EXECUTION_AUTHORITY"],
-                "${{ inputs.phase2 && 'MAIN_ONLY' || '' }}")
+            self.assertEqual(
+                workflow["jobs"]["production-" + slot]["env"]["EXECUTION_AUTHORITY"],
+                "${{ (github.event_name == 'schedule' || inputs.phase2) && 'MAIN_ONLY' || '' }}",
+            )
+            text=(ROOT / f".github/workflows/rate_production_{slot}_scheduler.yml").read_text(encoding="utf-8")
+            self.assertIn("(github.event_name == 'schedule' || inputs.phase2) && '--phase2'", text)
 
     def test_full_cold_four_cadence_chain(self):
         self.assertEqual(chain_proof(None)["four_cadence_continuity"], "PASS")
