@@ -1,0 +1,18 @@
+{
+  "artifact":"RATE_REAL_GIT_EXECUTION_WITH_ACCEPTED_AUTHORITY_STORE_READINESS_CONTRACT_V1",
+  "status":"ENGINEERING_CONTRACT_ONLY",
+  "authority_store_provider":"CLOUDFLARE_WORKERS_D1",
+  "authority_store_role":"REAL_GIT_EXECUTION_CONSUMPTION_RECEIPT_STORE",
+  "authority_store_provider_accepted_required":true,
+  "authority_store_provider_qualified_required":true,
+  "real_git_authorization_required":true,
+  "consumption_receipt_artifact":"RATE_INTRADAY_REAL_GIT_EXECUTION_CONSUMPTION_RECEIPT_V1",
+  "consumption_receipt_state":"CONSUMED_BEFORE_GIT_MUTATION",
+  "persist_receipt_before_first_git_mutation":true,
+  "write_once_receipt_required":true,
+  "readiness_only":true,
+  "real_git_transaction_execution_allowed":false,
+  "production_credit":0,
+  "cer081_credit":0,
+  "next_gate":"SEPARATE_REAL_GIT_EXECUTOR_WITH_DURABLE_RECEIPT_AUTHORIZATION"
+}
