@@ -1,4 +1,5 @@
 from __future__ import annotations
+import json
 from pathlib import Path
 import unittest
 
@@ -42,6 +43,18 @@ class RouteBPhase2SchedulerWiringTests(unittest.TestCase):
             text=self.text(slot)
             self.assertIn("--public-official-partial",text)
             self.assertNotIn("Execute Phase2 dynamic",text)
+
+
+    def test_first_refresh_authority_matches_current_canonical_baseline(self):
+        policy=json.loads((ROOT/"config/RATE_PHASE2_CHANGE_REQUEST_V1.json").read_text(encoding="utf-8"))
+        latest=json.loads((ROOT/"artifacts/RATE_PRODUCTION_STATE_LATEST.json").read_text(encoding="utf-8"))
+        first=policy["first_refresh"]
+        self.assertEqual(first["predecessor_trading_date"],latest["trading_date"])
+        self.assertEqual(first["predecessor_cadence"],latest["cadence"])
+        self.assertEqual(first["predecessor_state_id"],latest["current_state_id"])
+        self.assertEqual(first["predecessor_state_hash"],latest["current_state_hash"])
+        self.assertEqual(first["cadence"],"19:30")
+        self.assertTrue(first["single_use"])
 
 if __name__=="__main__":
     unittest.main()
