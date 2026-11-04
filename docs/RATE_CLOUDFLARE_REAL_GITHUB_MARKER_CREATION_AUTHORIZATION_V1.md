@@ -15,3 +15,14 @@ No main update, branch ref, pull request, merge, delete, marker retry or Cloudfl
 request is authorized by this gate.
 
 A PASS does not create the marker. The next gate is a separate real marker executor.
+
+
+## Marker identity binding
+
+Two hashes are intentionally distinct:
+
+- `cloudflare_authorization_qualification_sha256` binds the complete #134 qualification object.
+- `cloudflare_real_qualification_authorization_sha256` is the original Cloudflare real-qualification authorization SHA256 carried inside that qualification.
+
+The durable marker ref is derived only from the original authorization SHA256. The
+qualification-object digest must never be substituted as marker identity.
