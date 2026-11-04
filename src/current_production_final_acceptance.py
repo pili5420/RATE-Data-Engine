@@ -50,6 +50,10 @@ def validate_current_production_final_acceptance(
         require(post_merge_activation.get("operational_head_policy")
                 =="AUTHORIZED_DESCENDANT_POINTER_COMMITS_ONLY",
                 "PA_FINAL_ROUTE_B_OPERATIONAL_POLICY_INVALID")
+        binding_sha=post_merge_activation.get("activation_binding_sha")
+        require(isinstance(binding_sha,str) and len(binding_sha)==40
+                and binding_sha != expected_merged_main_sha,
+                "PA_FINAL_ROUTE_B_ACTIVATION_BINDING_SHA_INVALID")
     require(post_merge_activation.get("production_credit")==1
             and post_merge_activation.get("cer081_credit")==0,
             "PA_FINAL_POST_MERGE_CREDIT_INVALID")
@@ -71,6 +75,8 @@ def validate_current_production_final_acceptance(
         require(session_summary.get("operational_head_policy")
                 =="AUTHORIZED_DESCENDANT_POINTER_COMMITS_ONLY",
                 "PA_FINAL_ROUTE_B_SESSION_OPERATIONAL_POLICY_INVALID")
+        require(session_summary.get("activation_binding_sha")==binding_sha,
+                "PA_FINAL_ROUTE_B_SESSION_BINDING_SHA_MISMATCH")
     require(session_summary.get("completion_status")=="READY_FOR_CER081_FINAL_ACCEPTANCE",
             "PA_FINAL_SESSION_NOT_READY")
     require(
@@ -132,6 +138,7 @@ def validate_current_production_final_acceptance(
         "route":route or "LEGACY_ROUTE_A",
         "merged_main_sha":expected_merged_main_sha,
         "activation_code_sha":post_merge_activation.get("activation_code_sha",expected_merged_main_sha),
+        "activation_binding_sha":post_merge_activation.get("activation_binding_sha"),
         "operational_head_policy":post_merge_activation.get(
             "operational_head_policy","EXACT_MERGED_MAIN_ONLY"
         ),
