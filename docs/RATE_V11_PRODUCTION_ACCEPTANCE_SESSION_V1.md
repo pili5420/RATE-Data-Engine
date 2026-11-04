@@ -20,9 +20,16 @@ Only runs satisfying all of the following can receive session credit:
 Manual dispatch, pre-activation historical runs, cross-main runs and duplicate
 date/cadence runs receive no credit.
 
+Each admitted run persists normalized acceptance evidence for official schedule provenance,
+Production Data Gate, Decision State continuity, Portfolio continuity, Transaction Ledger
+continuity, Ranking continuity, fallback-free execution and no automatic retry. The session
+summary recomputes these gates from the durable ledger; missing or tampered evidence fails
+closed and cannot be hidden by the original admission result.
+
 The session becomes `READY_FOR_FINAL_ACCEPTANCE` only after at least three complete
-trading days and twelve unique official scheduled runs. It still grants no CER-081
-credit by itself; the existing final acceptance gate remains authoritative.
+trading days and twelve unique official scheduled runs, independent state/cross-day lineage
+PASS, and all durable acceptance evidence gates PASS. It still grants no CER-081 credit by
+itself; the existing final acceptance gate remains authoritative.
 
 ## Independent lineage audit
 
