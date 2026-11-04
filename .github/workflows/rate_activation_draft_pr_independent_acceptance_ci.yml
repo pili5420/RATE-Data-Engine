@@ -1,0 +1,28 @@
+name: RATE Activation Draft PR Independent Acceptance
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/intraday_activation_draft_pr_independent_acceptance.py
+      - tests/test_intraday_activation_draft_pr_independent_acceptance.py
+      - docs/contracts/RATE_ACTIVATION_DRAFT_PR_INDEPENDENT_ACCEPTANCE_V1.json
+      - docs/RATE_ACTIVATION_DRAFT_PR_INDEPENDENT_ACCEPTANCE_V1.md
+      - .github/workflows/rate_activation_draft_pr_independent_acceptance_ci.yml
+permissions:
+  contents: read
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix: {os: [windows-latest, ubuntu-latest]}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python -B -m unittest tests.test_intraday_activation_draft_pr_independent_acceptance -v
+      - run: git diff --exit-code
