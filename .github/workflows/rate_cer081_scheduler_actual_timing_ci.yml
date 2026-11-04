@@ -27,5 +27,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -B -m unittest tests.test_cer081_scheduler_actual_timing -v
+      - run: python -B -m unittest tests.test_cer081_scheduler_actual_timing tests.test_cer081_unattended_soak tests.test_current_production_final_acceptance tests.test_intraday_cer081_final_production_acceptance -v
       - run: git diff --exit-code
