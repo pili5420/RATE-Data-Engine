@@ -1,0 +1,34 @@
+name: RATE Real Draft PR Transport Binding
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/intraday_real_draft_pr_transport_binding.py
+      - tests/test_intraday_real_draft_pr_transport_binding.py
+      - docs/contracts/RATE_REAL_DRAFT_ACTIVATION_PR_TRANSPORT_BINDING_V1.json
+      - docs/RATE_REAL_DRAFT_ACTIVATION_PR_TRANSPORT_BINDING_V1.md
+      - .github/workflows/rate_real_draft_pr_transport_binding_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -B -m unittest tests.test_intraday_real_draft_pr_transport_binding -v
+      - run: git diff --exit-code
