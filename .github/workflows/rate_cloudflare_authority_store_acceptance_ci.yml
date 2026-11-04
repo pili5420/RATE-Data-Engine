@@ -1,0 +1,34 @@
+name: RATE Cloudflare Authority Store Provider Acceptance
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/intraday_cloudflare_authority_store_acceptance.py
+      - tests/test_intraday_cloudflare_authority_store_acceptance.py
+      - docs/contracts/RATE_CLOUDFLARE_AUTHORITY_STORE_PROVIDER_ACCEPTANCE_V1.json
+      - docs/RATE_CLOUDFLARE_AUTHORITY_STORE_PROVIDER_ACCEPTANCE_V1.md
+      - .github/workflows/rate_cloudflare_authority_store_acceptance_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -B -m unittest tests.test_intraday_cloudflare_authority_store_acceptance -v
+      - run: git diff --exit-code
