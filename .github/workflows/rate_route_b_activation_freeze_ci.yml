@@ -1,0 +1,40 @@
+name: RATE Route B Activation Freeze CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - config/RATE_ROUTE_B_ACTIVATION_BASELINE_V1.json
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate config-only activation freeze
+        run: >-
+          python -B scripts/validate_route_b_activation_freeze.py
+          --expected-base "${{ github.event.pull_request.base.sha }}"
+          --expected-head "${{ github.event.pull_request.head.sha }}"
+      - name: Baseline policy regression
+        run: python -B -m unittest tests.test_route_b_activation_package tests.test_route_b_git_ancestry -v
+      - name: No tracked mutation
+        run: git diff --exit-code
