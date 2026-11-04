@@ -1,0 +1,17 @@
+{
+  "artifact": "RATE_CLOUDFLARE_GITHUB_REF_MARKER_ADAPTER_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "marker_kind": "GITHUB_LIGHTWEIGHT_TAG_REF",
+  "create_count": 1,
+  "update_count": 0,
+  "delete_count": 0,
+  "readback_required": true,
+  "ambiguous_create_policy": "READ_SAME_REF_DO_NOT_RETRY_CREATE",
+  "preexisting_marker": "FAIL_ALREADY_CONSUMED",
+  "real_github_requests": 0,
+  "real_git_ref_created": false,
+  "real_cloudflare_requests": 0,
+  "production_credit": 0,
+  "cer081_credit": 0,
+  "next_gate": "EXPLICIT_REAL_GITHUB_MARKER_CREATION_AUTHORIZATION"
+}
