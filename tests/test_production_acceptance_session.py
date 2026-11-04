@@ -101,11 +101,35 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(summary["full_4_cadence_scheduled_coverage"],"PASS")
         self.assertEqual(summary["state_continuity"],"PASS")
         self.assertEqual(summary["cross_day_continuity"],"PASS")
+        self.assertEqual(summary["official_schedule_only"],"PASS")
+        self.assertEqual(summary["production_data_gate"],"PASS")
+        self.assertEqual(summary["decision_state_evidence"],"PASS")
+        self.assertEqual(summary["portfolio_continuity"],"PASS")
+        self.assertEqual(summary["transaction_ledger_continuity"],"PASS")
+        self.assertEqual(summary["ranking_model_continuity"],"PASS")
+        self.assertEqual(summary["fallback_free"],"PASS")
+        self.assertEqual(summary["automatic_retry_free"],"PASS")
         self.assertEqual(summary["cross_day_links_verified"],2)
         self.assertEqual(summary["completion_status"],"READY_FOR_CER081_FINAL_ACCEPTANCE")
         self.assertFalse(summary["production_acceptance_granted"])
         self.assertEqual(summary["cer081_credit"],0)
 
+
+    def test_persisted_business_continuity_tamper_fails_summary(self):
+        s=open_production_acceptance_session(post_merge(),session_start_date="2026-11-05")
+        s=admit_scheduled_run(s,run("2026-11-05","07:30",1))
+        s["accepted_runs"][0]["portfolio_continuity"]=False
+        summary=summarize_production_acceptance_session(s)
+        self.assertEqual(summary["portfolio_continuity"],"FAIL")
+        self.assertEqual(summary["completion_status"],"IN_PROGRESS")
+
+    def test_persisted_guard_tamper_fails_summary(self):
+        s=open_production_acceptance_session(post_merge(),session_start_date="2026-11-05")
+        s=admit_scheduled_run(s,run("2026-11-05","07:30",1))
+        s["accepted_runs"][0]["fallback_used"]=True
+        summary=summarize_production_acceptance_session(s)
+        self.assertEqual(summary["fallback_free"],"FAIL")
+        self.assertEqual(summary["completion_status"],"IN_PROGRESS")
 
     def test_lineage_audit_detects_broken_state_chain(self):
         s=open_production_acceptance_session(post_merge(),session_start_date="2026-11-05")
