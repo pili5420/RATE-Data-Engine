@@ -8,6 +8,7 @@ from typing import Any, Mapping
 
 from scripts.run_cer072_acceptance import _verify_model_freeze
 from src.cer074_acceptance import MAIN_HEAD, atomic_write_json, load_json, sha256, strip_runtime
+from src.cer081_scheduler_actual_timing import summarize_actual_timing_evidence
 
 SOAK_START_DATE = "2026-09-21"
 SOAK_END_DATE = "2026-09-25"
@@ -210,22 +211,26 @@ def build_cer081_artifacts(*, cer080_persisted: Mapping[str, Any], scheduled_run
             "workflow_run_id": run.get("workflow_run_id"), "cer081_credit": 0,
             "reasons": full_production_disqualifiers(run) or ["CURRENT_EXTERNAL_DEPENDENCY_BLOCKED"]} for run in observed]
         scheduled_runs = []
+    timing = summarize_actual_timing_evidence(scheduled_runs)
+    timing_required = current_dependency is not None and not currently_blocked
     sm = scheduled_run_metrics(scheduled_runs)
     matrix = build_daily_matrix(scheduled_runs)
     replay = deterministic_replay(scheduled_runs)
     source_failures = source_failure_gates()
     c = common(run_head_sha, actions_run_id, actions_job_id, event_name)
-    hard_pass = all([not currently_blocked, not rejected_report_runs, source["production_source_ssot"] == "PASS", scheduler["scheduler_coverage"] == "PASS", freeze.get("status") == "PASS", sm["trading_days_tested"] >= 3, sm["successful_cadence_runs"] >= 12, sm["missing_cadence_runs"] == 0, sm["duplicate_cadence_runs"] == 0, source_failures["failure_gate_result"] == "PASS", replay["deterministic_audit_replay"] == "PASS"])
+    hard_pass = all([not currently_blocked, not rejected_report_runs, source["production_source_ssot"] == "PASS", scheduler["scheduler_coverage"] == "PASS", freeze.get("status") == "PASS", sm["trading_days_tested"] >= 3, sm["successful_cadence_runs"] >= 12, sm["missing_cadence_runs"] == 0, sm["duplicate_cadence_runs"] == 0, source_failures["failure_gate_result"] == "PASS", replay["deterministic_audit_replay"] == "PASS", (not timing_required or (timing["actual_timing_evidence"] == "PASS" and timing["delayed_execution_blocking_count"] == 0))])
     blockers = []
     if rejected_report_runs or currently_blocked: blockers.append("BLOCKED_EXTERNAL_REPORT_ONLY_RUNS_NOT_FULL_PRODUCTION")
     if source["production_source_ssot"] != "PASS": blockers.append("PRODUCTION_SOURCE_SSOT_NOT_READY")
     if scheduler["scheduler_coverage"] != "PASS": blockers.append("SCHEDULER_COVERAGE_NOT_READY")
+    if timing_required and timing["actual_timing_evidence"] != "PASS": blockers.append("SCHEDULER_ACTUAL_TIMING_EVIDENCE_NOT_READY")
+    if timing_required and timing["delayed_execution_blocking_count"] != 0: blockers.append("SCHEDULER_DELAY_BLOCKING")
     if freeze.get("status") != "PASS": blockers.append("MODEL_FREEZE_FAIL")
     if sm["trading_days_tested"] < 3 or sm["successful_cadence_runs"] < 12: blockers.append("AWAITING_3_TRADING_DAYS_12_SCHEDULED_RUNS")
     final_result = "PASS" if hard_pass else "FAIL"
     hold_status = "ACCEPTED_CLOSED" if hard_pass else "HOLD:AWAITING_SCHEDULED_SOAK_EVIDENCE"
     if rejected_report_runs or currently_blocked: hold_status = "HOLD:BLOCKED_EXTERNAL"
-    base_metrics = {**sm, "reset_violation_count": 0, "lineage_violation_count": 0, "protected_field_violation_count": 0, "portfolio_continuity_violations": 0, "ledger_continuity_violations": 0, "model_freeze_violations": 0 if freeze.get("status") == "PASS" else 1, "automatic_recovery_count": 0, "manual_recovery_count": 0, "unrecovered_failure_count": 0, "duplicate_production_record_count": 0, "average_scheduler_delay_seconds": None, "max_scheduler_delay_seconds": None, "average_runtime_seconds": None, "max_runtime_seconds": None, "eod_closure_pass_count": sum(1 for row in matrix if row.get("EOD Closure") == "PASS"), "cross_day_handoff_pass_count": sum(1 for row in matrix if row.get("Cross-Day Ready") == "PASS")}
+    base_metrics = {**sm, "reset_violation_count": 0, "lineage_violation_count": 0, "protected_field_violation_count": 0, "portfolio_continuity_violations": 0, "ledger_continuity_violations": 0, "model_freeze_violations": 0 if freeze.get("status") == "PASS" else 1, "automatic_recovery_count": 0, "manual_recovery_count": 0, "unrecovered_failure_count": 0, "duplicate_production_record_count": 0, "average_scheduler_delay_seconds": timing["average_scheduler_delay_seconds"] if timing_required else None, "max_scheduler_delay_seconds": timing["max_scheduler_delay_seconds"] if timing_required else None, "average_runtime_seconds": None, "max_runtime_seconds": None, "eod_closure_pass_count": sum(1 for row in matrix if row.get("EOD Closure") == "PASS"), "cross_day_handoff_pass_count": sum(1 for row in matrix if row.get("Cross-Day Ready") == "PASS")}
     base_metrics.update(acceptance_id="CER081_FULL_PRODUCTION_SOAK",
         CER081_FULL_PRODUCTION_SOAK="BLOCKED_EXTERNAL" if rejected_report_runs or currently_blocked else
             ("NOT_ACCEPTED_LEGACY_REPLAY_ONLY" if current_dependency is None else ("PASS" if hard_pass else "NOT_ACCEPTED")),
@@ -242,10 +247,10 @@ def build_cer081_artifacts(*, cer080_persisted: Mapping[str, Any], scheduled_run
         "RATE_CER081_SOURCE_FAILURE_GATE_EVIDENCE.json": {"artifact": "RATE_CER081_SOURCE_FAILURE_GATE_EVIDENCE", **c, **source_failures},
         "RATE_CER081_SCHEDULED_RUN_EVIDENCE.json": {"artifact": "RATE_CER081_SCHEDULED_RUN_EVIDENCE", **c, "minimum_required_scheduled_runs": 12, "observed_scheduled_runs": len(scheduled_runs), "schedule_event_only": "PASS", "scheduled_runs": scheduled_runs},
         "RATE_CER081_SOAK_SUMMARY.json": {"artifact": "RATE_CER081_SOAK_SUMMARY", **c, **base_metrics, "daily_acceptance_matrix": matrix, "full_4_cadence_scheduled_coverage": "PASS" if sm["missing_cadence_runs"] == 0 and sm["successful_cadence_runs"] >= 12 else "FAIL", "state_continuity": "PASS" if hard_pass else "NOT_ACCEPTED", "cross_day_continuity": "PASS" if hard_pass else "NOT_ACCEPTED", "portfolio_continuity": "PASS" if hard_pass else "NOT_ACCEPTED", "transaction_ledger_continuity": "PASS" if hard_pass else "NOT_ACCEPTED", "ranking_model_continuity": "PASS" if hard_pass else "NOT_ACCEPTED", "remote_artifact_evidence": "PASS", "remaining_blockers": blockers, "completion_status": hold_status, "final_result": final_result},
-        "RATE_CER081_SCHEDULER_RELIABILITY_SUMMARY.json": {"artifact": "RATE_CER081_SCHEDULER_RELIABILITY_SUMMARY", **c, **scheduler, "manual_dispatch_substitution": "NO", "missed_execution_count": sm["missing_cadence_runs"], "delayed_execution_blocking_count": 0},
+        "RATE_CER081_SCHEDULER_RELIABILITY_SUMMARY.json": {"artifact": "RATE_CER081_SCHEDULER_RELIABILITY_SUMMARY", **c, **scheduler, **timing, "manual_dispatch_substitution": "NO", "missed_execution_count": sm["missing_cadence_runs"]},
         "RATE_CER081_IDEMPOTENCY_SUMMARY.json": {"artifact": "RATE_CER081_IDEMPOTENCY_SUMMARY", **c, "production_state_idempotency": "PASS" if hard_pass else "NOT_ACCEPTED", "duplicate_production_record_count": sm["duplicate_cadence_runs"], "duplicate_scheduled_trigger_result": "IDEMPOTENT_NOOP", "concurrency_collision_fork": "NO"},
         "RATE_CER081_FAILURE_RECOVERY_SUMMARY.json": {"artifact": "RATE_CER081_FAILURE_RECOVERY_SUMMARY", **c, "failure_closed_behavior": source_failures["failure_gate_result"], "automatic_recovery_count": 0, "manual_recovery_count": 0, "unrecovered_failure_count": 0, "illegal_state_after_failure_count": 0},
-        "RATE_CER081_LATENCY_SUMMARY.json": {"artifact": "RATE_CER081_LATENCY_SUMMARY", **c, "latency_status": "PENDING_SCHEDULED_RUNS" if not hard_pass else "PASS", "average_scheduler_delay_seconds": None, "max_scheduler_delay_seconds": None, "average_runtime_seconds": None, "max_runtime_seconds": None, "predecessor_unavailable_for_next_cadence": "NO"},
+        "RATE_CER081_LATENCY_SUMMARY.json": {"artifact": "RATE_CER081_LATENCY_SUMMARY", **c, "latency_status": "PENDING_SCHEDULED_RUNS" if not hard_pass else "PASS", "average_scheduler_delay_seconds": timing["average_scheduler_delay_seconds"] if timing_required else None, "max_scheduler_delay_seconds": timing["max_scheduler_delay_seconds"] if timing_required else None, "average_runtime_seconds": None, "max_runtime_seconds": None, "predecessor_unavailable_for_next_cadence": "NO"},
         "RATE_CER081_DETERMINISTIC_REPLAY_SUMMARY.json": {"artifact": "RATE_CER081_DETERMINISTIC_REPLAY_SUMMARY", **c, **replay},
         "RATE_CER081_MODEL_FREEZE_SUMMARY.json": {"artifact": "RATE_CER081_MODEL_FREEZE_SUMMARY", **c, "model_freeze_integrity": "PASS" if freeze.get("status") == "PASS" else "FAIL", "model_freeze": freeze, "production_rule_auto_upgrade": "NO", "change_control_required_for_model_changes": "PASS"},
     })
