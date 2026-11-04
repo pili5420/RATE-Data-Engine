@@ -312,10 +312,53 @@ class FullMarketRotationTests(unittest.TestCase):
                        "src/full_market_rotation.py", "tests/test_phase2_compatibility.py"}
         integration.update(f".github/workflows/rate_production_{slot}_scheduler.yml" for slot in ("0730", "0930", "1200", "1930"))
         integration.add(".github/workflows/rate_public_official_partial_valid_ci.yml")
+        cer081_workflow = ".github/workflows/rate_cer081_unattended_multi_day_soak.yml"
+        integration.add(cer081_workflow)
         for name in names:
             if name in integration:
                 continue
             self.assertEqual((ROOT / name).read_bytes(), subprocess.check_output(["git", "-C", str(ROOT), "show", f"{BASE}:{name}"]), name)
+        # CER-081 may change only its scheduler-evidence collector boundary here.
+        # Preserve the frozen Production/owner/state/account/bootstrap workflow semantics.
+        base_cer081 = subprocess.check_output(
+            ["git", "-C", str(ROOT), "show", f"{BASE}:{cer081_workflow}"]
+        ).decode()
+        head_cer081 = (ROOT / cer081_workflow).read_text(encoding="utf-8")
+        frozen_markers = [
+            "permissions:\n  contents: read\n  actions: read",
+            "group: rate-cer081-unattended-soak-",
+            "RATE_CER080_PERSIST_RESULT_ARTIFACT_ID",
+            "Download accepted CER-080 predecessor evidence",
+            "Verify main remains untouched before soak acceptance",
+            "Verify main remains untouched after soak acceptance",
+            "Execute unattended multi-day soak acceptance",
+        ]
+        for marker in frozen_markers:
+            self.assertIn(marker, base_cer081)
+            self.assertIn(marker, head_cer081)
+        diff = subprocess.check_output(
+            ["git", "-C", str(ROOT), "diff", "--unified=0", BASE, "--", cer081_workflow]
+        ).decode()
+        forbidden_change_terms = [
+            "permissions:", "RATE_CER080_PERSIST_RESULT_ARTIFACT_ID",
+            "Verify main remains untouched", "Execute unattended multi-day soak acceptance",
+            "--cer080-persisted-evidence", "--rate-source-url", "--output-dir artifacts/cer081",
+        ]
+        changed_lines = [
+            line for line in diff.splitlines()
+            if (line.startswith("+") or line.startswith("-"))
+            and not line.startswith("+++")
+            and not line.startswith("---")
+        ]
+        for term in forbidden_change_terms:
+            self.assertFalse(any(term in line for line in changed_lines), term)
+        required_timing_terms = [
+            "tempfile", "RATE_CER081_SCHEDULER_ACTUAL_TIMING_",
+            "ACTUAL_TIMING_ARTIFACT_MISSING", "scheduler_actual_timing",
+        ]
+        for term in required_timing_terms:
+            self.assertTrue(any(term in line for line in changed_lines), term)
+
         expected = os.getenv("RATE_PHASE2_CI_HEAD_SHA")
         if expected:
             self.assertEqual(subprocess.check_output(["git", "-C", str(ROOT), "rev-parse", "HEAD"]).decode().strip(), expected)
