@@ -1,0 +1,28 @@
+name: RATE Post-Merge Production Activation Verification
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/intraday_post_merge_production_activation_verification.py
+      - tests/test_intraday_post_merge_production_activation_verification.py
+      - docs/contracts/RATE_POST_MERGE_PRODUCTION_ACTIVATION_VERIFICATION_V1.json
+      - docs/RATE_POST_MERGE_PRODUCTION_ACTIVATION_VERIFICATION_V1.md
+      - .github/workflows/rate_post_merge_production_activation_verification_ci.yml
+permissions:
+  contents: read
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix: {os: [windows-latest, ubuntu-latest]}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python -B -m unittest tests.test_intraday_post_merge_production_activation_verification -v
+      - run: git diff --exit-code
