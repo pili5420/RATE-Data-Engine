@@ -1,0 +1,22 @@
+{
+  "artifact":"RATE_FUGLE_SINGLE_LIVE_CONSUMPTION_FENCE_CONTRACT_V1",
+  "status":"ENGINEERING_CONTRACT_ONLY",
+  "write_once":true,
+  "readback_required":true,
+  "write_attempt_budget":1,
+  "write_retry_allowed":false,
+  "update_allowed":false,
+  "delete_allowed":false,
+  "credential_access_before_receipt":0,
+  "provider_requests_before_receipt":0,
+  "request_budget_after_receipt":30,
+  "automatic_retry_allowed":false,
+  "fallback_allowed":false,
+  "redirect_allowed":false,
+  "ci_real_store_writes":0,
+  "ci_real_provider_requests":0,
+  "production_activation_allowed":false,
+  "external_dependency_resolved":false,
+  "production_credit":0,
+  "cer081_credit":0
+}
