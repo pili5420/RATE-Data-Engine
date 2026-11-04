@@ -1,0 +1,48 @@
+name: RATE Cloudflare Qualification Consumption Marker Rehearsal
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/intraday_cloudflare_d1_real_qualification_plan.py
+      - docs/contracts/RATE_CLOUDFLARE_D1_REAL_PROVIDER_QUALIFICATION_PLAN_V1.json
+      - docs/RATE_CLOUDFLARE_D1_REAL_PROVIDER_QUALIFICATION_PLAN_V1.md
+      - src/intraday_cloudflare_qualification_consumption_marker_rehearsal.py
+      - tests/test_intraday_cloudflare_qualification_consumption_marker_rehearsal.py
+      - docs/contracts/RATE_CLOUDFLARE_QUALIFICATION_CONSUMPTION_MARKER_REHEARSAL_V1.json
+      - docs/RATE_CLOUDFLARE_QUALIFICATION_CONSUMPTION_MARKER_REHEARSAL_V1.md
+      - .github/workflows/rate_cloudflare_consumption_marker_rehearsal_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Exact Git bytes
+        shell: bash
+        run: |
+          git config core.autocrlf false
+          git checkout-index --all --force
+          git diff --exit-code
+      - name: Consumption marker rehearsal regressions
+        run: python -B -m unittest tests.test_intraday_cloudflare_qualification_consumption_marker_rehearsal -v
+      - name: No tracked mutation
+        run: git diff --exit-code

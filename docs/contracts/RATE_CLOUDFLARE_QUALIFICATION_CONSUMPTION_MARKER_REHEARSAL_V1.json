@@ -1,0 +1,21 @@
+{
+  "artifact":"RATE_CLOUDFLARE_QUALIFICATION_CONSUMPTION_MARKER_REHEARSAL_CONTRACT_V1",
+  "status":"ENGINEERING_CONTRACT_ONLY",
+  "backend":"SYNTHETIC_GIT_REF_BACKEND_ONLY",
+  "ref_prefix":"refs/tags/rate-v11-qualification-consumed/cloudflare-d1-",
+  "hash_prefix_hex_chars":16,
+  "target":"EXACT_CURRENT_MAIN",
+  "create_count":1,
+  "create_retry_count":0,
+  "update_count":0,
+  "delete_count":0,
+  "readback_required":true,
+  "ambiguous_create_policy":"READ_SAME_REF_DO_NOT_RETRY_CREATE",
+  "cloudflare_requests_before_marker":0,
+  "real_git_ref_created":false,
+  "real_cloudflare_requests":0,
+  "provider_qualified":false,
+  "production_credit":0,
+  "cer081_credit":0,
+  "next_gate":"REAL_GITHUB_REF_MARKER_ADAPTER_QUALIFICATION"
+}
