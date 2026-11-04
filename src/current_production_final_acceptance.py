@@ -92,6 +92,20 @@ def validate_current_production_final_acceptance(
         and session_summary.get("cross_day_continuity")=="PASS",
         "PA_FINAL_CONTINUITY_NOT_PASS",
     )
+    require(
+        session_summary.get("portfolio_continuity")=="PASS"
+        and session_summary.get("transaction_ledger_continuity")=="PASS"
+        and session_summary.get("ranking_model_continuity")=="PASS",
+        "PA_FINAL_BUSINESS_CONTINUITY_NOT_PASS",
+    )
+    require(
+        session_summary.get("official_schedule_only")=="PASS"
+        and session_summary.get("production_data_gate")=="PASS"
+        and session_summary.get("decision_state_evidence")=="PASS"
+        and session_summary.get("fallback_free")=="PASS"
+        and session_summary.get("automatic_retry_free")=="PASS",
+        "PA_FINAL_SESSION_GUARDS_NOT_PASS",
+    )
     require(session_summary.get("production_acceptance_granted") is False
             and session_summary.get("cer081_credit")==0,
             "PA_FINAL_SESSION_PREMATURE_CREDIT")
@@ -148,6 +162,11 @@ def validate_current_production_final_acceptance(
         "full_four_cadence_coverage":True,
         "state_continuity":True,
         "cross_day_continuity":True,
+        "portfolio_continuity":True,
+        "transaction_ledger_continuity":True,
+        "ranking_model_continuity":True,
+        "production_data_gate":True,
+        "official_schedule_only":True,
         "scheduler_reliability":True,
         "deterministic_replay":True,
         "model_freeze":True,
