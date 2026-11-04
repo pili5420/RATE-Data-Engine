@@ -1,0 +1,25 @@
+{
+  "artifact": "RATE_CLOUDFLARE_REAL_GITHUB_MARKER_CREATION_AUTHORIZATION_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT_ONLY",
+  "single_use": true,
+  "marker_creation_consumed": false,
+  "allowed_operations": [
+    "GET_MARKER_PREFLIGHT",
+    "CREATE_MARKER_REF",
+    "GET_MARKER_READBACK"
+  ],
+  "create_count": 1,
+  "update_count": 0,
+  "delete_count": 0,
+  "readback_required": true,
+  "main_ref_update_allowed": false,
+  "branch_ref_create_allowed": false,
+  "pull_request_creation_allowed": false,
+  "merge_allowed": false,
+  "cloudflare_requests_allowed_before_marker": 0,
+  "real_github_requests": 0,
+  "real_git_ref_created": false,
+  "production_credit": 0,
+  "cer081_credit": 0,
+  "next_gate": "SEPARATE_REAL_GITHUB_MARKER_EXECUTOR"
+}
