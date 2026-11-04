@@ -63,6 +63,37 @@ def publish_state(*, persist_evidence_path, trading_date, cadence, artifacts_roo
         require(state["previous_state_id"] == previous["state"]["current_state_id"]
                 and state["decision"].get("previous_state_hash") == previous["state"]["decision_payload_hash"], "LIVE_STATE_LINEAGE_INVALID")
         report_status = {}
+        if state["decision"].get("route_b_zero_fee") is True:
+            from src.route_b_official_checkpoint import validate_route_b_state
+            from src.public_official_partial_valid import validate_bundle as validate_public_bundle
+            require(source_bundle_path, "ROUTE_B_SOURCE_BUNDLE_REQUIRED")
+            bundle = read_object(source_bundle_path)
+            directory = root / "production_state" / "live" / trading_date / CADENCE_DIR[cadence]
+            validate_public_bundle(bundle, trading_date=trading_date, cadence=cadence,
+                                   archive_directory=directory)
+            validate_route_b_state(state["decision"])
+            evidence = state["decision"].get("route_b_public_evidence") or {}
+            require(evidence.get("content_sha256") == bundle.get("content_sha256")
+                    and evidence.get("contract_sha256") == bundle.get("contract_sha256"),
+                    "ROUTE_B_SOURCE_BUNDLE_BINDING_INVALID")
+            expected_sources = [{
+                "dataset_id": source.get("dataset_id"),
+                "authority": source.get("authority"),
+                "raw_sha256": source.get("raw_sha256"),
+                "receipt_sha256": source.get("receipt_sha256"),
+            } for source in bundle.get("sources", [])]
+            require(evidence.get("source_datasets") == expected_sources,
+                    "ROUTE_B_SOURCE_DATASET_BINDING_INVALID")
+            for key in ("roy_portfolio", "ai_paper_portfolio", "ai_paper_portfolio_ledger",
+                        "transaction_ledger", "top50", "short_top30", "long_top30",
+                        "model_learning_state", "records"):
+                if key in previous["state"]["decision"]:
+                    require(state["decision"].get(key) == previous["state"]["decision"].get(key),
+                            "ROUTE_B_PROTECTED_STATE_CHANGED:" + key)
+            report_status = {key: state["decision"][key] for key in (
+                "report_runtime_status", "official_public_evidence_gate",
+                "market_intraday_price_gate", "full_intraday_decision_status",
+                "full_production_acceptance", "route_b_zero_fee", "scheduled_soak_credit")}
         if phase2:
             report_status = {key: state["decision"][key] for key in ("report_runtime_status",
                 "market_intraday_price_gate", "full_intraday_decision_status", "full_production_acceptance")}
