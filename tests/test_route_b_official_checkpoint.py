@@ -51,6 +51,7 @@ class RouteBCheckpointTests(unittest.TestCase):
         self.assertEqual(d["top50"],p["decision"]["top50"])
         self.assertEqual(d["transaction_ledger"],p["decision"]["transaction_ledger"])
         self.assertTrue(d["scheduled_soak_credit"])
+        self.assertFalse(d["phase2"])
         self.assertNotIn("public_official_bundle",d)
         self.assertIn("route_b_public_evidence",d)
 
