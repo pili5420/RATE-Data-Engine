@@ -1,0 +1,36 @@
+name: RATE Draft PR Transport Execution Authorization
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/intraday_draft_pr_transport_execution_authorization.py
+      - tests/test_intraday_draft_pr_transport_execution_authorization.py
+      - docs/contracts/RATE_REAL_DRAFT_PR_TRANSPORT_EXECUTION_AUTHORIZATION_V1.json
+      - docs/RATE_REAL_DRAFT_PR_TRANSPORT_EXECUTION_AUTHORIZATION_V1.md
+      - .github/workflows/rate_draft_pr_transport_execution_authorization_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Transport execution authorization regressions
+        run: python -B -m unittest tests.test_intraday_draft_pr_transport_execution_authorization -v
+      - name: No tracked mutation
+        run: git diff --exit-code
