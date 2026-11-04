@@ -304,13 +304,15 @@ class Phase2ProductionTests(unittest.TestCase):
             self.assertEqual(yaml.safe_load(text)[True]["schedule"], yaml.safe_load(old)[True]["schedule"])
             if slot in {"0930", "1200"}:
                 self.assertIn("--public-official-partial", text)
-                self.assertNotIn("run_phase2_production.py", text)
-                self.assertNotIn("--phase2", text)
+                self.assertNotIn("Execute Phase2 dynamic", text)
+                self.assertNotIn("github.event_name == 'schedule' || inputs.phase2", text)
             else:
                 self.assertIn("run_phase2_production.py", text)
-                self.assertIn("--phase2", text)
-                self.assertEqual(yaml.safe_load(text)["jobs"]["production-" + slot]["env"]["EXECUTION_AUTHORITY"],
-                    "${{ inputs.phase2 && 'MAIN_ONLY' || '' }}")
+                self.assertIn("(github.event_name == 'schedule' || inputs.phase2) && '--phase2'", text)
+                self.assertEqual(
+                    yaml.safe_load(text)["jobs"]["production-" + slot]["env"]["EXECUTION_AUTHORITY"],
+                    "${{ (github.event_name == 'schedule' || inputs.phase2) && 'MAIN_ONLY' || '' }}",
+                )
                 self.assertFalse(yaml.safe_load(text)[True]["workflow_dispatch"]["inputs"]["phase2"]["default"])
 
 

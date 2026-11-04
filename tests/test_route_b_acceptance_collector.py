@@ -4,7 +4,7 @@ from unittest.mock import patch
 import tempfile
 import unittest
 
-from src.route_b_acceptance_collector import collect_scheduled_run
+from src.route_b_acceptance_collector import collect_scheduled_run, _phase2_standard_run
 from src.route_b_acceptance_store import persist_activation_package
 
 MAIN="a"*40
@@ -76,6 +76,55 @@ class CollectorTests(unittest.TestCase):
             out=collect_scheduled_run(".","artifacts","source",d,cadence="09:30",source_run_id="7")
             self.assertEqual(out["collector_result"],"RUN_ADMITTED")
             self.assertTrue(out["session_written"])
+
+
+    @patch("src.route_b_acceptance_collector.validate_phase2_transition")
+    @patch("src.route_b_acceptance_collector._read_unique")
+    def test_phase2_0730_evidence_admission(self,read_unique,validate_transition):
+        current={"current_state_id":"cur","decision_payload_hash":"hcur",
+                 "previous_state_id":"prev","decision":{
+                    "phase2":True,"validation_status":"PASS","fallback_used":False,
+                    "trading_date":"2026-11-06","cadence":"07:30",
+                    "previous_state_id":"prev","previous_state_hash":"hprev",
+                    "full_market_refresh":False,"runtime_mode":"CONSUME_LATEST_PASS_1930",
+                    "records":[{"symbol":"2330"}],"top50":["a"],"short_top30":["b"],"long_top30":["c"],
+                    "roy_portfolio":{"x":1},"ai_paper_portfolio":{"x":2},
+                    "transaction_ledger":{"transactions":[]},
+                    "production_snapshot_id":"ps","input_snapshot_id":"is"}}
+        previous={"current_state_id":"prev","decision_payload_hash":"hprev",
+                  "decision":{"records":[{"symbol":"2330"}],"top50":["a"],"short_top30":["b"],"long_top30":["c"],
+                              "roy_portfolio":{"x":1},"ai_paper_portfolio":{"x":2},
+                              "transaction_ledger":{"transactions":[]}}}
+        runtime={"validation_status":"PASS","current_state_id":"cur","current_state_hash":"hcur","fallback_used":False}
+        ingestion={"validation_status":"PASS","proposed_state_id":"cur","fallback_used":False,"blocked_dependencies":[]}
+        live={"validation_status":"PASS","live_state_updated":True,"current_state_id":"cur","current_state_hash":"hcur"}
+        read_unique.side_effect=[runtime,ingestion,live]
+        manifest={"commit_sha":"b"*40,"workflow_run_id":"7","workflow_job_id":"8"}
+        run=_phase2_standard_run(current,previous,manifest,"source","state-root","07:30")
+        self.assertEqual(run["production_data_gate"],"PASS")
+        self.assertEqual(run["route_b_standard_runtime"],"PHASE2_DYNAMIC")
+        validate_transition.assert_called_once()
+
+    @patch("src.route_b_acceptance_collector.validate_phase2_transition")
+    @patch("src.route_b_acceptance_collector._read_unique")
+    def test_phase2_1930_requires_full_market_refresh(self,read_unique,validate_transition):
+        current={"current_state_id":"cur","decision_payload_hash":"hcur",
+                 "previous_state_id":"prev","decision":{
+                    "phase2":True,"validation_status":"PASS","fallback_used":False,
+                    "trading_date":"2026-11-06","cadence":"19:30",
+                    "previous_state_id":"prev","previous_state_hash":"hprev",
+                    "full_market_refresh":False,"runtime_mode":"FULL_MARKET_REFRESH",
+                    "top50":["a"]*50,"short_top30":["b"]*30,"long_top30":["c"]*30,
+                    "roy_portfolio":{"x":1},"ai_paper_portfolio":{"x":2},
+                    "transaction_ledger":{"transactions":[]}}}
+        previous={"current_state_id":"prev","decision_payload_hash":"hprev","decision":{}}
+        read_unique.side_effect=[
+            {"validation_status":"PASS","current_state_id":"cur","current_state_hash":"hcur","fallback_used":False},
+            {"validation_status":"PASS","proposed_state_id":"cur","fallback_used":False,"blocked_dependencies":[]},
+            {"validation_status":"PASS","live_state_updated":True,"current_state_id":"cur","current_state_hash":"hcur"},
+        ]
+        with self.assertRaisesRegex(Exception,"1930_PHASE2_FULL_MARKET_INVALID"):
+            _phase2_standard_run(current,previous,{"commit_sha":"b"*40},"source","state-root","19:30")
 
 if __name__=="__main__":
     unittest.main()

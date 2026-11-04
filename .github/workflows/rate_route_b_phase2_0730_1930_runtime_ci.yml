@@ -1,0 +1,64 @@
+name: RATE Route B Phase2 07:30 19:30 Runtime CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/rate_production_0730_scheduler.yml
+      - .github/workflows/rate_production_1930_scheduler.yml
+      - src/route_b_acceptance_collector.py
+      - tests/test_route_b_phase2_scheduler_wiring.py
+      - tests/test_route_b_acceptance_collector.py
+      - .github/workflows/rate_route_b_phase2_0730_1930_runtime_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Restore exact Git bytes
+        shell: bash
+        run: |
+          git config core.autocrlf false
+          git checkout-index --all --force
+          git diff --exit-code
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install cross-platform CI dependencies
+        run: python -m pip install tzdata==2025.2 PyYAML==6.0.3
+      - name: Route B Phase2 cross-platform contract regression
+        run: >-
+          python -B -m unittest
+          tests.test_route_b_phase2_scheduler_wiring
+          tests.test_route_b_acceptance_collector
+          tests.test_route_b_acceptance_store
+          tests.test_route_b_acceptance_bridge
+          tests.test_production_acceptance_session
+          -v
+      - name: Linux authoritative full-market and scheduler regression
+        if: runner.os == 'Linux'
+        run: >-
+          python -B -m unittest
+          tests.test_phase2_production
+          tests.test_full_market_rotation
+          tests.test_production_scheduler_change_control
+          tests.test_rate_soak_005
+          -v
+      - name: No tracked mutation
+        run: git diff --exit-code
