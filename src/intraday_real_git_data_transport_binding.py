@@ -11,6 +11,7 @@ def require(condition: bool, reason: str) -> None:
 
 EXPECTED_REQUESTS = [
     {"method":"GET","path":"/repos/pili5420/RATE-Data-Engine/git/ref/heads/main"},
+    {"method":"GET","path_template":"/repos/pili5420/RATE-Data-Engine/git/commits/{base_main_sha}"},
     {"method":"GET","path_template":"/repos/pili5420/RATE-Data-Engine/git/ref/heads/{activation_branch}"},
     {"method":"POST","path":"/repos/pili5420/RATE-Data-Engine/git/blobs","max_count":9},
     {"method":"POST","path":"/repos/pili5420/RATE-Data-Engine/git/trees","max_count":1},

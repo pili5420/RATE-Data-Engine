@@ -1,0 +1,41 @@
+name: RATE Real Git Data HTTP Executor Rehearsal
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/intraday_real_git_data_transport_binding.py
+      - tests/test_intraday_real_git_data_transport_binding.py
+      - docs/RATE_REAL_GIT_DATA_TRANSPORT_BINDING_V1.md
+      - docs/contracts/RATE_REAL_GIT_DATA_TRANSPORT_BINDING_V1.json
+      - src/intraday_real_git_data_http_rehearsal.py
+      - tests/test_intraday_real_git_data_http_rehearsal.py
+      - docs/RATE_REAL_GIT_DATA_HTTP_EXECUTOR_REHEARSAL_V1.md
+      - docs/contracts/RATE_REAL_GIT_DATA_HTTP_EXECUTOR_REHEARSAL_V1.json
+      - .github/workflows/rate_real_git_data_http_rehearsal_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: >-
+          python -B -m unittest
+          tests.test_intraday_real_git_data_transport_binding
+          tests.test_intraday_real_git_data_http_rehearsal
+          -v
+      - run: git diff --exit-code
