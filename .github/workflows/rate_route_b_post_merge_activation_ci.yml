@@ -1,0 +1,31 @@
+name: RATE Route B Post-Merge Activation CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/route_b_post_merge_activation.py
+      - tests/test_route_b_post_merge_activation.py
+      - .github/workflows/rate_route_b_post_merge_activation_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -B -m unittest tests.test_route_b_post_merge_activation tests.test_route_b_acceptance_overlay tests.test_route_b_zero_fee_contract -v
+      - run: git diff --exit-code
