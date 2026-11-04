@@ -92,7 +92,8 @@ def bind_overlay_run_to_session(
             "ROUTE_B_RUN_SESSION_POLICY_INVALID")
     require(ancestry_row.get("source_head_sha")==overlay.get("source_head_sha"),
             "ROUTE_B_RUN_HEAD_BINDING_INVALID")
-    require(ancestry_row.get("activation_is_ancestor") is True,
+    require(ancestry_row.get("activation_is_ancestor") is True
+            and ancestry_row.get("binding_is_ancestor") is True,
             "ROUTE_B_RUN_ANCESTRY_NOT_PROVEN")
     changed=ancestry_row.get("changed_paths_since_activation")
     require(_authorized_changes(changed),"ROUTE_B_RUN_UNAUTHORIZED_OPERATIONAL_CHANGE")
@@ -136,7 +137,8 @@ def bind_standard_run_to_session(
     head=run.get("run_head_sha") or run.get("commit_sha")
     require(ancestry_row.get("source_head_sha")==head,
             "ROUTE_B_STANDARD_RUN_HEAD_BINDING_INVALID")
-    require(ancestry_row.get("activation_is_ancestor") is True,
+    require(ancestry_row.get("activation_is_ancestor") is True
+            and ancestry_row.get("binding_is_ancestor") is True,
             "ROUTE_B_STANDARD_RUN_ANCESTRY_NOT_PROVEN")
     require(_authorized_changes(ancestry_row.get("changed_paths_since_activation")),
             "ROUTE_B_STANDARD_RUN_UNAUTHORIZED_OPERATIONAL_CHANGE")
