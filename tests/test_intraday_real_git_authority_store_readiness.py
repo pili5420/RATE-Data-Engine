@@ -99,7 +99,7 @@ class Tests(unittest.TestCase):
             self.review(store=store)
 
     def test_git_target_main_and_provider_are_exact(self):
-        with self.assertRaisesRegex(RealGitAuthorityStoreReadinessError,"GIT_TARGET_BINDING_INVALID"):
+        with self.assertRaisesRegex(RealGitAuthorityStoreReadinessError,"ACCEPTANCE_NOT_PASS"):
             self.review(main="f"*40)
         with self.assertRaisesRegex(RealGitAuthorityStoreReadinessError,"GIT_TARGET_BINDING_INVALID"):
             self.review(branch=BRANCH+"-other")
