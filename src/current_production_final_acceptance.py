@@ -118,6 +118,8 @@ def validate_current_production_final_acceptance(
         and scheduler_summary.get("scheduler_coverage")=="PASS"
         and scheduler_summary.get("manual_dispatch_substitution")=="NO"
         and scheduler_summary.get("missed_execution_count")==0
+        and scheduler_summary.get("actual_timing_evidence")=="PASS"
+        and scheduler_summary.get("actual_timing_missing_or_invalid_count")==0
         and scheduler_summary.get("delayed_execution_blocking_count")==0,
         "PA_FINAL_SCHEDULER_NOT_PASS",
     )
