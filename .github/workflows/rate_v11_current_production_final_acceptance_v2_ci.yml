@@ -1,0 +1,49 @@
+name: RATE V11 Current Production Final Acceptance V2
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/current_production_final_acceptance.py
+      - tests/test_current_production_final_acceptance.py
+      - docs/contracts/RATE_V11_CURRENT_PRODUCTION_FINAL_ACCEPTANCE_V2.json
+      - docs/RATE_V11_CURRENT_PRODUCTION_FINAL_ACCEPTANCE_V2.md
+      - .github/workflows/rate_v11_current_production_final_acceptance_v2_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Exact Git bytes
+        shell: bash
+        run: |
+          git config core.autocrlf false
+          git checkout-index --all --force
+          git diff --exit-code
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Current Production final acceptance tests
+        run: python -B -m unittest tests.test_current_production_final_acceptance -v
+      - name: Session regression
+        run: python -B -m unittest tests.test_production_acceptance_session -v
+      - name: Historical final-gate regression
+        run: python -B -m unittest tests.test_intraday_cer081_final_production_acceptance -v
+      - name: No tracked mutation
+        run: git diff --exit-code
