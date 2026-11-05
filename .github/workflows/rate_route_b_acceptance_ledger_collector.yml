@@ -77,6 +77,8 @@ jobs:
             --name "$SOURCE_ARTIFACT_NAME" \
             --dir source_artifacts
       - name: Collect scheduled run into acceptance ledger
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: >-
           python scripts/run_route_b_acceptance_collector.py
           --cadence "$SOURCE_CADENCE"

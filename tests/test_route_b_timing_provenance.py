@@ -6,6 +6,7 @@ from datetime import timedelta
 import hashlib
 import io
 import json
+from pathlib import Path
 import unittest
 from zipfile import ZipFile, ZIP_DEFLATED
 
@@ -83,6 +84,16 @@ def fixture(delay=120):
 
 
 class TimingProvenanceTests(unittest.TestCase):
+    def test_runtime_verifiers_receive_actions_read_token(self):
+        workflows = Path(__file__).resolve().parents[1] / ".github" / "workflows"
+        for filename, step in (
+            ("rate_route_b_acceptance_ledger_collector.yml", "Collect scheduled run into acceptance ledger"),
+            ("rate_route_b_current_production_finalization.yml", "Build finalization package"),
+        ):
+            text = (workflows / filename).read_text(encoding="utf-8")
+            self.assertIn("actions: read", text)
+            self.assertIn("- name: " + step + "\n        env:\n          GH_TOKEN: ${{ github.token }}", text)
+
     def check(self, row, data):
         return verify_timing_provenance(row, reader=Reader(data))
 
