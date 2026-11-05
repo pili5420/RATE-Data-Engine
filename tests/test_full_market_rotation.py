@@ -332,6 +332,7 @@ class FullMarketRotationTests(unittest.TestCase):
                        "tests/test_phase2_compatibility.py"}
         integration.update(f".github/workflows/rate_production_{slot}_scheduler.yml" for slot in ("0730", "0930", "1200", "1930"))
         integration.add(".github/workflows/rate_public_official_partial_valid_ci.yml")
+        integration.add(".github/workflows/rate_pr90_regression_closure_ci.yml")
         cer081_workflow = ".github/workflows/rate_cer081_unattended_multi_day_soak.yml"
         integration.add(cer081_workflow)
         for name in names:
@@ -429,6 +430,15 @@ class FullMarketRotationTests(unittest.TestCase):
                 function_ast(base_source, function_name),
                 function_name,
             )
+
+        pr90_workflow = (ROOT / ".github/workflows/rate_pr90_regression_closure_ci.yml").read_text(encoding="utf-8")
+        for marker in (
+            "Preserve exact Git blob bytes",
+            'Path(name).write_bytes(subprocess.check_output(["git","show",f"HEAD:{name}"]))',
+            "git diff --exit-code",
+            "PR90 regression closure",
+        ):
+            self.assertIn(marker, pr90_workflow)
 
         expected = os.getenv("RATE_PHASE2_CI_HEAD_SHA")
         if expected:
