@@ -125,12 +125,14 @@ def build_finalization(
     require(ancestry.get("validation_status")=="PASS",
             "ROUTE_B_FINAL_MODEL_FREEZE_ANCESTRY_NOT_PASS")
 
+    replay_receipts=[]
     for row in session["accepted_runs"]:
         require(row.get("trading_date", "") >= session["session_start_date"],
                 "ROUTE_B_FINAL_PRE_SESSION_HISTORY_FORBIDDEN")
         original=verify_timing_provenance(row)
         require(row.get("scheduler_timing_provenance")==original,
                 "ROUTE_B_FINAL_ORIGINAL_TIMING_PROVENANCE_MISMATCH")
+        replay_receipts.append(original)
     timing=summarize_actual_timing_evidence(session["accepted_runs"])
     require(timing.get("actual_timing_evidence")=="PASS"
             and timing.get("actual_timing_evidence_count")==len(session["accepted_runs"])
@@ -194,6 +196,7 @@ def build_finalization(
         "model_freeze_summary":model_freeze,
         "deterministic_replay_detail":replay_detail,
         "git_ancestry_evidence":ancestry,
+        "github_actions_provenance_replay":replay_receipts,
         "final_acceptance":final,
         "final_disposition":final["final_disposition"],
         "cer081_status":final["cer081_status"],

@@ -95,6 +95,7 @@ class FinalizationTests(unittest.TestCase):
         self.assertEqual(out["scheduler_reliability_summary"]["actual_timing_evidence_count"],12)
         self.assertEqual(out["scheduler_reliability_summary"]["max_scheduler_delay_seconds"],120)
         self.assertEqual(out["scheduler_reliability_summary"]["delayed_execution_blocking_count"],0)
+        self.assertEqual(len(out["github_actions_provenance_replay"]),12)
         self.assertEqual(out["deterministic_replay_summary"]["replay_new_record_count"],0)
         self.assertEqual(out["model_freeze_summary"]["unreviewed_code_change_count"],0)
 
