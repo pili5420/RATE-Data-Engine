@@ -71,6 +71,8 @@ def fixture(delay=120):
         base + "/attempts/1": encoded(run_api),
         base + "/attempts/1/jobs?per_page=100": encoded({"total_count": 1,
             "jobs": [{"id": job_id, "name": "production-0930", "run_attempt": 1,
+                      "run_id": run_id, "head_sha": sha,
+                      "workflow_name": "RATE Production 09:30 Recurring Scheduler",
                       "started_at": (slot + timedelta(seconds=delay)).isoformat(),
                       "completed_at": (slot + timedelta(seconds=delay+60)).isoformat(),
                       "conclusion": "success"}]}),

@@ -112,6 +112,7 @@ def verify_timing_provenance(run, *, reader=None):
             and run_api.get("repository", {}).get("full_name") == REPOSITORY
             and run_api.get("head_repository", {}).get("id") == REPOSITORY_ID
             and attempt.get("repository", {}).get("id") == REPOSITORY_ID
+            and attempt.get("repository", {}).get("full_name") == REPOSITORY
             and attempt.get("head_repository", {}).get("id") == REPOSITORY_ID,
             "TIMING_PROVENANCE_REPOSITORY_MISMATCH")
     path = CADENCE_WORKFLOWS[cadence]
@@ -132,13 +133,17 @@ def verify_timing_provenance(run, *, reader=None):
             "TIMING_PROVENANCE_JOBS_INCOMPLETE")
     matches = [j for j in jobs["jobs"] if j.get("id") == job_id]
     require(len(matches) == 1 and matches[0].get("name") == "production-" + cadence.replace(":", "")
-            and matches[0].get("run_attempt") == 1,
+            and matches[0].get("run_attempt") == 1
+            and matches[0].get("run_id") == int(run_id)
+            and matches[0].get("head_sha") == sha
+            and matches[0].get("workflow_name") == f"RATE Production {cadence} Recurring Scheduler",
             "TIMING_PROVENANCE_JOB_MISMATCH")
     job = matches[0]
     require(_utc(job.get("started_at")) >= started
             and _utc(job.get("completed_at")) >= _utc(job.get("started_at")),
             "TIMING_PROVENANCE_JOB_TIMING_INVALID")
-    require(run_api.get("conclusion") == "success" and job.get("conclusion") == "success",
+    require(run_api.get("conclusion") == attempt.get("conclusion") == "success"
+            and job.get("conclusion") == "success",
             "TIMING_PROVENANCE_SOURCE_NOT_SUCCESS")
     artifacts = _json(reader, f"/actions/runs/{run_id}/artifacts?per_page=100")
     require(artifacts.get("total_count") == len(artifacts.get("artifacts", []))
