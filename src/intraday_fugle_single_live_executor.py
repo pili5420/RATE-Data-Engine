@@ -31,7 +31,8 @@ def execute_authorized_fugle_single_live(
     *,
     expected_authorization_review_sha256: str,
     github_token: str,
-    fugle_api_key: str,
+    fugle_api_key: str | None = None,
+    fugle_credential_loader: Callable[[], str] | None = None,
     trading_date: str,
     now_utc: datetime,
     github_transport_factory: Callable[..., FugleGitHubFenceTransport] = FugleGitHubFenceTransport,
@@ -63,7 +64,8 @@ def execute_authorized_fugle_single_live(
             "FUGLE_EXEC_CREDENTIAL_BOUNDARY_INVALID")
     require(isinstance(github_token, str) and github_token,
             "FUGLE_EXEC_GITHUB_TOKEN_MISSING")
-    require(isinstance(fugle_api_key, str) and fugle_api_key,
+    require((fugle_credential_loader is None and isinstance(fugle_api_key, str) and bool(fugle_api_key))
+            or (callable(fugle_credential_loader) and fugle_api_key is None),
             "FUGLE_EXEC_FUGLE_API_KEY_MISSING")
 
     main_sha=authorization_review.get("current_main_sha")
@@ -84,10 +86,15 @@ def execute_authorized_fugle_single_live(
         main_sha=main_sha,
     )
     require(fence_result.get("validation_status")=="PASS"
-            and fence_result.get("readback_verified") is True,
+            and fence_result.get("readback_verified") is True
+            and fence_result.get("executor_ownership_verified") is True,
             "FUGLE_EXEC_FENCE_NOT_CLOSED")
 
-    # Only after durable readback may the Fugle credential be used.
+    # A loader may access a credential only after this invocation proves ownership.
+    if fugle_credential_loader is not None:
+        fugle_api_key = fugle_credential_loader()
+    require(isinstance(fugle_api_key, str) and bool(fugle_api_key),
+            "FUGLE_EXEC_FUGLE_API_KEY_MISSING")
     result=qualify(
         fugle_api_key,
         binding,
@@ -121,6 +128,7 @@ def execute_authorized_fugle_single_live(
         "fence_marker_ref":fence_result["marker_ref"],
         "fence_marker_target_sha":fence_result["marker_target_sha"],
         "fence_readback_verified":True,
+        "executor_ownership_verified":True,
         "single_use_consumed":True,
         "github_fence_requests":fence_result["github_requests"],
         "provider_network_requests":30,
