@@ -348,8 +348,11 @@ class FullMarketRotationTests(unittest.TestCase):
             self.assertEqual(head_blob, base_blob, name)
         # CER-081 may change only its scheduler-evidence collector boundary here.
         # Preserve the frozen Production/owner/state/account/bootstrap workflow semantics.
+        current_main = subprocess.check_output(
+            ["git", "-C", str(ROOT), "rev-parse", "origin/main"]
+        ).decode().strip()
         base_cer081 = subprocess.check_output(
-            ["git", "-C", str(ROOT), "show", f"{BASE}:{cer081_workflow}"]
+            ["git", "-C", str(ROOT), "show", f"{current_main}:{cer081_workflow}"]
         ).decode()
         head_cer081 = (ROOT / cer081_workflow).read_text(encoding="utf-8")
         frozen_markers = [
@@ -365,7 +368,7 @@ class FullMarketRotationTests(unittest.TestCase):
             self.assertIn(marker, base_cer081)
             self.assertIn(marker, head_cer081)
         diff = subprocess.check_output(
-            ["git", "-C", str(ROOT), "diff", "--unified=0", BASE, "--", cer081_workflow]
+            ["git", "-C", str(ROOT), "diff", "--unified=0", current_main, "HEAD", "--", cer081_workflow]
         ).decode()
         forbidden_change_terms = [
             "permissions:", "RATE_CER080_PERSIST_RESULT_ARTIFACT_ID",
@@ -392,7 +395,7 @@ class FullMarketRotationTests(unittest.TestCase):
         # remains structurally identical to the frozen base.
         cer081_source = "src/cer081_unattended_soak.py"
         base_source = subprocess.check_output(
-            ["git", "-C", str(ROOT), "show", f"{BASE}:{cer081_source}"]
+            ["git", "-C", str(ROOT), "show", f"{current_main}:{cer081_source}"]
         ).decode()
         head_source = (ROOT / cer081_source).read_text(encoding="utf-8")
 
