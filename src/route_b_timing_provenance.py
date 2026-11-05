@@ -101,7 +101,8 @@ def verify_timing_provenance(run, *, reader=None):
     require(cadence in CADENCE_CRONS and isinstance(sha, str) and len(sha) == 40,
             "TIMING_PROVENANCE_SLOT_OR_SHA_INVALID")
     require(isinstance(ledger_timing, dict), "TIMING_PROVENANCE_LEDGER_TIMING_MISSING")
-    require(run.get("official_event") == "schedule",
+    event_fields = [run[key] for key in ("event", "event_name", "official_event") if key in run]
+    require(event_fields and all(value == "schedule" for value in event_fields),
             "TIMING_PROVENANCE_LEDGER_EVENT_INVALID")
     run_api = _json(reader, f"/actions/runs/{run_id}")
     attempt = _json(reader, f"/actions/runs/{run_id}/attempts/1")

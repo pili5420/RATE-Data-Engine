@@ -105,6 +105,14 @@ class TimingProvenanceTests(unittest.TestCase):
                 self.assertEqual(receipt["delay_seconds"], delay)
                 self.assertEqual(receipt["workflow_job_id"], 456)
 
+    def test_pre_admission_and_durable_event_shapes_are_both_bound(self):
+        row, data = fixture()
+        row["event"] = row.pop("official_event")
+        self.assertEqual(self.check(row, data)["workflow_run_id"], "123")
+        row["official_event"] = "workflow_dispatch"
+        with self.assertRaisesRegex(TimingProvenanceError, "LEDGER_EVENT_INVALID"):
+            self.check(row, data)
+
     def test_coordinated_ledger_timestamp_delay_and_hash_rewrite_fails(self):
         row, data = fixture()
         original = self.check(row, data)
