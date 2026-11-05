@@ -69,5 +69,10 @@
     "AUTHORITATIVE_UNIVERSE_BINDING"
   ],
   "new_live_qualification_requires_fresh_control_center_authorization": true,
-  "previous_single_use_live_permit_reusable": false
+  "previous_single_use_live_permit_reusable": false,
+  "provider_license_gate": "PASS_CONFIRMED_IN_WRITING",
+  "provider_license_evidence_artifact": "RATE_FUGLE_BASIC_PERSONAL_INTERNAL_USE_LICENSE_EVIDENCE_V1",
+  "provider_license_evidence_path": "docs/contracts/RATE_FUGLE_BASIC_PERSONAL_INTERNAL_USE_LICENSE_EVIDENCE_V1.json",
+  "fugle_route_b_status": "QUALIFIED_PROVIDER_OPTION_NOT_ACTIVE_IN_ROUTE_B",
+  "route_b_source_architecture_changed": false
 }
