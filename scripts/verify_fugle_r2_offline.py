@@ -41,20 +41,27 @@ def main() -> int:
     parser.add_argument("--expected-head", required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    if git("rev-parse", "HEAD") != args.expected_head or git("status", "--porcelain"):
+    head_before = git("rev-parse", "HEAD")
+    status_before = git("status", "--porcelain")
+    if head_before != args.expected_head or status_before:
+        print(json.dumps({"head_before": head_before, "expected_head": args.expected_head,
+                          "worktree_before": status_before.splitlines()}, sort_keys=True))
         raise RuntimeError("R2_EXACT_HEAD_OR_CLEAN_WORKTREE_REQUIRED")
     sys.addaudithook(network_guard)
     suite = unittest.defaultTestLoader.loadTestsFromNames(["tests." + name for name in MODULES])
     result = unittest.TextTestRunner(verbosity=2).run(suite)
+    head_after = git("rev-parse", "HEAD")
+    status_after = git("status", "--porcelain")
     passed = (result.wasSuccessful() and not result.skipped
-              and git("rev-parse", "HEAD") == args.expected_head
-              and not git("status", "--porcelain"))
+              and head_after == args.expected_head and not status_after)
     report = {
         "artifact": "RATE_FUGLE_R2_OFFLINE_CORRECTIVE_TEST_REPORT_V1",
         "source_sha": args.expected_head,
         "status": "PASS" if passed else "BLOCKED",
         "modules": MODULES,
         "tests_run": result.testsRun,
+        "head_after": head_after,
+        "worktree_after": status_after.splitlines(),
         "failures": [test.id() for test, _ in result.failures],
         "errors": [test.id() for test, _ in result.errors],
         "skipped": [test.id() for test, _ in result.skipped],
