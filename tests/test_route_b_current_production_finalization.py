@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from unittest.mock import patch
 import unittest
 
+from src.cer081_scheduler_actual_timing import (
+    CADENCE_CRONS, CADENCE_WORKFLOWS, build_actual_timing_evidence, expected_slot_utc,
+)
 from src.intraday_activation_candidate_review import canonical_digest
 from src.production_acceptance_session import summarize_production_acceptance_session
 from src.route_b_current_production_finalization import build_finalization
@@ -35,6 +39,17 @@ def session():
                          "decision_state_continuity":True,"portfolio_continuity":True,
                          "transaction_ledger_continuity":True,"ranking_model_continuity":"PASS",
                          "fallback_used":False,"automatic_retry_count":0})
+            # Synthetic fixtures, never Production evidence.
+            slot=expected_slot_utc(day,cadence)
+            row=runs[-1]
+            row["scheduler_actual_timing"]=build_actual_timing_evidence(
+                {"id":rid,"event":"schedule","path":CADENCE_WORKFLOWS[cadence],
+                 "head_sha":row["run_head_sha"],"run_attempt":1,
+                 "created_at":(slot+timedelta(seconds=60)).isoformat(),
+                 "run_started_at":(slot+timedelta(seconds=120)).isoformat()},
+                cadence=cadence,trading_date=day,event_schedule=CADENCE_CRONS[cadence],
+                workflow_path=CADENCE_WORKFLOWS[cadence],expected_run_id=str(rid),
+                expected_head_sha=row["run_head_sha"])
             previous=current; rid+=1
     return {
         "artifact":"RATE_V11_PRODUCTION_ACCEPTANCE_SESSION_V1",
@@ -53,27 +68,44 @@ def session():
     }
 
 class FinalizationTests(unittest.TestCase):
-    @patch("src.route_b_current_production_finalization.load_live_state")
-    @patch("src.route_b_current_production_finalization.build_ancestry_evidence")
-    def test_full_pass(self,ancestry,load):
-        s=session()
-        by_slot={(r["trading_date"],r["cadence"]):r for r in s["accepted_runs"]}
-        def loader(root,day,cadence):
-            r=by_slot[(day,cadence)]
-            return {"state":{"current_state_id":r["current_state_id"],
-                             "previous_state_id":r["previous_state_id"],
-                             "decision_payload_hash":"f"*64},
-                    "manifest":{"workflow_run_id":r["workflow_run_id"],
-                                "commit_sha":r["run_head_sha"],"event_name":"schedule"}}
-        load.side_effect=loader
-        ancestry.return_value={"validation_status":"PASS"}
-        summary=summarize_production_acceptance_session(s)
-        out=build_finalization(".", "artifacts",activation=activation(),session=s,session_summary=summary)
+    def build_from_synthetic_session(self,s):
+        with patch("src.route_b_current_production_finalization.load_live_state") as load, \
+                patch("src.route_b_current_production_finalization.build_ancestry_evidence") as ancestry:
+            by_slot={(r["trading_date"],r["cadence"]):r for r in s["accepted_runs"]}
+            def loader(root,day,cadence):
+                r=by_slot[(day,cadence)]
+                return {"state":{"current_state_id":r["current_state_id"],
+                                 "previous_state_id":r["previous_state_id"],
+                                 "decision_payload_hash":"f"*64},
+                        "manifest":{"workflow_run_id":r["workflow_run_id"],
+                                    "commit_sha":r["run_head_sha"],"event_name":"schedule"}}
+            load.side_effect=loader
+            ancestry.return_value={"validation_status":"PASS"}
+            return build_finalization(".", "artifacts",activation=activation(),session=s,
+                                      session_summary=summarize_production_acceptance_session(s))
+
+    def test_full_pass(self):
+        out=self.build_from_synthetic_session(session())
         self.assertEqual(out["final_disposition"],"RATE_V11_PRODUCTION_ACCEPTED")
         self.assertEqual(out["cer081_status"],"CER081_ACCEPTED_CLOSED")
         self.assertEqual(out["scheduler_reliability_summary"]["successful_cadence_runs"],12)
+        self.assertEqual(out["scheduler_reliability_summary"]["actual_timing_evidence_count"],12)
+        self.assertEqual(out["scheduler_reliability_summary"]["max_scheduler_delay_seconds"],120)
+        self.assertEqual(out["scheduler_reliability_summary"]["delayed_execution_blocking_count"],0)
         self.assertEqual(out["deterministic_replay_summary"]["replay_new_record_count"],0)
         self.assertEqual(out["model_freeze_summary"]["unreviewed_code_change_count"],0)
+
+    def test_missing_actual_timing_fails_closed(self):
+        s=session()
+        s["accepted_runs"][0].pop("scheduler_actual_timing")
+        with self.assertRaisesRegex(Exception,"ROUTE_B_FINAL_SCHEDULER_ACTUAL_TIMING_NOT_PASS"):
+            self.build_from_synthetic_session(s)
+
+    def test_delayed_execution_never_reports_zero(self):
+        s=session()
+        s["accepted_runs"][0]["scheduler_actual_timing"]["scheduler_start_delay_seconds"]=901
+        with self.assertRaisesRegex(Exception,"ROUTE_B_FINAL_SCHEDULER_ACTUAL_TIMING_NOT_PASS"):
+            self.build_from_synthetic_session(s)
 
     def test_not_ready_rejected(self):
         s=session(); s["accepted_runs"]=s["accepted_runs"][:8]
