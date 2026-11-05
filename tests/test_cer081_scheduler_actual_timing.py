@@ -87,11 +87,29 @@ class SchedulerActualTimingTests(unittest.TestCase):
             "workflow_run_id": "123",
             "trading_date": "2026-11-05",
             "cadence": "09:30",
+            "run_head_sha": "a" * 40,
             "scheduler_actual_timing": self.evidence(),
         }
         s = summarize_actual_timing_evidence([run])
         self.assertEqual(s["actual_timing_evidence"], "PASS")
         self.assertEqual(s["delayed_execution_blocking_count"], 0)
+
+    def test_summary_recomputes_delay_from_actions_timestamp(self):
+        evidence = self.evidence()
+        evidence["scheduler_start_delay_seconds"] = 0
+        run = {"workflow_run_id": "123", "trading_date": "2026-11-05",
+               "cadence": "09:30", "run_head_sha": "a" * 40,
+               "scheduler_actual_timing": evidence}
+        result = summarize_actual_timing_evidence([run])
+        self.assertEqual(result["actual_timing_evidence"], "FAIL")
+        self.assertEqual(result["actual_timing_missing_or_invalid_count"], 1)
+
+    def test_summary_rejects_wrong_run_head(self):
+        run = {"workflow_run_id": "123", "trading_date": "2026-11-05",
+               "cadence": "09:30", "run_head_sha": "b" * 40,
+               "scheduler_actual_timing": self.evidence()}
+        result = summarize_actual_timing_evidence([run])
+        self.assertEqual(result["actual_timing_evidence"], "FAIL")
 
 
 if __name__ == "__main__":
