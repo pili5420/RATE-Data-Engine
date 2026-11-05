@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from src.cer081_scheduler_actual_timing import summarize_actual_timing_evidence
+from src.route_b_timing_provenance import verify_timing_provenance
 from src.current_production_final_acceptance import validate_current_production_final_acceptance
 from src.intraday_activation_candidate_review import canonical_digest
 from src.production_acceptance_session import summarize_production_acceptance_session
@@ -124,6 +125,12 @@ def build_finalization(
     require(ancestry.get("validation_status")=="PASS",
             "ROUTE_B_FINAL_MODEL_FREEZE_ANCESTRY_NOT_PASS")
 
+    for row in session["accepted_runs"]:
+        require(row.get("trading_date", "") >= session["session_start_date"],
+                "ROUTE_B_FINAL_PRE_SESSION_HISTORY_FORBIDDEN")
+        original=verify_timing_provenance(row)
+        require(row.get("scheduler_timing_provenance")==original,
+                "ROUTE_B_FINAL_ORIGINAL_TIMING_PROVENANCE_MISMATCH")
     timing=summarize_actual_timing_evidence(session["accepted_runs"])
     require(timing.get("actual_timing_evidence")=="PASS"
             and timing.get("actual_timing_evidence_count")==len(session["accepted_runs"])

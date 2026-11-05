@@ -7,6 +7,7 @@ from typing import Any, Mapping
 
 from scripts.resolve_production_runtime_context import _previous_legal_trading_day
 from src.cer081_scheduler_actual_timing import expected_slot_utc, summarize_actual_timing_evidence
+from src.route_b_timing_provenance import verify_timing_provenance
 from src.production_live_state import load_live_state
 from src.phase2_production import validate_transition as validate_phase2_transition
 from src.route_b_acceptance_bridge import bind_overlay_run_to_session, bind_standard_run_to_session
@@ -287,6 +288,10 @@ def collect_scheduled_run(
             "ROUTE_B_COLLECTOR_ACTUAL_TIMING_DELAY_BINDING_INVALID")
     require(timing_summary.get("delayed_execution_blocking_count")==0,
             "ROUTE_B_COLLECTOR_SCHEDULER_BLOCKING_DELAY")
+    require(day >= session["session_start_date"],
+            "ROUTE_B_COLLECTOR_PRE_SESSION_HISTORY_FORBIDDEN")
+    provenance=verify_timing_provenance(run)
+    run={**run,"scheduler_timing_provenance":provenance}
     stored=admit_run_to_store(store_root,run)
     return {
         "artifact":"RATE_ROUTE_B_ACCEPTANCE_COLLECTOR_RESULT_V1",

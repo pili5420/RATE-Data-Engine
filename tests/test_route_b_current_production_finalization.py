@@ -50,6 +50,7 @@ def session():
                 cadence=cadence,trading_date=day,event_schedule=CADENCE_CRONS[cadence],
                 workflow_path=CADENCE_WORKFLOWS[cadence],expected_run_id=str(rid),
                 expected_head_sha=row["run_head_sha"])
+            row["scheduler_timing_provenance"]={"synthetic_source_verified":True}
             previous=current; rid+=1
     return {
         "artifact":"RATE_V11_PRODUCTION_ACCEPTANCE_SESSION_V1",
@@ -70,7 +71,9 @@ def session():
 class FinalizationTests(unittest.TestCase):
     def build_from_synthetic_session(self,s):
         with patch("src.route_b_current_production_finalization.load_live_state") as load, \
-                patch("src.route_b_current_production_finalization.build_ancestry_evidence") as ancestry:
+                patch("src.route_b_current_production_finalization.build_ancestry_evidence") as ancestry, \
+                patch("src.route_b_current_production_finalization.verify_timing_provenance",
+                      return_value={"synthetic_source_verified":True}):
             by_slot={(r["trading_date"],r["cadence"]):r for r in s["accepted_runs"]}
             def loader(root,day,cadence):
                 r=by_slot[(day,cadence)]
@@ -105,6 +108,18 @@ class FinalizationTests(unittest.TestCase):
         s=session()
         s["accepted_runs"][0]["scheduler_actual_timing"]["scheduler_start_delay_seconds"]=901
         with self.assertRaisesRegex(Exception,"ROUTE_B_FINAL_SCHEDULER_ACTUAL_TIMING_NOT_PASS"):
+            self.build_from_synthetic_session(s)
+
+    def test_replayed_receipt_mismatch_fails_closed(self):
+        s=session()
+        s["accepted_runs"][0]["scheduler_timing_provenance"]={"fabricated_hash":"0"*64}
+        with self.assertRaisesRegex(Exception,"ORIGINAL_TIMING_PROVENANCE_MISMATCH"):
+            self.build_from_synthetic_session(s)
+
+    def test_pre_session_history_rejected_before_replay(self):
+        s=session()
+        s["session_start_date"]="2026-11-09"
+        with self.assertRaisesRegex(Exception,"PRE_SESSION_HISTORY_FORBIDDEN"):
             self.build_from_synthetic_session(s)
 
     def test_not_ready_rejected(self):

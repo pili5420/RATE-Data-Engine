@@ -41,6 +41,12 @@ def package():
     }
 
 class CollectorTests(unittest.TestCase):
+    def setUp(self):
+        verifier=patch("src.route_b_acceptance_collector.verify_timing_provenance",
+                       return_value={"synthetic_source_verified":True})
+        verifier.start()
+        self.addCleanup(verifier.stop)
+
     @patch("src.route_b_acceptance_collector.baseline_policy")
     def test_pending_is_noop(self,policy):
         policy.return_value={"status":"PENDING_BINDING"}
@@ -69,7 +75,7 @@ class CollectorTests(unittest.TestCase):
             "event":"schedule","validation_status":"PASS","publish_result":"PASS",
             "trading_date":"2026-11-06","cadence":"09:30","run_head_sha":"b"*40,
             "activation_code_sha":MAIN,"activation_binding_sha":BIND,"activation_is_ancestor":True,
-            "operational_changes_authorized":True,"workflow_run_id":"7",
+            "operational_changes_authorized":True,"workflow_run_id":"7", "workflow_job_id":"8",
             "fallback_used":False,"automatic_retry_count":0,"production_data_gate":"PASS",
             "decision_state_continuity":True,"portfolio_continuity":True,
             "transaction_ledger_continuity":True,"ranking_model_continuity":True,

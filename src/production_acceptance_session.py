@@ -191,6 +191,8 @@ def admit_scheduled_run(
     # an inferred zero-delay value in the final acceptance report.
     if isinstance(run.get("scheduler_actual_timing"), Mapping):
         admitted["scheduler_actual_timing"]=dict(run["scheduler_actual_timing"])
+    if isinstance(run.get("scheduler_timing_provenance"), Mapping):
+        admitted["scheduler_timing_provenance"]=dict(run["scheduler_timing_provenance"])
     existing.append(admitted)
 
     unique={(x["trading_date"],x["cadence"]) for x in existing}
