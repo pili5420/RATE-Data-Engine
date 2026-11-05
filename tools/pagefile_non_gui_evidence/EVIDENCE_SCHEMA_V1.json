@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:rate:pagefile-nongui:observation:v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "realm",
+    "target_path",
+    "started_utc",
+    "ended_utc",
+    "runner",
+    "records"
+  ],
+  "properties": {
+    "version": {
+      "const": "PAGEFILE_NON_GUI_V1"
+    },
+    "realm": {
+      "enum": [
+        "SYNTHETIC_ONLY",
+        "RUNNER_ONLY_NOT_TARGET_HOST_EVIDENCE"
+      ]
+    },
+    "target_path": {
+      "const": "D:\\pagefile.sys"
+    },
+    "started_utc": {
+      "type": "string"
+    },
+    "ended_utc": {
+      "type": "string"
+    },
+    "runner": {
+      "type": "object"
+    },
+    "records": {
+      "type": "array",
+      "minItems": 11,
+      "maxItems": 11
+    }
+  },
+  "x-limit": "Envelope only. evidence.py strict role schemas/digests/identities/sourceplan and relations mandatory;partialcollectorerrorsmay notvalidatethiscompleteenvelope andmustremainINDETERMINATE. No target qualification or execution authority."
+}

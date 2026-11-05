@@ -1,0 +1,37 @@
+{
+  "full_D_policy_and_boot_applied": "NO_GO_CURRENT_QUALIFIED_SOURCES",
+  "status": "SOURCE_GAP/BLOCKED",
+  "final_return_if_gaps_remain": "BLOCKED_FOR_CONTROL_CENTER_REVIEW",
+  "limited_observation_route": "CONDITIONAL_GO_SEPARATE_TARGET_SPECIFIC_READ_ONLY_CR_ONLY",
+  "engineering_is_complete_when": "Applicable tests/review completed;sourcegaps remain honestly blocked,not repaired bySyntheticPASS",
+  "source_gaps": [
+    {
+      "id": "PF-SOURCE-001",
+      "scope": "D systemmanaged policy",
+      "evidence": "S01 isglobal;S02sizes/missinginstances andS07Registryprose provide no complete authoritative perdrive0/0policycontract",
+      "required": "Microsoft/provider-version-specific normative policy source/semantics and independent review",
+      "owner": "OS/provider owner +ControlCenter"
+    },
+    {
+      "id": "PF-SOURCE-002",
+      "scope": "Boot-applied/current-vs-pending state",
+      "evidence": "S02 can deferchanges;S03runtime andS04lastrestart do not bind currentconfigtoappliedboothistory",
+      "required": "Trusted prebootconfigurationhistory/change boundaries and independent applied-state proof",
+      "owner": "Platform/sourceowner+independentreviewer"
+    },
+    {
+      "id": "PF-TRUST-003",
+      "scope": "Original Host/Boot/Volume/Clock",
+      "evidence": "CIM/Registry selfreportedmetadata andSHA do not supply independent attestation;originalhost deliberatelyunqueried",
+      "required": "Exact reviewed currenttarget identity and separately authorized fixedreadscope;OSclocktrustlimits explicit",
+      "owner": "ControlCenter+operator/securityreviewer"
+    }
+  ],
+  "GUI_Gate2": "BLOCKED",
+  "RT04": "BLOCKED",
+  "unreleased_RT01_RT10": "BLOCKED",
+  "original_halt_root_cause": "UNKNOWN",
+  "original_host_state": "UNKNOWN_NOT_QUERIED",
+  "next_stage_authorized": false,
+  "inference_limit": "Current examinedsources/profile only;not a universal impossibility theorem. A limited rawobservationCR must notpromise fullDsystemmanaged/bootappliedqualification."
+}
