@@ -9,7 +9,6 @@ import argparse
 import hashlib
 import json
 import os
-import subprocess
 import sys
 import time
 from datetime import date, datetime, timezone
@@ -81,25 +80,8 @@ def _load_json(path):
 
 
 def _verify_model_freeze():
-    # Freeze identity is the committed Git blob, not platform-transformed checkout
-    # bytes (for example CRLF on Windows). Missing/unreadable Git objects fail closed.
-    observed = {}
-    unreadable = []
-    for name in FROZEN_FILE_SHA256:
-        try:
-            blob = subprocess.check_output(
-                ["git", "-C", str(ROOT), "show", f"HEAD:{name}"],
-                stderr=subprocess.DEVNULL,
-            )
-        except (OSError, subprocess.CalledProcessError):
-            unreadable.append(name)
-            continue
-        observed[name] = hashlib.sha256(blob).hexdigest()
-    changed = [
-        name for name, digest in observed.items()
-        if digest != FROZEN_FILE_SHA256[name]
-    ]
-    changed.extend(name for name in unreadable if name not in changed)
+    observed = {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in FROZEN_FILE_SHA256}
+    changed = [name for name, digest in observed.items() if digest != FROZEN_FILE_SHA256[name]]
     return {"status": "FAIL" if changed else "PASS", "files": observed, "changed_files": changed}
 
 
