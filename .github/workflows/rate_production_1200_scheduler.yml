@@ -74,6 +74,23 @@ jobs:
             --env-output "$RUNNER_TEMP/rate_runtime_context.env"
           cat "$RUNNER_TEMP/rate_runtime_context.env" >> "$GITHUB_ENV"
 
+      - name: Capture CER-081 scheduler actual-timing evidence
+        if: ${{ github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}" > "artifacts/production_1200/GITHUB_ACTIONS_RUN_API.json"
+          python scripts/build_scheduler_actual_timing_evidence.py \
+            --github-run-json "artifacts/production_1200/GITHUB_ACTIONS_RUN_API.json" \
+            --cadence "12:00" \
+            --trading-date "${{ env.RATE_PRODUCTION_TRADING_DATE }}" \
+            --event-schedule "${{ env.GITHUB_EVENT_SCHEDULE }}" \
+            --workflow-path ".github/workflows/rate_production_1200_scheduler.yml" \
+            --expected-run-id "${{ github.run_id }}" \
+            --expected-head-sha "${{ github.sha }}" \
+            --output "artifacts/production_1200/RATE_CER081_SCHEDULER_ACTUAL_TIMING_EVIDENCE.json"
+
       - name: Validate production scheduler safety wiring
         run: python scripts/validate_production_scheduler_safety.py --output artifacts/production_1200/RATE_PRODUCTION_SCHEDULER_SAFETY_VALIDATION.json
 
@@ -156,6 +173,14 @@ jobs:
         with:
           name: RATE_LIVE_PRODUCTION_STATE_1200_${{ env.RATE_PRODUCTION_TRADING_DATE }}_${{ github.run_id }}
           path: artifacts/production_state/live/${{ env.RATE_PRODUCTION_TRADING_DATE }}/1200/**
+          if-no-files-found: error
+
+      - name: Upload CER-081 scheduler actual-timing evidence
+        if: ${{ always() && github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_CER081_SCHEDULER_ACTUAL_TIMING_1200_${{ github.run_id }}
+          path: artifacts/production_1200/RATE_CER081_SCHEDULER_ACTUAL_TIMING_EVIDENCE.json
           if-no-files-found: error
 
       - name: Upload production cadence artifacts

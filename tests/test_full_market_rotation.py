@@ -1,4 +1,5 @@
 """Synthetic ENGINEERING-only acceptance. Never fabricate production warmup evidence."""
+import ast
 import copy
 from datetime import date, timedelta
 import json
@@ -294,8 +295,26 @@ class FullMarketRotationTests(unittest.TestCase):
             self.assertEqual(self.evaluate(state_root=root)["blocking_reason"], "LIVE_STATE_FILE_HASH_MISMATCH")
 
     def test_real_rebaseline_has_no_short_top30_and_cannot_be_silently_promoted(self):
-        result = self.evaluate(state_root=ROOT / "artifacts/production_state", previous_trading_date="2026-10-02",
-                               previous_cadence="19:30", trading_date="2026-10-05")
+        # Materialize canonical Git blob bytes into a temporary state root so
+        # platform checkout newline conversion cannot invalidate manifest hashes.
+        with tempfile.TemporaryDirectory(prefix="rate-rebaseline-git-bytes-") as directory:
+            root = Path(directory)
+            rel_dir = Path("live/2026-10-02/1930")
+            for name in (
+                "RATE_PRODUCTION_DECISION_STATE.json",
+                "RATE_PRODUCTION_PERSIST_RESULT_EVIDENCE.json",
+                "RATE_PRODUCTION_REBASELINE_AUTHORIZATION_CONSUMPTION_EVIDENCE.json",
+                "RATE_PRODUCTION_REBASELINE_BOOTSTRAP_EVIDENCE.json",
+                "RATE_PRODUCTION_STATE_MANIFEST.json",
+            ):
+                repo_path = f"artifacts/production_state/{rel_dir.as_posix()}/{name}"
+                target = root / rel_dir / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(subprocess.check_output(
+                    ["git", "-C", str(ROOT), "show", f"HEAD:{repo_path}"]
+                ))
+            result = self.evaluate(state_root=root, previous_trading_date="2026-10-02",
+                                   previous_cadence="19:30", trading_date="2026-10-05")
         self.assertEqual(result["previous_state_id"], "rate-state-baa7113253efcaf5d448e431")
         self.assertEqual(result["previous_state_hash"], "baa7113253efcaf5d448e4319318e070da6f6a680d55303e209cd3d64d2d7fec")
         self.assertEqual(result["blocking_reason"], "PREVIOUS_DECISION_SHORT_TOP30_MISSING")
@@ -309,13 +328,118 @@ class FullMarketRotationTests(unittest.TestCase):
                        "tests/report_soak_support.py", "tests/test_full_market_rotation.py",
                        "config/RATE_EXTERNAL_PRODUCTION_DEPENDENCIES.json",
                        "config/RATE_PRODUCTION_OFFICIAL_SOURCE_REGISTRY_V1.json",
-                       "src/full_market_rotation.py", "tests/test_phase2_compatibility.py"}
+                       "src/full_market_rotation.py", "src/cer081_unattended_soak.py",
+                       "tests/test_phase2_compatibility.py"}
         integration.update(f".github/workflows/rate_production_{slot}_scheduler.yml" for slot in ("0730", "0930", "1200", "1930"))
         integration.add(".github/workflows/rate_public_official_partial_valid_ci.yml")
+        integration.add(".github/workflows/rate_pr90_regression_closure_ci.yml")
+        cer081_workflow = ".github/workflows/rate_cer081_unattended_multi_day_soak.yml"
+        integration.add(cer081_workflow)
         for name in names:
             if name in integration:
                 continue
-            self.assertEqual((ROOT / name).read_bytes(), subprocess.check_output(["git", "-C", str(ROOT), "show", f"{BASE}:{name}"]), name)
+            # Compare repository blobs rather than checkout bytes. This keeps the
+            # governance freeze exact while ignoring platform CRLF/LF conversion.
+            base_blob = subprocess.check_output(
+                ["git", "-C", str(ROOT), "rev-parse", f"{BASE}:{name}"]
+            ).decode().strip()
+            head_blob = subprocess.check_output(
+                ["git", "-C", str(ROOT), "rev-parse", f"HEAD:{name}"]
+            ).decode().strip()
+            self.assertEqual(head_blob, base_blob, name)
+        # CER-081 may change only its scheduler-evidence collector boundary here.
+        # Preserve the frozen Production/owner/state/account/bootstrap workflow semantics.
+        current_main = subprocess.check_output(
+            ["git", "-C", str(ROOT), "rev-parse", "origin/main"]
+        ).decode().strip()
+        base_cer081 = subprocess.check_output(
+            ["git", "-C", str(ROOT), "show", f"{current_main}:{cer081_workflow}"]
+        ).decode()
+        head_cer081 = (ROOT / cer081_workflow).read_text(encoding="utf-8")
+        frozen_markers = [
+            "permissions:\n  contents: read\n  actions: read",
+            "group: rate-cer081-unattended-soak-",
+            "RATE_CER080_PERSIST_RESULT_ARTIFACT_ID",
+            "Download accepted CER-080 predecessor evidence",
+            "Verify main remains untouched before soak acceptance",
+            "Verify main remains untouched after soak acceptance",
+            "Execute unattended multi-day soak acceptance",
+        ]
+        for marker in frozen_markers:
+            self.assertIn(marker, base_cer081)
+            self.assertIn(marker, head_cer081)
+        diff = subprocess.check_output(
+            ["git", "-C", str(ROOT), "diff", "--unified=0", current_main, "HEAD", "--", cer081_workflow]
+        ).decode()
+        forbidden_change_terms = [
+            "permissions:", "RATE_CER080_PERSIST_RESULT_ARTIFACT_ID",
+            "Verify main remains untouched", "Execute unattended multi-day soak acceptance",
+            "--cer080-persisted-evidence", "--rate-source-url", "--output-dir artifacts/cer081",
+        ]
+        changed_lines = [
+            line for line in diff.splitlines()
+            if (line.startswith("+") or line.startswith("-"))
+            and not line.startswith("+++")
+            and not line.startswith("---")
+        ]
+        for term in forbidden_change_terms:
+            self.assertFalse(any(term in line for line in changed_lines), term)
+        required_timing_terms = [
+            "tempfile", "RATE_CER081_SCHEDULER_ACTUAL_TIMING_",
+            "ACTUAL_TIMING_ARTIFACT_MISSING", "scheduler_actual_timing",
+        ]
+        for term in required_timing_terms:
+            self.assertTrue(any(term in line for line in changed_lines), term)
+
+        # The CER-081 source may compose the new timing evidence only inside
+        # build_cer081_artifacts(). Every other governance/state/source helper
+        # remains structurally identical to the frozen base.
+        cer081_source = "src/cer081_unattended_soak.py"
+        base_source = subprocess.check_output(
+            ["git", "-C", str(ROOT), "show", f"{current_main}:{cer081_source}"]
+        ).decode()
+        head_source = (ROOT / cer081_source).read_text(encoding="utf-8")
+
+        def function_ast(source, name):
+            tree = ast.parse(source)
+            for node in tree.body:
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == name:
+                    return ast.dump(node, include_attributes=False)
+            self.fail(f"missing frozen function: {name}")
+
+        frozen_functions = [
+            "common",
+            "validate_cer080_predecessor",
+            "production_source_ssot",
+            "source_failure_gates",
+            "_shared_writer_concurrency",
+            "scheduler_definition_evidence",
+            "scheduled_time_for",
+            "build_expected_state",
+            "full_production_disqualifiers",
+            "normalize_scheduled_runs",
+            "scheduled_run_metrics",
+            "build_daily_matrix",
+            "deterministic_replay",
+            "build_daily_artifacts",
+            "write_fail_closed",
+        ]
+        for function_name in frozen_functions:
+            self.assertEqual(
+                function_ast(head_source, function_name),
+                function_ast(base_source, function_name),
+                function_name,
+            )
+
+        pr90_workflow = (ROOT / ".github/workflows/rate_pr90_regression_closure_ci.yml").read_text(encoding="utf-8")
+        for marker in (
+            "Preserve exact Git blob bytes",
+            'Path(name).write_bytes(subprocess.check_output(["git","show",f"HEAD:{name}"]))',
+            "git diff --exit-code",
+            "PR90 regression closure",
+        ):
+            self.assertIn(marker, pr90_workflow)
+
         expected = os.getenv("RATE_PHASE2_CI_HEAD_SHA")
         if expected:
             self.assertEqual(subprocess.check_output(["git", "-C", str(ROOT), "rev-parse", "HEAD"]).decode().strip(), expected)

@@ -18,7 +18,7 @@ Final acceptance requires all of the following simultaneously:
 - independent state and cross-day continuity PASS;
 - durable Portfolio, Transaction Ledger and Ranking continuity PASS, recomputed from admitted run evidence;
 - durable official-schedule / Production Data / no-fallback / no-auto-retry session guards PASS;
-- scheduler reliability PASS with no manual-dispatch substitution;
+- scheduler reliability PASS with exact run-bound GitHub Actions actual-timing evidence, no manual-dispatch substitution, no nearest-slot or post-hoc date inference;
 - deterministic replay PASS with no new record creation;
 - model-freeze integrity PASS;
 - exact merged-main binding across activation and session evidence.

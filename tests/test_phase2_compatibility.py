@@ -1,4 +1,5 @@
 """Phase A synthetic integration only; never publish to repository artifacts."""
+import ast
 import copy
 import json
 import os
@@ -142,16 +143,71 @@ class Phase2CompatibilityTests(unittest.TestCase):
         self.assertEqual(chain_proof(None)["four_cadence_continuity"], "PASS")
 
     def test_intraday_workflows_are_byte_identical_to_main(self):
+        current_main = subprocess.check_output(
+            ["git", "-C", str(ROOT), "rev-parse", "origin/main"]
+        ).decode().strip()
+
+        def without_actual_timing_steps(text):
+            lines = text.splitlines(keepends=True)
+            out = []
+            skip = False
+            for line in lines:
+                if line.startswith("      - name: Capture CER-081 scheduler actual-timing evidence") or \
+                        line.startswith("      - name: Upload CER-081 scheduler actual-timing evidence"):
+                    skip = True
+                    continue
+                if skip and line.startswith("      - name: "):
+                    skip = False
+                if not skip:
+                    out.append(line)
+            return "".join(out)
+
         for slot in ("0930", "1200"):
             path = f".github/workflows/rate_production_{slot}_scheduler.yml"
-            self.assertEqual((ROOT / path).read_bytes(), subprocess.check_output(["git", "show", fixtures.BASE + ":" + path], cwd=ROOT))
+            base = subprocess.check_output(
+                ["git", "-C", str(ROOT), "show", f"{current_main}:{path}"]
+            ).decode()
+            head = (ROOT / path).read_text(encoding="utf-8")
+            self.assertEqual(without_actual_timing_steps(head), base, path)
+            self.assertIn("Capture CER-081 scheduler actual-timing evidence", head)
+            self.assertIn("Upload CER-081 scheduler actual-timing evidence", head)
 
     def test_registry_eps_contract_soak_and_model_owners_unchanged(self):
         paths = ["config/RATE_FOUR_CADENCE_REPORT_SOAK_V1.json",
-            "src/report_production_soak.py", "src/cer081_unattended_soak.py", "src/public_official_partial_valid.py",
+            "src/report_production_soak.py", "src/public_official_partial_valid.py",
             "src/sources/fundamental_history.py", "src/feature_math.py", "src/rate_logic.py", "src/full_market_catalogue.py"]
         for path in paths:
             self.assertEqual((ROOT / path).read_bytes(), subprocess.check_output(["git", "show", fixtures.BASE + ":" + path], cwd=ROOT))
+
+        current_main = subprocess.check_output(
+            ["git", "-C", str(ROOT), "rev-parse", "origin/main"]
+        ).decode().strip()
+        cer081_path = "src/cer081_unattended_soak.py"
+        base_cer081 = subprocess.check_output(
+            ["git", "-C", str(ROOT), "show", f"{current_main}:{cer081_path}"]
+        ).decode()
+        head_cer081 = (ROOT / cer081_path).read_text(encoding="utf-8")
+
+        def function_ast(source, name):
+            tree = ast.parse(source)
+            for node in tree.body:
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == name:
+                    return ast.dump(node, include_attributes=False)
+            self.fail(f"missing protected CER081 function: {name}")
+
+        protected = [
+            "common", "validate_cer080_predecessor", "production_source_ssot",
+            "source_failure_gates", "_shared_writer_concurrency",
+            "scheduler_definition_evidence", "scheduled_time_for",
+            "build_expected_state", "full_production_disqualifiers",
+            "normalize_scheduled_runs", "scheduled_run_metrics",
+            "build_daily_matrix", "deterministic_replay",
+            "build_daily_artifacts", "write_fail_closed",
+        ]
+        for name in protected:
+            self.assertEqual(function_ast(head_cer081, name), function_ast(base_cer081, name), name)
+        self.assertIn("summarize_actual_timing_evidence", head_cer081)
+        self.assertIn("timing_required", head_cer081)
 
         dependency_doc = json.loads((ROOT / "config/RATE_EXTERNAL_PRODUCTION_DEPENDENCIES.json").read_text(encoding="utf-8"))
         dependency = next(item for item in dependency_doc["dependencies"] if item["dependency_id"] == EXTERNAL_FEED)

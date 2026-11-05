@@ -30,5 +30,10 @@
     "decision_state_evidence",
     "fallback_free",
     "automatic_retry_free"
-  ]
+  ],
+  "scheduler_actual_timing_required": true,
+  "scheduler_actual_timing_contract": "RATE_CER081_SCHEDULER_ACTUAL_TIMING_CONTRACT_V1",
+  "nearest_slot_inference_allowed": false,
+  "wall_clock_only_timing_allowed": false,
+  "post_hoc_date_inference_allowed": false
 }

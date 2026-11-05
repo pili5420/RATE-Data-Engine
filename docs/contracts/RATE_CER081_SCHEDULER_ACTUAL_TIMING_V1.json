@@ -1,0 +1,31 @@
+{
+  "artifact": "RATE_CER081_SCHEDULER_ACTUAL_TIMING_CONTRACT_V1",
+  "status": "ENGINEERING_CONTRACT",
+  "source": "GITHUB_ACTIONS_RUN_API_PLUS_RUNTIME_CONTEXT",
+  "required_binding": [
+    "workflow_run_id",
+    "run_attempt=1",
+    "event_name=schedule",
+    "event_schedule",
+    "workflow_path",
+    "run_head_sha",
+    "trading_date",
+    "cadence",
+    "actions_created_at",
+    "actions_run_started_at"
+  ],
+  "forbidden_substitutions": [
+    "manual_dispatch",
+    "nearest_slot_inference",
+    "wall_clock_only_evidence",
+    "post_hoc_date_inference",
+    "automatic_retry_credit",
+    "fallback_timing_source"
+  ],
+  "blocking_delay_seconds": 900,
+  "missing_or_invalid_evidence": "FAIL_CLOSED",
+  "scheduler_reliability_pass_requires": [
+    "actual_timing_evidence=PASS",
+    "delayed_execution_blocking_count=0"
+  ]
+}

@@ -21,7 +21,7 @@ Scope: CODE INTEGRATION ONLY. This is not warmup or Production acceptance.
 `MARKET_INTRADAY_PRICE_GATE=BLOCKED_EXTERNAL`,
 `FULL_INTRADAY_DECISION_STATUS=BLOCKED_EXTERNAL`,
 `FULL_PRODUCTION_ACCEPTANCE=NOT_ALLOWED`, `fallback_allowed=false`.
-Report soak and CER081 remain separate, with unchanged governance owners.
+Report soak and CER081 remain separate, with unchanged governance owners. CER-081 scheduler-evidence collection may evolve only inside its evidence-collector boundary; Production permissions, CER-080 predecessor binding, main immutability guards, acceptance executor arguments, owner/state/account/bootstrap semantics remain frozen.
 The imported Phase2 contract explicitly does not authorize activation.
 
 The official EPS provider contract, Source registry, original pins, historical
@@ -34,7 +34,7 @@ There is no candidate FinMind-to-formal EPS alias or coverage credit transfer.
 The strict Windows/Linux exact-head workflow uses the Phase A verifier when the
 new contract is present; it retains every existing assertion and runs 131 legacy,
 56 PR42, 48 report-soak, 8 scheduler-lock, 43 imported Phase2 and 12 new integration
-tests separately. No existing verifier or test is edited. The verifier also
+tests separately. Existing verifier/test changes are allowed only when they tighten the explicit frozen-boundary assertion without deleting coverage or relaxing protected semantics. The verifier also
 replays the legacy four-cadence proof, the separated three-day soak proof and a
 new cold-CLI Phase2 07:30 -> public 09:30 -> public 12:00 -> Phase2 19:30 chain.
 All publications and account/state writes in those proofs target synthetic

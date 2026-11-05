@@ -68,6 +68,8 @@ def scheduler():
         "scheduler_coverage":"PASS",
         "manual_dispatch_substitution":"NO",
         "missed_execution_count":0,
+        "actual_timing_evidence":"PASS",
+        "actual_timing_missing_or_invalid_count":0,
         "delayed_execution_blocking_count":0,
     }
 
@@ -141,6 +143,9 @@ class FinalAcceptanceTests(unittest.TestCase):
 
     def test_scheduler_determinism_freeze_are_independent_gates(self):
         sch=scheduler(); sch["missed_execution_count"]=1
+        with self.assertRaisesRegex(CurrentProductionFinalAcceptanceError,"SCHEDULER_NOT_PASS"):
+            self.validate(sch=sch)
+        sch=scheduler(); sch["actual_timing_evidence"]="FAIL"
         with self.assertRaisesRegex(CurrentProductionFinalAcceptanceError,"SCHEDULER_NOT_PASS"):
             self.validate(sch=sch)
         d=deterministic(); d["deterministic_audit_replay"]="FAIL"

@@ -58,7 +58,8 @@ jobs:
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           python - <<'PY'
-          import json, os, subprocess
+          import json, os, subprocess, tempfile
+          from pathlib import Path
           workflows = {
               '07:30': 'rate_production_0730_scheduler.yml',
               '09:30': 'rate_production_0930_scheduler.yml',
@@ -74,7 +75,16 @@ jobs:
                   continue
               data=json.loads(result.stdout or '[]')
               for row in data:
-                  runs.append({'event_name':'schedule','workflow_run_id':str(row.get('databaseId')),'job_id':None,'run_head_sha':row.get('headSha'),'created_at':row.get('createdAt'),'cadence':cadence,'trading_date':None,'validation_status':'PASS' if row.get('conclusion')=='success' else 'FAIL','publish_result':'PASS' if row.get('conclusion')=='success' else 'FAIL'})
+                  run_id=str(row.get('databaseId'))
+                  artifact_name=f"RATE_CER081_SCHEDULER_ACTUAL_TIMING_{cadence.replace(':','')}_{run_id}"
+                  with tempfile.TemporaryDirectory() as td:
+                      dl=subprocess.run(['gh','run','download',run_id,'--repo',os.environ['GITHUB_REPOSITORY'],'--name',artifact_name,'--dir',td],capture_output=True,text=True)
+                      evidence_path=Path(td)/'RATE_CER081_SCHEDULER_ACTUAL_TIMING_EVIDENCE.json'
+                      if dl.returncode != 0 or not evidence_path.is_file():
+                          warnings.append({'cadence':cadence,'workflow':workflow,'workflow_run_id':run_id,'reason':'ACTUAL_TIMING_ARTIFACT_MISSING'})
+                          continue
+                      timing=json.loads(evidence_path.read_text(encoding='utf-8'))
+                  runs.append({'event_name':'schedule','workflow_run_id':run_id,'job_id':None,'run_head_sha':row.get('headSha'),'created_at':row.get('createdAt'),'cadence':cadence,'trading_date':timing.get('trading_date'),'scheduler_actual_timing':timing,'validation_status':'PASS' if row.get('conclusion')=='success' else 'FAIL','publish_result':'PASS' if row.get('conclusion')=='success' else 'FAIL'})
           os.makedirs('artifacts/cer081', exist_ok=True)
           with open('artifacts/cer081/scheduled_runs.json','w',encoding='utf-8') as f:
               json.dump({'runs': runs, 'collector_warnings': warnings}, f, ensure_ascii=False, indent=2, sort_keys=True)

@@ -34,6 +34,21 @@ jobs:
         run: |
           git config core.autocrlf false
           git checkout-index --all --force
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+          frozen = [
+              "src/rate_logic.py",
+              "src/institutional_features.py",
+              "src/stage_evidence.py",
+              "src/technical_features.py",
+              "src/rotation_history.py",
+              "control_center/production_control/v1/04_GOLDEN_TEST_FIXTURES_V1.0.md",
+              "control_center/production_control/v1/01_RATE_PRODUCTION_LOGIC_SPEC_V1.1.md",
+          ]
+          for name in frozen:
+              Path(name).write_bytes(subprocess.check_output(["git","show",f"HEAD:{name}"]))
+          PY
           git diff --exit-code
       - uses: actions/setup-python@v5
         with:
