@@ -1,0 +1,47 @@
+{
+  "artifact": "RATE_FUGLE_BASIC_PERSONAL_INTERNAL_USE_LICENSE_EVIDENCE_V1",
+  "evidence_status": "PROVIDER_WRITTEN_CONFIRMATION_ACCEPTED",
+  "provider": "Fugle MarketData API",
+  "provider_plan": "BASIC_USER_FREE",
+  "provider_license_gate": "PASS_CONFIRMED_IN_WRITING",
+  "confirmation_scope": {
+    "single_user_personal_use": true,
+    "automated_non_display_analysis": true,
+    "internal_analysis_only": true,
+    "approximately_30_individual_intraday_quote_requests_per_cadence_allowed": true,
+    "current_intraday_rate_limit_requests_per_minute": 60,
+    "technical_indicators_allowed": true,
+    "rankings_scores_decision_logic_allowed": true,
+    "derived_results_retention_for_personal_use_allowed": true,
+    "user_controlled_private_cloud_runtime_allowed": true
+  },
+  "custody_boundaries": {
+    "api_key_single_user_private": true,
+    "raw_market_data_single_user_private": true,
+    "derived_analysis_single_user_private": true,
+    "public_repository_raw_market_data_forbidden": true,
+    "public_repository_derived_analysis_forbidden": true,
+    "public_repository_market_data_logs_forbidden": true,
+    "redistribution_forbidden": true,
+    "resale_forbidden": true
+  },
+  "provider_scope_boundary": {
+    "additional_fugle_market_data_license_required": false,
+    "basic_plan_upgrade_required_for_described_scope": false,
+    "exchange_authority_confirmed_by_provider": false,
+    "twse_tpex_exchange_authority_gate": "UNRESOLVED_REQUIRES_SEPARATE_EXCHANGE_EVIDENCE"
+  },
+  "rate_v11_governance": {
+    "route_b_source_architecture_changed": false,
+    "route_b_source_activation_from_fugle_evidence": false,
+    "fugle_status": "QUALIFIED_PROVIDER_OPTION_NOT_ACTIVE_IN_ROUTE_B",
+    "production_activation_allowed": false,
+    "exchange_authority_bypass_allowed": false,
+    "fallback_allowed": false
+  },
+  "change_control": {
+    "provider_plan_terms_may_change": true,
+    "revalidation_required_if_usage_scope_changes": true,
+    "revalidation_required_if_provider_plan_changes": true
+  }
+}
