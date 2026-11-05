@@ -65,6 +65,7 @@ class TransportTests(unittest.TestCase):
         t=self.transport()
         result=t.create_marker(AUTH,MAIN)
         self.assertEqual(result["sha"],MAIN)
+        self.assertTrue(result["exclusive_create_acknowledged"])
         method,path,body,headers=FakeConnection.requests[0]
         self.assertEqual(method,"POST")
         self.assertEqual(path,"/repos/pili5420/RATE-Data-Engine/git/refs")

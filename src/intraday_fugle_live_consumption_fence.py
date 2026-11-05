@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import hashlib
 import json
 import re
+import threading
 from typing import Any, Mapping
 
 HEX40 = re.compile(r"^[0-9a-f]{40}$")
@@ -61,20 +62,24 @@ class SyntheticWriteOnceFenceStore:
         self.read_attempts=0
         self.update_attempts=0
         self.delete_attempts=0
+        self._lock=threading.Lock()
 
     def read(self, key: str) -> dict[str, Any] | None:
-        self.read_attempts += 1
-        value=self.values.get(key)
-        return None if value is None else dict(value)
+        with self._lock:
+            self.read_attempts += 1
+            value=self.values.get(key)
+            return None if value is None else dict(value)
 
-    def create_once(self, key: str, value: Mapping[str, Any]) -> None:
-        self.write_attempts += 1
-        if self.fail_mode=="BEFORE_CREATE":
-            raise RuntimeError("SYNTHETIC_FUGLE_FENCE_FAIL_BEFORE_CREATE")
-        require(key not in self.values, "FUGLE_FENCE_ALREADY_CONSUMED")
-        self.values[key]=dict(value)
-        if self.fail_mode=="AMBIGUOUS_AFTER_CREATE":
-            raise AmbiguousFenceWrite("SYNTHETIC_FUGLE_FENCE_AMBIGUOUS_AFTER_CREATE")
+    def create_once(self, key: str, value: Mapping[str, Any]) -> bool:
+        with self._lock:
+            self.write_attempts += 1
+            if self.fail_mode=="BEFORE_CREATE":
+                raise RuntimeError("SYNTHETIC_FUGLE_FENCE_FAIL_BEFORE_CREATE")
+            require(key not in self.values, "FUGLE_FENCE_ALREADY_CONSUMED")
+            self.values[key]=dict(value)
+            if self.fail_mode=="AMBIGUOUS_AFTER_CREATE":
+                raise AmbiguousFenceWrite("SYNTHETIC_FUGLE_FENCE_AMBIGUOUS_AFTER_CREATE")
+            return True
 
 
 def consume_fugle_single_live_fence(
@@ -143,18 +148,18 @@ def consume_fugle_single_live_fence(
     receipt["receipt_sha256"]=canonical_digest(receipt)
 
     try:
-        store.create_once(key,receipt)
-    except AmbiguousFenceWrite:
-        persisted=store.read(key)
-        require(persisted is not None, "FUGLE_FENCE_AMBIGUOUS_WRITE_UNRESOLVED")
-        require(persisted==receipt, "FUGLE_FENCE_AMBIGUOUS_WRITE_CONFLICT")
-        outcome="AMBIGUOUS_CREATE_CONFIRMED_BY_READBACK"
-    else:
-        persisted=store.read(key)
-        require(persisted==receipt, "FUGLE_FENCE_READBACK_MISMATCH")
-        outcome="CREATED_AND_READBACK_VERIFIED"
+        acknowledged=store.create_once(key,receipt)
+    except AmbiguousFenceWrite as exc:
+        raise FugleConsumptionFenceError(
+            "FUGLE_FENCE_EXCLUSIVE_CREATE_NOT_ACKNOWLEDGED"
+        ) from exc
+    require(acknowledged is True,"FUGLE_FENCE_EXCLUSIVE_CREATE_NOT_ACKNOWLEDGED")
+    persisted=store.read(key)
+    require(persisted==receipt, "FUGLE_FENCE_READBACK_MISMATCH")
+    outcome="CREATED_AND_READBACK_VERIFIED"
 
-    require(store.write_attempts==1, "FUGLE_FENCE_WRITE_BUDGET_INVALID")
+    # This invocation attempts exactly one exclusive create. Other contenders may
+    # fail their own create while this owner verifies its immutable receipt.
     require(store.update_attempts==0 and store.delete_attempts==0,
             "FUGLE_FENCE_MUTATION_BUDGET_INVALID")
 
@@ -172,6 +177,8 @@ def consume_fugle_single_live_fence(
         "write_attempts":1,
         "write_retries":0,
         "readback_verified":True,
+        "executor_ownership_verified":True,
+        "ownership_proof":"EXCLUSIVE_CREATE_ACKNOWLEDGED_IN_CURRENT_INVOCATION",
         "credential_access_before_receipt":0,
         "provider_requests_before_receipt":0,
         "real_store_writes":0,
