@@ -44,8 +44,16 @@ def main() -> int:
     head_before = git("rev-parse", "HEAD")
     status_before = git("status", "--porcelain")
     if head_before != args.expected_head or status_before:
+        changed_paths = git("diff", "--name-only").splitlines()
+        byte_checks = []
+        for name in changed_paths[:3]:
+            actual = (ROOT / name).read_bytes()
+            expected = subprocess.check_output(["git", "-C", str(ROOT), "show", "HEAD:" + name])
+            byte_checks.append({"path": name, "exact_bytes": actual == expected,
+                                "lf_bytes": actual.replace(b"\r\n", b"\n") == expected})
         print(json.dumps({"head_before": head_before, "expected_head": args.expected_head,
-                          "worktree_before": status_before.splitlines()}, sort_keys=True))
+                          "worktree_before": status_before.splitlines(),
+                          "checkout_byte_diagnostics": byte_checks}, sort_keys=True))
         raise RuntimeError("R2_EXACT_HEAD_OR_CLEAN_WORKTREE_REQUIRED")
     sys.addaudithook(network_guard)
     suite = unittest.defaultTestLoader.loadTestsFromNames(["tests." + name for name in MODULES])
