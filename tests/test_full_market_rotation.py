@@ -295,8 +295,26 @@ class FullMarketRotationTests(unittest.TestCase):
             self.assertEqual(self.evaluate(state_root=root)["blocking_reason"], "LIVE_STATE_FILE_HASH_MISMATCH")
 
     def test_real_rebaseline_has_no_short_top30_and_cannot_be_silently_promoted(self):
-        result = self.evaluate(state_root=ROOT / "artifacts/production_state", previous_trading_date="2026-10-02",
-                               previous_cadence="19:30", trading_date="2026-10-05")
+        # Materialize canonical Git blob bytes into a temporary state root so
+        # platform checkout newline conversion cannot invalidate manifest hashes.
+        with tempfile.TemporaryDirectory(prefix="rate-rebaseline-git-bytes-") as directory:
+            root = Path(directory)
+            rel_dir = Path("live/2026-10-02/1930")
+            for name in (
+                "RATE_PRODUCTION_DECISION_STATE.json",
+                "RATE_PRODUCTION_PERSIST_RESULT_EVIDENCE.json",
+                "RATE_PRODUCTION_REBASELINE_AUTHORIZATION_CONSUMPTION_EVIDENCE.json",
+                "RATE_PRODUCTION_REBASELINE_BOOTSTRAP_EVIDENCE.json",
+                "RATE_PRODUCTION_STATE_MANIFEST.json",
+            ):
+                repo_path = f"artifacts/production_state/{rel_dir.as_posix()}/{name}"
+                target = root / rel_dir / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(subprocess.check_output(
+                    ["git", "-C", str(ROOT), "show", f"HEAD:{repo_path}"]
+                ))
+            result = self.evaluate(state_root=root, previous_trading_date="2026-10-02",
+                                   previous_cadence="19:30", trading_date="2026-10-05")
         self.assertEqual(result["previous_state_id"], "rate-state-baa7113253efcaf5d448e431")
         self.assertEqual(result["previous_state_hash"], "baa7113253efcaf5d448e4319318e070da6f6a680d55303e209cd3d64d2d7fec")
         self.assertEqual(result["blocking_reason"], "PREVIOUS_DECISION_SHORT_TOP30_MISSING")
@@ -319,7 +337,15 @@ class FullMarketRotationTests(unittest.TestCase):
         for name in names:
             if name in integration:
                 continue
-            self.assertEqual((ROOT / name).read_bytes(), subprocess.check_output(["git", "-C", str(ROOT), "show", f"{BASE}:{name}"]), name)
+            # Compare repository blobs rather than checkout bytes. This keeps the
+            # governance freeze exact while ignoring platform CRLF/LF conversion.
+            base_blob = subprocess.check_output(
+                ["git", "-C", str(ROOT), "rev-parse", f"{BASE}:{name}"]
+            ).decode().strip()
+            head_blob = subprocess.check_output(
+                ["git", "-C", str(ROOT), "rev-parse", f"HEAD:{name}"]
+            ).decode().strip()
+            self.assertEqual(head_blob, base_blob, name)
         # CER-081 may change only its scheduler-evidence collector boundary here.
         # Preserve the frozen Production/owner/state/account/bootstrap workflow semantics.
         base_cer081 = subprocess.check_output(
