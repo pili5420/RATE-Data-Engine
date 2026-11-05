@@ -1,0 +1,34 @@
+{
+  "GUI_DIAGNOSTIC_EVIDENCE_SCHEMA_V2.json": {
+    "bytes": 23902,
+    "sha256": "4c55b48bc6eb5a9a9d4065a578be355764e5f2541d97089fdc0e35869bd29a02"
+  },
+  "baseline_source/GUI_DIAGNOSTIC_EVIDENCE_SCHEMA_V1.json": {
+    "bytes": 17085,
+    "sha256": "2fcfb59d2f6494f57bd25eeb3502f58d9e5038ce6b5385a7799bb5f48ab8ce91"
+  },
+  "baseline_source/rate_readonly_gui_diag_v1.py": {
+    "bytes": 32256,
+    "sha256": "42046f42b91170e07ee58688d8566ae53c1050602bd8c69409795953204f68dc"
+  },
+  "baseline_source/test_gui_diag_synthetic.py": {
+    "bytes": 29105,
+    "sha256": "e94bfc0e6daea138a3bc205412f381ce182a2d212532eb3e7eddadef5ade72b8"
+  },
+  "rate_readonly_gui_diag_v2.py": {
+    "bytes": 42501,
+    "sha256": "3488a20b13021f7c9072f475c8bcfe7c5be703ff82eea847c0216d00fb8fc228"
+  },
+  "run_corrective_synthetic.py": {
+    "bytes": 2074,
+    "sha256": "e87d1691fbe0d1683033093694f0738dbd45448d672fdce03afe6fee4da09722"
+  },
+  "test_gui_diag_synthetic.py": {
+    "bytes": 30316,
+    "sha256": "fed35546f29673446d1ae30fa5dd794eb2f656120236144b573541cad75a17f7"
+  },
+  "test_title_reliability_synthetic.py": {
+    "bytes": 16973,
+    "sha256": "a8f7a51a89674ec04e56c1f70446b5072376198ae518d382816dc34a3bfca619"
+  }
+}
