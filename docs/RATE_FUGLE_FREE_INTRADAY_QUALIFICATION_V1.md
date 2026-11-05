@@ -64,7 +64,7 @@ artifacts.
 
 ## Qualification boundary
 
-The provider-plan license gate is now `PROVIDER_WRITTEN_CONFIRMED`, but that does
+The provider-plan license gate is now `PASS_CONFIRMED_IN_WRITING`, bound to `RATE_FUGLE_BASIC_PERSONAL_INTERNAL_USE_LICENSE_EVIDENCE_V1`, but that does
 not grant Production authority and does not resolve the external dependency.
 
 - `production_eligible=false`
@@ -74,5 +74,4 @@ not grant Production authority and does not resolve the external dependency.
 
 No live request is run by PR CI. Any new live qualification requires a fresh explicit
 Control Center authorization because the previous single-use permit was consumed by
-the blocked 2026-11-04 run. Production registry, scheduler, Decision State, Portfolio,
-Ledger and CER-081 remain outside this diagnostic.
+the blocked 2026-11-04 run. Production registry, scheduler, Decision State, Portfolio, Ledger and CER-081 remain outside this diagnostic. Fugle is a qualified provider option only and is not activated in Route B; this evidence makes no Route B source-architecture change.
