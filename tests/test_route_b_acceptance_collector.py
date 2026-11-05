@@ -63,8 +63,6 @@ class CollectorTests(unittest.TestCase):
     def test_overlay_cadence_admission(self,bind,overlay,ancestry,load,find,policy):
         policy.return_value={"status":"ACTIVE"}
         find.return_value=("2026-11-06",{"event_name":"schedule","workflow_run_id":"7","commit_sha":"b"*40})
-        load.side_effect=[{"state":{"current_state_id":"cur","decision":{}}},
-                          {"state":{"current_state_id":"prev","decision":{}}}]
         ancestry.return_value={"validation_status":"PASS","source_heads":{"09:30":{"source_head_sha":"b"*40,"activation_is_ancestor":True,"binding_is_ancestor":True,"changed_paths_since_activation":[]}}}
         overlay.return_value={"artifact":"RATE_ROUTE_B_PRODUCTION_CHECKPOINT_ACCEPTANCE_V1"}
         bind.return_value={
@@ -77,28 +75,38 @@ class CollectorTests(unittest.TestCase):
             "transaction_ledger_continuity":True,"ranking_model_continuity":True,
             "current_state_id":"cur","previous_state_id":"prev"
         }
-        with tempfile.TemporaryDirectory() as d:
-            slot=expected_slot_utc("2026-11-06","09:30")
-            timing=build_actual_timing_evidence(
-                {"id":7,"event":"schedule","path":CADENCE_WORKFLOWS["09:30"],
-                 "head_sha":"b"*40,"run_attempt":1,
-                 "created_at":(slot+timedelta(seconds=60)).isoformat(),
-                 "run_started_at":(slot+timedelta(seconds=120)).isoformat()},
-                cadence="09:30",trading_date="2026-11-06",
-                event_schedule=CADENCE_CRONS["09:30"],
-                workflow_path=CADENCE_WORKFLOWS["09:30"],
-                expected_run_id="7",expected_head_sha="b"*40)
-            source=Path(d)/"source"
-            source.mkdir()
-            (source/"RATE_CER081_SCHEDULER_ACTUAL_TIMING_EVIDENCE.json").write_text(
-                json.dumps(timing),encoding="utf-8")
-            persist_activation_package(package(),d)
-            out=collect_scheduled_run(".","artifacts",source,d,cadence="09:30",source_run_id="7")
-            self.assertEqual(out["collector_result"],"RUN_ADMITTED")
-            self.assertTrue(out["session_written"])
-            from src.route_b_acceptance_store import load_session
-            accepted=load_session(d)["accepted_runs"]
-            self.assertEqual(accepted[0]["scheduler_actual_timing"],timing)
+        from src.route_b_acceptance_store import load_session
+        for delay in (120,900,900.9):
+            with self.subTest(delay=delay), tempfile.TemporaryDirectory() as d:
+                load.side_effect=[{"state":{"current_state_id":"cur","decision":{}}},
+                                  {"state":{"current_state_id":"prev","decision":{}}}]
+                slot=expected_slot_utc("2026-11-06","09:30")
+                timing=build_actual_timing_evidence(
+                    {"id":7,"event":"schedule","path":CADENCE_WORKFLOWS["09:30"],
+                     "head_sha":"b"*40,"run_attempt":1,
+                     "created_at":(slot+timedelta(seconds=60)).isoformat(),
+                     "run_started_at":(slot+timedelta(seconds=delay)).isoformat()},
+                    cadence="09:30",trading_date="2026-11-06",
+                    event_schedule=CADENCE_CRONS["09:30"],
+                    workflow_path=CADENCE_WORKFLOWS["09:30"],
+                    expected_run_id="7",expected_head_sha="b"*40)
+                source=Path(d)/"source"
+                source.mkdir()
+                (source/"RATE_CER081_SCHEDULER_ACTUAL_TIMING_EVIDENCE.json").write_text(
+                    json.dumps(timing),encoding="utf-8")
+                persist_activation_package(package(),d)
+                if delay > 900:
+                    with self.assertRaisesRegex(RuntimeError,"SCHEDULER_BLOCKING_DELAY"):
+                        collect_scheduled_run(".","artifacts",source,d,
+                                              cadence="09:30",source_run_id="7")
+                    self.assertEqual(load_session(d)["accepted_runs"],[])
+                    continue
+                out=collect_scheduled_run(".","artifacts",source,d,
+                                          cadence="09:30",source_run_id="7")
+                self.assertEqual(out["collector_result"],"RUN_ADMITTED")
+                self.assertTrue(out["session_written"])
+                accepted=load_session(d)["accepted_runs"]
+                self.assertEqual(accepted[0]["scheduler_actual_timing"],timing)
 
 
     @patch("src.route_b_acceptance_collector.validate_phase2_transition")

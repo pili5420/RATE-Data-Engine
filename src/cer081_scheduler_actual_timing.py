@@ -70,9 +70,13 @@ def build_actual_timing_evidence(
     created = _parse_utc(run_api.get("created_at"), "SCHEDULER_TIMING_CREATED_AT_MISSING")
     started = _parse_utc(run_api.get("run_started_at"), "SCHEDULER_TIMING_RUN_STARTED_AT_MISSING")
     slot = expected_slot_utc(trading_date, cadence)
-    delay = int((started - slot).total_seconds())
+    delay = (started - slot).total_seconds()
     _require(delay >= 0, "SCHEDULER_TIMING_NEGATIVE_DELAY")
     _require(blocking_delay_seconds >= 0, "SCHEDULER_TIMING_INVALID_DELAY_POLICY")
+    # Preserve whole-second evidence bytes while retaining fractional observations
+    # for the nonnegative and strict blocking-delay boundaries.
+    if delay.is_integer():
+        delay = int(delay)
 
     return {
         "artifact": "RATE_CER081_SCHEDULER_ACTUAL_TIMING_EVIDENCE_V1",
@@ -118,7 +122,7 @@ def summarize_actual_timing_evidence(
             expected = expected_slot_utc(trading_date, cadence)
             created = _parse_utc(evidence.get("actions_created_at"), "SCHEDULER_TIMING_CREATED_AT_MISSING")
             started = _parse_utc(evidence.get("actions_run_started_at"), "SCHEDULER_TIMING_RUN_STARTED_AT_MISSING")
-            observed_delay = int((started - expected).total_seconds())
+            observed_delay = (started - expected).total_seconds()
         except (SchedulerActualTimingError, TypeError, ValueError):
             failures.append({"workflow_run_id": run_id, "reason": "ACTUAL_TIMING_TIMESTAMP_INVALID"})
             continue
@@ -141,7 +145,7 @@ def summarize_actual_timing_evidence(
             and evidence.get("nearest_slot_inference_used") is False
             and evidence.get("wall_clock_only_evidence") is False
             and evidence.get("post_hoc_date_inference_used") is False
-            and isinstance(evidence.get("scheduler_start_delay_seconds"), int)
+            and type(evidence.get("scheduler_start_delay_seconds")) in (int, float)
         )
         if not required:
             failures.append({"workflow_run_id": run_id, "reason": "ACTUAL_TIMING_BINDING_INVALID"})

@@ -277,7 +277,7 @@ def collect_scheduled_run(
         created=datetime.fromisoformat(timing["actions_created_at"].replace("Z","+00:00"))
         started=datetime.fromisoformat(timing["actions_run_started_at"].replace("Z","+00:00"))
         slot=expected_slot_utc(day,cadence)
-        delay=int((started-slot).total_seconds())
+        delay=(started-slot).total_seconds()
     except (KeyError,TypeError,ValueError) as exc:
         raise RouteBAcceptanceCollectorError("ROUTE_B_COLLECTOR_ACTUAL_TIMING_TIMESTAMPS_INVALID") from exc
     require(created.tzinfo is not None and started.tzinfo is not None
