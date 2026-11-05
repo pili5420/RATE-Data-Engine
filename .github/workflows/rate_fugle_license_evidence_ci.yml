@@ -1,0 +1,30 @@
+name: RATE Fugle Written License Evidence CI
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - docs/contracts/RATE_FUGLE_BASIC_PERSONAL_INTERNAL_USE_LICENSE_EVIDENCE_V1.json
+      - docs/RATE_FUGLE_BASIC_PERSONAL_INTERNAL_USE_LICENSE_EVIDENCE_V1.md
+      - docs/contracts/RATE_FUGLE_FREE_INTRADAY_QUALIFICATION_V1.json
+      - docs/RATE_FUGLE_FREE_INTRADAY_QUALIFICATION_V1.md
+      - tests/test_fugle_license_evidence.py
+      - .github/workflows/rate_fugle_license_evidence_ci.yml
+permissions:
+  contents: read
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -B -m unittest tests.test_fugle_license_evidence -v
+      - run: git diff --exit-code
