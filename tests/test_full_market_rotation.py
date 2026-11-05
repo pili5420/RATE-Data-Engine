@@ -389,7 +389,11 @@ class FullMarketRotationTests(unittest.TestCase):
             "ACTUAL_TIMING_ARTIFACT_MISSING", "scheduler_actual_timing",
         ]
         for term in required_timing_terms:
-            self.assertTrue(any(term in line for line in changed_lines), term)
+            # Timing witnesses must remain in the final workflow. An unrelated PR
+            # need not re-add lines that already exist in the merged main.
+            self.assertIn(term, head_cer081)
+            if term not in base_cer081:
+                self.assertTrue(any(line.startswith("+") and term in line for line in changed_lines), term)
 
         # The CER-081 source may compose the new timing evidence only inside
         # build_cer081_artifacts(). Every other governance/state/source helper
