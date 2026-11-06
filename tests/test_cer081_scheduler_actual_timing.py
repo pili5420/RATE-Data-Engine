@@ -34,6 +34,20 @@ class SchedulerActualTimingTests(unittest.TestCase):
             expected_head_sha="a" * 40,
         )
 
+    def test_timing_cli_direct_execution_imports_src(self):
+        # Run the same direct script entrypoint used by the production workflow.
+        import subprocess
+        import sys
+        from pathlib import Path
+
+        repo_root = Path(__file__).resolve().parents[1]
+        result = subprocess.run(
+            [sys.executable, str(repo_root / "scripts/build_scheduler_actual_timing_evidence.py"), "--help"],
+            cwd=repo_root, capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--github-run-json", result.stdout)
+
     def test_direct_actions_timing_pass(self):
         e = self.evidence()
         self.assertEqual(e["scheduler_start_delay_seconds"], 70)
