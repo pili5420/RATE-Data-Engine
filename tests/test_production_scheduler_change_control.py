@@ -225,6 +225,36 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
         self.assertIsNone(intraday["endpoint"])
         self.assertEqual(intraday["blocked_dependency"], dependency["dependency_id"])
 
+    def test_phase2_schedule_1930_overnight_delay_uses_nominal_trading_date(self):
+        from src.phase2_production import resolve_phase2_context
+        taipei = timezone(timedelta(hours=8))
+        previous_state = {"state": {"current_state_id": "rate-state-existing",
+                                    "decision_payload_hash": "existing-hash"},
+                          "path": Path("artifacts/production_state/live/2026-11-05/1200/RATE_PRODUCTION_PERSIST_RESULT_EVIDENCE.json")}
+        with patch("scripts.resolve_production_runtime_context._now_taipei",
+                   return_value=datetime(2026, 11, 6, 2, 53, tzinfo=taipei)):
+            with patch.dict(os.environ, {"GITHUB_EVENT_SCHEDULE": "30 11 * * 1-5"}):
+                with patch("src.phase2_production.latest_predecessor",
+                           return_value=("2026-11-05", "12:00", previous_state)) as predecessor:
+                    context = resolve_phase2_context(
+                        cadence="19:30", event_name="schedule",
+                        dispatch_trading_date=None, state_root=Path("artifacts/production_state")
+                    )
+        self.assertEqual(context["trading_date"], "2026-11-05")
+        self.assertEqual(context["trading_date_resolution"], "SCHEDULE_NOMINAL_TAIPEI_CADENCE_DATE")
+        predecessor.assert_called_once()
+        self.assertEqual(predecessor.call_args.args[1:],
+                         ("2026-11-05", "19:30"))
+
+    def test_phase2_schedule_rejects_wrong_event_cron(self):
+        from src.phase2_production import resolve_phase2_context
+        with patch.dict(os.environ, {"GITHUB_EVENT_SCHEDULE": "0 0 * * *"}):
+            with self.assertRaisesRegex(RuntimeError, "SCHEDULE_EXPRESSION_MISMATCH"):
+                resolve_phase2_context(
+                    cadence="19:30", event_name="schedule",
+                    dispatch_trading_date=None, state_root=Path("artifacts/production_state")
+                )
+
     def test_schedule_nominal_date_survives_1930_runner_delay_past_midnight(self):
         taipei = timezone(timedelta(hours=8))
         resolved = _scheduled_nominal_trading_date(
