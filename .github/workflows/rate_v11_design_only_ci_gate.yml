@@ -1,0 +1,52 @@
+name: RATE V11 Design-only Exact-head CI Gate
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/design/RATE_V11_TRACK_B_PROSPECTIVE_REBASELINE_DESIGN_V1.md'
+      - 'docs/design/RATE_V11_TRACK_C_INDEPENDENT_SCHEDULER_POC_DESIGN_V1.md'
+      - 'scripts/verify_rate_design_only_ci.py'
+      - 'tests/test_rate_design_only_ci.py'
+      - '.github/workflows/rate_v11_design_only_ci_gate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  design-only:
+    name: Design-only exact-head (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch exact base for independent ancestry / diff check
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: git fetch --no-tags origin "$BASE_SHA"
+      - name: Offline adversarial gate tests
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python -B -m unittest tests.test_rate_design_only_ci -v
+      - name: Exact-head design-only scope and coverage
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: python -B scripts/verify_rate_design_only_ci.py --pr-number "$PR_NUMBER" --base-sha "$BASE_SHA" --head-sha "$HEAD_SHA"
+      - name: No tracked file mutation
+        shell: bash
+        run: git diff --exit-code && git diff --cached --exit-code
