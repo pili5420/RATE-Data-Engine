@@ -42,7 +42,7 @@ class DesignGateTests(unittest.TestCase):
                          ["validation_mode"], "DESIGN_DOC_ONLY")
 
     def test_gate_self_scope(self):
-        self.assertEqual(self.check(999, sorted(GATE_FILES), None)
+        self.assertEqual(self.check(215, sorted(GATE_FILES), None)
                          ["validation_mode"], "UNTRUSTED_CANDIDATE_SELF_REVIEW_ONLY")
 
     def test_reject_wrong_design(self):
