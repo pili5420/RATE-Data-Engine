@@ -227,9 +227,19 @@ class RateSoak005Tests(unittest.TestCase):
 
     def context(self, day, cadence, artifacts=None):
         scheduled_now = datetime.fromisoformat(f"{day}T{cadence}:01+08:00")
-        with patch("scripts.resolve_production_runtime_context._now_taipei", return_value=scheduled_now):
+        # Synthetic cross-cadence tests must not inherit the actual runner's cron.
+        # Production runtime cron validation remains unchanged and fail-closed.
+        with patch("scripts.resolve_production_runtime_context._now_taipei", return_value=scheduled_now), \
+                patch.dict("os.environ", {"GITHUB_EVENT_SCHEDULE": ""}):
             return resolve_context(cadence=cadence, event_name="schedule", dispatch_trading_date="2026-09-18",
                                    state_root=(artifacts or self.artifacts) / "production_state")
+
+    def test_synthetic_context_isolated_from_runner_cadence_cron(self):
+        self.install_test_predecessor("2026-09-30", "07:30")
+        with patch.dict("os.environ", {"GITHUB_EVENT_SCHEDULE": "30 11 * * 1-5"}):
+            context = self.context("2026-09-30", "09:30")
+        self.assertEqual(context["validation_status"], "PASS")
+        self.assertEqual(context["previous_cadence"], "07:30")
 
     def transition(self, prior_day, prior_cadence, day, cadence):
         previous, _ = self.install_test_predecessor(prior_day, prior_cadence)

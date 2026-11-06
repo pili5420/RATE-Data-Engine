@@ -70,9 +70,13 @@ def build_actual_timing_evidence(
     created = _parse_utc(run_api.get("created_at"), "SCHEDULER_TIMING_CREATED_AT_MISSING")
     started = _parse_utc(run_api.get("run_started_at"), "SCHEDULER_TIMING_RUN_STARTED_AT_MISSING")
     slot = expected_slot_utc(trading_date, cadence)
-    delay = int((started - slot).total_seconds())
+    delay = (started - slot).total_seconds()
     _require(delay >= 0, "SCHEDULER_TIMING_NEGATIVE_DELAY")
     _require(blocking_delay_seconds >= 0, "SCHEDULER_TIMING_INVALID_DELAY_POLICY")
+    # Preserve whole-second evidence bytes while retaining fractional observations
+    # for the nonnegative and strict blocking-delay boundaries.
+    if delay.is_integer():
+        delay = int(delay)
 
     return {
         "artifact": "RATE_CER081_SCHEDULER_ACTUAL_TIMING_EVIDENCE_V1",
@@ -114,6 +118,14 @@ def summarize_actual_timing_evidence(
         if not isinstance(evidence, Mapping):
             failures.append({"workflow_run_id": run_id, "reason": "MISSING_ACTUAL_TIMING_EVIDENCE"})
             continue
+        try:
+            expected = expected_slot_utc(trading_date, cadence)
+            created = _parse_utc(evidence.get("actions_created_at"), "SCHEDULER_TIMING_CREATED_AT_MISSING")
+            started = _parse_utc(evidence.get("actions_run_started_at"), "SCHEDULER_TIMING_RUN_STARTED_AT_MISSING")
+            observed_delay = (started - expected).total_seconds()
+        except (SchedulerActualTimingError, TypeError, ValueError):
+            failures.append({"workflow_run_id": run_id, "reason": "ACTUAL_TIMING_TIMESTAMP_INVALID"})
+            continue
         required = (
             evidence.get("artifact") == "RATE_CER081_SCHEDULER_ACTUAL_TIMING_EVIDENCE_V1"
             and evidence.get("validation_status") == "PASS"
@@ -125,10 +137,15 @@ def summarize_actual_timing_evidence(
             and evidence.get("trading_date") == trading_date
             and evidence.get("cadence") == cadence
             and evidence.get("run_attempt") == 1
+            and (run.get("run_head_sha") is None or evidence.get("run_head_sha") == run.get("run_head_sha"))
+            and evidence.get("expected_scheduled_at_utc") == expected.isoformat().replace("+00:00", "Z")
+            and created <= started
+            and observed_delay >= 0
+            and evidence.get("scheduler_start_delay_seconds") == observed_delay
             and evidence.get("nearest_slot_inference_used") is False
             and evidence.get("wall_clock_only_evidence") is False
             and evidence.get("post_hoc_date_inference_used") is False
-            and isinstance(evidence.get("scheduler_start_delay_seconds"), int)
+            and type(evidence.get("scheduler_start_delay_seconds")) in (int, float)
         )
         if not required:
             failures.append({"workflow_run_id": run_id, "reason": "ACTUAL_TIMING_BINDING_INVALID"})

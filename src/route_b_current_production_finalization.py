@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Mapping
 
+from src.cer081_scheduler_actual_timing import summarize_actual_timing_evidence
+from src.route_b_timing_provenance import verify_timing_provenance
 from src.current_production_final_acceptance import validate_current_production_final_acceptance
 from src.intraday_activation_candidate_review import canonical_digest
 from src.production_acceptance_session import summarize_production_acceptance_session
@@ -123,18 +125,32 @@ def build_finalization(
     require(ancestry.get("validation_status")=="PASS",
             "ROUTE_B_FINAL_MODEL_FREEZE_ANCESTRY_NOT_PASS")
 
+    replay_receipts=[]
+    for row in session["accepted_runs"]:
+        require(row.get("trading_date", "") >= session["session_start_date"],
+                "ROUTE_B_FINAL_PRE_SESSION_HISTORY_FORBIDDEN")
+        original=verify_timing_provenance(row)
+        require(row.get("scheduler_timing_provenance")==original,
+                "ROUTE_B_FINAL_ORIGINAL_TIMING_PROVENANCE_MISMATCH")
+        replay_receipts.append(original)
+    timing=summarize_actual_timing_evidence(session["accepted_runs"])
+    require(timing.get("actual_timing_evidence")=="PASS"
+            and timing.get("actual_timing_evidence_count")==len(session["accepted_runs"])
+            and timing.get("actual_timing_missing_or_invalid_count")==0
+            and timing.get("delayed_execution_blocking_count")==0,
+            "ROUTE_B_FINAL_SCHEDULER_ACTUAL_TIMING_NOT_PASS")
     scheduler={
         "artifact":"RATE_CER081_SCHEDULER_RELIABILITY_SUMMARY",
         "validation_status":"PASS",
         "scheduler_coverage":"PASS",
-        "official_schedule_only":"PASS",
+        "official_schedule_only":summary["official_schedule_only"],
         "manual_dispatch_substitution":"NO",
         "trading_days_tested":summary["trading_days_tested"],
         "successful_cadence_runs":summary["successful_cadence_runs"],
-        "missing_cadence_runs":0,
-        "duplicate_cadence_runs":0,
-        "missed_execution_count":0,
-        "delayed_execution_blocking_count":0,
+        "missing_cadence_runs":summary["missing_cadence_runs"],
+        "duplicate_cadence_runs":summary["duplicate_cadence_runs"],
+        "missed_execution_count":summary["missing_cadence_runs"],
+        **timing,
     }
     deterministic={
         "artifact":"RATE_CER081_DETERMINISTIC_REPLAY_SUMMARY",
@@ -180,6 +196,7 @@ def build_finalization(
         "model_freeze_summary":model_freeze,
         "deterministic_replay_detail":replay_detail,
         "git_ancestry_evidence":ancestry,
+        "github_actions_provenance_replay":replay_receipts,
         "final_acceptance":final,
         "final_disposition":final["final_disposition"],
         "cer081_status":final["cer081_status"],

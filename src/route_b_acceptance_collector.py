@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
 from scripts.resolve_production_runtime_context import _previous_legal_trading_day
+from src.cer081_scheduler_actual_timing import expected_slot_utc, summarize_actual_timing_evidence
+from src.route_b_timing_provenance import verify_timing_provenance
 from src.production_live_state import load_live_state
 from src.phase2_production import validate_transition as validate_phase2_transition
 from src.route_b_acceptance_bridge import bind_overlay_run_to_session, bind_standard_run_to_session
@@ -261,6 +264,34 @@ def collect_scheduled_run(
     else:
         raise RouteBAcceptanceCollectorError("ROUTE_B_COLLECTOR_CADENCE_INVALID")
 
+    # Preserve and independently validate GitHub's exact scheduled-run timing
+    # in the durable acceptance ledger. No cron inference or manual fallback.
+    timing=_read_unique(source_artifacts,"RATE_CER081_SCHEDULER_ACTUAL_TIMING_EVIDENCE.json")
+    require(timing.get("run_head_sha")==manifest.get("commit_sha"),
+            "ROUTE_B_COLLECTOR_ACTUAL_TIMING_HEAD_MISMATCH")
+    run={**run,"scheduler_actual_timing":timing}
+    timing_summary=summarize_actual_timing_evidence([run])
+    require(timing_summary.get("actual_timing_evidence")=="PASS"
+            and timing_summary.get("actual_timing_missing_or_invalid_count")==0,
+            "ROUTE_B_COLLECTOR_ACTUAL_TIMING_NOT_PASS")
+    try:
+        created=datetime.fromisoformat(timing["actions_created_at"].replace("Z","+00:00"))
+        started=datetime.fromisoformat(timing["actions_run_started_at"].replace("Z","+00:00"))
+        slot=expected_slot_utc(day,cadence)
+        delay=(started-slot).total_seconds()
+    except (KeyError,TypeError,ValueError) as exc:
+        raise RouteBAcceptanceCollectorError("ROUTE_B_COLLECTOR_ACTUAL_TIMING_TIMESTAMPS_INVALID") from exc
+    require(created.tzinfo is not None and started.tzinfo is not None
+            and created <= started and delay >= 0
+            and timing.get("expected_scheduled_at_utc")==slot.isoformat().replace("+00:00","Z")
+            and timing.get("scheduler_start_delay_seconds")==delay,
+            "ROUTE_B_COLLECTOR_ACTUAL_TIMING_DELAY_BINDING_INVALID")
+    require(timing_summary.get("delayed_execution_blocking_count")==0,
+            "ROUTE_B_COLLECTOR_SCHEDULER_BLOCKING_DELAY")
+    require(day >= session["session_start_date"],
+            "ROUTE_B_COLLECTOR_PRE_SESSION_HISTORY_FORBIDDEN")
+    provenance=verify_timing_provenance(run)
+    run={**run,"scheduler_timing_provenance":provenance}
     stored=admit_run_to_store(store_root,run)
     return {
         "artifact":"RATE_ROUTE_B_ACCEPTANCE_COLLECTOR_RESULT_V1",

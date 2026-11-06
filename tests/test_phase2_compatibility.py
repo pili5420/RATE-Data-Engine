@@ -22,6 +22,65 @@ from tests import test_public_official_partial_valid as public_fixtures
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def intraday_workflow_matches_main(head: bytes, base: bytes) -> bool:
+    timing_steps = (
+        b"      - name: Capture CER-081 scheduler actual-timing evidence",
+        b"      - name: Upload CER-081 scheduler actual-timing evidence",
+    )
+    if any(step in base.splitlines() for step in timing_steps):
+        return head == base
+
+    # Historical bases allow only the introduction of these two complete steps.
+    unchanged_lines = []
+    introduced_steps = []
+    skip = False
+    for line in head.splitlines(keepends=True):
+        if line.startswith(b"      - "):
+            skip = line.rstrip(b"\r\n") in timing_steps
+            if skip:
+                introduced_steps.append(line.rstrip(b"\r\n"))
+        if not skip:
+            unchanged_lines.append(line)
+    return tuple(introduced_steps) == timing_steps and b"".join(unchanged_lines) == base
+
+
+class IntradayWorkflowComparisonTests(unittest.TestCase):
+    before = b"name: synthetic\n    steps:\n      - name: Before\n        run: before\n"
+    runtime = b"      - name: Runtime\n        run: fail-closed\n"
+    after = b"      - uses: actions/upload-artifact@v4\n"
+    capture = (b"      - name: Capture CER-081 scheduler actual-timing evidence\n"
+               b"        run: capture\n")
+    upload = (b"      - name: Upload CER-081 scheduler actual-timing evidence\n"
+              b"        uses: actions/upload-artifact@v4\n")
+
+    def test_latest_main_requires_identical_timing_and_runtime_bytes(self):
+        base = self.before + self.capture + self.runtime + self.upload + self.after
+        self.assertTrue(intraday_workflow_matches_main(base, base))
+        for changed in (
+            base.replace(b"run: capture", b"run: changed"),
+            base.replace(b"run: fail-closed", b"run: skip"),
+            base.replace(self.capture, b""),
+            base.replace(self.upload, b""),
+            base.replace(b"\n", b"\r\n"),
+        ):
+            with self.subTest(changed=changed):
+                self.assertFalse(intraday_workflow_matches_main(changed, base))
+
+    def test_legacy_main_allows_only_two_introduced_timing_steps(self):
+        base = self.before + self.runtime + self.after
+        head = self.before + self.capture + self.runtime + self.upload + self.after
+        self.assertTrue(intraday_workflow_matches_main(head, base))
+        for changed in (
+            head.replace(b"run: fail-closed", b"run: skip"),
+            head.replace(self.capture, b""),
+            head.replace(self.upload, b""),
+            head.replace(self.capture, self.capture + self.capture),
+            head.replace(self.after, b""),
+        ):
+            with self.subTest(changed=changed):
+                self.assertFalse(intraday_workflow_matches_main(changed, base))
+
+
 def chain_proof(output):
     helper = fixtures.Phase2ProductionTests()
     helper.setUp()
@@ -147,30 +206,19 @@ class Phase2CompatibilityTests(unittest.TestCase):
             ["git", "-C", str(ROOT), "rev-parse", "origin/main"]
         ).decode().strip()
 
-        def without_actual_timing_steps(text):
-            lines = text.splitlines(keepends=True)
-            out = []
-            skip = False
-            for line in lines:
-                if line.startswith("      - name: Capture CER-081 scheduler actual-timing evidence") or \
-                        line.startswith("      - name: Upload CER-081 scheduler actual-timing evidence"):
-                    skip = True
-                    continue
-                if skip and line.startswith("      - name: "):
-                    skip = False
-                if not skip:
-                    out.append(line)
-            return "".join(out)
-
         for slot in ("0930", "1200"):
             path = f".github/workflows/rate_production_{slot}_scheduler.yml"
             base = subprocess.check_output(
                 ["git", "-C", str(ROOT), "show", f"{current_main}:{path}"]
-            ).decode()
-            head = (ROOT / path).read_text(encoding="utf-8")
-            self.assertEqual(without_actual_timing_steps(head), base, path)
-            self.assertIn("Capture CER-081 scheduler actual-timing evidence", head)
-            self.assertIn("Upload CER-081 scheduler actual-timing evidence", head)
+            )
+            head = subprocess.check_output(
+                ["git", "-C", str(ROOT), "show", f"HEAD:{path}"]
+            )
+            self.assertEqual((ROOT / path).read_text(encoding="utf-8"),
+                             head.decode().replace("\r\n", "\n"), path)
+            self.assertTrue(intraday_workflow_matches_main(head, base), path)
+            self.assertIn(b"Capture CER-081 scheduler actual-timing evidence", head)
+            self.assertIn(b"Upload CER-081 scheduler actual-timing evidence", head)
 
     def test_registry_eps_contract_soak_and_model_owners_unchanged(self):
         paths = ["config/RATE_FOUR_CADENCE_REPORT_SOAK_V1.json",

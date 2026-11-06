@@ -1,8 +1,12 @@
 import unittest
+from datetime import timedelta
 
 from src.cer081_scheduler_actual_timing import (
     SchedulerActualTimingError,
+    CADENCE_CRONS,
+    CADENCE_WORKFLOWS,
     build_actual_timing_evidence,
+    expected_slot_utc,
     summarize_actual_timing_evidence,
 )
 
@@ -87,11 +91,78 @@ class SchedulerActualTimingTests(unittest.TestCase):
             "workflow_run_id": "123",
             "trading_date": "2026-11-05",
             "cadence": "09:30",
+            "run_head_sha": "a" * 40,
             "scheduler_actual_timing": self.evidence(),
         }
         s = summarize_actual_timing_evidence([run])
         self.assertEqual(s["actual_timing_evidence"], "PASS")
         self.assertEqual(s["delayed_execution_blocking_count"], 0)
+
+    def test_summary_recomputes_delay_from_actions_timestamp(self):
+        evidence = self.evidence()
+        evidence["scheduler_start_delay_seconds"] = 0
+        run = {"workflow_run_id": "123", "trading_date": "2026-11-05",
+               "cadence": "09:30", "run_head_sha": "a" * 40,
+               "scheduler_actual_timing": evidence}
+        result = summarize_actual_timing_evidence([run])
+        self.assertEqual(result["actual_timing_evidence"], "FAIL")
+        self.assertEqual(result["actual_timing_missing_or_invalid_count"], 1)
+
+    def test_summary_rejects_wrong_run_head(self):
+        run = {"workflow_run_id": "123", "trading_date": "2026-11-05",
+               "cadence": "09:30", "run_head_sha": "b" * 40,
+               "scheduler_actual_timing": self.evidence()}
+        result = summarize_actual_timing_evidence([run])
+        self.assertEqual(result["actual_timing_evidence"], "FAIL")
+
+    def test_exact_and_fractional_blocking_delay_boundaries(self):
+        slot = expected_slot_utc("2026-11-05", "09:30")
+        for delay, blocking in ((900, 0), (900.9, 1)):
+            with self.subTest(delay=delay):
+                api = self.api()
+                api["created_at"] = (slot + timedelta(seconds=60)).isoformat()
+                api["run_started_at"] = (slot + timedelta(seconds=delay)).isoformat()
+                evidence = build_actual_timing_evidence(
+                    api, cadence="09:30", trading_date="2026-11-05",
+                    event_schedule=CADENCE_CRONS["09:30"],
+                    workflow_path=CADENCE_WORKFLOWS["09:30"],
+                    expected_run_id="123", expected_head_sha="a" * 40,
+                )
+                result = summarize_actual_timing_evidence([{
+                    "workflow_run_id": "123", "trading_date": "2026-11-05",
+                    "cadence": "09:30", "run_head_sha": "a" * 40,
+                    "scheduler_actual_timing": evidence,
+                }])
+                self.assertEqual(evidence["scheduler_start_delay_seconds"], delay)
+                self.assertEqual(result["actual_timing_evidence"], "PASS")
+                self.assertEqual(result["delayed_execution_blocking_count"], blocking)
+                self.assertEqual(result["max_scheduler_delay_seconds"], delay)
+        self.assertIs(type(self.evidence()["scheduler_start_delay_seconds"]), int)
+
+    def test_fractional_negative_delay_is_rejected_before_truncation(self):
+        slot = expected_slot_utc("2026-11-05", "09:30")
+        api = self.api()
+        api["created_at"] = (slot - timedelta(seconds=1)).isoformat()
+        api["run_started_at"] = (slot - timedelta(seconds=0.5)).isoformat()
+        with self.assertRaisesRegex(SchedulerActualTimingError, "NEGATIVE_DELAY"):
+            build_actual_timing_evidence(
+                api, cadence="09:30", trading_date="2026-11-05",
+                event_schedule=CADENCE_CRONS["09:30"],
+                workflow_path=CADENCE_WORKFLOWS["09:30"],
+                expected_run_id="123", expected_head_sha="a" * 40,
+            )
+        # A prior truncated artifact must also fail during independent replay.
+        evidence = self.evidence()
+        evidence.update(actions_created_at=api["created_at"],
+                        actions_run_started_at=api["run_started_at"],
+                        scheduler_start_delay_seconds=0)
+        result = summarize_actual_timing_evidence([{
+            "workflow_run_id": "123", "trading_date": "2026-11-05",
+            "cadence": "09:30", "run_head_sha": "a" * 40,
+            "scheduler_actual_timing": evidence,
+        }])
+        self.assertEqual(result["actual_timing_evidence"], "FAIL")
+        self.assertEqual(result["actual_timing_missing_or_invalid_count"], 1)
 
 
 if __name__ == "__main__":

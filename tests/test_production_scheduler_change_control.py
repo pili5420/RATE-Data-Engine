@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import unittest
+from unittest.mock import patch
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -251,12 +252,21 @@ class ProductionSchedulerChangeControlTests(unittest.TestCase):
                 schedule_expression="0 0 * * *",
             )
 
+    def test_live_schedule_rejects_mismatched_cadence_cron(self):
+        # Production fail-closed guard must remain active outside synthetic tests.
+        with patch.dict(os.environ, {"GITHUB_EVENT_SCHEDULE": "30 11 * * 1-5"}):
+            with self.assertRaisesRegex(RuntimeError, "SCHEDULE_EXPRESSION_MISMATCH"):
+                resolve_context(cadence="09:30", event_name="schedule",
+                                dispatch_trading_date=None, state_root=Path("artifacts"))
+
     def test_schedule_resolves_dynamic_taiwan_trading_date_and_blocks_missing_live_predecessor(self):
         root = Path("artifacts/test-production-scheduler-change-control")
         try:
             shutil.rmtree(root, ignore_errors=True)
             root.mkdir(parents=True, exist_ok=True)
-            context = resolve_context(cadence='09:30', event_name='schedule', dispatch_trading_date=None, state_root=root)
+            # This synthetic 09:30 test must not inherit a live 07:30/12:00/19:30 cron.
+            with patch.dict(os.environ, {"GITHUB_EVENT_SCHEDULE": ""}):
+                context = resolve_context(cadence='09:30', event_name='schedule', dispatch_trading_date=None, state_root=root)
             self.assertEqual(context['trading_date_resolution'], 'SCHEDULE_NOMINAL_TAIPEI_CADENCE_DATE')
             self.assertNotEqual(context['trading_date'], '2026-09-18')
             self.assertEqual(context['previous_state_resolution'], 'LIVE_PRODUCTION_STATE_STORE')

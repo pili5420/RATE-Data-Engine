@@ -9,12 +9,15 @@ on:
     branches: [main]
     paths:
       - src/route_b_current_production_finalization.py
+      - src/route_b_timing_provenance.py
       - scripts/run_route_b_current_production_finalization.py
       - tests/test_route_b_current_production_finalization.py
+      - tests/test_route_b_timing_provenance.py
       - .github/workflows/rate_route_b_current_production_finalization.yml
 
 permissions:
   contents: write
+  actions: read
 
 concurrency:
   group: rate-v11-production-acceptance-ledger-main
@@ -33,6 +36,8 @@ jobs:
         with:
           python-version: "3.12"
       - name: Build finalization package
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: >-
           python scripts/run_route_b_current_production_finalization.py
           --repo-root .
@@ -75,5 +80,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -B -m unittest tests.test_route_b_current_production_finalization tests.test_current_production_final_acceptance tests.test_production_acceptance_session -v
+      - run: python -B -m unittest tests.test_route_b_timing_provenance tests.test_route_b_current_production_finalization tests.test_current_production_final_acceptance tests.test_production_acceptance_session -v
       - run: git diff --exit-code
