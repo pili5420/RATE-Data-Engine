@@ -82,15 +82,26 @@ def validate_first_refresh(previous, state_root, trading_date, cadence):
 
 
 def resolve_phase2_context(*, cadence, event_name, dispatch_trading_date, state_root):
-    from scripts.resolve_production_runtime_context import _today_taipei
+    from scripts.resolve_production_runtime_context import _scheduled_nominal_trading_date, _today_taipei
     from .cer080_multi_day_continuity import is_trading_day, TRADING_CALENDAR_SOURCE
-    trading_date = _today_taipei() if event_name != "workflow_dispatch" else dispatch_trading_date
+    if event_name == "schedule":
+        # Bind an overnight-delayed run to its nominal Taiwan cadence date, never
+        # to the runner's wall-clock calendar date.
+        trading_date = _scheduled_nominal_trading_date(
+            cadence, schedule_expression=os.getenv("GITHUB_EVENT_SCHEDULE")
+        )
+    elif event_name == "workflow_dispatch":
+        trading_date = dispatch_trading_date
+    else:
+        trading_date = dispatch_trading_date or _today_taipei()
     require(trading_date, "WORKFLOW_DISPATCH_REQUIRES_EXPLICIT_TRADING_DATE")
     mode = "VALIDATION_ONLY" if event_name not in {"schedule", "workflow_dispatch"} else (
         "RUN" if is_trading_day(trading_date) else "NOOP_NON_TRADING_DAY")
     out = {"artifact": "RATE_PRODUCTION_RUNTIME_CONTEXT", "validation_status": "PASS",
            "event_name": event_name, "cadence": cadence, "trading_date": trading_date,
-           "trading_date_resolution": "DYNAMIC_TAIWAN_TRADING_DATE" if event_name == "schedule" else "EXPLICIT_WORKFLOW_DISPATCH_INPUT",
+           "trading_date_resolution": ("SCHEDULE_NOMINAL_TAIPEI_CADENCE_DATE" if event_name == "schedule"
+                                       else "EXPLICIT_WORKFLOW_DISPATCH_INPUT" if event_name == "workflow_dispatch"
+                                       else "VALIDATION_ONLY_NOT_PRODUCTION_RUNTIME"),
            "runtime_mode": mode, "calendar": {"trading_calendar_source": TRADING_CALENDAR_SOURCE},
            "previous_trading_date": "", "previous_cadence": "", "previous_state_evidence_path": "",
            "phase2": True, "fallback_used": False, "production_persistent_state_reset_count": 0}
