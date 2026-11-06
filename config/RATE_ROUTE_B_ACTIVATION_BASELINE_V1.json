@@ -1,7 +1,7 @@
 {
   "artifact": "RATE_ROUTE_B_ACTIVATION_BASELINE_V1",
   "status": "ACTIVE",
-  "activation_merge_sha": "15ac3b396149552299c4d71924451fe67e9366a2",
+  "activation_merge_sha": "3dd5cd62e569ee78fdc52ff3cc9c730bb7c97e6f",
   "route": "B_ZERO_FEE",
   "binding_rule": "FINAL_ENGINEERING_FREEZE_BOUND",
   "production_credit_allowed": true,
