@@ -76,12 +76,14 @@ def validate_scope(*, number: int, base_sha: str, head_sha: str,
         ensure(all(check in document for check in checks),
                "DESIGN_GATE_REQUIRED_TOPICS_MISSING")
         mode = "DESIGN_DOC_ONLY"
-    else:
-        # Self-validation is restricted to the gate implementation itself.
+    elif number == 215:
+        # Candidate-only self-validation; never trusted for design PR admission.
         ensure(set(changed) == GATE_FILES,
                "DESIGN_GATE_SELF_REVIEW_SCOPE_INVALID")
         ensure(document is None, "DESIGN_GATE_SELF_REVIEW_DOC_FORBIDDEN")
-        mode = "GATE_SELF_REVIEW_ONLY"
+        mode = "UNTRUSTED_CANDIDATE_SELF_REVIEW_ONLY"
+    else:
+        raise DesignGateError("DESIGN_GATE_PR_NOT_AUTHORIZED")
     return {"artifact": "RATE_V11_DESIGN_ONLY_CI_GATE_V1",
             "validation_status": "PASS", "pr_number": number,
             "validation_mode": mode, "base_sha": base_sha,
