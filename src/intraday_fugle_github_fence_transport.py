@@ -144,6 +144,7 @@ class FugleGitHubFenceTransport:
             raise FugleGitHubFenceTransportError(
                 "FUGLE_GH_FENCE_GET_BODY_INVALID"
             ) from exc
+        require(isinstance(value,Mapping),"FUGLE_GH_FENCE_GET_BODY_INVALID")
         ref=value.get("ref")
         obj=value.get("object")
         require(ref == ref_name_for(authorization_sha256),
@@ -167,10 +168,15 @@ class FugleGitHubFenceTransport:
             raise FugleGitHubFenceTransportError(
                 "FUGLE_GH_FENCE_CREATE_BODY_INVALID"
             ) from exc
+        require(isinstance(value,Mapping),"FUGLE_GH_FENCE_CREATE_BODY_INVALID")
         require(value.get("ref")==ref_name_for(authorization_sha256),
                 "FUGLE_GH_FENCE_CREATE_REF_MISMATCH")
         obj=value.get("object")
         require(isinstance(obj,Mapping) and obj.get("type")=="commit"
                 and _sha40(obj.get("sha"),"FUGLE_GH_FENCE_CREATE_SHA_INVALID")==target,
                 "FUGLE_GH_FENCE_CREATE_TARGET_MISMATCH")
-        return {"ref":value["ref"],"sha":target}
+        return {
+            "ref":value["ref"],
+            "sha":target,
+            "exclusive_create_acknowledged":True,
+        }

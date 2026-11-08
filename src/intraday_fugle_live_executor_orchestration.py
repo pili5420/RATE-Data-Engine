@@ -79,7 +79,8 @@ def rehearse_fugle_fence_then_execute(
         expected_main_sha=expected_main_sha,
     )
     require(fence.get("validation_status")=="PASS"
-            and fence.get("readback_verified") is True,
+            and fence.get("readback_verified") is True
+            and fence.get("executor_ownership_verified") is True,
             "FUGLE_ORCH_FENCE_NOT_CLOSED")
     require(fence.get("credential_access_before_receipt")==0
             and fence.get("provider_requests_before_receipt")==0,
@@ -107,6 +108,7 @@ def rehearse_fugle_fence_then_execute(
         "cadence":authorization_review["cadence"],
         "fence_receipt_sha256":fence["receipt_sha256"],
         "fence_persisted_and_readback_before_credential":True,
+        "fence_executor_ownership_verified":True,
         "credential_reads_after_fence":1,
         "provider_requests_after_fence":30,
         "automatic_retries":0,

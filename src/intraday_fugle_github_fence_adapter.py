@@ -35,22 +35,20 @@ def persist_consumption_marker(
 
     try:
         created=transport.create_marker(authorization_sha256,main_sha)
-    except FugleGitHubFenceTransportError:
-        # Ambiguous POST outcomes are never retried. Resolve by exact marker readback.
-        persisted=transport.read_marker(authorization_sha256)
-        require(persisted is not None,
-                "FUGLE_GH_ADAPTER_AMBIGUOUS_CREATE_UNRESOLVED")
-        require(persisted.get("sha")==main_sha,
-                "FUGLE_GH_ADAPTER_AMBIGUOUS_TARGET_CONFLICT")
-        outcome="AMBIGUOUS_CREATE_CONFIRMED_BY_READBACK"
-    else:
-        require(created.get("ref")==ref_name_for(authorization_sha256)
-                and created.get("sha")==main_sha,
-                "FUGLE_GH_ADAPTER_CREATE_RESULT_MISMATCH")
-        persisted=transport.read_marker(authorization_sha256)
-        require(persisted is not None and persisted.get("sha")==main_sha,
-                "FUGLE_GH_ADAPTER_READBACK_MISMATCH")
-        outcome="CREATED_AND_READBACK_VERIFIED"
+    except FugleGitHubFenceTransportError as exc:
+        # A matching marker could belong to a concurrent executor. Lost ACKs burn
+        # the permit without granting this invocation ownership or a retry.
+        raise FugleGitHubFenceAdapterError(
+            "FUGLE_GH_ADAPTER_EXCLUSIVE_CREATE_NOT_ACKNOWLEDGED"
+        ) from exc
+    require(created.get("ref")==ref_name_for(authorization_sha256)
+            and created.get("sha")==main_sha
+            and created.get("exclusive_create_acknowledged") is True,
+            "FUGLE_GH_ADAPTER_CREATE_RESULT_MISMATCH")
+    persisted=transport.read_marker(authorization_sha256)
+    require(persisted is not None and persisted.get("sha")==main_sha,
+            "FUGLE_GH_ADAPTER_READBACK_MISMATCH")
+    outcome="CREATED_AND_READBACK_VERIFIED"
 
     require(transport.request_count in {3},
             "FUGLE_GH_ADAPTER_REQUEST_BUDGET_INVALID")
@@ -68,6 +66,8 @@ def persist_consumption_marker(
         "list_requests":0,
         "main_ref_updates":0,
         "readback_verified":True,
+        "executor_ownership_verified":True,
+        "ownership_proof":"EXCLUSIVE_CREATE_ACKNOWLEDGED_IN_CURRENT_INVOCATION",
         "credential_access_after_marker_allowed":True,
         "provider_requests_after_marker_allowed":True,
         "production_activation_allowed":False,

@@ -18,5 +18,9 @@ The future workflow credential is GitHub's scoped `GITHUB_TOKEN` with only
 CI replaces `HTTPSConnection` completely. Therefore these tests perform no real
 GitHub request and create no real ref.
 
-An ambiguous create outcome is never retried. The adapter performs exact-key
-readback only. A pre-existing marker means the single-use authorization is consumed.
+Only an exact HTTP 201 response to this invocation's create request, with the
+expected ref and commit target, establishes exclusive-create acknowledgement.
+The adapter also requires matching readback before returning executor ownership.
+An ambiguous create outcome, lost ACK or conflict fails closed without recovery or
+retry. A same-main readback cannot establish ownership. A pre-existing marker blocks
+reentry, including when a previous executor lost its successful create ACK.

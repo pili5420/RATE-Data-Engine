@@ -3,6 +3,7 @@ import unittest
 
 from src.intraday_fugle_live_consumption_fence import (
     SyntheticWriteOnceFenceStore,
+    FugleConsumptionFenceError,
     canonical_digest,
 )
 from src.intraday_fugle_live_executor_orchestration import (
@@ -74,6 +75,18 @@ class OrchestrationTests(unittest.TestCase):
         from src.intraday_fugle_live_consumption_fence import FugleConsumptionFenceError
         with self.assertRaises(FugleConsumptionFenceError):
             self.execute(store=store)
+
+    def test_lost_create_ack_blocks_credential_and_provider_access(self):
+        backend=SyntheticFugleExecutorBackend()
+        store=SyntheticWriteOnceFenceStore(fail_mode="AMBIGUOUS_AFTER_CREATE")
+        with self.assertRaisesRegex(FugleConsumptionFenceError,"EXCLUSIVE_CREATE_NOT_ACKNOWLEDGED"):
+            self.execute(store=store,backend=backend)
+        self.assertEqual(backend.credential_reads,0)
+        self.assertEqual(backend.network_requests,0)
+        with self.assertRaisesRegex(FugleConsumptionFenceError,"ALREADY_CONSUMED"):
+            self.execute(store=store,backend=backend)
+        self.assertEqual(backend.credential_reads,0)
+        self.assertEqual(backend.network_requests,0)
 
 
 if __name__=="__main__":

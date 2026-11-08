@@ -267,7 +267,7 @@ class FugleFreeDiagnosticTests(unittest.TestCase):
         env.pop("PYTHONPATH", None)
         with tempfile.TemporaryDirectory() as tmp:
             completed = subprocess.run(
-                [sys.executable, "-I", str(script), "--help"],
+                [sys.executable, "-I", "-B", str(script), "--help"],
                 cwd=tmp,
                 env=env,
                 capture_output=True,

@@ -1,0 +1,50 @@
+name: RATE Fugle R2 Offline Corrective Engineering
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/intraday_fugle_*.py
+      - src/provider_fugle_intraday_candidate.py
+      - tests/test_intraday_fugle_*.py
+      - tests/test_fugle_*.py
+      - scripts/verify_fugle_r2_offline.py
+      - docs/RATE_FUGLE_R2_*.md
+      - .github/workflows/rate_fugle_r2_offline_ci.yml
+permissions:
+  contents: read
+jobs:
+  offline:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+      GIT_CONFIG_COUNT: "1"
+      GIT_CONFIG_KEY_0: "core.autocrlf"
+      GIT_CONFIG_VALUE_0: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Exact Git bytes
+        shell: bash
+        run: |
+          git config core.autocrlf false
+          git checkout-index --all --force
+          git diff --exit-code
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Offline corrective and security regressions
+        run: >-
+          python -B scripts/verify_fugle_r2_offline.py
+          --expected-head "${{ github.event.pull_request.head.sha }}"
+          --output "${{ runner.temp }}/RATE_FUGLE_R2_OFFLINE_REPORT.json"
+      - name: No tracked mutation
+        run: git diff --exit-code
