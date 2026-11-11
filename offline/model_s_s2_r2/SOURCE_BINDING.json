@@ -1,0 +1,21 @@
+{
+  "mode": "OFFLINE_BASELINE_APPROVED_ONLY",
+  "source_archive": {
+    "name": "RATE_V11_G1_A1_R3_MODEL_S_FIVE_CONTRACT_AMENDMENT_PREPARATION_PACKAGE.zip",
+    "sha256": "51d3089143656ec075b7307de058e21bc7a79f76584d5b76b4c5f564f0142114",
+    "manifest": "SHA256_MANIFEST.json",
+    "manifest_entries": 15
+  },
+  "independent_binding_archive": {
+    "name": "RATE_V11_G1_A1_R3_MODEL_S_S2_G01_EXACT_BYTE_BINDING_VERIFICATION_PACKAGE.zip",
+    "sha256": "fe43a8c8bb66e9c7d557a1ef6ca97cbd6208c48ee305c2f3f3041083757fadd6"
+  },
+  "candidates": [
+    {"id": "C05", "path": "01_C05_PROPOSED_AMENDMENT.md", "version": "RATE-V11-C05-MODEL-S-V0.1", "sha256": "4539da6cbeb20bef9f7efa1ab77a92fa3556572024723a1ca3a47940f9e9b27b"},
+    {"id": "C07", "path": "02_C07_PROPOSED_AMENDMENT.md", "version": "RATE-V11-C07-MODEL-S-V0.1", "sha256": "fa016ae7176ccbb91f4229a50c35ada1d89e27b2320e55a7f64445e7f6c8dbd3"},
+    {"id": "C09", "path": "03_C09_PROPOSED_AMENDMENT.md", "version": "RATE-V11-C09-MODEL-S-V0.1", "sha256": "505abdfcc865067d9fd5137c5b3e617a8a6b61b6bda0e05aaed5e7a1451d6f9a"},
+    {"id": "C10", "path": "04_C10_PROPOSED_AMENDMENT.md", "version": "RATE-V11-C10-MODEL-S-V0.1", "sha256": "0db813c04949054278d0a81161713513df8e78a8a118070be816763a14f15c3c"},
+    {"id": "C11", "path": "05_C11_PROPOSED_AMENDMENT.md", "version": "RATE-V11-C11-MODEL-S-V0.1", "sha256": "ca8056ec18f55233a25be25e3c3b74f17bb69175df4167e5c75d28dc264b5247"}
+  ],
+  "frozen_c03_sha256": "a52de44c2980ed44cb2efe6ec893fb130aae6c7fe89e2f1f16b83669bbf5207b"
+}
