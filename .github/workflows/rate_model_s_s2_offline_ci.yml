@@ -1,0 +1,52 @@
+name: RATE Model S S2 Offline Exact Head
+
+on:
+  pull_request:
+    branches:
+      - main
+      - engineering/model-s-s2-r2-offline
+    paths:
+      - offline/model_s_s2_r2/**
+      - .github/workflows/rate_model_s_s2_offline_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  offline-synthetic:
+    name: offline-synthetic (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: utf-8
+    steps:
+      - name: Check out exact PR Head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify exact Head binding
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          actual="$(git rev-parse HEAD)"
+          echo "expected_head=$EXPECTED_HEAD actual_head=$actual"
+          test "$actual" = "$EXPECTED_HEAD"
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run synthetic offline regressions
+        working-directory: offline/model_s_s2_r2
+        env:
+          MODEL_S_S2_TEST_TMP: ${{ runner.temp }}
+        run: python -B -m unittest -v test_simulator
+      - name: Verify no tracked mutation
+        run: git diff --exit-code
