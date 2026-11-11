@@ -43,10 +43,16 @@ jobs:
           TEMP: ${{ runner.temp }}
           TMP: ${{ runner.temp }}
           TMPDIR: ${{ runner.temp }}
-        run: >-
-          python -B scripts/verify_provider_shadow_forward.py
-          --expected-base "$EXPECTED_BASE" --expected-head "$EXPECTED_HEAD"
-          --output-dir "$RUNNER_TEMP/shadow-forward-engineering"
+        run: |
+          if git cat-file -e "$EXPECTED_BASE:src/provider_shadow_forward.py" 2>/dev/null; then
+            python -B scripts/verify_forward_price_runtime.py \
+              --expected-base "$EXPECTED_BASE" --expected-head "$EXPECTED_HEAD" \
+              --output-dir "$RUNNER_TEMP/shadow-forward-engineering"
+          else
+            python -B scripts/verify_provider_shadow_forward.py \
+              --expected-base "$EXPECTED_BASE" --expected-head "$EXPECTED_HEAD" \
+              --output-dir "$RUNNER_TEMP/shadow-forward-engineering"
+          fi
       - name: Clean worktree
         if: always()
         run: test -z "$(git status --porcelain --untracked-files=all)"
