@@ -152,15 +152,19 @@ class MainlineCorrectiveTests(unittest.TestCase):
                 raise RuntimeError("UNSAFE_TEST_CLEANUP")
             shutil.rmtree(root)
 
-    def test_workflow_preacquisition_order_all_cadences(self):
+    def test_eod_workflow_preacquisition_order_and_intraday_freeze(self):
         root=Path(__file__).resolve().parents[1]
-        for cadence in ("0730","0930","1200","1930"):
+        for cadence in ("0730","1930"):
             text=(root/f".github/workflows/rate_production_{cadence}_scheduler.yml").read_text()
             self.assertLess(text.index("Capture CER-081 scheduler actual-timing evidence"),
                             text.index("Enforce actual scheduler timing before source acquisition"))
             self.assertLess(text.index("Enforce actual scheduler timing before source acquisition"),
                             text.index("Build official production source bundle"))
             self.assertIn(f"--output artifacts/production_{cadence}/RATE_PRODUCTION_SCHEDULER_PREACQUISITION_GATE.json",text)
+        # Existing operational intraday workflows are frozen byte-for-byte.
+        for cadence in ("0930","1200"):
+            text=(root/f".github/workflows/rate_production_{cadence}_scheduler.yml").read_text()
+            self.assertNotIn("Enforce actual scheduler timing before source acquisition",text)
 
     def test_session_without_production_evidence_cannot_be_ready(self):
         activation={"artifact":"RATE_POST_MERGE_PRODUCTION_ACTIVATION_VERIFICATION_V1",
