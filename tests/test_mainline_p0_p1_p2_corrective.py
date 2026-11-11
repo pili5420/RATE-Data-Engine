@@ -101,22 +101,14 @@ class MainlineCorrectiveTests(unittest.TestCase):
             with self.subTest(source_date=source_date), patch("src.full_market_catalogue.parse_classification",return_value=(source_date,[])):
                 with self.assertRaisesRegex(RuntimeError,"STALE_OR_FUTURE_CATALOGUE") as caught:
                     build_catalogue(DAY,fetcher=fetch)
-            e=caught.exception.catalogue_freshness_evidence
-            self.assertEqual(e["source_timestamp"],source_date)
-            self.assertEqual(e["classification"],expected)
-            self.assertEqual(e["publication_time"],"UNKNOWN_NOT_SUPPLIED_BY_SOURCE")
-            self.assertEqual(e["retrieval_time"],"2026-11-10T18:45:20Z")
-            self.assertEqual(e["retrieval_status"],"COMPLETE_OFFICIAL_RESPONSE")
-            self.assertEqual(e["new_data_publication_status"],"UNPROVEN")
+            self.assertFalse(hasattr(caught.exception,"catalogue_freshness_evidence"))
             self.assertEqual(calls,[endpoint])
 
     def test_phase2_failure_preserves_source_evidence_and_no_bundle(self):
         failure=RuntimeError("STALE_OR_FUTURE_CATALOGUE")
-        failure.catalogue_freshness_evidence={"source_owner":"TWSE","source_timestamp":"2026-11-11",
-            "publication_time":"UNKNOWN_NOT_SUPPLIED_BY_SOURCE","retrieval_time":"2026-11-10T18:45:20Z",
-            "observation_time":"2026-11-10T18:45:21Z","requested_trading_date":DAY,
-            "classification":"OFFICIAL_DATE_AFTER_NOMINAL_SLOT","body_sha256":"c"*64,
-            "http_status":200,"fallback_used":False}
+        failure.catalogue_transport_evidence=[{"source_owner":"TWSE","endpoint":CLASSIFICATION_ENDPOINTS["TWSE"],
+            "http_status":200,"retrieval_timestamp":"2026-11-10T18:45:20Z",
+            "retry_decision":"ACCEPT_COMPLETE_RESPONSE","fallback_used":False}]
         base=Path(os.environ.get("RATE_MAINLINE_TEST_TMP", tempfile.gettempdir())).resolve()
         root=base/("rate-mainline-corrective-"+uuid.uuid4().hex)
         root.mkdir()
@@ -127,7 +119,10 @@ class MainlineCorrectiveTests(unittest.TestCase):
                 result=build_phase2_bundle(trading_date=DAY,cadence="19:30",output=root/"bundle.json",
                     evidence_output=root/"evidence.json",state_root=root,history_root=root)
             self.assertEqual(result["validation_status"],"FAIL_CLOSED")
-            self.assertEqual(result["catalogue_freshness_evidence"]["admission_result"],"FAIL_CLOSED")
+            self.assertEqual(result["source_timestamp"],"UNKNOWN_NOT_PRESERVED_BY_FROZEN_CATALOGUE")
+            self.assertEqual(result["publication_time"],"UNKNOWN_NOT_SUPPLIED_BY_SOURCE")
+            self.assertEqual(result["new_data_publication_status"],"UNPROVEN")
+            self.assertEqual(result["catalogue_transport_evidence"],failure.catalogue_transport_evidence)
             self.assertFalse((root/"bundle.json").exists())
         finally:
             if root.resolve().parent != base or not root.name.startswith("rate-mainline-corrective-"):
