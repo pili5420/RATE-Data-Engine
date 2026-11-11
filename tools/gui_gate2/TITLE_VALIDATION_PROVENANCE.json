@@ -1,0 +1,88 @@
+{
+  "constants": [
+    "ALLOWED_APIS",
+    "NATIVE_IMAGES",
+    "TITLES",
+    "TITLE_CAPACITY",
+    "TITLE_PROTOCOL"
+  ],
+  "equivalence": "Exact selected function/constant ASTs preserved; no NativeBackend, Permit loader, CLI, evaluator output/file operations, OS imports or dynamic code.",
+  "functions": [
+    "admin",
+    "calls_valid",
+    "digest",
+    "exact",
+    "integer",
+    "native_image",
+    "require",
+    "title_reliability",
+    "validate_context",
+    "validate_window"
+  ],
+  "nodes": [
+    {
+      "ast_sha256": "9e4425d3dbbce98869ba17190d90ffdefc359c79c05128efa743eb131ce63c33",
+      "name": "TITLE_PROTOCOL"
+    },
+    {
+      "ast_sha256": "f0a1f948020d42651ddb0bcb2f5dbcd47f1e5fa800e8263d58676f604fb8f2eb",
+      "name": "TITLE_CAPACITY"
+    },
+    {
+      "ast_sha256": "deb11ab0dffb31cdd990ad40e80cd6a06846f95098c71cdd1219039462b79b10",
+      "name": "TITLES"
+    },
+    {
+      "ast_sha256": "09e38148e28be6f2e48b1be16fbc88abf77b4410f238362207a9436c73ada45f",
+      "name": "NATIVE_IMAGES"
+    },
+    {
+      "ast_sha256": "5a33e18c38a161c76793d4b04409d8185f4e92d2ea8aaca61afaf5da02ce3900",
+      "name": "ALLOWED_APIS"
+    },
+    {
+      "ast_sha256": "f35232093a2f3169a0c45d167a1287c49715f3539cc4a07060b21853fa23b60a",
+      "name": "digest"
+    },
+    {
+      "ast_sha256": "d55fd87a5a18f3670381b0a05eec51919353f513d8d0c6276c8fe289a99284fc",
+      "name": "require"
+    },
+    {
+      "ast_sha256": "ba623574d423b9e8f7b25fed590716c1a35f2bebdd10922bc3e6ac00da89a59a",
+      "name": "integer"
+    },
+    {
+      "ast_sha256": "b9a69d57b8065b76f99688adb4f5f76840fce6daf53ef2ecb95d7748c06cd47f",
+      "name": "exact"
+    },
+    {
+      "ast_sha256": "c6e5cf90616272a5cfea1e66480493efc7711c8428d6c34f8527dd25eff0ca30",
+      "name": "native_image"
+    },
+    {
+      "ast_sha256": "d35bac407a85abd79e44054d98b9dd4684ce39d54e5b179ac6e66e1b960e902d",
+      "name": "admin"
+    },
+    {
+      "ast_sha256": "a4e36fdafec3341fb2bbd2e6e0d6f36484925a8a872802d50dd36ce3fa11b048",
+      "name": "validate_context"
+    },
+    {
+      "ast_sha256": "2b77af1de990f5e8a9a3ca3b4dbb7929fd13d266db9fcc5d3e46a266818b9cca",
+      "name": "validate_window"
+    },
+    {
+      "ast_sha256": "76780ef477d2cc9e477b1aeda7f4466b9736e59097660fdb6f0fdfa32586e0dc",
+      "name": "calls_valid"
+    },
+    {
+      "ast_sha256": "55370934f78f7942d806974517cd311a789ed60958571840ab1d021f482e785a",
+      "name": "title_reliability"
+    }
+  ],
+  "original_schema_sha256": "4c55b48bc6eb5a9a9d4065a578be355764e5f2541d97089fdc0e35869bd29a02",
+  "original_tool_sha256": "3488a20b13021f7c9072f475c8bcfe7c5be703ff82eea847c0216d00fb8fc228",
+  "pure_tool_sha256": "759d049b963287ac7897f0d086883d6aa42084db245566c39b5dcfe81e5f5c5a",
+  "source_head": "c8d6b0557838a6a10b7012b65856f9abc7e915d9"
+}
