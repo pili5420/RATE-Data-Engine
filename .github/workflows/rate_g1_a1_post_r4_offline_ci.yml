@@ -1,0 +1,54 @@
+name: RATE G1 A1 Post R4 Offline Exact Head
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - offline/g1_a1_post_r4/**
+      - .github/workflows/rate_g1_a1_post_r4_offline_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  offline-synthetic:
+    name: post-r4-offline-synthetic (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: utf-8
+    steps:
+      - name: Check out exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Assert exact head
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          actual="$(git rev-parse HEAD)"
+          echo "expected_head=$EXPECTED_HEAD actual_head=$actual"
+          test "$actual" = "$EXPECTED_HEAD"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run accepted R2 synthetic regression
+        working-directory: offline/model_s_s2_r2
+        env:
+          MODEL_S_S2_TEST_TMP: ${{ runner.temp }}
+        run: python -B -m unittest -v test_simulator
+      - name: Run post-R4 synthetic regression
+        env:
+          MODEL_S_S2_TEST_TMP: ${{ runner.temp }}
+        run: python -B -m unittest -v offline.g1_a1_post_r4.test_post_r4
+      - name: Verify tracked source unchanged
+        run: git diff --exit-code
