@@ -54,6 +54,9 @@ def build_phase2_bundle(*, trading_date, cadence, output, evidence_output, state
             proposed_state_id=state["current_state_id"])
     except (RuntimeError, OSError, ValueError, KeyError, TypeError) as exc:
         evidence["blocking_reason"] = str(exc)
+        if hasattr(exc, "catalogue_transport_evidence"):
+            evidence["catalogue_transport_evidence"] = exc.catalogue_transport_evidence
+            evidence["retrieval_status"] = "FAIL_CLOSED" if str(exc) != "STALE_OR_FUTURE_CATALOGUE" else "COMPLETE_OFFICIAL_RESPONSE"
         if str(exc) == "STALE_OR_FUTURE_CATALOGUE" and hasattr(exc, "catalogue_freshness_evidence"):
             evidence["catalogue_freshness_evidence"] = {
                 **exc.catalogue_freshness_evidence,

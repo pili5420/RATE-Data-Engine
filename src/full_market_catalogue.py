@@ -222,6 +222,8 @@ def build_catalogue(trading_date, *, fetcher=fetch_receipt):
                         "classification": "OFFICIAL_DATE_BEFORE_NOMINAL_SLOT" if as_of < trading_date else "OFFICIAL_DATE_AFTER_NOMINAL_SLOT",
                         "http_status": receipt.get("http_status"),
                         "body_sha256": receipt.get("body_sha256"),
+                        "retrieval_status": "COMPLETE_OFFICIAL_RESPONSE",
+                        "new_data_publication_status": "UNPROVEN",
                         "fallback_used": False,
                     }
                     break

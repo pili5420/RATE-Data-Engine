@@ -106,6 +106,8 @@ class MainlineCorrectiveTests(unittest.TestCase):
             self.assertEqual(e["classification"],expected)
             self.assertEqual(e["publication_time"],"UNKNOWN_NOT_SUPPLIED_BY_SOURCE")
             self.assertEqual(e["retrieval_time"],"2026-11-10T18:45:20Z")
+            self.assertEqual(e["retrieval_status"],"COMPLETE_OFFICIAL_RESPONSE")
+            self.assertEqual(e["new_data_publication_status"],"UNPROVEN")
             self.assertEqual(calls,[endpoint])
 
     def test_phase2_failure_preserves_source_evidence_and_no_bundle(self):
@@ -126,6 +128,29 @@ class MainlineCorrectiveTests(unittest.TestCase):
                     evidence_output=root/"evidence.json",state_root=root,history_root=root)
             self.assertEqual(result["validation_status"],"FAIL_CLOSED")
             self.assertEqual(result["catalogue_freshness_evidence"]["admission_result"],"FAIL_CLOSED")
+            self.assertFalse((root/"bundle.json").exists())
+        finally:
+            if root.resolve().parent != base or not root.name.startswith("rate-mainline-corrective-"):
+                raise RuntimeError("UNSAFE_TEST_CLEANUP")
+            shutil.rmtree(root)
+
+    def test_transport_failure_preserves_attempts_without_publication_inference(self):
+        failure=RuntimeError("CATALOGUE_TRANSPORT_FAILED")
+        failure.catalogue_transport_evidence=[{"endpoint":CLASSIFICATION_ENDPOINTS["TWSE"],
+            "http_status":503,"retry_decision":"FAIL_CLOSED_RETRY_EXHAUSTED",
+            "fallback_used":False}]
+        base=Path(os.environ.get("RATE_MAINLINE_TEST_TMP", tempfile.gettempdir())).resolve()
+        root=base/("rate-mainline-corrective-"+uuid.uuid4().hex)
+        root.mkdir()
+        try:
+            with patch("scripts.build_phase2_production_source.main_authority",return_value={"run_id":RUN_ID}), \
+                 patch("scripts.build_phase2_production_source.latest_predecessor",return_value=(None,None,{"state":{}})), \
+                 patch("scripts.build_phase2_production_source.materialize_full_market",side_effect=failure):
+                result=build_phase2_bundle(trading_date=DAY,cadence="19:30",output=root/"bundle.json",
+                    evidence_output=root/"evidence.json",state_root=root,history_root=root)
+            self.assertEqual(result["retrieval_status"],"FAIL_CLOSED")
+            self.assertEqual(result["catalogue_transport_evidence"],failure.catalogue_transport_evidence)
+            self.assertNotIn("catalogue_freshness_evidence",result)
             self.assertFalse((root/"bundle.json").exists())
         finally:
             if root.resolve().parent != base or not root.name.startswith("rate-mainline-corrective-"):
