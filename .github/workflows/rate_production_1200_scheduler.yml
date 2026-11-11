@@ -91,6 +91,20 @@ jobs:
             --expected-head-sha "${{ github.sha }}" \
             --output "artifacts/production_1200/RATE_CER081_SCHEDULER_ACTUAL_TIMING_EVIDENCE.json"
 
+      - name: Enforce actual scheduler timing before source acquisition
+        if: ${{ github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
+        run: >
+          python scripts/validate_production_scheduler_actual_timing.py
+          --run-api artifacts/production_1200/GITHUB_ACTIONS_RUN_API.json
+          --timing artifacts/production_1200/RATE_CER081_SCHEDULER_ACTUAL_TIMING_EVIDENCE.json
+          --cadence "12:00"
+          --trading-date "${{ env.RATE_PRODUCTION_TRADING_DATE }}"
+          --run-id "${{ github.run_id }}"
+          --head-sha "${{ github.sha }}"
+          --event-schedule "${{ env.GITHUB_EVENT_SCHEDULE }}"
+          --workflow-path ".github/workflows/rate_production_1200_scheduler.yml"
+          --output artifacts/production_1200/RATE_PRODUCTION_SCHEDULER_PREACQUISITION_GATE.json
+
       - name: Validate production scheduler safety wiring
         run: python scripts/validate_production_scheduler_safety.py --output artifacts/production_1200/RATE_PRODUCTION_SCHEDULER_SAFETY_VALIDATION.json
 

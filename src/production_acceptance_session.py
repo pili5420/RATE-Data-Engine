@@ -118,8 +118,13 @@ def admit_scheduled_run(
     require(session.get("completion_status")=="IN_PROGRESS",
             "PA_SESSION_ALREADY_CLOSED")
     require(isinstance(run,Mapping),"PA_RUN_INVALID")
-    require(run.get("event")=="schedule" or run.get("event_name")=="schedule",
+    event_fields=[run[key] for key in ("event","event_name","official_event") if key in run]
+    require(event_fields and all(value=="schedule" for value in event_fields),
             "PA_RUN_NOT_OFFICIAL_SCHEDULE")
+    require(run.get("run_attempt") in (None,1,"1")
+            and run.get("recovery_mode") is not True
+            and run.get("scheduled_soak_credit") is not False,
+            "PA_RUN_NONQUALIFYING_EXECUTION")
     require(run.get("validation_status")=="PASS",
             "PA_RUN_NOT_PASS")
     require(run.get("publish_result") in (None,"PASS"),

@@ -68,5 +68,6 @@ jobs:
           tests.test_phase2_production
           tests.test_route_b_acceptance_collector
           tests.test_route_b_current_production_finalization
+          tests.test_phase2_compatibility
       - name: No tracked mutation
         run: git diff --exit-code

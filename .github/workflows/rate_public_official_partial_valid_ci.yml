@@ -71,6 +71,14 @@ jobs:
           python-version: "3.12"
       - name: Existing runtime dependencies
         run: python -m pip install lxml==6.1.1 tzdata==2025.2 PyYAML==6.0.3
+      - name: Assert exact PR head and governed applicability branch
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -f config/RATE_FULL_MARKET_ROTATION_CONTRACT_V1.json
+          echo "applicability=GOVERNED_PR24; historical_base_head=N/A; historical_soak=N/A"
       - name: Unmodified base/head regressions and new tests (strict gate)
         if: ${{ hashFiles('config/RATE_FOUR_CADENCE_REPORT_SOAK_V1.json') == '' }}
         env:

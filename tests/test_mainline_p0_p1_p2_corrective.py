@@ -10,10 +10,11 @@ import uuid
 from datetime import timedelta
 from pathlib import Path
 from unittest.mock import patch
+import yaml
 
 from scripts.build_phase2_production_source import build_phase2_bundle
 from scripts.validate_production_scheduler_actual_timing import evaluate
-from src.cer081_scheduler_actual_timing import (CADENCE_CRONS, CADENCE_WORKFLOWS,
+from src.cer081_scheduler_actual_timing import (CADENCE_CRONS, CADENCE_WORKFLOWS, SchedulerActualTimingError,
     build_actual_timing_evidence, expected_slot_utc)
 from src.full_market_catalogue import CLASSIFICATION_ENDPOINTS, build_catalogue
 from src.production_acceptance_session import (ProductionAcceptanceSessionError,
@@ -48,9 +49,10 @@ class MainlineCorrectiveTests(unittest.TestCase):
             run_id=RUN_ID, head_sha=HEAD, event_schedule=CADENCE_CRONS[cadence],
             workflow_path=CADENCE_WORKFLOWS[cadence])
 
-    def test_all_four_cadences_accept_exact_900_only(self):
+    def test_all_four_cadences_accept_899_and_900_only(self):
         for cadence in CADENCE_CRONS:
             with self.subTest(cadence=cadence):
+                self.assertEqual(self.check_timing(cadence, 899)["validation_status"], "PASS")
                 self.assertEqual(self.check_timing(cadence, 900)["validation_status"], "PASS")
                 blocked = self.check_timing(cadence, 901)
                 self.assertEqual(blocked["validation_status"], "FAIL_CLOSED")
@@ -152,19 +154,69 @@ class MainlineCorrectiveTests(unittest.TestCase):
                 raise RuntimeError("UNSAFE_TEST_CLEANUP")
             shutil.rmtree(root)
 
-    def test_eod_workflow_preacquisition_order_and_intraday_freeze(self):
+    def test_four_cadence_workflow_preacquisition_order(self):
         root=Path(__file__).resolve().parents[1]
-        for cadence in ("0730","1930"):
+        for cadence in ("0730","0930","1200","1930"):
             text=(root/f".github/workflows/rate_production_{cadence}_scheduler.yml").read_text()
             self.assertLess(text.index("Capture CER-081 scheduler actual-timing evidence"),
                             text.index("Enforce actual scheduler timing before source acquisition"))
             self.assertLess(text.index("Enforce actual scheduler timing before source acquisition"),
                             text.index("Build official production source bundle"))
             self.assertIn(f"--output artifacts/production_{cadence}/RATE_PRODUCTION_SCHEDULER_PREACQUISITION_GATE.json",text)
-        # Existing operational intraday workflows are frozen byte-for-byte.
-        for cadence in ("0930","1200"):
-            text=(root/f".github/workflows/rate_production_{cadence}_scheduler.yml").read_text()
-            self.assertNotIn("Enforce actual scheduler timing before source acquisition",text)
+
+    def test_missing_created_or_started_and_wrong_cron_fail_closed(self):
+        for cadence in CADENCE_CRONS:
+            raw=metadata(cadence, 899)
+            timing=build_actual_timing_evidence(raw,cadence=cadence,trading_date=DAY,
+                event_schedule=CADENCE_CRONS[cadence],workflow_path=CADENCE_WORKFLOWS[cadence],
+                expected_run_id=RUN_ID,expected_head_sha=HEAD)
+            args=dict(cadence=cadence,trading_date=DAY,run_id=RUN_ID,head_sha=HEAD,
+                event_schedule=CADENCE_CRONS[cadence],workflow_path=CADENCE_WORKFLOWS[cadence])
+            for missing in ("created_at","run_started_at"):
+                with self.subTest(cadence=cadence,missing=missing):
+                    self.assertEqual(evaluate({k:v for k,v in raw.items() if k!=missing},timing,**args)["validation_status"],"FAIL_CLOSED")
+            with self.subTest(cadence=cadence,wrong_cron=True):
+                self.assertEqual(evaluate(raw,timing,**{**args,"event_schedule":"0 0 * * *"})["validation_status"],"FAIL_CLOSED")
+
+    def test_manual_and_conflicting_event_fields_cannot_enter_acceptance(self):
+        activation={"artifact":"RATE_POST_MERGE_PRODUCTION_ACTIVATION_VERIFICATION_V1",
+            "validation_status":"PASS","final_disposition":"PRODUCTION_ACTIVATION_VERIFIED",
+            "production_credit":1,"cer081_credit":0,"merged_main_sha":HEAD}
+        session=open_production_acceptance_session(activation,session_start_date=DAY)
+        base={"event":"schedule","validation_status":"PASS","fallback_used":False,
+            "trading_date":DAY,"cadence":"07:30","run_head_sha":HEAD}
+        for change in ({"event":"workflow_dispatch"},{"event":"push"},
+                       {"event_name":"workflow_dispatch"},{"official_event":"workflow_dispatch"}):
+            with self.subTest(change=change),self.assertRaisesRegex(ProductionAcceptanceSessionError,"PA_RUN_NOT_OFFICIAL_SCHEDULE"):
+                admit_scheduled_run(session,{**base,**change})
+        for change in ({"run_attempt":2},{"recovery_mode":True},{"scheduled_soak_credit":False}):
+            with self.subTest(change=change),self.assertRaisesRegex(ProductionAcceptanceSessionError,"PA_RUN_NONQUALIFYING_EXECUTION"):
+                admit_scheduled_run(session,{**base,**change})
+
+    def test_all_workflow_publishers_require_schedule_and_retries_have_no_gate(self):
+        root=Path(__file__).resolve().parents[1]
+        for slot in ("0730","0930","1200","1930"):
+            workflow=yaml.safe_load((root/f".github/workflows/rate_production_{slot}_scheduler.yml").read_text(encoding="utf-8"))
+            steps=workflow["jobs"][f"production-{slot}"]["steps"]
+            names=[step.get("name") for step in steps]
+            capture=names.index("Capture CER-081 scheduler actual-timing evidence")
+            gate=names.index("Enforce actual scheduler timing before source acquisition")
+            acquire=names.index("Build official production source bundle")
+            self.assertLess(capture,gate)
+            self.assertLess(gate,acquire)
+            self.assertIn("github.event_name == 'schedule'",steps[gate]["if"])
+            for step in steps:
+                name=step.get("name","")
+                if name.startswith(("Publish live production state pointer", "Commit authorized production pointers",
+                                    "Upload committed live production state", "Archive public report-consumption evidence")):
+                    with self.subTest(slot=slot,step=name):
+                        self.assertIn("github.event_name == 'schedule'",step["if"])
+            self.assertIn("github.event_name != 'push'",steps[acquire]["if"])
+            cadence={"0730":"07:30","0930":"09:30","1200":"12:00","1930":"19:30"}[slot]
+            with self.assertRaisesRegex(SchedulerActualTimingError,"SCHEDULER_TIMING_RETRY_NOT_ALLOWED"):
+                build_actual_timing_evidence(metadata(cadence,30)|{"run_attempt":2},
+                    cadence=cadence,trading_date=DAY,event_schedule=CADENCE_CRONS[cadence],
+                    workflow_path=CADENCE_WORKFLOWS[cadence],expected_run_id=RUN_ID,expected_head_sha=HEAD)
 
     def test_session_without_production_evidence_cannot_be_ready(self):
         activation={"artifact":"RATE_POST_MERGE_PRODUCTION_ACTIVATION_VERIFICATION_V1",

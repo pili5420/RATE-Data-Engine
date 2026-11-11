@@ -22,13 +22,39 @@ from tests import test_public_official_partial_valid as public_fixtures
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _approved_preacquisition_gate(slot: str, cadence: str) -> bytes:
+    return (f'''      - name: Enforce actual scheduler timing before source acquisition
+        if: ${{{{ github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}}}
+        run: >
+          python scripts/validate_production_scheduler_actual_timing.py
+          --run-api artifacts/production_{slot}/GITHUB_ACTIONS_RUN_API.json
+          --timing artifacts/production_{slot}/RATE_CER081_SCHEDULER_ACTUAL_TIMING_EVIDENCE.json
+          --cadence "{cadence}"
+          --trading-date "${{{{ env.RATE_PRODUCTION_TRADING_DATE }}}}"
+          --run-id "${{{{ github.run_id }}}}"
+          --head-sha "${{{{ github.sha }}}}"
+          --event-schedule "${{{{ env.GITHUB_EVENT_SCHEDULE }}}}"
+          --workflow-path ".github/workflows/rate_production_{slot}_scheduler.yml"
+          --output artifacts/production_{slot}/RATE_PRODUCTION_SCHEDULER_PREACQUISITION_GATE.json
+
+''').encode()
+
+
 def intraday_workflow_matches_main(head: bytes, base: bytes) -> bool:
     timing_steps = (
         b"      - name: Capture CER-081 scheduler actual-timing evidence",
         b"      - name: Upload CER-081 scheduler actual-timing evidence",
     )
     if any(step in base.splitlines() for step in timing_steps):
-        return head == base
+        if head == base:
+            return True
+        # R2 permits exactly one complete timing gate; all other base bytes
+        # stay identical, including source, runtime, and publication controls.
+        for slot, cadence in (("0930", "09:30"), ("1200", "12:00")):
+            gate = _approved_preacquisition_gate(slot, cadence)
+            if head.count(gate) == 1 and head.replace(gate, b"", 1) == base:
+                return head.index(b"Capture CER-081 scheduler actual-timing evidence") < head.index(gate) < head.index(b"Build official production source bundle")
+        return False
 
     # Historical bases allow only the introduction of these two complete steps.
     unchanged_lines = []
@@ -52,6 +78,19 @@ class IntradayWorkflowComparisonTests(unittest.TestCase):
                b"        run: capture\n")
     upload = (b"      - name: Upload CER-081 scheduler actual-timing evidence\n"
               b"        uses: actions/upload-artifact@v4\n")
+
+    def test_r2_allows_only_exact_preacquisition_gate_addition(self):
+        base=(self.before+self.capture+
+              b"      - name: Build official production source bundle\n        run: source\n"+
+              self.upload)
+        for slot,cadence in (("0930","09:30"),("1200","12:00")):
+            gate=_approved_preacquisition_gate(slot,cadence)
+            head=base.replace(self.capture,self.capture+gate)
+            with self.subTest(slot=slot):
+                self.assertTrue(intraday_workflow_matches_main(head,base))
+                self.assertFalse(intraday_workflow_matches_main(head+gate,base))
+                self.assertFalse(intraday_workflow_matches_main(head.replace(b"--run-id",b"--unbound-run-id"),base))
+                self.assertFalse(intraday_workflow_matches_main(head.replace(b"run: source",b"run: fallback"),base))
 
     def test_latest_main_requires_identical_timing_and_runtime_bytes(self):
         base = self.before + self.capture + self.runtime + self.upload + self.after
