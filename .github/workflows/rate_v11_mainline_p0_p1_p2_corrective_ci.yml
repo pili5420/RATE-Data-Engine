@@ -1,0 +1,73 @@
+name: RATE V11 Mainline P0 P1 P2 Offline Corrective CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/full_market_catalogue.py
+      - scripts/build_phase2_production_source.py
+      - scripts/validate_production_scheduler_actual_timing.py
+      - .github/workflows/rate_production_0730_scheduler.yml
+      - .github/workflows/rate_production_0930_scheduler.yml
+      - .github/workflows/rate_production_1200_scheduler.yml
+      - .github/workflows/rate_production_1930_scheduler.yml
+      - tests/test_mainline_p0_p1_p2_corrective.py
+      - .github/workflows/rate_v11_mainline_p0_p1_p2_corrective_ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  offline-exact-head:
+    name: mainline-p0-p1-p2-offline (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    timeout-minutes: 30
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Assert exact PR head
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          actual="$(git rev-parse HEAD)"
+          echo "expected_head=$EXPECTED_HEAD actual_head=$actual"
+          test "$actual" = "$EXPECTED_HEAD"
+          git config core.autocrlf false
+          git checkout-index --all --force
+          git diff --exit-code
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install offline test dependencies
+        run: python -m pip install tzdata==2025.2 PyYAML==6.0.3
+      - name: Cross-platform mainline and governance regression
+        env:
+          RATE_MAINLINE_TEST_TMP: ${{ runner.temp }}
+        run: >-
+          python -B -m unittest -v
+          tests.test_mainline_p0_p1_p2_corrective
+          tests.test_cer081_scheduler_actual_timing
+          tests.test_production_acceptance_session
+          tests.test_production_scheduler_change_control
+      - name: Linux full-market and source regression
+        if: runner.os == 'Linux'
+        run: >-
+          python -B -m unittest -v
+          tests.test_full_market_history_catalogue_transport
+          tests.test_phase2_production
+          tests.test_route_b_acceptance_collector
+          tests.test_route_b_current_production_finalization
+          tests.test_phase2_compatibility
+      - name: No tracked mutation
+        run: git diff --exit-code
