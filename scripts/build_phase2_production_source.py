@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 
 from src.cer074_acceptance import atomic_write_json
@@ -53,6 +54,12 @@ def build_phase2_bundle(*, trading_date, cadence, output, evidence_output, state
             proposed_state_id=state["current_state_id"])
     except (RuntimeError, OSError, ValueError, KeyError, TypeError) as exc:
         evidence["blocking_reason"] = str(exc)
+        if str(exc) == "STALE_OR_FUTURE_CATALOGUE" and hasattr(exc, "catalogue_freshness_evidence"):
+            evidence["catalogue_freshness_evidence"] = {
+                **exc.catalogue_freshness_evidence,
+                "decision_time": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                "admission_result": "FAIL_CLOSED",
+            }
         if EXTERNAL_FEED in str(exc):
             evidence["blocked_dependencies"] = [EXTERNAL_FEED]
     atomic_write_json(Path(evidence_output), evidence)

@@ -191,6 +191,7 @@ def fetch_receipt(endpoint, *, html=False):
 
 def build_catalogue(trading_date, *, fetcher=fetch_receipt):
     evidence = []
+    classification_responses = []
     def capture_receipt(endpoint, *, html=False):
         try:
             body, receipt = fetcher(endpoint, html=html)
@@ -198,12 +199,32 @@ def build_catalogue(trading_date, *, fetcher=fetch_receipt):
             evidence.extend(exc.catalogue_transport_evidence)
             raise
         evidence.extend(receipt.get("transport_attempts", []))
+        if html and endpoint in CLASSIFICATION_ENDPOINTS.values():
+            classification_responses.append((endpoint, body, receipt))
         return body, receipt
     try:
         return _build_catalogue(trading_date, fetcher=capture_receipt)
     except Exception as exc:
         # Preserve earlier retries even if a later endpoint or semantic gate fails.
         exc.catalogue_transport_evidence = evidence
+        if str(exc) == "STALE_OR_FUTURE_CATALOGUE":
+            for endpoint, body, receipt in classification_responses:
+                market = next(m for m, path in CLASSIFICATION_ENDPOINTS.items() if path == endpoint)
+                as_of, _ = parse_classification(body, market)
+                if as_of != trading_date:
+                    exc.catalogue_freshness_evidence = {
+                        "source_owner": market, "endpoint": endpoint,
+                        "source_timestamp": as_of,
+                        "publication_time": "UNKNOWN_NOT_SUPPLIED_BY_SOURCE",
+                        "retrieval_time": receipt.get("retrieved_at"),
+                        "observation_time": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                        "requested_trading_date": trading_date,
+                        "classification": "OFFICIAL_DATE_BEFORE_NOMINAL_SLOT" if as_of < trading_date else "OFFICIAL_DATE_AFTER_NOMINAL_SLOT",
+                        "http_status": receipt.get("http_status"),
+                        "body_sha256": receipt.get("body_sha256"),
+                        "fallback_used": False,
+                    }
+                    break
         raise
 
 
