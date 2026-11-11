@@ -1,0 +1,32 @@
+{
+  "original_host_queried": false,
+  "review_date": "2026-10-18",
+  "separation": "Official docs establish source field meanings; cannot establish current original host identity, provider registration or safety qualification.",
+  "sources": [
+    {
+      "finding": "Startup setting parameters can differ from runtime usage. Read/write properties do not authorize writes.",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-pagefilesetting"
+    },
+    {
+      "finding": "Usage reports runtime pagefile state; does not independently prove per-drive management policy or accepted boot-applied history.",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-pagefileusage"
+    },
+    {
+      "finding": "AutomaticManagedPagefile is system-level; per-D qualification remains unproven.",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-computersystem"
+    },
+    {
+      "finding": "Initial-value properties are snapshots of TPM state. Neither lossless attestation nor a readiness certificate is established; no methods used.",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/secprov/win32-tpm"
+    },
+    {
+      "finding": "writable=false describes a read-only open, not protection against hostile local software or filesystem races.",
+      "url": "https://learn.microsoft.com/en-us/dotnet/api/microsoft.win32.registrykey.opensubkey"
+    },
+    {
+      "finding": "WQL literal backslashes need escaping; exact fixed filters are proposed without real dispatch.",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/wmisdk/where-clause"
+    }
+  ],
+  "version": "PF_PERSONAL_SOURCE_REVIEW_V1"
+}
