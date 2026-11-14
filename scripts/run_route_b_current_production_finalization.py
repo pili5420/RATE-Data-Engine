@@ -8,12 +8,8 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 
 from src.cer074_acceptance import atomic_write_json
-from src.route_b_acceptance_store import ACTIVATION_NAME, SESSION_NAME, SUMMARY_NAME
+from src.route_b_acceptance_store import load_store_snapshot
 from src.route_b_current_production_finalization import build_finalization
-
-
-def _read(path: Path):
-    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def main() -> int:
@@ -26,16 +22,17 @@ def main() -> int:
     store=Path(a.store_root)
     out=Path(a.output_dir)
     out.mkdir(parents=True,exist_ok=True)
-    if not (store/SESSION_NAME).is_file() or not (store/SUMMARY_NAME).is_file() or not (store/ACTIVATION_NAME).is_file():
-        result={"artifact":"RATE_ROUTE_B_CURRENT_PRODUCTION_FINALIZATION_PACKAGE_V1",
-                "validation_status":"PASS","runtime_mode":"NOOP_WAITING_FOR_SESSION",
-                "final_acceptance_granted":False}
-        atomic_write_json(out/"RATE_ROUTE_B_CURRENT_PRODUCTION_FINALIZATION_PACKAGE.json",result)
-        print(json.dumps(result,sort_keys=True))
-        return 0
     try:
-        session=_read(store/SESSION_NAME)
-        summary=_read(store/SUMMARY_NAME)
+        snapshot=load_store_snapshot(store)
+        if snapshot is None:
+            result={"artifact":"RATE_ROUTE_B_CURRENT_PRODUCTION_FINALIZATION_PACKAGE_V1",
+                    "validation_status":"PASS","runtime_mode":"NOOP_WAITING_FOR_SESSION",
+                    "final_acceptance_granted":False}
+            atomic_write_json(out/"RATE_ROUTE_B_CURRENT_PRODUCTION_FINALIZATION_PACKAGE.json",result)
+            print(json.dumps(result,sort_keys=True))
+            return 0
+        session=snapshot["session"]
+        summary=snapshot["summary"]
         if summary.get("completion_status")!="READY_FOR_CER081_FINAL_ACCEPTANCE":
             result={"artifact":"RATE_ROUTE_B_CURRENT_PRODUCTION_FINALIZATION_PACKAGE_V1",
                     "validation_status":"PASS","runtime_mode":"NOOP_SESSION_IN_PROGRESS",
@@ -47,7 +44,7 @@ def main() -> int:
             return 0
         package=build_finalization(
             a.repo_root,a.artifacts_root,
-            activation=_read(store/ACTIVATION_NAME),
+            activation=snapshot["activation"],
             session=session,
             session_summary=summary,
         )

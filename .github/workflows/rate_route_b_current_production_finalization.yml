@@ -4,19 +4,22 @@ on:
   push:
     branches: [main]
     paths:
-      - artifacts/production_acceptance/current/RATE_V11_PRODUCTION_ACCEPTANCE_SESSION_SUMMARY.json
+      - artifacts/production_acceptance/current/CURRENT_TRANSACTION.json
   pull_request:
     branches: [main]
     paths:
       - src/route_b_current_production_finalization.py
       - src/route_b_timing_provenance.py
       - scripts/run_route_b_current_production_finalization.py
+      - src/route_b_acceptance_store.py
+      - src/route_b_store_transaction.py
       - tests/test_route_b_current_production_finalization.py
+      - tests/test_route_b_store_transaction.py
       - tests/test_route_b_timing_provenance.py
       - .github/workflows/rate_route_b_current_production_finalization.yml
 
 permissions:
-  contents: write
+  contents: read
   actions: read
 
 concurrency:
@@ -27,6 +30,9 @@ jobs:
   finalize:
     if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -80,5 +86,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -B -m unittest tests.test_route_b_timing_provenance tests.test_route_b_current_production_finalization tests.test_current_production_final_acceptance tests.test_production_acceptance_session -v
+      - run: python -B -m unittest tests.test_route_b_timing_provenance tests.test_route_b_store_transaction tests.test_route_b_current_production_finalization tests.test_current_production_final_acceptance tests.test_production_acceptance_session -v
       - run: git diff --exit-code

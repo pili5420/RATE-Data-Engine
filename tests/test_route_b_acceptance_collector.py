@@ -103,7 +103,7 @@ class CollectorTests(unittest.TestCase):
         for delay in (120,900,900.9):
             with self.subTest(delay=delay), tempfile.TemporaryDirectory() as d:
                 load.side_effect=[{"state":{"current_state_id":"cur","decision":{}}},
-                                  {"state":{"current_state_id":"prev","decision":{}}}]
+                                  {"state":{"current_state_id":"prev","decision":{}}}]*2
                 slot=expected_slot_utc("2026-11-06","09:30")
                 timing=build_actual_timing_evidence(
                     {"id":7,"event":"schedule","path":CADENCE_WORKFLOWS["09:30"],
@@ -118,20 +118,33 @@ class CollectorTests(unittest.TestCase):
                 source.mkdir()
                 (source/"RATE_CER081_SCHEDULER_ACTUAL_TIMING_EVIDENCE.json").write_text(
                     json.dumps(timing),encoding="utf-8")
-                atomic_write_json(Path(d)/SESSION_NAME,package()["session"])
+                from src.route_b_store_transaction import publish_store
+                from src.route_b_acceptance_store import ACTIVATION_NAME, SUMMARY_NAME, PACKAGE_NAME
+                from src.production_acceptance_session import summarize_production_acceptance_session
+                candidate=package()
+                publish_store(d,{
+                    ACTIVATION_NAME:candidate["activation"],
+                    SESSION_NAME:candidate["session"],
+                    SUMMARY_NAME:summarize_production_acceptance_session(candidate["session"]),
+                    PACKAGE_NAME:candidate,
+                },expected_transaction_id=None)
                 if delay > 900:
                     with patch("src.route_b_acceptance_store.STORE_ROOT",Path(d)), \
+                         patch("src.route_b_acceptance_store.SOURCE_ARTIFACTS_ROOT",source), \
                          self.assertRaisesRegex(RuntimeError,"SCHEDULER_BLOCKING_DELAY"):
                         collect_scheduled_run(".","artifacts",source,d,
                                               cadence="09:30",source_run_id="7")
-                    self.assertEqual(load_session(d)["accepted_runs"],[])
+                    with patch("src.route_b_acceptance_store.STORE_ROOT",Path(d)):
+                        self.assertEqual(load_session(d)["accepted_runs"],[])
                     continue
-                with patch("src.route_b_acceptance_store.STORE_ROOT",Path(d)):
+                with patch("src.route_b_acceptance_store.STORE_ROOT",Path(d)), \
+                     patch("src.route_b_acceptance_store.SOURCE_ARTIFACTS_ROOT",source):
                     out=collect_scheduled_run(".","artifacts",source,d,
                                               cadence="09:30",source_run_id="7")
                 self.assertEqual(out["collector_result"],"RUN_ADMITTED")
                 self.assertTrue(out["session_written"])
-                accepted=load_session(d)["accepted_runs"]
+                with patch("src.route_b_acceptance_store.STORE_ROOT",Path(d)):
+                    accepted=load_session(d)["accepted_runs"]
                 self.assertEqual(accepted[0]["scheduler_actual_timing"],timing)
 
 

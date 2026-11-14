@@ -10,14 +10,20 @@ on:
     paths:
       - config/RATE_ROUTE_B_ACTIVATION_BASELINE_V1.json
       - src/route_b_activation_package.py
+      - src/route_b_acceptance_store.py
+      - src/route_b_store_transaction.py
+      - src/route_b_acceptance_collector.py
       - scripts/run_route_b_activation_package.py
       - tests/test_route_b_activation_package.py
+      - tests/test_route_b_acceptance_store.py
+      - tests/test_route_b_store_transaction.py
+      - tests/test_route_b_acceptance_collector.py
       - src/route_b_acceptance_overlay.py
       - src/route_b_post_merge_activation.py
       - .github/workflows/rate_route_b_activation_package_runtime.yml
 
 permissions:
-  contents: write
+  contents: read
   actions: read
 
 concurrency:
@@ -28,6 +34,9 @@ jobs:
   runtime:
     if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -88,5 +97,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -B -m unittest tests.test_route_b_activation_package tests.test_route_b_acceptance_overlay tests.test_route_b_post_merge_activation tests.test_route_b_acceptance_bridge tests.test_route_b_git_ancestry tests.test_route_b_acceptance_store tests.test_route_b_acceptance_collector -v
+      - run: python -B -m unittest tests.test_route_b_activation_package tests.test_route_b_acceptance_overlay tests.test_route_b_post_merge_activation tests.test_route_b_acceptance_bridge tests.test_route_b_git_ancestry tests.test_route_b_acceptance_store tests.test_route_b_store_transaction tests.test_route_b_acceptance_collector -v
       - run: git diff --exit-code

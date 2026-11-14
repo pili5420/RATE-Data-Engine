@@ -71,6 +71,9 @@ class StoreTests(unittest.TestCase):
         self.root=Path(self.temp.name)
         root=patch("src.route_b_acceptance_store.STORE_ROOT",self.root)
         root.start(); self.addCleanup(root.stop)
+        self.source_root=self.root/"source_artifacts"
+        source=patch("src.route_b_acceptance_store.SOURCE_ARTIFACTS_ROOT",self.source_root)
+        source.start(); self.addCleanup(source.stop)
 
     def create(self):
         candidate=package()
@@ -79,9 +82,13 @@ class StoreTests(unittest.TestCase):
                    side_effect=lambda **kw: {"workflow_run_id":str(kw["run_id"]),"run_attempt":1}):
             return persist_activation_package(candidate,self.root,source_run_id="3")
 
-    def verified(self,value=None):
-        with patch("src.route_b_acceptance_store.verify_timing_provenance",return_value=dict(RECEIPT)):
-            return _admit_verified_run_to_store(self.root,run() if value is None else value)
+    def verified(self,value=None,rebuild=None):
+        with patch("src.route_b_acceptance_store.verify_timing_provenance",return_value=dict(RECEIPT)), \
+             patch("src.route_b_acceptance_collector.reconstruct_scheduled_run",
+                   return_value=(run() if rebuild is None else rebuild,{},"2026-11-06",{})):
+            return _admit_verified_run_to_store(
+                self.root,run() if value is None else value,
+                source_artifacts=self.source_root)
 
     def test_activation_create_and_idempotent(self):
         self.assertEqual(self.create()["store_result"],"SESSION_CREATED")
@@ -119,13 +126,14 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(self.verified()["store_result"],"RUN_ADMITTED")
         self.assertEqual(self.verified()["store_result"],"IDEMPOTENT_NOOP_EXISTING_RUN")
         with self.assertRaisesRegex(RouteBAcceptanceStoreError,"CONFLICTING_DUPLICATE_RUN"):
-            self.verified(run(state="other"))
+            candidate=run(state="other")
+            self.verified(candidate,rebuild=candidate)
         self.assertEqual(load_session(self.root)["successful_cadence_runs"],1)
         self.assertEqual(len(load_session(self.root)["accepted_runs"]),1)
 
     def test_pre_session_run_noop_after_proof(self):
         self.create(); candidate=run(); candidate["trading_date"]="2026-11-05"
-        self.assertEqual(self.verified(candidate)["store_result"],"NOOP_PRE_SESSION_RUN")
+        self.assertEqual(self.verified(candidate,rebuild=candidate)["store_result"],"NOOP_PRE_SESSION_RUN")
         self.assertEqual(load_session(self.root)["successful_cadence_runs"],0)
 
     def test_arbitrary_destination_rejected(self):
@@ -154,7 +162,7 @@ class StoreTests(unittest.TestCase):
                 with patch("src.route_b_acceptance_store.verify_timing_provenance",
                            side_effect=TimingProvenanceError("SOURCE_BINDING_INVALID")):
                     with self.assertRaisesRegex(TimingProvenanceError,"SOURCE_BINDING_INVALID"):
-                        _admit_verified_run_to_store(self.root,candidate)
+                        _admit_verified_run_to_store(self.root,candidate,source_artifacts=self.source_root)
         self.assertEqual(load_session(self.root)["accepted_runs"],[])
 
     def test_missing_or_forged_receipt_rejected(self):
@@ -165,6 +173,27 @@ class StoreTests(unittest.TestCase):
             else: candidate["scheduler_timing_provenance"]=value
             with self.assertRaisesRegex(RouteBAcceptanceStoreError,"PROVENANCE_MISMATCH"):
                 self.verified(candidate)
+        self.assertEqual(load_session(self.root)["accepted_runs"],[])
+
+    def test_forged_business_claims_rejected_before_write(self):
+        self.create()
+        for field,value in (("current_state_id","forged"),
+                            ("decision_state_continuity",False),
+                            ("portfolio_continuity",False),
+                            ("transaction_ledger_continuity",False),
+                            ("ranking_model_continuity",False)):
+            with self.subTest(field=field):
+                candidate=run(); candidate[field]=value
+                with self.assertRaisesRegex(RouteBAcceptanceStoreError,
+                                            "RECONSTRUCTED_CLAIMS_MISMATCH"):
+                    self.verified(candidate)
+                self.assertEqual(load_session(self.root)["accepted_runs"],[])
+
+    def test_internal_writer_requires_fixed_evidence_root(self):
+        self.create()
+        with self.assertRaisesRegex(RouteBAcceptanceStoreError,
+                                    "SOURCE_ARTIFACTS_UNAUTHORIZED"):
+            _admit_verified_run_to_store(self.root,run())
         self.assertEqual(load_session(self.root)["accepted_runs"],[])
 
 
