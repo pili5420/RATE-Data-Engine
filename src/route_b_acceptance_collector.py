@@ -12,7 +12,7 @@ from src.production_live_state import load_live_state
 from src.phase2_production import validate_transition as validate_phase2_transition
 from src.route_b_acceptance_bridge import bind_overlay_run_to_session, bind_standard_run_to_session
 from src.route_b_acceptance_overlay import validate_overlay
-from src.route_b_acceptance_store import admit_run_to_store, load_session
+from src.route_b_acceptance_store import _admit_verified_run_to_store, _store_root, load_session
 from src.route_b_activation_package import _find_slot, baseline_policy
 from src.route_b_git_ancestry import build_ancestry_evidence
 
@@ -205,6 +205,7 @@ def collect_scheduled_run(
     cadence: str,
     source_run_id: str,
 ) -> dict[str,Any]:
+    _store_root(store_root)
     policy=baseline_policy()
     if policy["status"]!="ACTIVE":
         return {
@@ -292,7 +293,7 @@ def collect_scheduled_run(
             "ROUTE_B_COLLECTOR_PRE_SESSION_HISTORY_FORBIDDEN")
     provenance=verify_timing_provenance(run)
     run={**run,"scheduler_timing_provenance":provenance}
-    stored=admit_run_to_store(store_root,run)
+    stored=_admit_verified_run_to_store(store_root,run)
     return {
         "artifact":"RATE_ROUTE_B_ACCEPTANCE_COLLECTOR_RESULT_V1",
         "validation_status":"PASS",
