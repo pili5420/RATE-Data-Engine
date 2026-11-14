@@ -12,18 +12,20 @@ on:
     branches: [main]
     paths:
       - src/route_b_acceptance_store.py
+      - src/route_b_store_transaction.py
       - src/route_b_acceptance_collector.py
       - src/route_b_timing_provenance.py
       - scripts/persist_route_b_activation_session.py
       - scripts/run_route_b_acceptance_collector.py
       - tests/test_route_b_acceptance_store.py
+      - tests/test_route_b_store_transaction.py
       - tests/test_route_b_acceptance_collector.py
       - tests/test_route_b_timing_provenance.py
       - .github/workflows/rate_route_b_activation_package_runtime.yml
       - .github/workflows/rate_route_b_acceptance_ledger_collector.yml
 
 permissions:
-  contents: write
+  contents: read
   actions: read
 
 concurrency:
@@ -34,6 +36,9 @@ jobs:
   runtime:
     if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -124,5 +129,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -B -m unittest tests.test_route_b_timing_provenance tests.test_route_b_acceptance_store tests.test_route_b_acceptance_collector tests.test_route_b_activation_package tests.test_route_b_acceptance_bridge tests.test_production_acceptance_session -v
+      - run: python -B -m unittest tests.test_route_b_timing_provenance tests.test_route_b_acceptance_store tests.test_route_b_store_transaction tests.test_route_b_acceptance_collector tests.test_route_b_activation_package tests.test_route_b_acceptance_bridge tests.test_production_acceptance_session -v
       - run: git diff --exit-code

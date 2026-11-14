@@ -15,11 +15,12 @@ def main() -> int:
     p=argparse.ArgumentParser()
     p.add_argument("--package",required=True)
     p.add_argument("--store-root",required=True)
+    p.add_argument("--source-run-id",required=True)
     p.add_argument("--output",required=True)
     a=p.parse_args()
     try:
         package=json.loads(Path(a.package).read_text(encoding="utf-8"))
-        result=persist_activation_package(package,a.store_root)
+        result=persist_activation_package(package,a.store_root,source_run_id=a.source_run_id)
         atomic_write_json(Path(a.output),result)
         print(json.dumps(result,ensure_ascii=False,sort_keys=True))
         return 0

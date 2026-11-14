@@ -8,6 +8,7 @@ import io
 import json
 from pathlib import Path
 import unittest
+from unittest.mock import MagicMock, patch
 from zipfile import ZipFile, ZIP_DEFLATED
 
 from src.cer081_scheduler_actual_timing import (
@@ -15,7 +16,7 @@ from src.cer081_scheduler_actual_timing import (
 )
 from src.route_b_timing_provenance import (
     REPOSITORY, REPOSITORY_ID, WORKFLOW_IDS, TIMING_NAME, TimingProvenanceError,
-    verify_timing_provenance,
+    GitHubActionsReader, verify_scheduled_source_from_actions, verify_timing_provenance,
 )
 
 
@@ -84,15 +85,52 @@ def fixture(delay=120):
 
 
 class TimingProvenanceTests(unittest.TestCase):
+    def test_transport_allows_only_exact_verifier_endpoints(self):
+        response=MagicMock()
+        response.__enter__.return_value.status=200
+        response.__enter__.return_value.read.return_value=b"{}"
+        with patch("src.route_b_timing_provenance.build_opener") as opener:
+            opener.return_value.open.return_value=response
+            reader=GitHubActionsReader(token="synthetic-test-token")
+            self.assertEqual(reader.get("/actions/runs/123/artifacts?per_page=100"),b"{}")
+            self.assertEqual(reader.get("/actions/runs/123/attempts/1/jobs?per_page=100"),b"{}")
+            for path in ("/actions/runs/123/artifacts?per_page=200",
+                         "/actions/runs/123/jobs?per_page=100",
+                         "/actions/runs/123/../../repos", "/actions/runs/0"):
+                with self.subTest(path=path), self.assertRaisesRegex(
+                        TimingProvenanceError,"ENDPOINT_INVALID"):
+                    reader.get(path)
+            self.assertEqual(opener.return_value.open.call_count,2)
+        with patch("src.route_b_timing_provenance.build_opener") as opener:
+            with self.assertRaisesRegex(TimingProvenanceError,"TOKEN_MISSING"):
+                GitHubActionsReader(token="").get("/actions/runs/123")
+            opener.assert_not_called()
+
+    def test_activation_source_is_replayed_from_original_artifact(self):
+        row,data=fixture()
+        receipt=verify_scheduled_source_from_actions(
+            run_id=row["workflow_run_id"],cadence=row["cadence"],
+            trading_date=row["trading_date"],head_sha=row["run_head_sha"],
+            reader=Reader(data))
+        self.assertEqual(receipt["workflow_run_id"],"123")
+        self.assertEqual(receipt["run_attempt"],1)
+        with self.assertRaises(TimingProvenanceError):
+            verify_scheduled_source_from_actions(
+                run_id=row["workflow_run_id"],cadence=row["cadence"],
+                trading_date="2026-11-05",head_sha=row["run_head_sha"],
+                reader=Reader(data))
     def test_runtime_verifiers_receive_actions_read_token(self):
         workflows = Path(__file__).resolve().parents[1] / ".github" / "workflows"
         for filename, step in (
             ("rate_route_b_acceptance_ledger_collector.yml", "Collect scheduled run into acceptance ledger"),
             ("rate_route_b_current_production_finalization.yml", "Build finalization package"),
+            ("rate_route_b_activation_package_runtime.yml", "Persist activation session if active"),
         ):
             text = (workflows / filename).read_text(encoding="utf-8")
             self.assertIn("actions: read", text)
             self.assertIn("- name: " + step + "\n        env:\n          GH_TOKEN: ${{ github.token }}", text)
+            if filename == "rate_route_b_activation_package_runtime.yml":
+                self.assertIn('--source-run-id "${{ github.event.workflow_run.id }}"', text)
 
     def check(self, row, data):
         return verify_timing_provenance(row, reader=Reader(data))

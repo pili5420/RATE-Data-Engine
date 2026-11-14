@@ -12,7 +12,7 @@ from src.production_live_state import load_live_state
 from src.phase2_production import validate_transition as validate_phase2_transition
 from src.route_b_acceptance_bridge import bind_overlay_run_to_session, bind_standard_run_to_session
 from src.route_b_acceptance_overlay import validate_overlay
-from src.route_b_acceptance_store import admit_run_to_store, load_session
+from src.route_b_acceptance_store import _admit_verified_run_to_store, _store_root, load_session
 from src.route_b_activation_package import _find_slot, baseline_policy
 from src.route_b_git_ancestry import build_ancestry_evidence
 
@@ -205,6 +205,7 @@ def collect_scheduled_run(
     cadence: str,
     source_run_id: str,
 ) -> dict[str,Any]:
+    _store_root(store_root)
     policy=baseline_policy()
     if policy["status"]!="ACTIVE":
         return {
@@ -222,6 +223,34 @@ def collect_scheduled_run(
             "session_written":False,
         }
 
+    run,ancestry,day,manifest=reconstruct_scheduled_run(
+        repo_root,artifacts_root,source_artifacts,session,
+        cadence=cadence,source_run_id=source_run_id)
+    stored=_admit_verified_run_to_store(
+        store_root,run,source_artifacts=source_artifacts)
+    return {
+        "artifact":"RATE_ROUTE_B_ACCEPTANCE_COLLECTOR_RESULT_V1",
+        "validation_status":"PASS",
+        "collector_result":stored["store_result"],
+        "trading_date":day,
+        "cadence":cadence,
+        "source_workflow_run_id":str(source_run_id),
+        "source_head_sha":manifest.get("commit_sha"),
+        "activation_code_sha":session.get("activation_code_sha"),
+        "session_written":stored.get("session_written",False),
+        "store_result":stored,
+        "ancestry_evidence":ancestry,
+    }
+
+
+def reconstruct_scheduled_run(
+    repo_root: str | Path,
+    artifacts_root: str | Path,
+    source_artifacts: str | Path,
+    session: Mapping[str,Any],
+    *,cadence: str,source_run_id: str,
+) -> tuple[dict[str,Any],dict[str,Any],str,dict[str,Any]]:
+    """Rebuild all admission claims from source state and evidence; never write."""
     state_root=Path(artifacts_root)/"production_state"
     day,manifest=_find_slot(state_root,cadence,source_run_id)
     current=load_live_state(state_root,day,cadence)["state"]
@@ -292,17 +321,4 @@ def collect_scheduled_run(
             "ROUTE_B_COLLECTOR_PRE_SESSION_HISTORY_FORBIDDEN")
     provenance=verify_timing_provenance(run)
     run={**run,"scheduler_timing_provenance":provenance}
-    stored=admit_run_to_store(store_root,run)
-    return {
-        "artifact":"RATE_ROUTE_B_ACCEPTANCE_COLLECTOR_RESULT_V1",
-        "validation_status":"PASS",
-        "collector_result":stored["store_result"],
-        "trading_date":day,
-        "cadence":cadence,
-        "source_workflow_run_id":str(source_run_id),
-        "source_head_sha":manifest.get("commit_sha"),
-        "activation_code_sha":session.get("activation_code_sha"),
-        "session_written":stored.get("session_written",False),
-        "store_result":stored,
-        "ancestry_evidence":ancestry,
-    }
+    return run,ancestry,day,manifest

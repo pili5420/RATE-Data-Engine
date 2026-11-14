@@ -11,7 +11,8 @@ from src.cer081_scheduler_actual_timing import (
     CADENCE_CRONS, CADENCE_WORKFLOWS, build_actual_timing_evidence, expected_slot_utc,
 )
 from src.route_b_acceptance_collector import collect_scheduled_run, _phase2_standard_run
-from src.route_b_acceptance_store import persist_activation_package
+from src.cer074_acceptance import atomic_write_json
+from src.route_b_acceptance_store import SESSION_NAME
 
 MAIN="a"*40
 BIND="d"*40
@@ -46,18 +47,35 @@ class CollectorTests(unittest.TestCase):
                        return_value={"synthetic_source_verified":True})
         verifier.start()
         self.addCleanup(verifier.stop)
+        store_verifier=patch("src.route_b_acceptance_store.verify_timing_provenance",
+                             return_value={"synthetic_source_verified":True})
+        store_verifier.start()
+        self.addCleanup(store_verifier.stop)
+
+    @patch("src.route_b_acceptance_collector.baseline_policy")
+    def test_arbitrary_store_is_rejected_even_during_pending_baseline(self,policy):
+        policy.return_value={"status":"PENDING_BINDING"}
+        with tempfile.TemporaryDirectory() as d, \
+             patch("src.route_b_acceptance_store.STORE_ROOT",Path(d)):
+            with self.assertRaisesRegex(RuntimeError,"DESTINATION_UNAUTHORIZED"):
+                collect_scheduled_run(".","artifacts","source",Path(d)/"other",
+                                      cadence="09:30",source_run_id="1")
+            self.assertFalse((Path(d)/"other").exists())
 
     @patch("src.route_b_acceptance_collector.baseline_policy")
     def test_pending_is_noop(self,policy):
         policy.return_value={"status":"PENDING_BINDING"}
-        out=collect_scheduled_run(".","artifacts","source","store",cadence="09:30",source_run_id="1")
-        self.assertEqual(out["collector_result"],"NOOP_PENDING_BASELINE_BINDING")
+        with tempfile.TemporaryDirectory() as d, \
+             patch("src.route_b_acceptance_store.STORE_ROOT",Path(d)):
+            out=collect_scheduled_run(".","artifacts","source",d,cadence="09:30",source_run_id="1")
+            self.assertEqual(out["collector_result"],"NOOP_PENDING_BASELINE_BINDING")
 
     @patch("src.route_b_acceptance_collector.baseline_policy")
     def test_missing_session_is_noop(self,policy):
         policy.return_value={"status":"ACTIVE"}
         with tempfile.TemporaryDirectory() as d:
-            out=collect_scheduled_run(".","artifacts","source",d,cadence="09:30",source_run_id="1")
+            with patch("src.route_b_acceptance_store.STORE_ROOT",Path(d)):
+                out=collect_scheduled_run(".","artifacts","source",d,cadence="09:30",source_run_id="1")
             self.assertEqual(out["collector_result"],"NOOP_WAITING_FOR_ACTIVATION_SESSION")
 
     @patch("src.route_b_acceptance_collector.baseline_policy")
@@ -85,7 +103,7 @@ class CollectorTests(unittest.TestCase):
         for delay in (120,900,900.9):
             with self.subTest(delay=delay), tempfile.TemporaryDirectory() as d:
                 load.side_effect=[{"state":{"current_state_id":"cur","decision":{}}},
-                                  {"state":{"current_state_id":"prev","decision":{}}}]
+                                  {"state":{"current_state_id":"prev","decision":{}}}]*2
                 slot=expected_slot_utc("2026-11-06","09:30")
                 timing=build_actual_timing_evidence(
                     {"id":7,"event":"schedule","path":CADENCE_WORKFLOWS["09:30"],
@@ -100,18 +118,33 @@ class CollectorTests(unittest.TestCase):
                 source.mkdir()
                 (source/"RATE_CER081_SCHEDULER_ACTUAL_TIMING_EVIDENCE.json").write_text(
                     json.dumps(timing),encoding="utf-8")
-                persist_activation_package(package(),d)
+                from src.route_b_store_transaction import publish_store
+                from src.route_b_acceptance_store import ACTIVATION_NAME, SUMMARY_NAME, PACKAGE_NAME
+                from src.production_acceptance_session import summarize_production_acceptance_session
+                candidate=package()
+                publish_store(d,{
+                    ACTIVATION_NAME:candidate["activation"],
+                    SESSION_NAME:candidate["session"],
+                    SUMMARY_NAME:summarize_production_acceptance_session(candidate["session"]),
+                    PACKAGE_NAME:candidate,
+                },expected_transaction_id=None)
                 if delay > 900:
-                    with self.assertRaisesRegex(RuntimeError,"SCHEDULER_BLOCKING_DELAY"):
+                    with patch("src.route_b_acceptance_store.STORE_ROOT",Path(d)), \
+                         patch("src.route_b_acceptance_store.SOURCE_ARTIFACTS_ROOT",source), \
+                         self.assertRaisesRegex(RuntimeError,"SCHEDULER_BLOCKING_DELAY"):
                         collect_scheduled_run(".","artifacts",source,d,
                                               cadence="09:30",source_run_id="7")
-                    self.assertEqual(load_session(d)["accepted_runs"],[])
+                    with patch("src.route_b_acceptance_store.STORE_ROOT",Path(d)):
+                        self.assertEqual(load_session(d)["accepted_runs"],[])
                     continue
-                out=collect_scheduled_run(".","artifacts",source,d,
-                                          cadence="09:30",source_run_id="7")
+                with patch("src.route_b_acceptance_store.STORE_ROOT",Path(d)), \
+                     patch("src.route_b_acceptance_store.SOURCE_ARTIFACTS_ROOT",source):
+                    out=collect_scheduled_run(".","artifacts",source,d,
+                                              cadence="09:30",source_run_id="7")
                 self.assertEqual(out["collector_result"],"RUN_ADMITTED")
                 self.assertTrue(out["session_written"])
-                accepted=load_session(d)["accepted_runs"]
+                with patch("src.route_b_acceptance_store.STORE_ROOT",Path(d)):
+                    accepted=load_session(d)["accepted_runs"]
                 self.assertEqual(accepted[0]["scheduler_actual_timing"],timing)
 
 
