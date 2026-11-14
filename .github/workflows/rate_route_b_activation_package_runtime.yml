@@ -45,9 +45,12 @@ jobs:
           --artifacts-root artifacts
           --output-dir artifacts/production_acceptance/runtime
       - name: Persist activation session if active
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: >-
           python scripts/persist_route_b_activation_session.py
           --package artifacts/production_acceptance/runtime/RATE_ROUTE_B_ACTIVATION_RUNTIME_PACKAGE.json
+          --source-run-id "${{ github.event.workflow_run.id }}"
           --store-root artifacts/production_acceptance/current
           --output artifacts/production_acceptance/runtime/RATE_ROUTE_B_ACCEPTANCE_STORE_RESULT.json
       - name: Commit acceptance control state

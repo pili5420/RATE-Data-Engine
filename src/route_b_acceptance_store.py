@@ -4,13 +4,18 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
-from src.cer074_acceptance import atomic_write_json
+from src.cer074_acceptance import atomic_write_json, canonical
 from src.production_acceptance_session import admit_scheduled_run, summarize_production_acceptance_session
+from src.route_b_activation_package import build_runtime_package
+from src.route_b_timing_provenance import verify_scheduled_source_from_actions, verify_timing_provenance
 
 SESSION_NAME="RATE_V11_PRODUCTION_ACCEPTANCE_SESSION.json"
 SUMMARY_NAME="RATE_V11_PRODUCTION_ACCEPTANCE_SESSION_SUMMARY.json"
 ACTIVATION_NAME="RATE_POST_MERGE_PRODUCTION_ACTIVATION_VERIFICATION.json"
 PACKAGE_NAME="RATE_ROUTE_B_ACTIVATION_RUNTIME_PACKAGE.json"
+ROOT=Path(__file__).resolve().parents[1]
+STORE_ROOT=ROOT/"artifacts/production_acceptance/current"
+FORBIDDEN_CLAIMS={"permit","permit_id","owner_permit","actor","actor_id","authorized_actor"}
 
 
 class RouteBAcceptanceStoreError(RuntimeError):
@@ -36,7 +41,21 @@ def load_session(store_root: str | Path) -> dict[str,Any] | None:
     return _read(path) if path.is_file() else None
 
 
-def persist_activation_package(package: Mapping[str,Any], store_root: str | Path) -> dict[str,Any]:
+def _store_root(store_root: str | Path) -> Path:
+    require(Path(store_root).resolve()==STORE_ROOT.resolve(),
+            "ROUTE_B_STORE_DESTINATION_UNAUTHORIZED")
+    return STORE_ROOT
+
+
+def _reject_claims(value: Mapping[str,Any]) -> None:
+    require(not (FORBIDDEN_CLAIMS & value.keys()),
+            "ROUTE_B_STORE_CALLER_AUTHORITY_CLAIM_FORBIDDEN")
+
+
+def persist_activation_package(package: Mapping[str,Any], store_root: str | Path, *,
+                               source_run_id: str | None = None) -> dict[str,Any]:
+    root=_store_root(store_root)
+    _reject_claims(package)
     require(package.get("artifact")=="RATE_ROUTE_B_ACTIVATION_RUNTIME_PACKAGE_V1"
             and package.get("validation_status")=="PASS",
             "ROUTE_B_STORE_PACKAGE_INVALID")
@@ -55,8 +74,21 @@ def persist_activation_package(package: Mapping[str,Any], store_root: str | Path
     require(isinstance(session,Mapping)
             and session.get("artifact")=="RATE_V11_PRODUCTION_ACCEPTANCE_SESSION_V1",
             "ROUTE_B_STORE_SESSION_INVALID")
-
-    root=Path(store_root)
+    require(isinstance(source_run_id,str) and source_run_id.isdecimal()
+            and int(source_run_id)>0
+            and str(package.get("overlay_1200",{}).get("source_workflow_run_id"))==source_run_id,
+            "ROUTE_B_STORE_ACTIVATION_SOURCE_ID_REQUIRED")
+    rebuilt=build_runtime_package(ROOT,ROOT/"artifacts",source_1200_run_id=source_run_id)
+    require(canonical(rebuilt)==canonical(package),
+            "ROUTE_B_STORE_ACTIVATION_SOURCE_MISMATCH")
+    for cadence,key in (("09:30","overlay_0930"),("12:00","overlay_1200")):
+        overlay=package[key]
+        receipt=verify_scheduled_source_from_actions(
+            run_id=overlay["source_workflow_run_id"],cadence=cadence,
+            trading_date=overlay["trading_date"],head_sha=overlay["source_head_sha"])
+        require(receipt.get("workflow_run_id")==str(overlay["source_workflow_run_id"])
+                and receipt.get("run_attempt")==1,
+                "ROUTE_B_STORE_ACTIVATION_SCHEDULE_UNVERIFIED")
     root.mkdir(parents=True,exist_ok=True)
     existing=load_session(root)
     if existing is not None:
@@ -93,7 +125,22 @@ def admit_run_to_store(
     store_root: str | Path,
     run: Mapping[str,Any],
 ) -> dict[str,Any]:
-    root=Path(store_root)
+    """Legacy direct-helper entry is permanently fail-closed."""
+    _store_root(store_root)
+    raise RouteBAcceptanceStoreError("ROUTE_B_STORE_DIRECT_ADMISSION_FORBIDDEN")
+
+
+def _admit_verified_run_to_store(
+    store_root: str | Path,
+    run: Mapping[str,Any],
+) -> dict[str,Any]:
+    """Collector-only writer; independently replays GitHub evidence before writing."""
+    root=_store_root(store_root)
+    _reject_claims(run)
+    receipt=verify_timing_provenance(run)
+    require(run.get("scheduler_timing_provenance")==receipt,
+            "ROUTE_B_STORE_COLLECTOR_PROVENANCE_MISMATCH")
+    run={**run,"run_attempt":1}
     session=load_session(root)
     require(session is not None,"ROUTE_B_STORE_SESSION_MISSING")
     trading_date=run.get("trading_date")

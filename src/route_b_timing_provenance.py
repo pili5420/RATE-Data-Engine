@@ -5,6 +5,7 @@ import hashlib
 import io
 import json
 import os
+import re
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 from urllib.request import Request, build_opener, HTTPRedirectHandler
@@ -21,6 +22,13 @@ WORKFLOW_IDS = {"07:30": 368174775, "09:30": 368386687,
                 "12:00": 368386683, "19:30": 368386682}
 API = "https://api.github.com/repos/" + REPOSITORY
 TIMING_NAME = "RATE_CER081_SCHEDULER_ACTUAL_TIMING_EVIDENCE.json"
+_ALLOWED_ACTIONS_PATHS = tuple(re.compile(pattern) for pattern in (
+    r"/actions/runs/[1-9][0-9]*",
+    r"/actions/runs/[1-9][0-9]*/attempts/1",
+    r"/actions/runs/[1-9][0-9]*/attempts/1/jobs\?per_page=100",
+    r"/actions/runs/[1-9][0-9]*/artifacts\?per_page=100",
+    r"/actions/artifacts/[1-9][0-9]*/zip",
+))
 
 
 class TimingProvenanceError(RuntimeError):
@@ -40,7 +48,7 @@ class GitHubActionsReader:
 
     def get(self, path):
         require(self.token, "TIMING_PROVENANCE_GITHUB_TOKEN_MISSING")
-        require(path.startswith("/actions/") and ".." not in path and "?" not in path,
+        require(isinstance(path, str) and any(p.fullmatch(path) for p in _ALLOWED_ACTIONS_PATHS),
                 "TIMING_PROVENANCE_ENDPOINT_INVALID")
         req = Request(API + path, headers={
             "Accept": "application/vnd.github+json",
@@ -82,6 +90,45 @@ def _utc(value):
         raise TimingProvenanceError("TIMING_PROVENANCE_TIMESTAMP_INVALID") from exc
     require(instant.tzinfo is not None, "TIMING_PROVENANCE_TIMESTAMP_NAIVE")
     return instant.astimezone(timezone.utc)
+
+
+def verify_scheduled_source_from_actions(*, run_id, cadence, trading_date, head_sha, reader=None):
+    """Obtain original timing bytes from GitHub, then replay the full verifier."""
+    reader = reader if reader is not None else GitHubActionsReader()
+    run_id = str(run_id)
+    require(run_id.isdecimal() and int(run_id) > 0 and cadence in CADENCE_CRONS,
+            "TIMING_PROVENANCE_SOURCE_ID_INVALID")
+    artifacts = _json(reader, f"/actions/runs/{run_id}/artifacts?per_page=100")
+    require(artifacts.get("total_count") == len(artifacts.get("artifacts", []))
+            and len(artifacts["artifacts"]) <= 100,
+            "TIMING_PROVENANCE_ARTIFACTS_INCOMPLETE")
+    name = f"RATE_CER081_SCHEDULER_ACTUAL_TIMING_{cadence.replace(':', '')}_{run_id}"
+    matching = [a for a in artifacts["artifacts"] if a.get("name") == name]
+    require(len(matching) == 1 and matching[0].get("expired") is False,
+            "TIMING_PROVENANCE_ARTIFACT_MISSING_OR_EXPIRED")
+    artifact = matching[0]
+    artifact_id = artifact.get("id")
+    require(type(artifact_id) is int and artifact_id > 0,
+            "TIMING_PROVENANCE_ARTIFACT_ID_INVALID")
+    archive = reader.get(f"/actions/artifacts/{artifact_id}/zip")
+    require(artifact.get("digest") == "sha256:" + hashlib.sha256(archive).hexdigest(),
+            "TIMING_PROVENANCE_ARTIFACT_DIGEST_MISMATCH")
+    try:
+        with ZipFile(io.BytesIO(archive)) as z:
+            require(z.namelist() == [TIMING_NAME], "TIMING_PROVENANCE_ARTIFACT_MEMBERS_INVALID")
+            timing = json.loads(z.read(TIMING_NAME))
+    except (BadZipFile, KeyError, ValueError) as exc:
+        raise TimingProvenanceError("TIMING_PROVENANCE_ARTIFACT_BYTES_INVALID") from exc
+    jobs = _json(reader, f"/actions/runs/{run_id}/attempts/1/jobs?per_page=100")
+    require(jobs.get("total_count") == len(jobs.get("jobs", []))
+            and len(jobs["jobs"]) <= 100, "TIMING_PROVENANCE_JOBS_INCOMPLETE")
+    matches = [j for j in jobs["jobs"] if j.get("name") == "production-" + cadence.replace(":", "")]
+    require(len(matches) == 1 and type(matches[0].get("id")) is int,
+            "TIMING_PROVENANCE_JOB_MISMATCH")
+    row = {"workflow_run_id": run_id, "workflow_job_id": matches[0]["id"],
+           "cadence": cadence, "trading_date": trading_date, "run_head_sha": head_sha,
+           "event": "schedule", "scheduler_actual_timing": timing}
+    return verify_timing_provenance(row, reader=reader)
 
 
 def verify_timing_provenance(run, *, reader=None):
