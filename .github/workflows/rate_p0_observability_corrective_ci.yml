@@ -42,10 +42,23 @@ jobs:
         run: |
           git config core.autocrlf false
           git checkout-index --all --force
+          for file in \
+            artifacts/production_state/live/2026-10-02/1930/*.json \
+            config/RATE_FOUR_CADENCE_REPORT_SOAK_V1.json \
+            src/report_production_soak.py \
+            src/public_official_partial_valid.py \
+            src/sources/fundamental_history.py \
+            src/feature_math.py \
+            src/rate_logic.py \
+            src/cer081_unattended_soak.py; do
+            git show "HEAD:$file" > "$file"
+          done
           git diff --exit-code
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install existing YAML test dependency
+        run: python -m pip install PyYAML==6.0.3
       - name: Offline source, scheduler, and Phase 2 regression
         run: >-
           python -B -m unittest
