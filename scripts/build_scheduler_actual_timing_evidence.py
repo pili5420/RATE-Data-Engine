@@ -14,6 +14,7 @@ from src.cer081_scheduler_actual_timing import build_actual_timing_evidence
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--github-run-json", required=True)
+    p.add_argument("--github-job-json")
     p.add_argument("--cadence", required=True)
     p.add_argument("--trading-date", required=True)
     p.add_argument("--event-schedule", required=True)
@@ -24,6 +25,7 @@ def main() -> None:
     args = p.parse_args()
 
     run_api = json.loads(Path(args.github_run_json).read_text(encoding="utf-8"))
+    job_api = json.loads(Path(args.github_job_json).read_text(encoding="utf-8")) if args.github_job_json else None
     evidence = build_actual_timing_evidence(
         run_api,
         cadence=args.cadence,
@@ -32,6 +34,7 @@ def main() -> None:
         workflow_path=args.workflow_path,
         expected_run_id=args.expected_run_id,
         expected_head_sha=args.expected_head_sha,
+        job_api=job_api,
     )
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)

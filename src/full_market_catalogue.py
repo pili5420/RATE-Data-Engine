@@ -14,6 +14,8 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from .cer074_acceptance import sha256
+from .p0_source_diagnostics import (attach_response, bounded_date_value, new_receipt,
+                                    utc_now, write_evidence)
 from .production_live_state import require
 
 POLICY_PATH = Path(__file__).resolve().parents[1] / "config/RATE_PHASE2_CHANGE_REQUEST_V1.json"
@@ -31,6 +33,31 @@ class CatalogueTransportError(RuntimeError):
     def __init__(self, message, evidence):
         super().__init__(message)
         self.catalogue_transport_evidence = evidence
+
+
+def _safe_transport_evidence(evidence, approved_endpoint):
+    """Keep retry metadata without response headers, redirects, or exception text."""
+    fields = ("source_owner", "market", "request_type", "attempt_number", "http_status",
+              "bytes_actually_read", "bytes_remaining", "expected_response_bytes", "fallback_used",
+              "partial_response_bytes", "partial_body_sha256", "partial_body_hash_authoritative",
+              "retrieval_timestamp", "retry_decision")
+    safe = {key: evidence[key] for key in fields if key in evidence}
+    safe["endpoint"] = approved_endpoint
+    safe["final_url"] = approved_endpoint if evidence.get("final_url") == approved_endpoint else None
+    content_type = evidence.get("content_type")
+    media = str(content_type).split(";", 1)[0].strip().lower() if content_type is not None else None
+    safe["content_type"] = media if media in {"text/html", "application/json"} else "OTHER" if media else None
+    length = evidence.get("content_length")
+    safe["content_length"] = int(length) if str(length).isdigit() else None
+    allowed_classes = {"IncompleteRead", "HTTPError", "URLError", "TimeoutError", "ConnectionError",
+                       "ConnectionResetError", "RuntimeError"}
+    exception_class = evidence.get("exception_class")
+    safe["exception_class"] = exception_class if exception_class in allowed_classes else "OTHER" if exception_class else None
+    safe["failure_reason"] = ("NONE" if evidence.get("retry_decision") == "ACCEPT_COMPLETE_RESPONSE" else
+                              "UNAPPROVED_REDIRECT" if safe["final_url"] is None and evidence.get("final_url") else
+                              "HTTP_FAILURE" if safe.get("http_status") not in (None, 200) else
+                              "TRANSPORT_FAILED")
+    return safe
 
 
 def approved_policy():
@@ -167,13 +194,13 @@ def fetch_receipt(endpoint, *, html=False):
             if unapproved_redirect:
                 retriable = False
             will_retry = retriable and attempt < CATALOGUE_MAX_ATTEMPTS
-            evidence.update(exception_class=type(exc).__name__, exception_message=str(exc),
+            evidence.update(exception_class=type(exc).__name__,
                             retrieval_timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
                             retry_decision="RETRY_SAME_OFFICIAL_ENDPOINT" if will_retry else
                             "FAIL_CLOSED_RETRY_EXHAUSTED" if retriable else "FAIL_CLOSED_NON_RETRIABLE")
-            attempts.append(evidence)
+            attempts.append(_safe_transport_evidence(evidence, endpoint))
             if not will_retry:
-                message = str(exc) if isinstance(exc, RuntimeError) else f"CATALOGUE_TRANSPORT_FAILED:{type(exc).__name__}:{exc}"
+                message = str(exc) if isinstance(exc, RuntimeError) and re.fullmatch(r"CATALOGUE_[A-Z0-9_]+", str(exc)) else "CATALOGUE_TRANSPORT_FAILED"
                 if unapproved_redirect:
                     message = "CATALOGUE_UNAPPROVED_REDIRECT"
                 raise CatalogueTransportError(message, attempts) from exc
@@ -181,30 +208,109 @@ def fetch_receipt(endpoint, *, html=False):
             continue
         now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         evidence.update(retrieval_timestamp=now, retry_decision="ACCEPT_COMPLETE_RESPONSE")
-        attempts.append(evidence)
+        attempts.append(_safe_transport_evidence(evidence, endpoint))
         # Only a complete, validated transport may produce an authoritative receipt hash.
         return body, {"endpoint": endpoint, "final_url": evidence["final_url"], "http_status": evidence["http_status"],
-                      "content_type": evidence["content_type"], "content_length": evidence["content_length"],
+                      "content_type": attempts[-1]["content_type"], "content_length": attempts[-1]["content_length"],
                       "response_bytes": len(body), "body_sha256": hashlib.sha256(body).hexdigest(),
                       "retrieved_at": now, "fallback_used": False, "attempt_count": attempt, "transport_attempts": attempts}
 
 
-def build_catalogue(trading_date, *, fetcher=fetch_receipt):
+def build_catalogue(trading_date, *, fetcher=fetch_receipt, diagnostic_output=None):
     evidence = []
+    diagnostics = []
     def capture_receipt(endpoint, *, html=False):
+        diagnostic = None
+        if html and diagnostic_output is not None:
+            market = next(market for market, approved in CLASSIFICATION_ENDPOINTS.items() if approved == endpoint)
+            diagnostic = new_receipt(market, trading_date)
+            diagnostics.append(diagnostic)
         try:
             body, receipt = fetcher(endpoint, html=html)
         except CatalogueTransportError as exc:
             evidence.extend(exc.catalogue_transport_evidence)
+            if diagnostic is not None:
+                diagnostics.pop()
+                for attempt in exc.catalogue_transport_evidence or [{}]:
+                    item = new_receipt(market, trading_date, attempt.get("retrieval_timestamp") or None,
+                                       attempt.get("attempt_number", 1))
+                    if attempt.get("retrieval_timestamp"):
+                        item["timestamp_source"] = "RUNTIME_CLOCK_AT_TRANSPORT_FAILURE"
+                    item["http_status"] = attempt.get("http_status")
+                    item["content_type"] = attempt.get("content_type")
+                    digest = attempt.get("partial_body_sha256")
+                    if digest:
+                        item.update(response_sha256=digest, response_bytes=attempt.get("partial_response_bytes", 0), hash_scope="PARTIAL_BYTES")
+                    item.update(freshness_decision="BLOCK", failure_reason="HTTP_FAILURE" if attempt.get("http_status") and attempt.get("http_status") != 200 else "TRANSPORT_FAILED")
+                    diagnostics.append(item)
+            raise
+        except Exception:
+            if diagnostic is not None:
+                diagnostic.update(freshness_decision="BLOCK", failure_reason="TRANSPORT_FAILED")
             raise
         evidence.extend(receipt.get("transport_attempts", []))
+        if diagnostic is not None:
+            attempts = receipt.get("transport_attempts") or []
+            if len(attempts) > 1:
+                diagnostics.pop()
+                for attempt in attempts[:-1]:
+                    item = new_receipt(market, trading_date, attempt.get("retrieval_timestamp") or None,
+                                       attempt.get("attempt_number", 1))
+                    if attempt.get("retrieval_timestamp"):
+                        item["timestamp_source"] = "RUNTIME_CLOCK_AT_TRANSPORT_FAILURE"
+                    item["http_status"] = attempt.get("http_status")
+                    item["content_type"] = attempt.get("content_type")
+                    digest = attempt.get("partial_body_sha256")
+                    if digest:
+                        item.update(response_sha256=digest, response_bytes=attempt.get("partial_response_bytes", 0), hash_scope="PARTIAL_BYTES")
+                    item.update(freshness_decision="BLOCK", failure_reason="HTTP_FAILURE" if attempt.get("http_status") and attempt.get("http_status") != 200 else "TRANSPORT_FAILED")
+                    diagnostics.append(item)
+                diagnostic["attempt_number"] = attempts[-1].get("attempt_number", len(attempts))
+                diagnostics.append(diagnostic)
+            diagnostic["http_status"] = receipt.get("http_status")
+            diagnostic["content_type"] = receipt.get("content_type")
+            attach_response(diagnostic, body, complete=True)
+            diagnostic["actual_execution_timestamp_utc"] = receipt.get("retrieved_at") or utc_now()
+            diagnostic["timestamp_source"] = "RUNTIME_CLOCK_AT_RESPONSE_RECEIPT" if receipt.get("retrieved_at") else "RUNTIME_CLOCK_AT_ENDPOINT_ATTEMPT"
+            try:
+                match = re.search(r"Date Stock Updated:\s*([^\r\n<]{1,64})", body.decode("big5"))
+                diagnostic["date_stock_updated_raw"] = bounded_date_value(match[1].strip()) if match else None
+            except (UnicodeError, ValueError):
+                pass
+            try:
+                as_of, _ = parse_classification(body, market)
+            except Exception as exc:
+                reason = str(exc)
+                diagnostic.update(freshness_decision="BLOCK", failure_reason=(
+                    "ASOF_MISSING" if reason == "CATALOGUE_ASOF_MISSING" and diagnostic["date_stock_updated_raw"] is None
+                    else "DATE_PARSE_FAILED" if reason == "CATALOGUE_ASOF_MISSING" or isinstance(exc, ValueError)
+                    else "SCHEMA_INVALID"))
+                raise
+            diagnostic["parsed_date"] = as_of
+            diagnostic.update(freshness_decision="PASS" if as_of == trading_date else "BLOCK",
+                              failure_reason="NONE" if as_of == trading_date else "SOURCE_DATE_MISMATCH")
         return body, receipt
     try:
-        return _build_catalogue(trading_date, fetcher=capture_receipt)
+        result = _build_catalogue(trading_date, fetcher=capture_receipt)
     except Exception as exc:
         # Preserve earlier retries even if a later endpoint or semantic gate fails.
         exc.catalogue_transport_evidence = evidence
+        if diagnostic_output is not None:
+            try:
+                write_evidence(diagnostic_output, diagnostics, trading_date)
+            except (OSError, TypeError, ValueError) as persistence_exc:
+                failure = RuntimeError("SOURCE_DIAGNOSTIC_PERSISTENCE_FAILED")
+                failure.primary_failure_reason = str(exc) if str(exc) in {
+                    "STALE_OR_FUTURE_CATALOGUE", "CATALOGUE_ASOF_MISSING", "CATALOGUE_SCHEMA_INVALID",
+                    "CATALOGUE_RECORD_INVALID", "CATALOGUE_EMPTY"} else "SOURCE_ACQUISITION_FAILED"
+                raise failure from persistence_exc
         raise
+    if diagnostic_output is not None:
+        try:
+            write_evidence(diagnostic_output, diagnostics, trading_date)
+        except (OSError, TypeError, ValueError) as exc:
+            raise RuntimeError("SOURCE_DIAGNOSTIC_PERSISTENCE_FAILED") from exc
+    return result
 
 
 def _build_catalogue(trading_date, *, fetcher):

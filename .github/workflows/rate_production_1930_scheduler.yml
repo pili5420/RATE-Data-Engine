@@ -87,9 +87,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}" > "artifacts/production_1930/GITHUB_ACTIONS_RUN_API.json"
+          gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}" > "$RUNNER_TEMP/GITHUB_ACTIONS_RUN_API.json"
+          gh api "repos/${{ github.repository }}/actions/jobs/$ACTIONS_JOB_ID" > "$RUNNER_TEMP/GITHUB_ACTIONS_JOB_API.json"
           python scripts/build_scheduler_actual_timing_evidence.py \
-            --github-run-json "artifacts/production_1930/GITHUB_ACTIONS_RUN_API.json" \
+            --github-run-json "$RUNNER_TEMP/GITHUB_ACTIONS_RUN_API.json" \
+            --github-job-json "$RUNNER_TEMP/GITHUB_ACTIONS_JOB_API.json" \
             --cadence "19:30" \
             --trading-date "${{ env.RATE_PRODUCTION_TRADING_DATE }}" \
             --event-schedule "${{ env.GITHUB_EVENT_SCHEDULE }}" \
@@ -116,6 +118,24 @@ jobs:
           --rate-source-url "$RATE_SOURCE_URL"
           --output artifacts/production_1930/RATE_PRODUCTION_SOURCE_BUNDLE.json
           --evidence-output artifacts/production_1930/RATE_PRODUCTION_OFFICIAL_SOURCE_INGESTION_EVIDENCE.json
+
+      - name: Upload P0 source diagnostic evidence
+        if: ${{ success() && github.event_name != 'push' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_P0_SOURCE_DIAGNOSTIC_${{ github.run_id }}
+          path: artifacts/production_1930/RATE_P0_SOURCE_DIAGNOSTIC_EVIDENCE.json
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Upload blocked P0 source diagnostic evidence
+        if: ${{ failure() && github.event_name != 'push' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: RATE_P0_SOURCE_DIAGNOSTIC_BLOCKED_${{ github.run_id }}
+          path: artifacts/production_1930/RATE_P0_SOURCE_DIAGNOSTIC_EVIDENCE.json
+          retention-days: 7
+          if-no-files-found: warn
 
       - name: Execute Phase2 dynamic 19:30 full-market refresh
         if: ${{ github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}

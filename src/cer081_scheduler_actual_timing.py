@@ -57,6 +57,7 @@ def build_actual_timing_evidence(
     expected_run_id: str,
     expected_head_sha: str,
     blocking_delay_seconds: int = DEFAULT_BLOCKING_DELAY_SECONDS,
+    job_api: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     _require(cadence in CADENCE_CRONS, "SCHEDULER_TIMING_UNKNOWN_CADENCE")
     _require(event_schedule == CADENCE_CRONS[cadence], "SCHEDULER_TIMING_EVENT_CRON_MISMATCH")
@@ -78,6 +79,34 @@ def build_actual_timing_evidence(
     if delay.is_integer():
         delay = int(delay)
 
+    job_started = None
+    job_status = "UNAVAILABLE"
+    if job_api is not None:
+        try:
+            job_started = _parse_utc(job_api.get("started_at"), "SCHEDULER_TIMING_JOB_STARTED_AT_MISSING")
+            if str(job_api.get("run_id")) != str(expected_run_id) or job_started < started:
+                raise SchedulerActualTimingError("SCHEDULER_TIMING_JOB_BINDING_INVALID")
+            job_status = "PASS"
+        except SchedulerActualTimingError:
+            job_started = None
+            job_status = "INVALID"
+    diagnostics = {
+        "schema_id": "RATE-P0-SCHEDULER-DIAGNOSTIC-V1",
+        "nominal_cron_time_utc": slot.isoformat().replace("+00:00", "Z"),
+        "nominal_cron_provenance": "DERIVED_FROM_TAIPEI_TRADING_DATE_AND_FROZEN_CRON",
+        "github_run_created_at": created.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "github_run_started_at": started.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "github_run_timestamp_provenance": "GITHUB_ACTIONS_RUN_API",
+        "github_job_started_at": job_started.astimezone(timezone.utc).isoformat().replace("+00:00", "Z") if job_started else None,
+        "github_job_timestamp_provenance": "GITHUB_ACTIONS_JOB_API" if job_started else None,
+        "github_job_timestamp_status": job_status,
+        "schedule_triggered_at": None,
+        "schedule_triggered_at_unavailable_reason": "NOT_EXPOSED",
+        "run_queue_delay_seconds": (started - created).total_seconds() if created <= started else None,
+        "job_start_lag_seconds": (job_started - started).total_seconds() if job_started else None,
+        "scheduler_start_delay_seconds": delay,
+        "observability_status": "PASS" if job_status == "PASS" and created <= started else "FAIL",
+    }
     return {
         "artifact": "RATE_CER081_SCHEDULER_ACTUAL_TIMING_EVIDENCE_V1",
         "validation_status": "PASS",
@@ -100,6 +129,7 @@ def build_actual_timing_evidence(
         "wall_clock_only_evidence": False,
         "post_hoc_date_inference_used": False,
         "binding_method": "RUN_ID + EVENT_SCHEDULE + RUNTIME_TRADING_DATE + ACTIONS_API_TIMESTAMPS",
+        "p0_scheduler_diagnostics": diagnostics,
     }
 
 

@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -21,7 +22,9 @@ def publish_state(*, persist_evidence_path, trading_date, cadence, artifacts_roo
                   state_root=None, event_name=None, commit_sha=None, ref=None, phase2=False, source_bundle_path=None):
     out = {"artifact": "RATE_PRODUCTION_STATE_LIVE_UPDATE_EVIDENCE", "validation_status": "BLOCKED",
            "workflow_run_id": workflow_run_id, "workflow_job_id": workflow_job_id,
-           "trading_date": trading_date, "cadence": cadence, "checks": {}, "live_state_updated": False}
+           "trading_date": trading_date, "cadence": cadence, "checks": {}, "live_state_updated": False,
+           "publication_decision_at": None, "publication_decision_timestamp_source": "RUNTIME_CLOCK_BEFORE_STATE_PUBLICATION",
+           "publication_decision": "NOT_REACHED", "publication_decision_scope": "LIVE_STATE_POINTER"}
     try:
         event_name = event_name or os.getenv("GITHUB_EVENT_NAME")
         commit_sha = commit_sha or os.getenv("GITHUB_SHA")
@@ -97,6 +100,8 @@ def publish_state(*, persist_evidence_path, trading_date, cadence, artifacts_roo
                 require(read_object(path) == expected, "LIVE_STATE_IMMUTABLE_CONFLICT")
         manifest_path = directory / MANIFEST_NAME
         already_complete = manifest_path.exists()
+        out["publication_decision_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        out["publication_decision"] = "PUBLISH"
         if already_complete:
             load_live_state(root / "production_state", trading_date, cadence)
         else:
@@ -130,6 +135,8 @@ def publish_state(*, persist_evidence_path, trading_date, cadence, artifacts_roo
                    idempotency_result="IDEMPOTENT_NOOP" if already_complete else "PERSISTED")
     except (RuntimeError, OSError, ValueError, KeyError, TypeError) as exc:
         out["blocking_reason"] = str(exc)
+        if out["publication_decision_at"] is not None:
+            out["publication_decision"] = "BLOCK"
     if evidence_output:
         atomic_write_json(Path(evidence_output), out)
     return out

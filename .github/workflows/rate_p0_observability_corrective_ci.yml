@@ -1,0 +1,60 @@
+name: RATE P0 Observability Corrective CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/rate_p0_observability_corrective_ci.yml
+      - .github/workflows/rate_production_*_scheduler.yml
+      - scripts/build_phase2_production_source.py
+      - scripts/build_scheduler_actual_timing_evidence.py
+      - scripts/publish_production_state_latest.py
+      - src/p0_source_diagnostics.py
+      - src/full_market_catalogue.py
+      - src/full_market_materialization.py
+      - src/cer081_scheduler_actual_timing.py
+      - tests/test_p0_observability.py
+      - tests/test_full_market_history_catalogue_transport.py
+      - tests/test_phase2_compatibility.py
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Restore exact Git bytes
+        shell: bash
+        run: |
+          git config core.autocrlf false
+          git checkout-index --all --force
+          git diff --exit-code
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Offline source, scheduler, and Phase 2 regression
+        run: >-
+          python -B -m unittest
+          tests.test_p0_observability
+          tests.test_full_market_history_catalogue_transport
+          tests.test_phase2_production
+          tests.test_cer081_scheduler_actual_timing
+          tests.test_cer081_scheduler_lock_validation
+          tests.test_phase2_compatibility
+          -v
+      - name: No tracked mutation
+        run: git diff --exit-code
