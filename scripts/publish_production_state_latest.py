@@ -145,7 +145,9 @@ def publish_state(*, persist_evidence_path, trading_date, cadence, artifacts_roo
                    idempotency_result="IDEMPOTENT_NOOP" if already_complete else "PERSISTED")
         out["publication_decision_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         out["publication_decision"] = "PUBLISH"
-        out["final_observed_state"] = "LIVE_STATE_AND_POINTER_VERIFIED"
+        out["final_observed_state"] = (
+            "LIVE_STATE_AND_POINTER_VERIFIED" if out["write_results"]["LATEST"] == "PERSISTED"
+            else "LIVE_STATE_VERIFIED_POINTER_UNCHANGED")
     except (RuntimeError, OSError, ValueError, KeyError, TypeError) as exc:
         out["blocking_reason"] = safe_reason(exc, "LIVE_STATE_PUBLICATION_FAILED")
         out["publication_decision_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")

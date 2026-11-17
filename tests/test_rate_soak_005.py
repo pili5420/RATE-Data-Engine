@@ -650,6 +650,7 @@ class RateSoak005Tests(unittest.TestCase):
         before = (self.artifacts / "RATE_PRODUCTION_STATE_LATEST.json").read_bytes()
         replay, _ = self.publish("2026-09-30", "09:30", previous)
         self.assertEqual(replay["idempotency_result"], "IDEMPOTENT_NOOP")
+        self.assertEqual(replay["final_observed_state"], "LIVE_STATE_VERIFIED_POINTER_UNCHANGED")
         self.assertEqual(before, (self.artifacts / "RATE_PRODUCTION_STATE_LATEST.json").read_bytes())
         fork_previous = copy.deepcopy(previous)
         fork_previous["decision"]["ai_paper_portfolio"]["cash"] += 1
