@@ -351,6 +351,7 @@ class FullMarketRotationTests(unittest.TestCase):
                 ["git", "-C", str(ROOT), "rev-parse", f"HEAD:{name}"]
             ).decode().strip()
             self.assertEqual(head_blob, base_blob, name)
+        cer081_workflow = ".github/workflows/rate_cer081_unattended_multi_day_soak.yml"
         # CER-081 may change only its scheduler-evidence collector boundary here.
         # Preserve the frozen Production/owner/state/account/bootstrap workflow semantics.
         current_main = subprocess.check_output(
