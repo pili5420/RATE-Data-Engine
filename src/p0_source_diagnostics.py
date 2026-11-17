@@ -29,6 +29,9 @@ APPROVED_REASONS = {
     "LIVE_PREVIOUS_PRODUCTION_STATE_MISSING",
     "ADMISSION_FAIL",
 }
+APPROVED_REASONS.update("PUBLIC_PROTECTED_STATE_CHANGED:" + key for key in (
+    "roy_portfolio", "ai_paper_portfolio", "ai_paper_portfolio_ledger",
+    "transaction_ledger", "top50", "short_top30", "long_top30", "model_learning_state"))
 DATE_VALUE = re.compile(r"[0-9]{4}[/.-][0-9]{1,4}[/.-][0-9]{1,4}\Z")
 
 

@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 from src.full_market_catalogue import build_catalogue, CLASSIFICATION_ENDPOINTS, LISTING_ENDPOINTS, CatalogueTransportError
-from src.p0_source_diagnostics import new_receipt, write_evidence
+from src.p0_source_diagnostics import new_receipt, safe_reason, write_evidence
 from src.cer081_scheduler_actual_timing import (CADENCE_CRONS, CADENCE_WORKFLOWS,
     build_actual_timing_evidence, expected_slot_utc, summarize_actual_timing_evidence)
 from scripts.build_phase2_production_source import build_phase2_bundle
@@ -185,6 +185,10 @@ class SourceDiagnosticsTests(unittest.TestCase):
         self.assertEqual(state["publication_decision"], "BLOCK")
         self.assertNotIn("SECRET_TOKEN_ABC", json.dumps(captured))
         self.assertEqual(state["blocking_reason"], "LIVE_STATE_PUBLICATION_FAILED")
+        self.assertEqual(safe_reason("PUBLIC_PROTECTED_STATE_CHANGED:top50", "LIVE_STATE_PUBLICATION_FAILED"),
+                         "PUBLIC_PROTECTED_STATE_CHANGED:top50")
+        self.assertEqual(safe_reason("PUBLIC_PROTECTED_STATE_CHANGED:SECRET_TOKEN_ABC", "LIVE_STATE_PUBLICATION_FAILED"),
+                         "LIVE_STATE_PUBLICATION_FAILED")
 
     def test_source_publication_write_and_preflight_failures(self):
         for boundary in ("bundle_write", "preflight"):
