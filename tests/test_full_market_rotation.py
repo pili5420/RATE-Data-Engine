@@ -17,7 +17,7 @@ from src.production_live_state import ARTIFACTS, CADENCE_DIR, MANIFEST_NAME, PER
 from src.rate_logic import rank_candidates, rank_composites
 
 ROOT = Path(__file__).resolve().parents[1]
-BASE = "b1d4376c1e774bf09b16bde619a352cc9d48dcc2"
+BASE = "0334d18bde3bbc8ba0176ab2a51a5d07881e2bd7"
 
 
 def fixture_inputs():
@@ -322,19 +322,23 @@ class FullMarketRotationTests(unittest.TestCase):
 
     def test_frozen_owners_state_accounts_authorization_and_bootstrap_unchanged(self):
         names = subprocess.check_output(["git", "-C", str(ROOT), "ls-tree", "-r", "--name-only", BASE]).decode().splitlines()
-        integration = {"scripts/build_production_source_bundle_from_official.py", "scripts/resolve_production_runtime_context.py",
-                       "scripts/publish_production_state_latest.py", "scripts/publish_production_source_bundle_latest.py",
-                       "tests/test_production_scheduler_change_control.py", "tests/test_rate_soak_005.py",
-                       "tests/report_soak_support.py", "tests/test_full_market_rotation.py",
-                       "config/RATE_EXTERNAL_PRODUCTION_DEPENDENCIES.json",
-                       "config/RATE_PRODUCTION_OFFICIAL_SOURCE_REGISTRY_V1.json",
-                       "src/full_market_rotation.py", "src/cer081_unattended_soak.py",
-                       "tests/test_phase2_compatibility.py"}
-        integration.update(f".github/workflows/rate_production_{slot}_scheduler.yml" for slot in ("0730", "0930", "1200", "1930"))
-        integration.add(".github/workflows/rate_public_official_partial_valid_ci.yml")
-        integration.add(".github/workflows/rate_pr90_regression_closure_ci.yml")
-        cer081_workflow = ".github/workflows/rate_cer081_unattended_multi_day_soak.yml"
-        integration.add(cer081_workflow)
+        # This corrective changes observability only; freeze every other baseline blob.
+        integration = {
+            ".github/workflows/rate_production_0730_scheduler.yml",
+            ".github/workflows/rate_production_0930_scheduler.yml",
+            ".github/workflows/rate_production_1200_scheduler.yml",
+            ".github/workflows/rate_production_1930_scheduler.yml",
+            "scripts/build_phase2_production_source.py",
+            "scripts/build_scheduler_actual_timing_evidence.py",
+            "scripts/publish_production_state_latest.py",
+            "src/cer081_scheduler_actual_timing.py",
+            "src/full_market_catalogue.py",
+            "src/full_market_materialization.py",
+            "tests/test_full_market_history.py",
+            "tests/test_full_market_history_catalogue_transport.py",
+            "tests/test_full_market_rotation.py",
+            "tests/test_phase2_compatibility.py",
+        }
         for name in names:
             if name in integration:
                 continue
