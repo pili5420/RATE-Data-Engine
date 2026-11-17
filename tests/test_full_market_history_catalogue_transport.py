@@ -95,7 +95,8 @@ class CatalogueTransportTests(unittest.TestCase):
         self.assertEqual(opener.call_count, 3)
         self.assertEqual([c.args[0] for c in sleep.call_args_list], [1, 2])
         self.assertEqual([e["attempt_number"] for e in evidence], [1, 2, 3])
-        self.assertEqual(evidence[-1]["exception_message"], "IncompleteRead(540280 bytes read, 534132 more expected)")
+        self.assertNotIn("exception_message", evidence[-1])
+        self.assertEqual(evidence[-1]["failure_reason"], "TRANSPORT_FAILED")
         self.assertEqual(evidence[-1]["bytes_actually_read"], 540280)
         self.assertEqual(evidence[-1]["bytes_remaining"], 534132)
         self.assertEqual(evidence[-1]["expected_response_bytes"], 1074412)
@@ -116,7 +117,8 @@ class CatalogueTransportTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "CATALOGUE_UNAPPROVED_REDIRECT") as caught:
                 catalogue.fetch_receipt(ENDPOINT)
         self.assertEqual(opener.call_count, 2)
-        self.assertEqual(caught.exception.catalogue_transport_evidence[-1]["final_url"], "https://mirror.invalid/")
+        self.assertIsNone(caught.exception.catalogue_transport_evidence[-1]["final_url"])
+        self.assertEqual(caught.exception.catalogue_transport_evidence[-1]["failure_reason"], "UNAPPROVED_REDIRECT")
         self.assertNotIn("body_sha256", caught.exception.catalogue_transport_evidence[-1])
 
     def test_http_error_from_unapproved_redirect_is_not_retried(self):
@@ -170,8 +172,8 @@ class CatalogueTransportTests(unittest.TestCase):
     def test_failed_attempt_preserves_partial_hash_not_authoritative_hash(self):
         (_, receipt), _, _ = self.fetch([interrupted(), Response()])
         evidence = receipt["transport_attempts"][0]
-        required = ("source_owner", "market", "endpoint", "request_type", "attempt_number", "exception_class",
-                    "exception_message", "http_status", "final_url", "content_type", "content_length",
+        required = ("source_owner", "market", "endpoint", "request_type", "attempt_number", "failure_reason",
+                    "http_status", "final_url", "content_type", "content_length",
                     "bytes_actually_read", "bytes_remaining", "retrieval_timestamp", "retry_decision", "fallback_used")
         self.assertTrue(all(key in evidence for key in required))
         self.assertEqual(evidence["market"], "TPEX")

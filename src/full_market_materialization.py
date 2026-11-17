@@ -60,13 +60,14 @@ def iso_receipt_time(value):
     return parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def materialize_full_market(trading_date, history_root, *, max_months=12, max_runtime_seconds=1800):
+def materialize_full_market(trading_date, history_root, *, max_months=12, max_runtime_seconds=1800,
+                            diagnostic_output=None):
     from scripts.materialize_production_history_store import (
         _finite_periods, _materialize_stock, _materialize_benchmark, _benchmark_month_rows,
         _replace_benchmark, _check_deadline)
     from scripts.build_production_source_bundle_from_official import _rows, _raw_market_row
     from scripts.build_live_source_bundle import _institutional_histories, _tdcc_history
-    catalogue = build_catalogue(trading_date)
+    catalogue = build_catalogue(trading_date, diagnostic_output=diagnostic_output)
     symbols, markets = bind_full_universe(catalogue, contract(), trading_date, [])
     started = time.monotonic()
     periods = _finite_periods(trading_date, max_months)
