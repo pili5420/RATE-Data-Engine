@@ -220,6 +220,9 @@ class Phase2CompatibilityTests(unittest.TestCase):
             original_args = f'            --github-run-json "artifacts/production_{slot}/GITHUB_ACTIONS_RUN_API.json" \\\n'.encode()
             self.assertEqual(head.count(changed_args), 1, path)
             head = head.replace(changed_args, original_args)
+            job_args = f'            --expected-job-id "$ACTIONS_JOB_ID" \\\n            --expected-job-name "production-{slot}" \\\n'.encode()
+            self.assertEqual(head.count(job_args), 1, path)
+            head = head.replace(job_args, b"")
             self.assertEqual(head, base, path)
 
     def test_registry_eps_contract_soak_and_model_owners_unchanged(self):

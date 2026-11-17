@@ -10,6 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.cer074_acceptance import atomic_write_json
+from src.p0_source_diagnostics import safe_reason
 from src.production_live_state import (ARTIFACTS, CADENCE_DIR, MANIFEST_NAME, PERSIST_NAME, STATE_NAME,
     file_hash, load_live_state, read_object, require, validate_material)
 from scripts.resolve_production_runtime_context import CADENCE_PREDECESSOR, _previous_legal_trading_day
@@ -23,8 +24,17 @@ def publish_state(*, persist_evidence_path, trading_date, cadence, artifacts_roo
     out = {"artifact": "RATE_PRODUCTION_STATE_LIVE_UPDATE_EVIDENCE", "validation_status": "BLOCKED",
            "workflow_run_id": workflow_run_id, "workflow_job_id": workflow_job_id,
            "trading_date": trading_date, "cadence": cadence, "checks": {}, "live_state_updated": False,
-           "publication_decision_at": None, "publication_decision_timestamp_source": "RUNTIME_CLOCK_BEFORE_STATE_PUBLICATION",
-           "publication_decision": "NOT_REACHED", "publication_decision_scope": "LIVE_STATE_POINTER"}
+           "publication_decision_at": None, "publication_decision_timestamp_source": "RUNTIME_CLOCK_AT_FINAL_PUBLICATION_DECISION",
+           "publication_decision": "NOT_REACHED", "publication_decision_scope": "LIVE_STATE_POINTER",
+           "publication_intent_at": None, "write_results": {name: "NOT_ATTEMPTED" for name in
+               ("STATE", "PERSIST", "MANIFEST", "LATEST")}, "final_observed_state": "NO_WRITE"}
+    def record_write(name, path, value):
+        try:
+            atomic_write_json(path, value)
+        except (OSError, RuntimeError, ValueError, TypeError):
+            out["write_results"][name] = "FAILED"
+            raise
+        out["write_results"][name] = "PERSISTED"
     try:
         event_name = event_name or os.getenv("GITHUB_EVENT_NAME")
         commit_sha = commit_sha or os.getenv("GITHUB_SHA")
@@ -100,13 +110,12 @@ def publish_state(*, persist_evidence_path, trading_date, cadence, artifacts_roo
                 require(read_object(path) == expected, "LIVE_STATE_IMMUTABLE_CONFLICT")
         manifest_path = directory / MANIFEST_NAME
         already_complete = manifest_path.exists()
-        out["publication_decision_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-        out["publication_decision"] = "PUBLISH"
+        out["publication_intent_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         if already_complete:
             load_live_state(root / "production_state", trading_date, cadence)
         else:
-            atomic_write_json(directory / STATE_NAME, material)
-            atomic_write_json(directory / PERSIST_NAME, payload)
+            record_write("STATE", directory / STATE_NAME, material)
+            record_write("PERSIST", directory / PERSIST_NAME, payload)
             manifest = {"artifact": "RATE_PRODUCTION_STATE_MANIFEST", "validation_status": "PASS",
                         **report_status,
                         "trading_date": trading_date, "cadence": cadence, "event_name": event_name,
@@ -115,13 +124,14 @@ def publish_state(*, persist_evidence_path, trading_date, cadence, artifacts_roo
                         "current_state_hash": state["decision_payload_hash"],
                         "files": {name: file_hash(directory / name) for name in (PERSIST_NAME, STATE_NAME)}}
             # Written last: interrupted publication cannot resolve as a usable live state.
-            atomic_write_json(manifest_path, manifest)
+            record_write("MANIFEST", manifest_path, manifest)
         verified = load_live_state(root / "production_state", trading_date, cadence)
+        out["final_observed_state"] = "LIVE_STATE_VERIFIED"
         latest_path = root / "RATE_PRODUCTION_STATE_LATEST.json"
         latest = read_object(latest_path) if latest_path.exists() else None
         slot = (trading_date, cadence)
         if not latest or (latest.get("trading_date", ""), latest.get("cadence", "")) <= slot:
-            atomic_write_json(latest_path, {"artifact": "RATE_PRODUCTION_STATE_LATEST", "validation_status": "PASS",
+            record_write("LATEST", latest_path, {"artifact": "RATE_PRODUCTION_STATE_LATEST", "validation_status": "PASS",
                 **report_status,
                 "trading_date": trading_date, "cadence": cadence, "workflow_run_id": verified["manifest"]["workflow_run_id"],
                 "workflow_job_id": verified["manifest"]["workflow_job_id"], "current_state_id": state_id,
@@ -133,10 +143,16 @@ def publish_state(*, persist_evidence_path, trading_date, cadence, artifacts_roo
                    current_state_hash=state["decision_payload_hash"],
                    checks={"complete_state": True, "previous_state_binding": True, "ledger_history_preserved": True},
                    idempotency_result="IDEMPOTENT_NOOP" if already_complete else "PERSISTED")
+        out["publication_decision_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        out["publication_decision"] = "PUBLISH"
+        out["final_observed_state"] = "LIVE_STATE_AND_POINTER_VERIFIED"
     except (RuntimeError, OSError, ValueError, KeyError, TypeError) as exc:
-        out["blocking_reason"] = str(exc)
-        if out["publication_decision_at"] is not None:
-            out["publication_decision"] = "BLOCK"
+        out["blocking_reason"] = safe_reason(exc, "LIVE_STATE_PUBLICATION_FAILED")
+        out["publication_decision_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        out["publication_decision"] = "BLOCK"
+        if out["final_observed_state"] == "NO_WRITE" and any(
+                status == "PERSISTED" for status in out["write_results"].values()):
+            out["final_observed_state"] = "PARTIAL_WRITE"
     if evidence_output:
         atomic_write_json(Path(evidence_output), out)
     return out

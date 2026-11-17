@@ -5,7 +5,6 @@ import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-import re
 
 from src.cer074_acceptance import atomic_write_json
 from src.full_market_materialization import materialize_full_market
@@ -14,6 +13,7 @@ from src.intraday_phase2_admission import qualify_phase2_intraday_feed
 from src.phase2_production import (bind_input_material, bundle_from_material, latest_predecessor,
                                    main_authority, prepare_bundle_state, require_intraday_authority)
 from src.production_live_state import require
+from src.p0_source_diagnostics import safe_reason
 from scripts.run_phase2_production import preflight_manifest
 
 
@@ -22,8 +22,7 @@ def _utc_now():
 
 
 def _safe_reason(exc):
-    value = str(exc)
-    return value if re.fullmatch(r"[A-Z][A-Z0-9_]{2,80}", value) else "SOURCE_ACQUISITION_FAILED"
+    return safe_reason(exc, "SOURCE_ACQUISITION_FAILED")
 
 
 def build_phase2_bundle(*, trading_date, cadence, output, evidence_output, state_root, history_root):
@@ -35,7 +34,9 @@ def build_phase2_bundle(*, trading_date, cadence, output, evidence_output, state
         "ingestion_started_at": _utc_now(),
         "ingestion_timestamp_source": "RUNTIME_CLOCK_AT_OFFICIAL_SOURCE_ENTRY",
         "publication_decision_at": None, "publication_decision": "NOT_REACHED",
-        "publication_decision_scope": "SOURCE_BUNDLE_FILE"}
+        "publication_decision_scope": "SOURCE_BUNDLE_FILE",
+        "publication_intent_at": None, "source_bundle_write_result": "NOT_ATTEMPTED",
+        "final_observed_state": "NO_SOURCE_BUNDLE_WRITE"}
     try:
         authority = main_authority()
         feed = None
@@ -62,19 +63,26 @@ def build_phase2_bundle(*, trading_date, cadence, output, evidence_output, state
         bundle = bundle_from_material(material, catalogue, state_root)
         # All canonical and account gates precede publishing either LATEST pointer.
         state = prepare_bundle_state(bundle, state_root=state_root)
-        evidence["publication_decision_at"] = _utc_now()
-        evidence["publication_decision"] = "PUBLISH"
+        evidence["publication_intent_at"] = _utc_now()
         atomic_write_json(Path(output), bundle)
+        evidence["source_bundle_write_result"] = "PERSISTED"
+        evidence["final_observed_state"] = "SOURCE_BUNDLE_FILE_WRITTEN"
         preflight_manifest(output, bundle, authority)
         evidence.update(validation_status="PASS", production_snapshot_id=bundle["production_snapshot_id"],
             input_snapshot_id=bundle["input_snapshot_id"], candidate_universe_count=len(bundle["decision_records"]),
             ranking_counts={key: len(bundle["ranking"][key]) for key in ("top50", "short_top30", "long_top30")},
             proposed_state_id=state["current_state_id"])
+        evidence["publication_decision_at"] = _utc_now()
+        evidence["publication_decision"] = "PUBLISH"
+        evidence["final_observed_state"] = "SOURCE_BUNDLE_PREFLIGHT_PASS"
     except (RuntimeError, OSError, ValueError, KeyError, TypeError) as exc:
         evidence["blocking_reason"] = _safe_reason(exc)
-        evidence["source_primary_failure_reason"] = getattr(exc, "primary_failure_reason", None)
+        primary = getattr(exc, "primary_failure_reason", None)
+        evidence["source_primary_failure_reason"] = safe_reason(primary, "SOURCE_ACQUISITION_FAILED") if primary is not None else None
         evidence["publication_decision_at"] = _utc_now()
         evidence["publication_decision"] = "BLOCK"
+        if evidence["publication_intent_at"] is not None and evidence["source_bundle_write_result"] == "NOT_ATTEMPTED":
+            evidence["source_bundle_write_result"] = "FAILED"
         if EXTERNAL_FEED in str(exc):
             evidence["blocked_dependencies"] = [EXTERNAL_FEED]
     atomic_write_json(Path(evidence_output), evidence)

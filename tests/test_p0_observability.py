@@ -1,6 +1,7 @@
 """Offline P0 diagnostic regression; no official-source network or production writes."""
 import hashlib
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -11,6 +12,7 @@ from src.p0_source_diagnostics import new_receipt, write_evidence
 from src.cer081_scheduler_actual_timing import (CADENCE_CRONS, CADENCE_WORKFLOWS,
     build_actual_timing_evidence, expected_slot_utc, summarize_actual_timing_evidence)
 from scripts.build_phase2_production_source import build_phase2_bundle
+from scripts.publish_production_state_latest import publish_state
 from datetime import timedelta
 
 
@@ -130,10 +132,83 @@ class SourceDiagnosticsTests(unittest.TestCase):
         upload = workflow.index("- name: Upload P0 source diagnostic evidence")
         publish = workflow.index("- name: Publish live production state pointer")
         self.assertLess(upload, publish)
-        self.assertIn("if: ${{ success() && github.event_name != 'push'", workflow[upload:publish])
+        self.assertIn("if: ${{ success() && (github.event_name == 'schedule' || inputs.phase2)", workflow[upload:publish])
         self.assertIn("if-no-files-found: error", workflow[upload:publish])
         self.assertIn("- name: Upload blocked P0 source diagnostic evidence", workflow[upload:publish])
+        self.assertIn("steps.source_acquisition.outcome == 'failure'", workflow[upload:publish])
+        self.assertEqual(workflow[upload:publish].count("if-no-files-found: error"), 2)
+        self.assertNotIn("github.event_name != 'push'", workflow[upload:publish])
         self.assertNotIn("continue-on-error: true", workflow[upload:publish])
+
+    def test_production_run_binding_and_offline_qualification(self):
+        receipt = new_receipt("TWSE", DAY, "2026-11-17T00:00:00Z")
+        valid = {"GITHUB_ACTIONS": "true", "GITHUB_REPOSITORY": "pili5420/RATE-Data-Engine",
+                 "GITHUB_REF": "refs/heads/main", "GITHUB_SHA": "a" * 40,
+                 "GITHUB_RUN_ID": "42", "GITHUB_RUN_ATTEMPT": "1",
+                 "GITHUB_EVENT_NAME": "schedule", "GITHUB_JOB": "production-1930",
+                 "ACTIONS_JOB_ID": "43"}
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "diagnostic.json"
+            with patch.dict(os.environ, valid, clear=True):
+                write_evidence(path, [receipt], DAY)
+            binding = json.loads(path.read_text())["run_binding"]
+            self.assertEqual(binding["qualification"], "PRODUCTION_QUALIFIED")
+            self.assertEqual(binding["workflow_job_id"], "43")
+            for key, bad in (("GITHUB_REPOSITORY", "other/repo"), ("GITHUB_SHA", "bad"),
+                             ("GITHUB_RUN_ID", ""), ("GITHUB_RUN_ATTEMPT", "2"),
+                             ("GITHUB_EVENT_NAME", ""),
+                             ("GITHUB_JOB", "wrong"), ("ACTIONS_JOB_ID", ""),
+                             ("GITHUB_REF", "refs/heads/other"), ("GITHUB_ACTIONS", "")):
+                with self.subTest(key=key), patch.dict(os.environ, {**valid, key: bad}, clear=True):
+                    with self.assertRaisesRegex(ValueError, "DIAGNOSTIC_PRODUCTION_BINDING_INVALID"):
+                        write_evidence(path, [receipt], DAY)
+            with patch.dict(os.environ, {}, clear=True):
+                write_evidence(path, [receipt], DAY)
+            self.assertEqual(json.loads(path.read_text())["run_binding"]["qualification"], "OFFLINE_TEST")
+
+    def test_exception_text_is_excluded_from_adjacent_evidence(self):
+        failure = RuntimeError("SECRET_TOKEN_ABC")
+        failure.primary_failure_reason = "SECRET_TOKEN_ABC"
+        captured = []
+        with patch("scripts.build_phase2_production_source.main_authority", side_effect=failure), patch(
+                "scripts.build_phase2_production_source.atomic_write_json", side_effect=lambda path, value: captured.append(value)):
+            source = build_phase2_bundle(trading_date=DAY, cadence="19:30", output="unused",
+                evidence_output="unused", state_root="unused", history_root="unused")
+        self.assertEqual(source["validation_status"], "FAIL_CLOSED")
+        self.assertNotIn("SECRET_TOKEN_ABC", json.dumps(captured))
+        captured.clear()
+        with patch("scripts.publish_production_state_latest.read_object", side_effect=failure), patch(
+                "scripts.publish_production_state_latest.atomic_write_json", side_effect=lambda path, value: captured.append(value)):
+            state = publish_state(persist_evidence_path="unused", trading_date=DAY, cadence="19:30",
+                workflow_run_id="42", workflow_job_id="43", evidence_output="unused", state_root="unused",
+                event_name="schedule", commit_sha="a" * 40, ref="refs/heads/main")
+        self.assertEqual(state["publication_decision"], "BLOCK")
+        self.assertNotIn("SECRET_TOKEN_ABC", json.dumps(captured))
+        self.assertEqual(state["blocking_reason"], "LIVE_STATE_PUBLICATION_FAILED")
+
+    def test_source_publication_write_and_preflight_failures(self):
+        for boundary in ("bundle_write", "preflight"):
+            with self.subTest(boundary=boundary):
+                writes = []
+                def writer(path, value):
+                    if boundary == "bundle_write" and str(path) == "bundle":
+                        raise OSError("SECRET_TOKEN_ABC")
+                    writes.append(str(path))
+                with patch("scripts.build_phase2_production_source.main_authority", return_value={}), patch(
+                    "scripts.build_phase2_production_source.latest_predecessor", return_value=(None, None, {"state": {}})), patch(
+                    "scripts.build_phase2_production_source.materialize_full_market", return_value=({}, {})), patch(
+                    "scripts.build_phase2_production_source.bind_input_material", return_value={}), patch(
+                    "scripts.build_phase2_production_source.bundle_from_material", return_value={}), patch(
+                    "scripts.build_phase2_production_source.prepare_bundle_state", return_value={}), patch(
+                    "scripts.build_phase2_production_source.preflight_manifest", side_effect=RuntimeError("SECRET_TOKEN_ABC") if boundary == "preflight" else None), patch(
+                    "scripts.build_phase2_production_source.atomic_write_json", side_effect=writer):
+                    evidence = build_phase2_bundle(trading_date=DAY, cadence="19:30", output="bundle",
+                        evidence_output="evidence", state_root="unused", history_root="unused")
+                self.assertEqual(evidence["publication_decision"], "BLOCK")
+                self.assertIsNotNone(evidence["publication_intent_at"])
+                self.assertIsNotNone(evidence["publication_decision_at"])
+                self.assertEqual(evidence["source_bundle_write_result"], "FAILED" if boundary == "bundle_write" else "PERSISTED")
+                self.assertNotIn("SECRET_TOKEN_ABC", json.dumps(evidence))
 
 
 class SchedulerDiagnosticsTests(unittest.TestCase):
@@ -145,7 +220,8 @@ class SchedulerDiagnosticsTests(unittest.TestCase):
                "run_started_at": (slot + timedelta(seconds=delay)).isoformat()}
         return build_actual_timing_evidence(api, cadence="07:30", trading_date=DAY,
             event_schedule=CADENCE_CRONS["07:30"], workflow_path=CADENCE_WORKFLOWS["07:30"],
-            expected_run_id="42", expected_head_sha="a" * 40, job_api=job)
+            expected_run_id="42", expected_head_sha="a" * 40, job_api=job,
+            expected_job_id="43", expected_job_name="production-0730")
 
     def test_boundary_and_missing_job(self):
         for delay, blocked in ((899.9, False), (900, False), (900.1, True)):
@@ -155,12 +231,25 @@ class SchedulerDiagnosticsTests(unittest.TestCase):
                 self.assertEqual(evidence["p0_scheduler_diagnostics"]["observability_status"], "FAIL")
                 self.assertIsNone(evidence["p0_scheduler_diagnostics"]["schedule_triggered_at"])
                 self.assertEqual(evidence["p0_scheduler_diagnostics"]["schedule_triggered_at_unavailable_reason"], "NOT_EXPOSED")
-        job = {"run_id": 42, "started_at": "2026-11-16T23:45:01Z"}
+        job = {"id": 43, "name": "production-0730", "run_id": 42, "started_at": "2026-11-16T23:45:01Z"}
         self.assertEqual(self.evidence(900, job)["p0_scheduler_diagnostics"]["observability_status"], "PASS")
 
     def test_invalid_job_and_missing_run_fail(self):
         self.assertEqual(self.evidence(900, {"run_id": 42, "started_at": "bad"})["p0_scheduler_diagnostics"]["observability_status"], "FAIL")
         self.assertEqual(summarize_actual_timing_evidence([{"workflow_run_id": "42", "trading_date": DAY, "cadence": "07:30"}])["actual_timing_evidence"], "FAIL")
+
+    def test_wrong_job_identity_fails_diagnostic_qualification(self):
+        slot = expected_slot_utc(DAY, "07:30")
+        run = {"id": 42, "event": "schedule", "path": CADENCE_WORKFLOWS["07:30"],
+               "head_sha": "a" * 40, "run_attempt": 1,
+               "created_at": slot.isoformat(), "run_started_at": slot.isoformat()}
+        job = {"id": 43, "name": "production-0730", "run_id": 42, "started_at": slot.isoformat()}
+        for bad in ({**job, "id": 44}, {**job, "name": "other"}):
+            evidence = build_actual_timing_evidence(run, cadence="07:30", trading_date=DAY,
+                event_schedule=CADENCE_CRONS["07:30"], workflow_path=CADENCE_WORKFLOWS["07:30"],
+                expected_run_id="42", expected_head_sha="a" * 40, job_api=bad,
+                expected_job_id="43", expected_job_name="production-0730")
+            self.assertEqual(evidence["p0_scheduler_diagnostics"]["observability_status"], "FAIL")
 
 
 if __name__ == "__main__":

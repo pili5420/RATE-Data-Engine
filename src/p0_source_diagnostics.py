@@ -15,11 +15,29 @@ ENDPOINT_IDS = {"TWSE": "TWSE_ISIN_CLASSIFICATION_MODE_2",
 FAILURE_REASONS = {"NONE", "HTTP_FAILURE", "CONTENT_TYPE_INVALID", "ASOF_MISSING",
                    "DATE_PARSE_FAILED", "SCHEMA_INVALID", "SOURCE_DATE_MISMATCH",
                    "TRANSPORT_FAILED", "EVIDENCE_PERSISTENCE_FAILED"}
+APPROVED_REASONS = {
+    "SOURCE_DIAGNOSTIC_PERSISTENCE_FAILED", "SOURCE_ACQUISITION_FAILED",
+    "PREDECESSOR_MISSING", "PHASE2_MAIN_AUTHORITY_REQUIRED",
+    "PHASE2_EXPLICIT_OPT_IN_REQUIRED", "PUBLIC_OFFICIAL_PARTIAL_RUNTIME_REQUIRED",
+    "FUNDAMENTAL_EPS_PERIOD_IDENTITY_UNPROVEN", "STALE_OR_FUTURE_CATALOGUE",
+    "CATALOGUE_ASOF_MISSING", "CATALOGUE_SCHEMA_INVALID", "CATALOGUE_RECORD_INVALID",
+    "CATALOGUE_EMPTY", "LIVE_STATE_SCHEDULE_PROVENANCE_REQUIRED",
+    "LIVE_STATE_IMMUTABLE_CONFLICT", "LIVE_STATE_LEDGER_HISTORY_LOST",
+    "LIVE_STATE_LINEAGE_INVALID", "LIVE_STATE_PATH_ESCAPE",
+    "PHASE2_RUNTIME_AUTHORITY_BINDING_INVALID", "PHASE2_PREPARED_STATE_BINDING_INVALID",
+    "LIVE_STATE_PUBLICATION_FAILED",
+    "LIVE_PREVIOUS_PRODUCTION_STATE_MISSING",
+}
 DATE_VALUE = re.compile(r"[0-9]{4}[/.-][0-9]{1,4}[/.-][0-9]{1,4}\Z")
 
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def safe_reason(value: object, fallback: str) -> str:
+    reason = str(value)
+    return reason if reason in APPROVED_REASONS else fallback
 
 
 def new_receipt(market: str, target_date: str, timestamp: str | None = None,
@@ -90,19 +108,43 @@ def sanitize_receipt(receipt: dict) -> dict:
 
 def write_evidence(path: str | Path, receipts: list[dict], target_date: str) -> None:
     path = Path(path)
+    date.fromisoformat(target_date)
     clean = [sanitize_receipt(item) for item in receipts]
     if len({(item["market_id"], item["attempt_number"]) for item in clean}) != len(clean) or any(item["target_trading_date"] != target_date for item in clean):
         raise ValueError("DIAGNOSTIC_BINDING_INVALID")
+    repository = os.getenv("GITHUB_REPOSITORY", "")
     head = os.getenv("GITHUB_SHA", "")
     run_id = os.getenv("GITHUB_RUN_ID", "")
     run_attempt = os.getenv("GITHUB_RUN_ATTEMPT", "")
     event = os.getenv("GITHUB_EVENT_NAME", "")
+    job_id = os.getenv("ACTIONS_JOB_ID", "")
+    job_name = os.getenv("GITHUB_JOB", "")
+    ref = os.getenv("GITHUB_REF", "")
+    production = event == "schedule"
+    if (os.getenv("GITHUB_ACTIONS") == "true" and job_name == "production-1930"
+            and event not in {"schedule", "workflow_dispatch"}):
+        raise ValueError("DIAGNOSTIC_PRODUCTION_BINDING_INVALID")
+    if production and not (
+        os.getenv("GITHUB_ACTIONS") == "true"
+        and repository == "pili5420/RATE-Data-Engine" and ref == "refs/heads/main"
+        and re.fullmatch(r"[0-9a-f]{40}", head)
+        and run_id.isdigit() and int(run_id) > 0
+        and run_attempt == "1" and job_id.isdigit() and int(job_id) > 0
+        and job_name == "production-1930"
+    ):
+        raise ValueError("DIAGNOSTIC_PRODUCTION_BINDING_INVALID")
+    qualification = "PRODUCTION_QUALIFIED" if production else (
+        "NON_PRODUCTION" if os.getenv("GITHUB_ACTIONS") == "true" else "OFFLINE_TEST")
     payload = {"schema_id": SCHEMA_ID,
-               "run_binding": {"repository": "pili5420/RATE-Data-Engine",
+               "run_binding": {"repository": repository if repository == "pili5420/RATE-Data-Engine" else None,
                    "head_sha": head if re.fullmatch(r"[0-9a-f]{40}", head) else None,
                    "workflow_run_id": run_id if run_id.isdigit() else None,
                    "run_attempt": int(run_attempt) if run_attempt.isdigit() else None,
                    "event_name": event if event in {"schedule", "workflow_dispatch"} else None,
+                   "workflow_job_id": job_id if job_id.isdigit() else None,
+                   "workflow_job_name": job_name if job_name == "production-1930" else None,
+                   "ref": ref if ref == "refs/heads/main" else None,
+                   "qualification": qualification,
                    "cadence": "19:30", "target_trading_date": target_date},
                "market_receipts": clean,
                "evidence_persistence": {"status": "PASS", "artifact_name": "RATE_P0_SOURCE_DIAGNOSTIC_EVIDENCE.json", "failure_reason": "NONE"}}

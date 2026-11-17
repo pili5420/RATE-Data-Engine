@@ -98,6 +98,8 @@ jobs:
             --workflow-path ".github/workflows/rate_production_1930_scheduler.yml" \
             --expected-run-id "${{ github.run_id }}" \
             --expected-head-sha "${{ github.sha }}" \
+            --expected-job-id "$ACTIONS_JOB_ID" \
+            --expected-job-name "production-1930" \
             --output "artifacts/production_1930/RATE_CER081_SCHEDULER_ACTUAL_TIMING_EVIDENCE.json"
 
       - name: Validate production scheduler safety wiring
@@ -107,6 +109,7 @@ jobs:
         run: python -m unittest tests.test_production_scheduler_change_control tests.test_rate_soak_005 -v
 
       - name: Build official production source bundle
+        id: source_acquisition
         if: ${{ github.event_name != 'push' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
         run: >
           python scripts/build_production_source_bundle_from_official.py
@@ -120,7 +123,7 @@ jobs:
           --evidence-output artifacts/production_1930/RATE_PRODUCTION_OFFICIAL_SOURCE_INGESTION_EVIDENCE.json
 
       - name: Upload P0 source diagnostic evidence
-        if: ${{ success() && github.event_name != 'push' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
+        if: ${{ success() && (github.event_name == 'schedule' || inputs.phase2) && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
         uses: actions/upload-artifact@v4
         with:
           name: RATE_P0_SOURCE_DIAGNOSTIC_${{ github.run_id }}
@@ -129,13 +132,13 @@ jobs:
           if-no-files-found: error
 
       - name: Upload blocked P0 source diagnostic evidence
-        if: ${{ failure() && github.event_name != 'push' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
+        if: ${{ failure() && steps.source_acquisition.outcome == 'failure' && (github.event_name == 'schedule' || inputs.phase2) && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
         uses: actions/upload-artifact@v4
         with:
           name: RATE_P0_SOURCE_DIAGNOSTIC_BLOCKED_${{ github.run_id }}
           path: artifacts/production_1930/RATE_P0_SOURCE_DIAGNOSTIC_EVIDENCE.json
           retention-days: 7
-          if-no-files-found: warn
+          if-no-files-found: error
 
       - name: Execute Phase2 dynamic 19:30 full-market refresh
         if: ${{ github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}

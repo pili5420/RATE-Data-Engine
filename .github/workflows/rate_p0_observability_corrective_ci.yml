@@ -16,6 +16,7 @@ on:
       - tests/test_p0_observability.py
       - tests/test_full_market_history_catalogue_transport.py
       - tests/test_phase2_compatibility.py
+      - tests/test_rate_soak_005.py
 
 permissions:
   contents: read
@@ -68,6 +69,8 @@ jobs:
           tests.test_cer081_scheduler_actual_timing
           tests.test_cer081_scheduler_lock_validation
           tests.test_phase2_compatibility
+          tests.test_rate_soak_005
+          tests.test_production_scheduler_change_control
           -v
       - name: No tracked mutation
         run: git diff --exit-code

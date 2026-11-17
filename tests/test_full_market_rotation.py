@@ -338,6 +338,7 @@ class FullMarketRotationTests(unittest.TestCase):
             "tests/test_full_market_history_catalogue_transport.py",
             "tests/test_full_market_rotation.py",
             "tests/test_phase2_compatibility.py",
+            "tests/test_rate_soak_005.py",
         }
         for name in names:
             if name in integration:

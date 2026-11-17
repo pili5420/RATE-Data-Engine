@@ -58,6 +58,8 @@ def build_actual_timing_evidence(
     expected_head_sha: str,
     blocking_delay_seconds: int = DEFAULT_BLOCKING_DELAY_SECONDS,
     job_api: Mapping[str, Any] | None = None,
+    expected_job_id: str | None = None,
+    expected_job_name: str | None = None,
 ) -> dict[str, Any]:
     _require(cadence in CADENCE_CRONS, "SCHEDULER_TIMING_UNKNOWN_CADENCE")
     _require(event_schedule == CADENCE_CRONS[cadence], "SCHEDULER_TIMING_EVENT_CRON_MISMATCH")
@@ -83,8 +85,13 @@ def build_actual_timing_evidence(
     job_status = "UNAVAILABLE"
     if job_api is not None:
         try:
+            if not (str(expected_job_id or "").isdigit() and expected_job_name ==
+                    "production-" + cadence.replace(":", "")):
+                raise SchedulerActualTimingError("SCHEDULER_TIMING_EXPECTED_JOB_MISSING")
             job_started = _parse_utc(job_api.get("started_at"), "SCHEDULER_TIMING_JOB_STARTED_AT_MISSING")
-            if str(job_api.get("run_id")) != str(expected_run_id) or job_started < started:
+            if (str(job_api.get("run_id")) != str(expected_run_id) or job_started < started
+                    or str(job_api.get("id")) != str(expected_job_id)
+                    or job_api.get("name") != expected_job_name):
                 raise SchedulerActualTimingError("SCHEDULER_TIMING_JOB_BINDING_INVALID")
             job_status = "PASS"
         except SchedulerActualTimingError:
@@ -100,6 +107,8 @@ def build_actual_timing_evidence(
         "github_job_started_at": job_started.astimezone(timezone.utc).isoformat().replace("+00:00", "Z") if job_started else None,
         "github_job_timestamp_provenance": "GITHUB_ACTIONS_JOB_API" if job_started else None,
         "github_job_timestamp_status": job_status,
+        "github_job_id": str(expected_job_id) if job_status == "PASS" and expected_job_id is not None else None,
+        "github_job_name": expected_job_name if job_status == "PASS" else None,
         "schedule_triggered_at": None,
         "schedule_triggered_at_unavailable_reason": "NOT_EXPOSED",
         "run_queue_delay_seconds": (started - created).total_seconds() if created <= started else None,

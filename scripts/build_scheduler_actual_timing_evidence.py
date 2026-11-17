@@ -21,6 +21,8 @@ def main() -> None:
     p.add_argument("--workflow-path", required=True)
     p.add_argument("--expected-run-id", required=True)
     p.add_argument("--expected-head-sha", required=True)
+    p.add_argument("--expected-job-id", required=True)
+    p.add_argument("--expected-job-name", required=True)
     p.add_argument("--output", required=True)
     args = p.parse_args()
 
@@ -35,6 +37,8 @@ def main() -> None:
         expected_run_id=args.expected_run_id,
         expected_head_sha=args.expected_head_sha,
         job_api=job_api,
+        expected_job_id=args.expected_job_id,
+        expected_job_name=args.expected_job_name,
     )
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)

@@ -91,6 +91,8 @@ jobs:
             --workflow-path ".github/workflows/rate_production_0930_scheduler.yml" \
             --expected-run-id "${{ github.run_id }}" \
             --expected-head-sha "${{ github.sha }}" \
+            --expected-job-id "$ACTIONS_JOB_ID" \
+            --expected-job-name "production-0930" \
             --output "artifacts/production_0930/RATE_CER081_SCHEDULER_ACTUAL_TIMING_EVIDENCE.json"
 
       - name: Validate production scheduler safety wiring
