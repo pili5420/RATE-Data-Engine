@@ -85,5 +85,8 @@ def build_phase2_bundle(*, trading_date, cadence, output, evidence_output, state
             evidence["source_bundle_write_result"] = "FAILED"
         if EXTERNAL_FEED in str(exc):
             evidence["blocked_dependencies"] = [EXTERNAL_FEED]
-    atomic_write_json(Path(evidence_output), evidence)
+    try:
+        atomic_write_json(Path(evidence_output), evidence)
+    except (OSError, RuntimeError, ValueError, TypeError):
+        raise RuntimeError("SOURCE_INGESTION_EVIDENCE_PERSISTENCE_FAILED") from None
     return evidence

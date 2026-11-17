@@ -156,7 +156,10 @@ def publish_state(*, persist_evidence_path, trading_date, cadence, artifacts_roo
                 status == "PERSISTED" for status in out["write_results"].values()):
             out["final_observed_state"] = "PARTIAL_WRITE"
     if evidence_output:
-        atomic_write_json(Path(evidence_output), out)
+        try:
+            atomic_write_json(Path(evidence_output), out)
+        except (OSError, RuntimeError, ValueError, TypeError):
+            raise RuntimeError("LIVE_STATE_EVIDENCE_PERSISTENCE_FAILED") from None
     return out
 
 

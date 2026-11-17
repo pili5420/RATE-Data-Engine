@@ -210,6 +210,19 @@ class SourceDiagnosticsTests(unittest.TestCase):
                 self.assertEqual(evidence["source_bundle_write_result"], "FAILED" if boundary == "bundle_write" else "PERSISTED")
                 self.assertNotIn("SECRET_TOKEN_ABC", json.dumps(evidence))
 
+    def test_evidence_write_failures_use_fixed_log_reason(self):
+        with patch("scripts.build_phase2_production_source.main_authority", side_effect=RuntimeError("PREDECESSOR_MISSING")), patch(
+                "scripts.build_phase2_production_source.atomic_write_json", side_effect=OSError("SECRET_TOKEN_ABC")):
+            with self.assertRaisesRegex(RuntimeError, "^SOURCE_INGESTION_EVIDENCE_PERSISTENCE_FAILED$"):
+                build_phase2_bundle(trading_date=DAY, cadence="19:30", output="unused",
+                    evidence_output="unused", state_root="unused", history_root="unused")
+        with patch("scripts.publish_production_state_latest.read_object", side_effect=RuntimeError("SECRET_TOKEN_ABC")), patch(
+                "scripts.publish_production_state_latest.atomic_write_json", side_effect=OSError("SECRET_TOKEN_ABC")):
+            with self.assertRaisesRegex(RuntimeError, "^LIVE_STATE_EVIDENCE_PERSISTENCE_FAILED$"):
+                publish_state(persist_evidence_path="unused", trading_date=DAY, cadence="19:30",
+                    workflow_run_id="42", workflow_job_id="43", evidence_output="unused", state_root="unused",
+                    event_name="schedule", commit_sha="a" * 40, ref="refs/heads/main")
+
 
 class SchedulerDiagnosticsTests(unittest.TestCase):
     def evidence(self, delay, job=None):
