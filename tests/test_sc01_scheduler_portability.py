@@ -393,8 +393,8 @@ class SC01OfflineTests(unittest.TestCase):
         for event_id in (None, "", "too-short", True):
             with self.subTest(event_id=event_id):
                 self.assert_blocked(
-                    "SC01_EVENT_ID_INVALID", self.claim, store, self.slot,
-                    event_id=event_id if event_id is not None else "short",
+                    "SC01_EVENT_ID_INVALID", store.claim, self.slot,
+                    event_id=event_id,
                     event_digest=hashlib.sha256(b"invalid").hexdigest(),
                     nonce="nonce-validate-123456",
                     execution_id="exe-validate-123456",
