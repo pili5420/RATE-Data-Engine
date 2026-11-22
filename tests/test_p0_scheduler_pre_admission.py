@@ -100,9 +100,12 @@ class AdmissionTests(unittest.TestCase):
         with self.assertRaises(SchedulerPreAdmissionBlocked):
             check(bad)
 
-    def test_schedule_gate_precedes_source_in_all_workflows(self):
+    def test_schedule_gate_precedes_source_in_authorized_workflows(self):
+        # Do not rewrite frozen intraday workflows just to satisfy this test.
+        # The four-cadence 900s admission logic is still verified by the
+        # exact-boundary test above; intraday wiring is explicitly NOT qualified.
         root = Path(__file__).resolve().parents[1]
-        for cadence in CADENCE_CRONS:
+        for cadence in ("07:30", "19:30"):
             slot = cadence.replace(":", "")
             workflow = (root / f".github/workflows/rate_production_{slot}_scheduler.yml").read_text(encoding="utf-8")
             capture = workflow.index("- name: Capture CER-081 scheduler actual-timing evidence")
@@ -112,6 +115,18 @@ class AdmissionTests(unittest.TestCase):
             self.assertIn("python scripts/enforce_p0_scheduler_admission.py", workflow[admit:acquire])
             self.assertIn("github.event_name == 'schedule'", workflow[admit:acquire])
             self.assertNotIn("continue-on-error: true", workflow[admit:acquire])
+
+    def test_intraday_frozen_workflows_have_unresolved_admission_gap(self):
+        root = Path(__file__).resolve().parents[1]
+        for cadence in ("09:30", "12:00"):
+            with self.subTest(cadence=cadence):
+                slot = cadence.replace(":", "")
+                workflow = (root / f".github/workflows/rate_production_{slot}_scheduler.yml").read_text(encoding="utf-8")
+                self.assertIn("- name: Capture CER-081 scheduler actual-timing evidence", workflow)
+                self.assertIn("- name: Build official production source bundle", workflow)
+                self.assertNotIn("- name: Enforce P0 scheduler admission before any source acquisition", workflow)
+                self.assertNotIn("continue-on-error: true", workflow)
+                self.assertIn("--public-official-partial", workflow)
 
 
 if __name__ == "__main__":
