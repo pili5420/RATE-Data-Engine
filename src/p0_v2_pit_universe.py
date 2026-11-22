@@ -17,6 +17,32 @@ NORMAL_LISTING = {"TWSE": ("TWSE LISTED", "TAIWAN INNOVATION BOARD"),
 LIFECYCLE = ("ACTIVE", "SUSPENDED", "TERMINATED", "TRANSFERRED")
 DIGEST = re.compile(r"[0-9a-f]{64}")
 
+# Conservative structural fixture subset, NOT the complete ISO 10962 code list.
+# ES = ordinary/common equity; CE = collective investment vehicle / ETF, excluded.
+# For candidate admission an unrecognized group or attribute always fails closed.
+# Unknown or non-applicable attributes are NOT accepted as proof of ordinary share
+# eligibility. Official CFI assignment and historical source authority are still
+# independently UNVERIFIED.
+CFI_CANDIDATE_ATTRIBUTES = {
+    "ES": ("VNRE", "TU", "OPF", "BRNM"),
+    "CE": ("COM", "IGJ", "RBEVLCDFKM", "SU"),
+}
+
+
+def _is_common_share_cfi(cfi: object) -> bool:
+    """Check exactly six uppercase ASCII codes and known group/attribute domains.
+
+    A structurally recognized fixture does not prove authoritative ISO assignment
+    or official classification for a specific listed instrument.
+    """
+    require(isinstance(cfi, str) and re.fullmatch(r"[A-Z]{6}", cfi) is not None,
+            "PIT_CFI_UNKNOWN")
+    group = cfi[:2]
+    require(group in CFI_CANDIDATE_ATTRIBUTES, "PIT_CFI_GROUP_UNQUALIFIED")
+    for value, allowed in zip(cfi[2:], CFI_CANDIDATE_ATTRIBUTES[group]):
+        require(value in allowed, "PIT_CFI_ATTRIBUTE_UNQUALIFIED")
+    return group == "ES"
+
 
 def assess_pit_model(*, trading_date: str, rows: Sequence[Mapping[str, Any]],
                      coverage: Mapping[str, Mapping[str, Any]],
@@ -42,7 +68,7 @@ def assess_pit_model(*, trading_date: str, rows: Sequence[Mapping[str, Any]],
         seen.add(symbol)
         by_market[market].add(symbol)
         cfi = row.get("cfi_code")
-        require(isinstance(cfi, str) and len(cfi) >= 2, "PIT_CFI_UNKNOWN")
+        is_common_share = _is_common_share_cfi(cfi)
         require(isinstance(row.get("isin"), str) and bool(row["isin"]),
                 "PIT_ISIN_MISSING")
         require(bool(re.fullmatch(r"[0-9a-f]{64}", str(row.get("receipt_sha256", ""))))
@@ -59,7 +85,7 @@ def assess_pit_model(*, trading_date: str, rows: Sequence[Mapping[str, Any]],
                 "PIT_EFFECTIVE_INTERVAL_MISMATCH")
         life = row.get("lifecycle")
         require(life in LIFECYCLE, "PIT_LIFECYCLE_UNKNOWN")
-        common_and_normal = cfi.startswith("ES") and row.get("listing_market") in NORMAL_LISTING[market]
+        common_and_normal = is_common_share and row.get("listing_market") in NORMAL_LISTING[market]
         expected = common_and_normal and life not in ("TERMINATED", "TRANSFERRED")
         require(row.get("eligible") is expected, "PIT_ELIGIBILITY_CONFLICT")
         if expected:
