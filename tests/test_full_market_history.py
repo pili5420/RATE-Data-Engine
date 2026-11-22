@@ -16,10 +16,24 @@ from src.institutional_history import T86_OFFICIAL_SOURCE, TPEX_OFFICIAL_SOURCE
 from src.cer080_multi_day_continuity import is_trading_day
 from src.sources.tdcc_historical import TDCC_HISTORICAL_PAGE, holder_pct_400_from_tiers
 
-BASE = "40c00f300d6ba64ca06850ba172fd1df222d1c86"
-RUN4_EPS_ALLOWED_CHANGES = {"src/sources/fundamental_history.py", "src/full_market_history_acquisition.py",
-                            "tests/test_full_market_history.py", "tests/test_full_market_history_acquisition.py",
-                            "tests/test_full_market_history_yoy_semantics.py"}
+BASE = "0334d18bde3bbc8ba0176ab2a51a5d07881e2bd7"
+P0_OBSERVABILITY_ALLOWED_CHANGES = {
+    ".github/workflows/rate_production_0730_scheduler.yml",
+    ".github/workflows/rate_production_0930_scheduler.yml",
+    ".github/workflows/rate_production_1200_scheduler.yml",
+    ".github/workflows/rate_production_1930_scheduler.yml",
+    "scripts/build_phase2_production_source.py",
+    "scripts/build_scheduler_actual_timing_evidence.py",
+    "scripts/publish_production_state_latest.py",
+    "src/cer081_scheduler_actual_timing.py",
+    "src/full_market_catalogue.py",
+    "src/full_market_materialization.py",
+    "tests/test_full_market_history.py",
+    "tests/test_full_market_history_catalogue_transport.py",
+    "tests/test_full_market_rotation.py",
+    "tests/test_phase2_compatibility.py",
+    "tests/test_rate_soak_005.py",
+}
 DAY = "2026-10-06"
 AUTHORITY = {"ref": "refs/heads/main", "event": "workflow_dispatch", "run_id": "100", "commit_sha": "a" * 40}
 AUTHORITY["github_execution_evidence"] = {"run_id": "100", "head_sha": "a" * 40, "head_branch": "main",
@@ -124,12 +138,16 @@ class FullMarketHistoryTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "CATALOGUE_COUNT_CHANGE_REQUEST_REQUIRED"):
             h.eligible(self.plan["catalogue"])
 
-    def test_main_files_outside_run4_eps_fix_scope_are_byte_identical(self):
+    def test_main_files_outside_p0_observability_scope_are_byte_identical(self):
         names = subprocess.check_output(["git", "-C", str(h.ROOT), "ls-tree", "-r", "--name-only", BASE]).decode().splitlines()
         for name in names:
-            if name in RUN4_EPS_ALLOWED_CHANGES:
+            if name in P0_OBSERVABILITY_ALLOWED_CHANGES:
                 continue
-            self.assertEqual((h.ROOT / name).read_bytes(), subprocess.check_output(["git", "-C", str(h.ROOT), "show", BASE + ":" + name]), name)
+            self.assertEqual(
+                subprocess.check_output(["git", "-C", str(h.ROOT), "rev-parse", f"HEAD:{name}"]),
+                subprocess.check_output(["git", "-C", str(h.ROOT), "rev-parse", f"{BASE}:{name}"]),
+                name,
+            )
         expected = os.getenv("RATE_WARMUP_CI_HEAD_SHA")
         if expected:
             self.assertEqual(subprocess.check_output(["git", "-C", str(h.ROOT), "rev-parse", "HEAD"]).decode().strip(), expected)

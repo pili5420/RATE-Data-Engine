@@ -87,16 +87,33 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}" > "artifacts/production_0730/GITHUB_ACTIONS_RUN_API.json"
+          gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}" > "$RUNNER_TEMP/GITHUB_ACTIONS_RUN_API.json"
+          gh api "repos/${{ github.repository }}/actions/jobs/$ACTIONS_JOB_ID" > "$RUNNER_TEMP/GITHUB_ACTIONS_JOB_API.json"
           python scripts/build_scheduler_actual_timing_evidence.py \
-            --github-run-json "artifacts/production_0730/GITHUB_ACTIONS_RUN_API.json" \
+            --github-run-json "$RUNNER_TEMP/GITHUB_ACTIONS_RUN_API.json" \
+            --github-job-json "$RUNNER_TEMP/GITHUB_ACTIONS_JOB_API.json" \
             --cadence "07:30" \
             --trading-date "${{ env.RATE_PRODUCTION_TRADING_DATE }}" \
             --event-schedule "${{ env.GITHUB_EVENT_SCHEDULE }}" \
             --workflow-path ".github/workflows/rate_production_0730_scheduler.yml" \
             --expected-run-id "${{ github.run_id }}" \
             --expected-head-sha "${{ github.sha }}" \
+            --expected-job-id "$ACTIONS_JOB_ID" \
+            --expected-job-name "production-0730" \
             --output "artifacts/production_0730/RATE_CER081_SCHEDULER_ACTUAL_TIMING_EVIDENCE.json"
+
+      - name: Enforce P0 scheduler admission before any source acquisition
+        if: ${{ github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
+        shell: bash
+        run: |
+          python scripts/enforce_p0_scheduler_admission.py \
+            --evidence "artifacts/production_0730/RATE_CER081_SCHEDULER_ACTUAL_TIMING_EVIDENCE.json" \
+            --cadence "07:30" \
+            --trading-date "${{ env.RATE_PRODUCTION_TRADING_DATE }}" \
+            --expected-run-id "${{ github.run_id }}" \
+            --expected-head-sha "${{ github.sha }}" \
+            --expected-job-id "$ACTIONS_JOB_ID" \
+            --expected-job-name "production-0730"
 
       - name: Validate production scheduler safety wiring
         run: python scripts/validate_production_scheduler_safety.py --output artifacts/production_0730/RATE_PRODUCTION_SCHEDULER_SAFETY_VALIDATION.json
