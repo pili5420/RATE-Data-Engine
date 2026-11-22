@@ -158,7 +158,7 @@ class P0V2OfflineTests(unittest.TestCase):
     def test_wrong_market_transfer_mapping_rejected(self):
         r = rows()
         r[1]["market"] = "TWSE"
-        self.blocked("BLOCKED_PIT_HISTORY_GAP", assess, rs=r)
+        self.blocked("PIT_LISTING_MARKET_MISMATCH", assess, rs=r)
 
     def test_unknown_cfi_rejected(self):
         r = rows()
