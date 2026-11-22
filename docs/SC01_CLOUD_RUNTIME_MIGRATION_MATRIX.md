@@ -21,10 +21,10 @@ This candidate is branched from the **frozen main base** rather than from PR #22
 ### SC01-B: idempotency/atomicity
 
 `src/sc01_slot_ledger.py` models a **single-process test double** and `TransactionalSlotStore` boundary:
-1. Transactionally claim the unique `project/region/trading_date/cadence` slot and globally unique nonce/event digest.
+1. Transactionally claim the unique `project/region/trading_date/cadence` slot, **canonical Event ID**, nonce, and event digest as separate uniqueness constraints.
 2. Bind cloud Execution ID and issuance response; never blindly resubmit after a timeout (perform provider-side readback/reconciliation).
-3. Fail closed on simultaneous claims, retry delivery, replay, missing lease, non-matching execution, missing predecessor.
-4. Use monotonically increasing **fencing tokens** on expired lease recovery; expired execution cannot win publication.
+3. Fail closed on simultaneous claims, `delivery_attempt != 1`, replay (including same event ID with new nonce), missing or expired lease, non-matching execution, missing predecessor.
+4. Use monotonically increasing **fencing tokens** on expired lease recovery; both binding and publication atomically check `lease_starts_utc <= now < lease_expires_utc`, even without a successor claim. `now` is a deterministic **offline fixture** only: a real implementation must use independently trusted, store-enforced transaction time.
 5. Make the final State pointer/publication a second independent durable atomic compare-and-swap with prior-State lineage verification, and immutable readback.
 
 **In-memory locks are not durable** or cross-instance, are not a cryptographic replay defense, cannot prevent duplicate Cloud Run starts on their own, and cannot authorize Production. The test-double `publish_candidate` writes no RATE state and emits no permit.
@@ -78,8 +78,18 @@ Real qualification still requires independently authenticated Google readback of
 
 1. Exact reference PR #224 Head matched before first write.
 2. Independent branch from frozen `main` base, no mutations to PR #224 or main.
-3. Offline CI must pass with identity, 4 slots, time boundaries, replay, concurrency, fencing and previous-state rejection.
+3. Offline CI must pass with identity, 4 slots and full UTC ISO instants, time boundaries, attempt-2 refusal, canonical event-ID replay, expired lease without takeover, concurrency, fencing and previous-state rejection.
 4. Report separate Draft PR, head SHA, changed files and CI result to Owner.
 5. **Stop** after the single SC-01 engineering batch: no auto-next, merge, Cloud setup, Production runs, DC-01 relaxation or CER-081 credit.
 
 Only a future Owner decision can authorize GCP account review, real Cloud Run Task-start qualification and Production architecture integration.
+
+## SC01 R1-C01 targeted corrective candidate (2026-11-22)
+
+Owner authority: `AUTHORIZE_RATE_V11_SC01_R1_C01_TARGETED_OFFLINE_CORRECTIVE_ONLY`; reference PR #225 pre-correction Head `196de0016a7281953985cd15e9596e05eb2618e6`; F-01/F-02/F-03 are the only authorized corrections.
+
+- **F-01:** Bind and simulated publication now require an explicit `now` and atomically enforce lease validity while holding the in-memory lock. Lease expiry is exclusive at the exact instant. The test clock is caller-provided and **NOT trusted Production time**. A durable adapter must enforce transaction time itself; this is not implemented.
+- **F-02:** Offline envelope refuses delivery attempt 2 or greater; a separate event-ID set rejects duplicate canonical events even when nonce and digest differ. This model does not cryptographically establish or derive the canonical ID from Google; signed OIDC and authoritative event identity remain unqualified.
+- **F-03:** Regression tests compare all four complete ISO UTC date/time stamps, including :30 minutes and year/day rollover, on multiple nominal dates. Exchange trading-calendar truth remains unverified.
+- No existing RATE Production source/State, Frozen Contract, Scheduler, Cloud credentials, Store Authority or trust bindings changed.
+- Exact-head CI and independent review must follow the final targeted correction. A green offline CI cannot grant Production or CER-081 credit.
