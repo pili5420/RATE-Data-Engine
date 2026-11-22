@@ -36,6 +36,8 @@ def assess_pit_model(*, trading_date: str, rows: Sequence[Mapping[str, Any]],
         market, symbol = row.get("market"), row.get("symbol")
         require(market in MARKETS and isinstance(symbol, str) and bool(symbol.strip()),
                 "PIT_RECORD_INVALID")
+        require(row.get("listing_market") in NORMAL_LISTING[market],
+                "PIT_LISTING_MARKET_MISMATCH")
         require(symbol not in seen, "PIT_CROSS_MARKET_DUPLICATE")
         seen.add(symbol)
         by_market[market].add(symbol)
