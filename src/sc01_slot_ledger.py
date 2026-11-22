@@ -14,8 +14,8 @@ from typing import Protocol
 
 from src.sc01_scheduler_portability import SC01Blocked, SlotContract, require
 
-_HEX = re.compile(r"[0-9a-f]{64}\\Z")
-_TOKEN = re.compile(r"[A-Za-z0-9_.:-]{12,128}\\Z")
+_HEX = re.compile(r"[0-9a-f]{64}\Z")
+_TOKEN = re.compile(r"[A-Za-z0-9_.:-]{12,128}\Z")
 
 
 @dataclass(frozen=True)
