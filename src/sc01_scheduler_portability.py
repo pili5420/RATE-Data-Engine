@@ -21,9 +21,9 @@ from src.cer081_scheduler_actual_timing import (
 CADENCES = ("07:30", "09:30", "12:00", "19:30")
 BLOCKING_DELAY_SECONDS = DEFAULT_BLOCKING_DELAY_SECONDS
 SCHEMA = "RATE-SC01-OFFLINE-SCHEDULE-CONTRACT-V1"
-PROJECT_RE = re.compile(r"[a-z][a-z0-9-]{4,28}[a-z0-9]\\Z")
-EVENT_RE = re.compile(r"[A-Za-z0-9_.:-]{12,128}\\Z")
-SHA_RE = re.compile(r"[0-9a-f]{64}\\Z")
+PROJECT_RE = re.compile(r"[a-z][a-z0-9-]{4,28}[a-z0-9]\Z")
+EVENT_RE = re.compile(r"[A-Za-z0-9_.:-]{12,128}\Z")
+SHA_RE = re.compile(r"[0-9a-f]{64}\Z")
 
 
 class SC01Blocked(RuntimeError):
