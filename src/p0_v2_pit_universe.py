@@ -47,7 +47,11 @@ def _is_common_share_cfi(cfi: object) -> bool:
 def assess_pit_model(*, trading_date: str, rows: Sequence[Mapping[str, Any]],
                      coverage: Mapping[str, Mapping[str, Any]],
                      calendars: Mapping[str, Mapping[str, str]]) -> dict[str, Any]:
-    """Fail closed on incomplete synthetic evidence; always withhold official PASS."""
+    """Validate a synthetic *structural candidate*, never official eligibility.
+
+    Output separates position-domain structure from unverified joint CFI
+    semantics, instrument assignment, and blocked historical PIT authority.
+    """
     day = parse_date(trading_date)
     from src.p0_v2_date_semantics import assess_calendar_fixture
     assess_calendar_fixture(trading_date, calendars)
@@ -110,10 +114,20 @@ def assess_pit_model(*, trading_date: str, rows: Sequence[Mapping[str, Any]],
     return {
         "schema": SCHEMA, "trading_date": trading_date,
         "structural_model_status": "PASS_OFFLINE_FIXTURE",
+        "qualification_scope": "SYNTHETIC_STRUCTURAL_FIXTURE_ONLY",
+        # Only format and allowed position values passed. A six-character
+        # combination can be position-valid without proven joint semantics.
+        "CFI_FORMAT_VALID": "PASS_LIMITED_OFFLINE_STRUCTURE",
+        "CFI_POSITION_DOMAIN_VALID": "PASS_LIMITED_OFFLINE_STRUCTURE",
+        "CFI_FULL_COMBINATION_VALID": "UNVERIFIED",
+        "CFI_INSTRUMENT_ASSIGNMENT_VALID": "UNVERIFIED",
+        "PIT_UNIVERSE_VERIFIED": "BLOCKED",
         "historical_source_authority": "UNVERIFIED",
         "pit_coverage_status": "BLOCKED_PIT_HISTORY_GAP",
-        "eligible_fixture_symbols": sorted(eligible),
-        "suspended_not_automatically_delisted": sorted(nontrading),
+        # Never emit eligible_fixture_symbols: the legacy field name could
+        # be mistaken for an independently qualified full-market universe.
+        "offline_structural_candidate_symbols_only": sorted(eligible),
+        "offline_suspended_structural_candidates_only": sorted(nontrading),
         "full_market_coverage_qualified": False, "fallback_used": False,
         "production_permit": "NOT_ISSUED", "production_credit": 0,
         "cer081_credit": 0,
@@ -131,5 +145,11 @@ def assess_forward_snapshot(*, snapshot_date: str, observed_at_utc: str,
     require(snapshot_date == observed_day, "PIT_SNAPSHOT_DATE_UNATTESTED")
     require(claimed_trading_date == observed_day, "BLOCKED_PIT_HISTORY_GAP")
     return {"snapshot_status": "OBSERVED_ONLY_OFFLINE",
+            "qualification_scope": "SYNTHETIC_OBSERVATION_ONLY",
+            "CFI_FORMAT_VALID": "UNVERIFIED",
+            "CFI_POSITION_DOMAIN_VALID": "UNVERIFIED",
+            "CFI_FULL_COMBINATION_VALID": "UNVERIFIED",
+            "CFI_INSTRUMENT_ASSIGNMENT_VALID": "UNVERIFIED",
+            "PIT_UNIVERSE_VERIFIED": "BLOCKED",
             "pit_coverage_status": "BLOCKED_PIT_HISTORY_GAP",
             "production_permit": "NOT_ISSUED"}
