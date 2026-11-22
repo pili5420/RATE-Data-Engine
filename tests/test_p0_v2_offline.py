@@ -290,10 +290,13 @@ class P0V2OfflineTests(unittest.TestCase):
                 self.assertEqual(result["production_permit"], "NOT_ISSUED")
 
     def test_valid_noncommon_fixture_excluded_not_qualified(self):
-        result = assess()
-        self.assertEqual(result["eligible_fixture_symbols"],
-                         [("TPEX", "6488"), ("TWSE", "2330")])
+        r = rows()
+        r[1]["cfi_code"] = "CEOIES"
+        r[1]["eligible"] = False
+        result = assess(rs=r)
+        self.assertEqual(result["eligible_fixture_symbols"], [("TWSE", "2330")])
         self.assertFalse(result["full_market_coverage_qualified"])
+        self.assertEqual(result["pit_coverage_status"], "BLOCKED_PIT_HISTORY_GAP")
         self.assertEqual(result["production_credit"], 0)
 
 
