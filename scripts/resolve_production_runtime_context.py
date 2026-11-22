@@ -159,6 +159,28 @@ def main() -> int:
         context = resolver(cadence=args.cadence, event_name=args.event_name, dispatch_trading_date=args.dispatch_trading_date, state_root=Path(args.state_root))
     except RuntimeError as exc:
         context = {"validation_status": "BLOCKED", "blocking_reason": str(exc)}
+        if str(exc) in {"LIVE_PREVIOUS_PRODUCTION_STATE_MISSING",
+                        "LATEST_PASS_1930_STATE_REQUIRED",
+                        "INCREMENTAL_PREVIOUS_SLOT_INVALID",
+                        "PHASE2_PARTIAL_PREDECESSOR_SLOT_INVALID"}:
+            try:
+                from src.phase2_production import canonical_slots
+                from src.p0_state_chain_diagnostics import blocked_predecessor_diagnostic
+                from src.full_market_catalogue import approved_policy
+                day = (_scheduled_nominal_trading_date(
+                    args.cadence, schedule_expression=os.getenv("GITHUB_EVENT_SCHEDULE"))
+                    if args.event_name == "schedule" else args.dispatch_trading_date)
+                if day:
+                    context["p0_predecessor_diagnostic"] = blocked_predecessor_diagnostic(
+                        trading_date=day, cadence=args.cadence,
+                        previous_legal_trading_day=_previous_legal_trading_day(day),
+                        observed_slots=list(canonical_slots(args.state_root if isinstance(
+                            args.state_root, Path) else Path(args.state_root))),
+                        approved_first_refresh=approved_policy()["first_refresh"])
+            except (RuntimeError, ValueError, KeyError, OSError):
+                context["p0_predecessor_diagnostic"] = {
+                    "status": "BLOCK", "reason": "P0_PREDECESSOR_DIAGNOSTIC_UNAVAILABLE",
+                    "publication_permitted": False}
     atomic_write_json(Path(args.evidence_output), context)
     if args.env_output and context["validation_status"] == "PASS":
         write_env(Path(args.env_output), context)

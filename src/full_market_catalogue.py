@@ -14,6 +14,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from .cer074_acceptance import sha256
+from .p0_catalogue_temporal import require_classification_admission
 from .p0_source_diagnostics import (attach_response, bounded_date_value, new_receipt,
                                     utc_now, write_evidence)
 from .production_live_state import require
@@ -325,8 +326,9 @@ def _build_catalogue(trading_date, *, fetcher):
                  "blocked_dependencies": [], "markets": []}
     for market in ("TWSE", "TPEX"):
         body, receipt = fetcher(CLASSIFICATION_ENDPOINTS[market], html=True)
-        as_of, records = parse_classification(body, market)
-        require(as_of == trading_date, "STALE_OR_FUTURE_CATALOGUE")
+        source_update_date, records = parse_classification(body, market)
+        temporal_proof = require_classification_admission(
+            trading_date=trading_date, source_update_date=source_update_date)
         listing_body, listing_receipt = fetcher(LISTING_ENDPOINTS[market])
         listed = json.loads(listing_body.decode("utf-8-sig"))
         require(isinstance(listed, list) and listed, "OFFICIAL_LISTING_CATALOGUE_EMPTY")
@@ -338,7 +340,11 @@ def _build_catalogue(trading_date, *, fetcher):
                 "OFFICIAL_CLASSIFICATION_LISTING_COVERAGE_MISMATCH")
         catalogue["markets"].append({"market": market, "authority": market, "complete": True,
             "validation_status": "PASS", "record_count": len(records), "records": records, "records_sha256": sha256(records),
-            "source_receipt": {"classification": {**receipt, "as_of": as_of, "record_count": len(records)},
+            "source_receipt": {"classification": {**receipt, "as_of": source_update_date,
+                "source_update_date": source_update_date,
+                "source_date_role": temporal_proof["classification_date_role"],
+                "date_comparison": temporal_proof["comparison"],
+                "record_count": len(records)},
                                "listing": {**listing_receipt, "record_count": len(listed)}},
             "listing_reconciliation": {"classification_is_eligibility_authority": True,
                 "eligible_not_in_company_metadata": sorted(common_symbols - set(listed_symbols)),
@@ -374,8 +380,11 @@ def validate_catalogue(catalogue, trading_date):
         receipt = market.get("source_receipt", {})
         require(receipt.get("classification", {}).get("endpoint") == CLASSIFICATION_ENDPOINTS[market["market"]]
                 and receipt.get("listing", {}).get("endpoint") == LISTING_ENDPOINTS[market["market"]], "OFFICIAL_CATALOGUE_RECEIPT_REQUIRED")
-        require(receipt["classification"].get("as_of") == trading_date
-                and receipt["classification"].get("record_count") == len(market["records"]),
+        classification_receipt = receipt["classification"]
+        require(classification_receipt.get("source_update_date", classification_receipt.get("as_of"))
+                == classification_receipt.get("as_of")
+                and classification_receipt.get("as_of") == trading_date
+                and classification_receipt.get("record_count") == len(market["records"]),
                 "OFFICIAL_CATALOGUE_RECEIPT_REQUIRED")
         for item in receipt.values():
             require(item.get("http_status") == 200 and item.get("fallback_used") is False

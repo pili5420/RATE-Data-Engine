@@ -95,6 +95,19 @@ jobs:
             --expected-job-name "production-0930" \
             --output "artifacts/production_0930/RATE_CER081_SCHEDULER_ACTUAL_TIMING_EVIDENCE.json"
 
+      - name: Enforce P0 scheduler admission before any source acquisition
+        if: ${{ github.event_name == 'schedule' && env.RATE_PRODUCTION_RUNTIME_MODE == 'RUN' }}
+        shell: bash
+        run: |
+          python scripts/enforce_p0_scheduler_admission.py \
+            --evidence "artifacts/production_0930/RATE_CER081_SCHEDULER_ACTUAL_TIMING_EVIDENCE.json" \
+            --cadence "09:30" \
+            --trading-date "${{ env.RATE_PRODUCTION_TRADING_DATE }}" \
+            --expected-run-id "${{ github.run_id }}" \
+            --expected-head-sha "${{ github.sha }}" \
+            --expected-job-id "$ACTIONS_JOB_ID" \
+            --expected-job-name "production-0930"
+
       - name: Validate production scheduler safety wiring
         run: python scripts/validate_production_scheduler_safety.py --output artifacts/production_0930/RATE_PRODUCTION_SCHEDULER_SAFETY_VALIDATION.json
 
