@@ -1,0 +1,46 @@
+name: RATE P0 V2 Track A Offline Candidate CI
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/rate_p0_v2_track_a_offline_ci.yml"
+      - "src/p0_v2_date_semantics.py"
+      - "src/p0_v2_pit_universe.py"
+      - "tests/test_p0_v2_offline.py"
+      - "docs/RATE_P0_V2_TRACK_A_OFFLINE_CANDIDATE.md"
+
+permissions:
+  contents: read
+
+jobs:
+  ubuntu:
+    name: P0 V2 offline / ubuntu-latest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run isolated P0 V2 negative tests
+        run: python -m unittest tests.test_p0_v2_offline -v
+      - name: Confirm no tracked output mutation
+        shell: bash
+        run: test -z "$(git status --porcelain --untracked-files=no)"
+
+  windows:
+    name: P0 V2 offline / windows-latest
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run isolated P0 V2 negative tests
+        run: python -m unittest tests.test_p0_v2_offline -v
+      - name: Confirm no tracked output mutation
+        shell: bash
+        run: test -z "$(git status --porcelain --untracked-files=no)"
