@@ -1,0 +1,44 @@
+name: RATE SC01 Scheduler Portability Offline CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/rate_sc01_offline_ci.yml
+      - src/sc01_scheduler_portability.py
+      - src/sc01_slot_ledger.py
+      - tests/test_sc01_scheduler_portability.py
+      - docs/SC01_CLOUD_RUNTIME_MIGRATION_MATRIX.md
+      - src/cer081_scheduler_actual_timing.py
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rate-sc01-offline-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  offline-qualification:
+    name: SC01 offline / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run isolated SC01 contract / replay / timing regression
+        run: python -B -m unittest tests.test_sc01_scheduler_portability -v
+      - name: Confirm no tracked output mutation
+        run: git diff --exit-code
