@@ -167,12 +167,12 @@ class P0V2OfflineTests(unittest.TestCase):
 
     def test_noncommon_cfi_cannot_claim_eligible(self):
         r = rows()
-        r[0]["cfi_code"] = "CEVUFR"
+        r[0]["cfi_code"] = "CEOIES"
         self.blocked("PIT_ELIGIBILITY_CONFLICT", assess, rs=r)
 
     def test_noncommon_cfi_excluded_with_marker(self):
         r = rows()
-        r[0]["cfi_code"] = "CEVUFR"
+        r[0]["cfi_code"] = "CEOIES"
         r[0]["eligible"] = False
         result = assess(rs=r)
         self.assertEqual(result["eligible_fixture_symbols"], [("TPEX", "6488")])
@@ -215,6 +215,86 @@ class P0V2OfflineTests(unittest.TestCase):
         self.blocked("PIT_SNAPSHOT_DATE_UNATTESTED", assess_forward_snapshot,
                      snapshot_date="2026-11-22", observed_at_utc="2026-11-23T01:20:00Z",
                      claimed_trading_date=T, sha256=H)
+
+
+    def test_incomplete_es_cfi_rejected(self):
+        for code in ("ES", "ESV", "ESVU", "ESVUF"):
+            with self.subTest(code=code):
+                r = rows()
+                r[0]["cfi_code"] = code
+                self.blocked("PIT_CFI_UNKNOWN", assess, rs=r)
+
+    def test_overlength_es_cfi_rejected(self):
+        r = rows()
+        r[0]["cfi_code"] = "ESVUFRX"
+        self.blocked("PIT_CFI_UNKNOWN", assess, rs=r)
+
+    def test_lowercase_cfi_rejected(self):
+        for code in ("esvufr", "EsVUFR"):
+            with self.subTest(code=code):
+                r = rows()
+                r[0]["cfi_code"] = code
+                self.blocked("PIT_CFI_UNKNOWN", assess, rs=r)
+
+    def test_numeric_cfi_rejected(self):
+        r = rows()
+        r[0]["cfi_code"] = "ESVU1R"
+        self.blocked("PIT_CFI_UNKNOWN", assess, rs=r)
+
+    def test_whitespace_cfi_rejected(self):
+        for code in ("ESVUF ", " ESVUF", "ESVUFR "):
+            with self.subTest(code=code):
+                r = rows()
+                r[0]["cfi_code"] = code
+                self.blocked("PIT_CFI_UNKNOWN", assess, rs=r)
+
+    def test_unicode_cfi_lookalike_rejected(self):
+        r = rows()
+        r[0]["cfi_code"] = "ESＶUFR"
+        self.blocked("PIT_CFI_UNKNOWN", assess, rs=r)
+
+    def test_unknown_cfi_group_rejected(self):
+        for code in ("QQQQQQ", "EXVUFR", "EPVUFR"):
+            with self.subTest(code=code):
+                r = rows()
+                r[0]["cfi_code"] = code
+                self.blocked("PIT_CFI_GROUP_UNQUALIFIED", assess, rs=r)
+
+    def test_unknown_es_attribute_positions_rejected(self):
+        for code in ("ESQUFR", "ESVQFR", "ESVUQR", "ESVUFQ", "ESXUFR", "ESZZZZ"):
+            with self.subTest(code=code):
+                r = rows()
+                r[0]["cfi_code"] = code
+                self.blocked("PIT_CFI_ATTRIBUTE_UNQUALIFIED", assess, rs=r)
+
+    def test_invalid_etf_cfi_attributes_rejected(self):
+        r = rows()
+        r[1]["cfi_code"] = "CEVUFR"
+        self.blocked("PIT_CFI_ATTRIBUTE_UNQUALIFIED", assess, rs=r)
+
+    def test_valid_noncommon_fixture_cannot_claim_common(self):
+        r = rows()
+        r[1]["cfi_code"] = "CEOIES"
+        r[1]["eligible"] = True
+        self.blocked("PIT_ELIGIBILITY_CONFLICT", assess, rs=r)
+
+    def test_valid_full_es_variants_still_not_authority(self):
+        for code in ("ESVUFR", "ESVUFB", "ESNUFR", "ESRTOR"):
+            with self.subTest(code=code):
+                r = rows()
+                r[0]["cfi_code"] = code
+                result = assess(rs=r)
+                self.assertIn(("TWSE", "2330"), result["eligible_fixture_symbols"])
+                self.assertEqual(result["historical_source_authority"], "UNVERIFIED")
+                self.assertEqual(result["pit_coverage_status"], "BLOCKED_PIT_HISTORY_GAP")
+                self.assertEqual(result["production_permit"], "NOT_ISSUED")
+
+    def test_valid_noncommon_fixture_excluded_not_qualified(self):
+        result = assess()
+        self.assertEqual(result["eligible_fixture_symbols"],
+                         [("TPEX", "6488"), ("TWSE", "2330")])
+        self.assertFalse(result["full_market_coverage_qualified"])
+        self.assertEqual(result["production_credit"], 0)
 
 
 if __name__ == "__main__":
