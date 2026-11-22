@@ -21,20 +21,25 @@ _TOKEN = re.compile(r"[A-Za-z0-9_.:-]{12,128}\Z")
 @dataclass(frozen=True)
 class ClaimTicket:
     slot_key: str
+    event_id: str
     event_digest: str
     nonce: str
     execution_id: str
     fencing_token: int
+    lease_starts_utc: datetime
     lease_expires_utc: datetime
 
 
 class TransactionalSlotStore(Protocol):
     """Future durable adapter boundary; does not supply a trusted Store Authority."""
-    def claim(self, slot: SlotContract, *, event_digest: str, nonce: str,
-              execution_id: str, now: datetime, lease_seconds: int) -> ClaimTicket: ...
-    def bind_execution(self, ticket: ClaimTicket, execution_name: str) -> None: ...
+    def claim(self, slot: SlotContract, *, event_id: str, event_digest: str,
+              nonce: str, execution_id: str, now: datetime,
+              lease_seconds: int) -> ClaimTicket: ...
+    def bind_execution(self, ticket: ClaimTicket, execution_name: str,
+                       *, now: datetime) -> None: ...
     def publish_candidate(self, ticket: ClaimTicket, *, execution_name: str,
-                          material_digest: str, previous_state_id: str) -> None: ...
+                          material_digest: str, previous_state_id: str,
+                          now: datetime) -> None: ...
 
 
 class InMemorySC01Store:
@@ -44,6 +49,7 @@ class InMemorySC01Store:
         self._slots: dict[str, dict] = {}
         self._nonces: set[str] = set()
         self._event_digests: set[str] = set()
+        self._event_ids: set[str] = set()
 
     @staticmethod
     def _time(now: datetime) -> datetime:
@@ -51,9 +57,14 @@ class InMemorySC01Store:
                 "SC01_CLOCK_UNTRUSTED")
         return now.astimezone(timezone.utc)
 
-    def claim(self, slot: SlotContract, *, event_digest: str, nonce: str,
-              execution_id: str, now: datetime, lease_seconds: int) -> ClaimTicket:
+    def claim(self, slot: SlotContract, *, event_id: str, event_digest: str,
+              nonce: str, execution_id: str, now: datetime,
+              lease_seconds: int) -> ClaimTicket:
+        # event_id must ultimately be derived from an authenticated provider
+        # receipt. It is only an offline uniqueness key in this test double.
         now = self._time(now)
+        require(isinstance(event_id, str) and _TOKEN.fullmatch(event_id) is not None,
+                "SC01_EVENT_ID_INVALID")
         require(isinstance(event_digest, str) and _HEX.fullmatch(event_digest) is not None,
                 "SC01_EVENT_DIGEST_INVALID")
         require(isinstance(nonce, str) and _TOKEN.fullmatch(nonce) is not None,
@@ -63,7 +74,9 @@ class InMemorySC01Store:
         require(type(lease_seconds) is int and 0 < lease_seconds <= 3600,
                 "SC01_LEASE_INVALID")
         with self._lock:
-            require(nonce not in self._nonces and event_digest not in self._event_digests,
+            require(event_id not in self._event_ids
+                    and nonce not in self._nonces
+                    and event_digest not in self._event_digests,
                     "SC01_REPLAY_REJECTED")
             current = self._slots.get(slot.slot_key)
             if current is not None:
@@ -75,8 +88,8 @@ class InMemorySC01Store:
                 fence = current["ticket"].fencing_token + 1
             else:
                 fence = 1
-            ticket = ClaimTicket(slot.slot_key, event_digest, nonce,
-                                 execution_id, fence,
+            ticket = ClaimTicket(slot.slot_key, event_id, event_digest,
+                                 nonce, execution_id, fence, now,
                                  now + timedelta(seconds=lease_seconds))
             self._slots[slot.slot_key] = {
                 "ticket": ticket, "state": "CLAIMED",
@@ -85,17 +98,26 @@ class InMemorySC01Store:
             }
             self._nonces.add(nonce)
             self._event_digests.add(event_digest)
+            self._event_ids.add(event_id)
             return ticket
 
-    def _active(self, ticket: ClaimTicket) -> dict:
+    def _active(self, ticket: ClaimTicket, *, now: datetime) -> dict:
+        # Called inside the same transaction/lock as the state transition.
+        # No successor claim is required to invalidate an expired ticket.
+        # "now" is an explicit deterministic input for OFFLINE tests only;
+        # Production must instead use trusted store-transaction time.
+        at = self._time(now)
         current = self._slots.get(ticket.slot_key)
         require(current is not None and current["ticket"] == ticket,
                 "SC01_FENCING_TOKEN_STALE")
+        require(ticket.lease_starts_utc <= at < ticket.lease_expires_utc,
+                "SC01_LEASE_EXPIRED_OR_CLOCK_INVALID")
         return current
 
-    def bind_execution(self, ticket: ClaimTicket, execution_name: str) -> None:
+    def bind_execution(self, ticket: ClaimTicket, execution_name: str,
+                       *, now: datetime) -> None:
         with self._lock:
-            current = self._active(ticket)
+            current = self._active(ticket, now=now)
             require(current["state"] == "CLAIMED",
                     "SC01_EXECUTION_ALREADY_BOUND")
             require(isinstance(execution_name, str) and execution_name.endswith(
@@ -105,10 +127,11 @@ class InMemorySC01Store:
             current["state"] = "EXECUTION_BOUND"
 
     def publish_candidate(self, ticket: ClaimTicket, *, execution_name: str,
-                          material_digest: str, previous_state_id: str) -> None:
+                          material_digest: str, previous_state_id: str,
+                          now: datetime) -> None:
         """Offline publication guard only; never writes actual RATE State."""
         with self._lock:
-            current = self._active(ticket)
+            current = self._active(ticket, now=now)
             require(current["state"] == "EXECUTION_BOUND",
                     "SC01_PUBLICATION_DUPLICATE_OR_UNBOUND")
             require(current["cloud_execution_name"] == execution_name,
