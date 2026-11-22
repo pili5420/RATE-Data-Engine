@@ -175,14 +175,14 @@ class P0V2OfflineTests(unittest.TestCase):
         r[0]["cfi_code"] = "CEOIES"
         r[0]["eligible"] = False
         result = assess(rs=r)
-        self.assertEqual(result["eligible_fixture_symbols"], [("TPEX", "6488")])
+        self.assertEqual(result["offline_structural_candidate_symbols_only"], [("TPEX", "6488")])
         self.assertEqual(result["pit_coverage_status"], "BLOCKED_PIT_HISTORY_GAP")
 
     def test_suspension_not_automatically_delisting(self):
         r = rows()
         r[0]["lifecycle"] = "SUSPENDED"
         result = assess(rs=r)
-        self.assertIn(("TWSE", "2330"), result["suspended_not_automatically_delisted"])
+        self.assertIn(("TWSE", "2330"), result["offline_suspended_structural_candidates_only"])
 
     def test_terminated_symbol_cannot_claim_eligible(self):
         r = rows()
@@ -284,7 +284,7 @@ class P0V2OfflineTests(unittest.TestCase):
                 r = rows()
                 r[0]["cfi_code"] = code
                 result = assess(rs=r)
-                self.assertIn(("TWSE", "2330"), result["eligible_fixture_symbols"])
+                self.assertIn(("TWSE", "2330"), result["offline_structural_candidate_symbols_only"])
                 self.assertEqual(result["historical_source_authority"], "UNVERIFIED")
                 self.assertEqual(result["pit_coverage_status"], "BLOCKED_PIT_HISTORY_GAP")
                 self.assertEqual(result["production_permit"], "NOT_ISSUED")
@@ -294,10 +294,97 @@ class P0V2OfflineTests(unittest.TestCase):
         r[1]["cfi_code"] = "CEOIES"
         r[1]["eligible"] = False
         result = assess(rs=r)
-        self.assertEqual(result["eligible_fixture_symbols"], [("TWSE", "2330")])
+        self.assertEqual(result["offline_structural_candidate_symbols_only"], [("TWSE", "2330")])
         self.assertFalse(result["full_market_coverage_qualified"])
         self.assertEqual(result["pit_coverage_status"], "BLOCKED_PIT_HISTORY_GAP")
         self.assertEqual(result["production_credit"], 0)
+
+
+    def test_five_qualification_layers_are_explicitly_separated(self):
+        result = assess()
+        self.assertEqual(result["qualification_scope"],
+                         "SYNTHETIC_STRUCTURAL_FIXTURE_ONLY")
+        self.assertEqual(result["CFI_FORMAT_VALID"], "PASS_LIMITED_OFFLINE_STRUCTURE")
+        self.assertEqual(result["CFI_POSITION_DOMAIN_VALID"], "PASS_LIMITED_OFFLINE_STRUCTURE")
+        self.assertEqual(result["CFI_FULL_COMBINATION_VALID"], "UNVERIFIED")
+        self.assertEqual(result["CFI_INSTRUMENT_ASSIGNMENT_VALID"], "UNVERIFIED")
+        self.assertEqual(result["PIT_UNIVERSE_VERIFIED"], "BLOCKED")
+
+    def test_legacy_eligible_output_not_exported(self):
+        result = assess()
+        self.assertNotIn("eligible_fixture_symbols", result)
+        self.assertNotIn("eligible_symbols", result)
+        self.assertNotIn("official_eligible_symbols", result)
+        self.assertIn("offline_structural_candidate_symbols_only", result)
+        self.assertEqual(result["offline_structural_candidate_symbols_only"],
+                         [("TPEX", "6488"), ("TWSE", "2330")])
+
+    def test_position_valid_does_not_promote_full_combination(self):
+        for code in ("ESVUFR", "ESVUFB", "ESNUFR", "ESRTOR"):
+            with self.subTest(code=code):
+                r = rows()
+                r[0]["cfi_code"] = code
+                result = assess(rs=r)
+                self.assertEqual(result["CFI_POSITION_DOMAIN_VALID"],
+                                 "PASS_LIMITED_OFFLINE_STRUCTURE")
+                self.assertEqual(result["CFI_FULL_COMBINATION_VALID"], "UNVERIFIED")
+                self.assertEqual(result["CFI_INSTRUMENT_ASSIGNMENT_VALID"],
+                                 "UNVERIFIED")
+
+    def test_instrument_assignment_never_inferred_from_isin_and_event_id(self):
+        r = rows()
+        r[0]["isin"] = "TW0002330008"
+        r[0]["source_event_id"] = "synthetic-positive-event"
+        result = assess(rs=r)
+        self.assertEqual(result["CFI_INSTRUMENT_ASSIGNMENT_VALID"], "UNVERIFIED")
+        self.assertEqual(result["historical_source_authority"], "UNVERIFIED")
+
+    def test_pit_universe_not_qualified_by_complete_synthetic_history(self):
+        result = assess()
+        self.assertEqual(result["PIT_UNIVERSE_VERIFIED"], "BLOCKED")
+        self.assertEqual(result["pit_coverage_status"], "BLOCKED_PIT_HISTORY_GAP")
+        self.assertFalse(result["full_market_coverage_qualified"])
+        self.assertNotIn("PIT_UNIVERSE_VERIFIED_PASS", result)
+
+    def test_structural_candidate_cannot_issue_production_permit_or_credit(self):
+        result = assess()
+        self.assertEqual(result["production_permit"], "NOT_ISSUED")
+        self.assertEqual(result["production_credit"], 0)
+        self.assertEqual(result["cer081_credit"], 0)
+        self.assertFalse(result["fallback_used"])
+
+    def test_noncommon_candidate_stays_structural_only(self):
+        r = rows()
+        r[1]["cfi_code"] = "CEOIES"
+        r[1]["eligible"] = False
+        result = assess(rs=r)
+        self.assertEqual(result["offline_structural_candidate_symbols_only"],
+                         [("TWSE", "2330")])
+        self.assertEqual(result["CFI_FULL_COMBINATION_VALID"], "UNVERIFIED")
+        self.assertEqual(result["CFI_INSTRUMENT_ASSIGNMENT_VALID"], "UNVERIFIED")
+        self.assertEqual(result["PIT_UNIVERSE_VERIFIED"], "BLOCKED")
+
+    def test_forward_snapshot_has_no_inherited_cfi_qualification(self):
+        result = assess_forward_snapshot(
+            snapshot_date=T, observed_at_utc="2026-11-23T01:20:00Z",
+            claimed_trading_date=T, sha256=H)
+        self.assertEqual(result["qualification_scope"], "SYNTHETIC_OBSERVATION_ONLY")
+        for key in ("CFI_FORMAT_VALID", "CFI_POSITION_DOMAIN_VALID",
+                    "CFI_FULL_COMBINATION_VALID", "CFI_INSTRUMENT_ASSIGNMENT_VALID"):
+            with self.subTest(key=key):
+                self.assertEqual(result[key], "UNVERIFIED")
+        self.assertEqual(result["PIT_UNIVERSE_VERIFIED"], "BLOCKED")
+        self.assertEqual(result["production_permit"], "NOT_ISSUED")
+        self.assertEqual(result["production_credit"], 0)
+        self.assertEqual(result["cer081_credit"], 0)
+
+    def test_no_fixture_result_contains_official_validity_marker(self):
+        r = assess()
+        self.assertEqual(r["structural_model_status"], "PASS_OFFLINE_FIXTURE")
+        serialized = repr(r)
+        self.assertNotIn("OFFICIAL_VALID", serialized)
+        self.assertNotIn("PIT_UNIVERSE_VERIFIED': 'PASS", serialized)
+        self.assertEqual(r["CFI_FULL_COMBINATION_VALID"], "UNVERIFIED")
 
 
 if __name__ == "__main__":
