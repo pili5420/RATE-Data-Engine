@@ -650,6 +650,7 @@ class RateSoak005Tests(unittest.TestCase):
         before = (self.artifacts / "RATE_PRODUCTION_STATE_LATEST.json").read_bytes()
         replay, _ = self.publish("2026-09-30", "09:30", previous)
         self.assertEqual(replay["idempotency_result"], "IDEMPOTENT_NOOP")
+        self.assertEqual(replay["final_observed_state"], "LIVE_STATE_VERIFIED_POINTER_UNCHANGED")
         self.assertEqual(before, (self.artifacts / "RATE_PRODUCTION_STATE_LATEST.json").read_bytes())
         fork_previous = copy.deepcopy(previous)
         fork_previous["decision"]["ai_paper_portfolio"]["cash"] += 1
@@ -664,6 +665,43 @@ class RateSoak005Tests(unittest.TestCase):
         out, _ = self.publish("2026-09-30", "09:30", changed)
         self.assertEqual(out["blocking_reason"], "LIVE_STATE_LEDGER_HISTORY_LOST")
         self.assertFalse((self.artifacts / "RATE_PRODUCTION_STATE_LATEST.json").exists())
+
+    def _assert_publication_write_failure(self, boundary, filename):
+        previous, _ = self.install_test_predecessor("2026-09-30", "07:30")
+        persist, material = self.material("2026-09-30", "09:30", previous)
+        evidence = self.runtime / "persist.json"
+        atomic_write_json(evidence, persist)
+        atomic_write_json(self.runtime / "decision_state" / "0930" / (persist["current_state_id"] + ".json"), material)
+        def writer(path, value):
+            if Path(path).name == filename:
+                raise OSError("SECRET_TOKEN_ABC")
+            return atomic_write_json(path, value)
+        with patch("scripts.publish_production_state_latest.atomic_write_json", side_effect=writer):
+            result = publish_state(persist_evidence_path=evidence, trading_date="2026-09-30", cadence="09:30",
+                artifacts_root=self.artifacts, state_root=self.runtime, workflow_run_id="101", workflow_job_id="201",
+                event_name="schedule", ref="refs/heads/main", commit_sha="c" * 40)
+        self.assertEqual(result["validation_status"], "BLOCKED")
+        self.assertEqual(result["publication_decision"], "BLOCK")
+        self.assertIsNotNone(result["publication_decision_at"])
+        self.assertIsNotNone(result["publication_intent_at"])
+        self.assertEqual(result["write_results"][boundary], "FAILED")
+        self.assertNotIn("SECRET_TOKEN_ABC", json.dumps(result))
+        if boundary in {"PERSIST", "MANIFEST"}:
+            self.assertEqual(result["final_observed_state"], "PARTIAL_WRITE")
+        if boundary == "LATEST":
+            self.assertEqual(result["final_observed_state"], "LIVE_STATE_VERIFIED")
+
+    def test_state_file_write_failure_evidence(self):
+        self._assert_publication_write_failure("STATE", STATE_NAME)
+
+    def test_persist_file_write_failure_evidence(self):
+        self._assert_publication_write_failure("PERSIST", PERSIST_NAME)
+
+    def test_manifest_write_failure_evidence(self):
+        self._assert_publication_write_failure("MANIFEST", MANIFEST_NAME)
+
+    def test_latest_pointer_write_failure_evidence(self):
+        self._assert_publication_write_failure("LATEST", "RATE_PRODUCTION_STATE_LATEST.json")
 
     def test_invalid_provenance_never_writes_live_state(self):
         previous, _ = self.install_test_predecessor("2026-09-30", "07:30")

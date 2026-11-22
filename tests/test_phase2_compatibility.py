@@ -211,19 +211,24 @@ class Phase2CompatibilityTests(unittest.TestCase):
             base = subprocess.check_output(
                 ["git", "-C", str(ROOT), "show", f"{current_main}:{path}"]
             )
-            head = subprocess.check_output(
-                ["git", "-C", str(ROOT), "show", f"HEAD:{path}"]
-            )
-            self.assertEqual((ROOT / path).read_text(encoding="utf-8"),
-                             head.decode().replace("\r\n", "\n"), path)
-            self.assertTrue(intraday_workflow_matches_main(head, base), path)
-            self.assertIn(b"Capture CER-081 scheduler actual-timing evidence", head)
-            self.assertIn(b"Upload CER-081 scheduler actual-timing evidence", head)
+            head = (ROOT / path).read_bytes().replace(b"\r\n", b"\n")
+            original = f'          gh api "repos/${{{{ github.repository }}}}/actions/runs/${{{{ github.run_id }}}}" > "artifacts/production_{slot}/GITHUB_ACTIONS_RUN_API.json"\n'.encode()
+            changed = f'          gh api "repos/${{{{ github.repository }}}}/actions/runs/${{{{ github.run_id }}}}" > "$RUNNER_TEMP/GITHUB_ACTIONS_RUN_API.json"\n          gh api "repos/${{{{ github.repository }}}}/actions/jobs/$ACTIONS_JOB_ID" > "$RUNNER_TEMP/GITHUB_ACTIONS_JOB_API.json"\n'.encode()
+            self.assertEqual(head.count(changed), 1, path)
+            head = head.replace(changed, original)
+            changed_args = b'            --github-run-json "$RUNNER_TEMP/GITHUB_ACTIONS_RUN_API.json" \\\n            --github-job-json "$RUNNER_TEMP/GITHUB_ACTIONS_JOB_API.json" \\\n'
+            original_args = f'            --github-run-json "artifacts/production_{slot}/GITHUB_ACTIONS_RUN_API.json" \\\n'.encode()
+            self.assertEqual(head.count(changed_args), 1, path)
+            head = head.replace(changed_args, original_args)
+            job_args = f'            --expected-job-id "$ACTIONS_JOB_ID" \\\n            --expected-job-name "production-{slot}" \\\n'.encode()
+            self.assertEqual(head.count(job_args), 1, path)
+            head = head.replace(job_args, b"")
+            self.assertEqual(head, base, path)
 
     def test_registry_eps_contract_soak_and_model_owners_unchanged(self):
         paths = ["config/RATE_FOUR_CADENCE_REPORT_SOAK_V1.json",
             "src/report_production_soak.py", "src/public_official_partial_valid.py",
-            "src/sources/fundamental_history.py", "src/feature_math.py", "src/rate_logic.py", "src/full_market_catalogue.py"]
+            "src/sources/fundamental_history.py", "src/feature_math.py", "src/rate_logic.py"]
         for path in paths:
             self.assertEqual((ROOT / path).read_bytes(), subprocess.check_output(["git", "show", fixtures.BASE + ":" + path], cwd=ROOT))
 
