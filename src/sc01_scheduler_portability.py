@@ -118,7 +118,9 @@ def assess_schedule_envelope(envelope: Mapping[str, Any], slot: SlotContract,
     nonce = _safe_str(envelope, "nonce")
     require(EVENT_RE.fullmatch(event) is not None and EVENT_RE.fullmatch(nonce) is not None,
             "SC01_EVENT_OR_NONCE_INVALID")
-    require(type(envelope.get("delivery_attempt")) is int and envelope["delivery_attempt"] >= 1,
+    # Offline contract refuses retries until separately approved authenticated
+    # first-attempt reconciliation; the claimed field is not crypto proof.
+    require(type(envelope.get("delivery_attempt")) is int and envelope["delivery_attempt"] == 1,
             "SC01_DELIVERY_ATTEMPT_INVALID")
     claimed_nominal = _utc(envelope.get("nominal_slot_utc"), "SC01_NOMINAL_SLOT_MISSING")
     require(_iso(claimed_nominal) == slot.expected_slot_utc, "SC01_NOMINAL_SLOT_MISMATCH")
