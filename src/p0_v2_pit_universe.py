@@ -152,4 +152,5 @@ def assess_forward_snapshot(*, snapshot_date: str, observed_at_utc: str,
             "CFI_INSTRUMENT_ASSIGNMENT_VALID": "UNVERIFIED",
             "PIT_UNIVERSE_VERIFIED": "BLOCKED",
             "pit_coverage_status": "BLOCKED_PIT_HISTORY_GAP",
-            "production_permit": "NOT_ISSUED"}
+            "production_permit": "NOT_ISSUED",
+            "production_credit": 0, "cer081_credit": 0}
