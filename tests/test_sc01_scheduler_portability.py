@@ -107,6 +107,36 @@ class SC01OfflineTests(unittest.TestCase):
                     self.assertIn(cadence, item.slot_key)
         self.assertEqual(BLOCKING_DELAY_SECONDS, 900)
 
+    def test_synthetic_utc_year_boundary_2027(self):
+        # Synthetic calendar fixture ONLY: 2027-01-01 is not asserted to
+        # be a valid TWSE/TPEx trading day; make_slot does not check holidays.
+        # 07:30 Asia/Taipei crosses 2027 -> 2026 in the UTC conversion.
+        expected_utc = {
+            "07:30": "2026-12-31T23:30:00Z",
+            "09:30": "2027-01-01T01:30:00Z",
+            "12:00": "2027-01-01T04:00:00Z",
+            "19:30": "2027-01-01T11:30:00Z",
+        }
+        taipei = timezone(timedelta(hours=8))
+        self.assertEqual(set(expected_utc), set(CADENCES))
+        for cadence in CADENCES:
+            with self.subTest(synthetic_date="2027-01-01", cadence=cadence):
+                slot = make_slot(project="rate-v11-dev", region="asia-east1",
+                                 cadence=cadence, trading_date="2027-01-01")
+                self.assertEqual(slot.expected_slot_utc, expected_utc[cadence])
+                observed_utc = datetime.fromisoformat(
+                    slot.expected_slot_utc.replace("Z", "+00:00"))
+                self.assertEqual(observed_utc.utcoffset(), timedelta(0))
+                self.assertEqual(
+                    observed_utc.astimezone(taipei).isoformat(timespec="seconds"),
+                    f"2027-01-01T{cadence}:00+08:00")
+                self.assertEqual(observed_utc.second, 0)
+                self.assertIn(cadence, slot.slot_key)
+        crossing = datetime.fromisoformat(
+            expected_utc["07:30"].replace("Z", "+00:00"))
+        self.assertEqual(crossing.year, 2026)
+        self.assertEqual(crossing.astimezone(taipei).year, 2027)
+
     def test_invalid_slot_rejected(self):
         for arg, val, reason in [
             ("project", "UPPERCASE", "SC01_PROJECT_INVALID"),
